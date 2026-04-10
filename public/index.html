@@ -576,15 +576,24 @@ async function saveClass(){
   }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
 }
 async function syncPlans(classId,cd,sids){
-  for(const sid of sids){
+  // 学习计划的课时进度以班次 usedLessons 为准（一个班次全体学员同步）
+  await Promise.all(sids.map(async (sid)=>{
     const st=students.find(x=>x.id===sid);
     const ep=plans.find(p=>p.classId===classId&&p.studentId===sid);
-    const pd={classId,studentId:sid,studentName:st?st.name:sid,studentPhone:st?st.phone||'':'',className:cd.className,productName:cd.productName,coach:cd.coach,campus:cd.campus,totalLessons:cd.totalLessons,usedLessons:ep?ep.usedLessons||0:0,status:cd.status==='已取消'?'已取消':cd.status==='已结课'?'已结课':'active'};
-    if(ep){await apiCall('PUT','/plans/'+ep.id,pd);const i=plans.findIndex(x=>x.id===ep.id);plans[i]={...plans[i],...pd};}
-    else{const r=await apiCall('POST','/plans',pd);plans.unshift(r);}
-  }
+    const pd={classId,studentId:sid,studentName:st?st.name:sid,studentPhone:st?st.phone||'':'',className:cd.className,productName:cd.productName,coach:cd.coach,campus:cd.campus,totalLessons:cd.totalLessons,usedLessons:parseInt(cd.usedLessons)||0,status:cd.status==='已取消'?'已取消':cd.status==='已结课'?'已结课':'active'};
+    if(ep){
+      await apiCall('PUT','/plans/'+ep.id,pd);
+      const i=plans.findIndex(x=>x.id===ep.id);plans[i]={...plans[i],...pd};
+      return;
+    }
+    const r=await apiCall('POST','/plans',pd);plans.unshift(r);
+  }));
+
   const orphans=plans.filter(p=>p.classId===classId&&!sids.includes(p.studentId));
-  for(const op of orphans){await apiCall('PUT','/plans/'+op.id,{...op,status:'已取消'});const i=plans.findIndex(x=>x.id===op.id);plans[i].status='已取消';}
+  await Promise.all(orphans.map(async (op)=>{
+    await apiCall('PUT','/plans/'+op.id,{...op,status:'已取消'});
+    const i=plans.findIndex(x=>x.id===op.id);if(i>=0)plans[i].status='已取消';
+  }));
 }
 // ===== 学习计划 =====
 function renderPlans(){
