@@ -3,11 +3,13 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'flowtennis-jwt-2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 const TS_ENDPOINT = process.env.TS_ENDPOINT;
 const TS_INSTANCE = process.env.TS_INSTANCE || 'flowtennis';
 const TS_KEY_ID = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID;
 const TS_KEY_SEC = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET;
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET'];
+const ENABLE_DEFAULT_USER_BOOTSTRAP = process.env.ENABLE_DEFAULT_USER_BOOTSTRAP === 'true';
 
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CAMPUSES='ft_campuses';
 
@@ -21,7 +23,28 @@ function del(t,id){return new Promise((res,rej)=>{gc().deleteRow({tableName:t,co
 function mkTable(t){return new Promise(res=>{gc().createTable({tableMeta:{tableName:t,primaryKey:[{name:'id',type:TableStore.PrimaryKeyType.STRING}]},reservedThroughput:{capacityUnit:{read:0,write:0}},tableOptions:{timeToLive:-1,maxVersions:1}},e=>res(e?'exists':'ok'));});}
 
 let inited=false;
-async function init(){if(inited)return;for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CAMPUSES])await mkTable(t);const us=[{id:'admin',name:'管理员',role:'admin',username:'admin'},{id:'baiyangj',name:'白杨静',role:'editor',username:'baiyangj'},{id:'chendand',name:'陈丹丹',role:'editor',username:'chendand'},{id:'yuekez',name:'岳克舟',role:'editor',username:'yuekez'},{id:'zhoux',name:'周欣',role:'editor',username:'zhoux'},{id:'sunmingy',name:'孙明玥',role:'editor',username:'sunmingy'}];const h=await bcrypt.hash('wqxd2026',10);for(const u of us){const ex=await get(T_USERS,u.id).catch(()=>null);if(!ex)await put(T_USERS,u.id,{...u,password:h,createdAt:new Date().toISOString()});}const defaultCampuses=[{id:'mabao',name:'顺义马坡',code:'mabao'},{id:'shilipu',name:'朝阳十里堡',code:'shilipu'},{id:'guowang',name:'朝阳国网',code:'guowang'},{id:'langang',name:'朝阳蓝色港湾',code:'langang'},{id:'chaojun',name:'朝珺私教',code:'chaojun'}];for(const c of defaultCampuses){const ex=await get(T_CAMPUSES,c.id).catch(()=>null);if(!ex)await put(T_CAMPUSES,c.id,{...c,createdAt:new Date().toISOString()});}inited=true;}
+async function bootstrapDefaultUsers(){
+  if(!ENABLE_DEFAULT_USER_BOOTSTRAP)return;
+  const us=[{id:'admin',name:'管理员',role:'admin',username:'admin'},{id:'baiyangj',name:'白杨静',role:'editor',username:'baiyangj'},{id:'chendand',name:'陈丹丹',role:'editor',username:'chendand'},{id:'yuekez',name:'岳克舟',role:'editor',username:'yuekez'},{id:'zhoux',name:'周欣',role:'editor',username:'zhoux'},{id:'sunmingy',name:'孙明玥',role:'editor',username:'sunmingy'}];
+  const h=await bcrypt.hash('wqxd2026',10);
+  for(const u of us){
+    const ex=await get(T_USERS,u.id).catch(()=>null);
+    if(!ex)await put(T_USERS,u.id,{...u,password:h,createdAt:new Date().toISOString()});
+  }
+}
+async function init(){
+  if(inited)return;
+  const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
+  if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
+  for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CAMPUSES])await mkTable(t);
+  await bootstrapDefaultUsers();
+  const defaultCampuses=[{id:'mabao',name:'顺义马坡',code:'mabao'},{id:'shilipu',name:'朝阳十里堡',code:'shilipu'},{id:'guowang',name:'朝阳国网',code:'guowang'},{id:'langang',name:'朝阳蓝色港湾',code:'langang'},{id:'chaojun',name:'朝珺私教',code:'chaojun'}];
+  for(const c of defaultCampuses){
+    const ex=await get(T_CAMPUSES,c.id).catch(()=>null);
+    if(!ex)await put(T_CAMPUSES,c.id,{...c,createdAt:new Date().toISOString()});
+  }
+  inited=true;
+}
 
 function sendJson(res,body,code=200){
   res.setHeader('Access-Control-Allow-Origin','*');
