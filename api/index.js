@@ -12,7 +12,7 @@ const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'ALIBABA_CLOUD_ACCESS_KE
 const ENABLE_DEFAULT_USER_BOOTSTRAP = process.env.ENABLE_DEFAULT_USER_BOOTSTRAP === 'true';
 const ENABLE_TABLE_BOOTSTRAP = process.env.ENABLE_TABLE_BOOTSTRAP === 'true';
 
-const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CAMPUSES='ft_campuses';
+const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks';
 
 let tsClient;
 function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
@@ -62,6 +62,11 @@ function rangesOverlap(aStart,aEnd,bStart,bEnd){
   if(!Number.isFinite(as)||!Number.isFinite(ae)||!Number.isFinite(bs)||!Number.isFinite(be))return false;
   return as<be&&bs<ae;
 }
+function minutesBetween(a,b){
+  const am=dateMs(a),bm=dateMs(b);
+  if(!Number.isFinite(am)||!Number.isFinite(bm))return null;
+  return Math.round(Math.abs(bm-am)/60000);
+}
 function shareStudent(a,b){
   const aIds=parseArr(a.studentIds).filter(Boolean);
   const bIds=parseArr(b.studentIds).filter(Boolean);
@@ -92,6 +97,57 @@ function validateScheduleConflicts(candidate,schedules,excludeId){
     if(shareStudent(candidate,rec))throw new Error('学员此时间已有课程');
   }
 }
+function collectScheduleRiskWarnings(candidate,schedules,excludeId){
+  if(!isBillableSchedule(candidate)||!candidate.coach||!candidate.campus||!candidate.startTime||!candidate.endTime)return[];
+  const warnings=[];
+  for(const rec of schedules||[]){
+    if(!rec||rec.id===(excludeId||candidate.id)||!isBillableSchedule(rec))continue;
+    if(rec.coach!==candidate.coach||!rec.campus||rec.campus===candidate.campus)continue;
+    const gapBefore=minutesBetween(rec.endTime,candidate.startTime);
+    if(gapBefore!==null&&dateMs(rec.endTime)<=dateMs(candidate.startTime)&&gapBefore<60){
+      warnings.push(`跨校区提醒：${candidate.coach}上一节在 ${rec.campus}，下一节在 ${candidate.campus}，中间仅 ${gapBefore} 分钟`);
+      continue;
+    }
+    const gapAfter=minutesBetween(candidate.endTime,rec.startTime);
+    if(gapAfter!==null&&dateMs(candidate.endTime)<=dateMs(rec.startTime)&&gapAfter<60){
+      warnings.push(`跨校区提醒：${candidate.coach}上一节在 ${candidate.campus}，下一节在 ${rec.campus}，中间仅 ${gapAfter} 分钟`);
+    }
+  }
+  return [...new Set(warnings)];
+}
+function buildFeedbackRecord(body,base,user){
+  if(!body.scheduleId)throw new Error('缺少排课ID');
+  const now=new Date().toISOString();
+  const template={
+    forehand:body.forehand||'',
+    backhand:body.backhand||'',
+    footwork:body.footwork||'',
+    rally:body.rally||'',
+    readyPosition:body.readyPosition||'',
+    serve:body.serve||'',
+    focus:body.focus||''
+  };
+  return {
+    ...base,
+    scheduleId:body.scheduleId,
+    studentId:body.studentId||'',
+    studentName:body.studentName||'',
+    coach:body.coach||user?.name||'',
+    startTime:body.startTime||'',
+    campus:body.campus||'',
+    venue:body.venue||'',
+    lessonCount:body.lessonCount||0,
+    remainingLessons:body.remainingLessons||'',
+    template,
+    performance:body.performance||'',
+    problems:body.problems||'',
+    nextAdvice:body.nextAdvice||'',
+    sentToStudent:body.sentToStudent||false,
+    updatedBy:user?.name||'',
+    updatedAt:now,
+    createdAt:base.createdAt||now
+  };
+}
 async function validateScheduleSave(nextRec,oldRec){
   const schedules=await timed('scan schedule for conflict check',()=>scan(T_SCHEDULE));
   validateScheduleConflicts(nextRec,schedules,nextRec.id);
@@ -101,6 +157,7 @@ async function validateScheduleSave(nextRec,oldRec){
     const cls=await get(T_CLASSES,nextDelta.classId);
     assertLessonCapacity(cls,oldDelta,nextDelta);
   }
+  return {warnings:collectScheduleRiskWarnings(nextRec,schedules,nextRec.id)};
 }
 
 let inited=false;
@@ -129,7 +186,7 @@ async function init(){
   const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
   if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
   if(ENABLE_TABLE_BOOTSTRAP){
-    for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CAMPUSES])await mkTable(t);
+    for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CAMPUSES,T_FEEDBACKS])await mkTable(t);
     await bootstrapDefaultUsers();
     const defaultCampuses=[{id:'mabao',name:'顺义马坡',code:'mabao'},{id:'shilipu',name:'朝阳十里堡',code:'shilipu'},{id:'guowang',name:'朝阳国网',code:'guowang'},{id:'langang',name:'朝阳蓝色港湾',code:'langang'},{id:'chaojun',name:'朝珺私教',code:'chaojun'}];
     for(const c of defaultCampuses){
@@ -461,7 +518,7 @@ module.exports = async (req, res) => {
     if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
       await init();
-      const [courts,students,products,plans,schedule,coaches,classes,campuses]=await Promise.all([
+      const [courts,students,products,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
         timed('load-all scan courts',()=>scan(T_COURTS)),
         timed('load-all scan students',()=>scan(T_STUDENTS)),
         timed('load-all scan products',()=>scan(T_PRODUCTS)),
@@ -469,7 +526,8 @@ module.exports = async (req, res) => {
         timed('load-all scan schedule',()=>scan(T_SCHEDULE)),
         timed('load-all scan coaches',()=>scan(T_COACHES).catch(()=>[])),
         timed('load-all scan classes',()=>scan(T_CLASSES).catch(()=>[])),
-        timed('load-all scan campuses',()=>scan(T_CAMPUSES).catch(()=>[]))
+        timed('load-all scan campuses',()=>scan(T_CAMPUSES).catch(()=>[])),
+        timed('load-all scan feedbacks',()=>scan(T_FEEDBACKS).catch(()=>[]))
       ]);
       return sendJson(res,{
         courts:Array.isArray(courts)?courts:[],
@@ -479,7 +537,8 @@ module.exports = async (req, res) => {
         schedule:Array.isArray(schedule)?schedule:[],
         coaches:Array.isArray(coaches)?coaches:[],
         classes:Array.isArray(classes)?classes:[],
-        campuses:Array.isArray(campuses)?campuses:[]
+        campuses:Array.isArray(campuses)?campuses:[],
+        feedbacks:Array.isArray(feedbacks)?feedbacks:[]
       });
     }
     if(path==='/auth/change-password'&&method==='POST'){const u=await get(T_USERS,user.id);if(!await bcrypt.compare(body.oldPassword,u.password))return sendJson(res,{error:'原密码错误'},400);await put(T_USERS,user.id,{...u,password:await bcrypt.hash(body.newPassword,10)});return sendJson(res,{success:true});}
@@ -571,17 +630,39 @@ module.exports = async (req, res) => {
     const pM=path.match(/^\/products\/(.+)$/);if(pM){const id=pM[1];if(method==='GET')return sendJson(res,await get(T_PRODUCTS,id));if(method==='PUT'){const r={...body,id,updatedAt:new Date().toISOString()};await put(T_PRODUCTS,id,r);return sendJson(res,r);}if(method==='DELETE'){assertCanDeleteProduct(id,await scan(T_CLASSES));await del(T_PRODUCTS,id);return sendJson(res,{success:true});}}
     if(path==='/plans'){await init();if(method==='GET')return sendJson(res,await scan(T_PLANS));if(method==='POST'){const id=uuidv4();const r={...body,id,history:body.history||[],usedLessons:body.usedLessons||0,status:body.status||'active',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_PLANS,id,r);return sendJson(res,r);}}
     const plM=path.match(/^\/plans\/(.+)$/);if(plM){const id=plM[1];if(method==='GET')return sendJson(res,await get(T_PLANS,id));if(method==='PUT'){const r={...body,id,updatedAt:new Date().toISOString()};await put(T_PLANS,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_PLANS,id);return sendJson(res,{success:true});}}
+    if(path==='/feedbacks'){
+      await init();
+      if(method==='GET')return sendJson(res,await scan(T_FEEDBACKS));
+      if(method==='POST'){
+        const id=uuidv4();
+        const r=buildFeedbackRecord(body,{id},user);
+        await put(T_FEEDBACKS,id,r);
+        return sendJson(res,r);
+      }
+    }
+    const fbM=path.match(/^\/feedbacks\/(.+)$/);
+    if(fbM){
+      const id=fbM[1];
+      if(method==='GET')return sendJson(res,await get(T_FEEDBACKS,id));
+      if(method==='PUT'){
+        const ex=await get(T_FEEDBACKS,id).catch(()=>null);
+        if(!ex)return sendJson(res,{error:'反馈不存在'},404);
+        const r=buildFeedbackRecord({...ex,...body},{...ex,id},user);
+        await put(T_FEEDBACKS,id,r);
+        return sendJson(res,r);
+      }
+    }
     if(path==='/schedule'){
       await init();
       if(method==='GET')return sendJson(res,await scan(T_SCHEDULE));
       if(method==='POST'){
         const id=uuidv4();
         const r={...body,id,status:body.status||'已排课',createdBy:user.name,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-        await validateScheduleSave(r,null);
+        const risk=await validateScheduleSave(r,null);
         await put(T_SCHEDULE,id,r);
         const nextDelta=scheduleLessonDelta(r);
         const lessonUpdate=nextDelta?await applyLessonDelta(nextDelta.classId,nextDelta.delta):null;
-        return sendJson(res,{schedule:r,...(lessonUpdate||{})});
+        return sendJson(res,{schedule:r,warnings:risk.warnings||[],...(lessonUpdate||{})});
       }
     }
     const schM=path.match(/^\/schedule\/(.+)$/);
@@ -593,7 +674,7 @@ module.exports = async (req, res) => {
         const r={...ex,...body,id,updatedAt:new Date().toISOString()};
         const oldDelta=scheduleLessonDelta(ex);
         const nextDelta=scheduleLessonDelta(r);
-        await validateScheduleSave(r,ex);
+        const risk=await validateScheduleSave(r,ex);
         await put(T_SCHEDULE,id,r);
         try{
           const changed=[];
@@ -601,7 +682,7 @@ module.exports = async (req, res) => {
           if(nextDelta)changed.push(await applyLessonDelta(nextDelta.classId,nextDelta.delta));
           const classes=changed.filter(Boolean).map(x=>x.class);
           const plans=changed.filter(Boolean).flatMap(x=>x.plans||[]);
-          return sendJson(res,{schedule:r,classes,plans});
+          return sendJson(res,{schedule:r,classes,plans,warnings:risk.warnings||[]});
         }catch(err){
           await put(T_SCHEDULE,id,ex).catch(()=>null);
           if(oldDelta)await applyLessonDelta(oldDelta.classId,oldDelta.delta).catch(()=>null);
@@ -637,6 +718,8 @@ module.exports._test={
   scheduleLessonDelta,
   assertLessonCapacity,
   validateScheduleConflicts,
+  collectScheduleRiskWarnings,
+  buildFeedbackRecord,
   rangesOverlap,
   computeCourtFinance,
   normalizeCourtRecord,

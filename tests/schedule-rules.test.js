@@ -180,4 +180,29 @@ assert.doesNotThrow(
   'back-to-back schedules should be allowed'
 );
 
+assert.deepStrictEqual(
+  rules.collectScheduleRiskWarnings(
+    {
+      id: 'new',
+      startTime: '2026-04-11 10:10',
+      endTime: '2026-04-11 11:10',
+      coach: '朝珺',
+      campus: 'guowang',
+      venue: '2号场',
+      status: '已排课'
+    },
+    [{
+      id: 'old',
+      startTime: '2026-04-11 09:00',
+      endTime: '2026-04-11 10:00',
+      coach: '朝珺',
+      campus: 'mabao',
+      venue: '1号场',
+      status: '已排课'
+    }]
+  ),
+  ['跨校区提醒：朝珺上一节在 mabao，下一节在 guowang，中间仅 10 分钟'],
+  'cross-campus schedules less than 60 minutes apart should return a warning'
+);
+
 console.log('schedule rules tests passed');
