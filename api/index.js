@@ -10,6 +10,7 @@ const TS_KEY_ID = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID;
 const TS_KEY_SEC = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET;
 const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET'];
 const ENABLE_DEFAULT_USER_BOOTSTRAP = process.env.ENABLE_DEFAULT_USER_BOOTSTRAP === 'true';
+const ENABLE_TABLE_BOOTSTRAP = process.env.ENABLE_TABLE_BOOTSTRAP === 'true';
 
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CAMPUSES='ft_campuses';
 
@@ -25,19 +26,24 @@ async function timed(label,fn){const startedAt=Date.now();try{return await fn();
 function parseArr(v){if(Array.isArray(v))return v;if(typeof v==='string'&&v){try{return JSON.parse(v)}catch{return[]}}return[];}
 function isBillableSchedule(rec){return rec&&rec.status!=='已取消';}
 async function applyLessonDelta(classId,delta){
-  if(!classId||!delta)return;
+  if(!classId||!delta)return null;
   const cls=await get(T_CLASSES,classId);
-  if(!cls)return;
+  if(!cls)return null;
   const oldClass={...cls};
   const nextUsed=Math.max(0,(parseInt(cls.usedLessons)||0)+delta);
   const relatedPlans=(await timed('scan plans for lesson delta',()=>scan(T_PLANS))).filter((p)=>p.classId===classId&&p.status==='active');
   const oldPlans=relatedPlans.map((p)=>({...p}));
+  const updatedPlans=[];
   try{
-    await put(T_CLASSES,classId,{...cls,usedLessons:nextUsed,updatedAt:new Date().toISOString()});
+    const nextClass={...cls,usedLessons:nextUsed,updatedAt:new Date().toISOString()};
+    await put(T_CLASSES,classId,nextClass);
     for(const p of relatedPlans){
       const nextPlanUsed=Math.max(0,(parseInt(p.usedLessons)||0)+delta);
-      await put(T_PLANS,p.id,{...p,usedLessons:nextPlanUsed,updatedAt:new Date().toISOString()});
+      const nextPlan={...p,usedLessons:nextPlanUsed,updatedAt:new Date().toISOString()};
+      await put(T_PLANS,p.id,nextPlan);
+      updatedPlans.push(nextPlan);
     }
+    return {class:nextClass,plans:updatedPlans};
   }catch(err){
     await put(T_CLASSES,classId,oldClass).catch(()=>null);
     for(const p of oldPlans)await put(T_PLANS,p.id,p).catch(()=>null);
@@ -122,14 +128,16 @@ async function init(){
   const startedAt=Date.now();
   const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
   if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
-  for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CAMPUSES])await mkTable(t);
-  await bootstrapDefaultUsers();
-  const defaultCampuses=[{id:'mabao',name:'顺义马坡',code:'mabao'},{id:'shilipu',name:'朝阳十里堡',code:'shilipu'},{id:'guowang',name:'朝阳国网',code:'guowang'},{id:'langang',name:'朝阳蓝色港湾',code:'langang'},{id:'chaojun',name:'朝珺私教',code:'chaojun'}];
-  for(const c of defaultCampuses){
-    const ex=await get(T_CAMPUSES,c.id).catch(()=>null);
-    if(!ex)await put(T_CAMPUSES,c.id,{...c,createdAt:new Date().toISOString()});
+  if(ENABLE_TABLE_BOOTSTRAP){
+    for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CAMPUSES])await mkTable(t);
+    await bootstrapDefaultUsers();
+    const defaultCampuses=[{id:'mabao',name:'顺义马坡',code:'mabao'},{id:'shilipu',name:'朝阳十里堡',code:'shilipu'},{id:'guowang',name:'朝阳国网',code:'guowang'},{id:'langang',name:'朝阳蓝色港湾',code:'langang'},{id:'chaojun',name:'朝珺私教',code:'chaojun'}];
+    for(const c of defaultCampuses){
+      const ex=await get(T_CAMPUSES,c.id).catch(()=>null);
+      if(!ex)await put(T_CAMPUSES,c.id,{...c,createdAt:new Date().toISOString()});
+    }
+    await ensureCoachBindings();
   }
-  await ensureCoachBindings();
   inited=true;
   console.log(`[api-timing] init cold start ${Date.now()-startedAt}ms`);
 }
@@ -424,8 +432,8 @@ module.exports = async (req, res) => {
         await validateScheduleSave(r,null);
         await put(T_SCHEDULE,id,r);
         const nextDelta=scheduleLessonDelta(r);
-        if(nextDelta)await applyLessonDelta(nextDelta.classId,nextDelta.delta);
-        return sendJson(res,r);
+        const lessonUpdate=nextDelta?await applyLessonDelta(nextDelta.classId,nextDelta.delta):null;
+        return sendJson(res,{schedule:r,...(lessonUpdate||{})});
       }
     }
     const schM=path.match(/^\/schedule\/(.+)$/);
@@ -440,28 +448,31 @@ module.exports = async (req, res) => {
         await validateScheduleSave(r,ex);
         await put(T_SCHEDULE,id,r);
         try{
-          if(oldDelta)await applyLessonDelta(oldDelta.classId,-oldDelta.delta);
-          if(nextDelta)await applyLessonDelta(nextDelta.classId,nextDelta.delta);
+          const changed=[];
+          if(oldDelta)changed.push(await applyLessonDelta(oldDelta.classId,-oldDelta.delta));
+          if(nextDelta)changed.push(await applyLessonDelta(nextDelta.classId,nextDelta.delta));
+          const classes=changed.filter(Boolean).map(x=>x.class);
+          const plans=changed.filter(Boolean).flatMap(x=>x.plans||[]);
+          return sendJson(res,{schedule:r,classes,plans});
         }catch(err){
           await put(T_SCHEDULE,id,ex).catch(()=>null);
           if(oldDelta)await applyLessonDelta(oldDelta.classId,oldDelta.delta).catch(()=>null);
           if(nextDelta)await applyLessonDelta(nextDelta.classId,-nextDelta.delta).catch(()=>null);
           throw err;
         }
-        return sendJson(res,r);
       }
       if(method==='DELETE'){
         const ex=await get(T_SCHEDULE,id).catch(()=>null);
         const oldDelta=scheduleLessonDelta(ex);
         await del(T_SCHEDULE,id);
         try{
-          if(oldDelta)await applyLessonDelta(oldDelta.classId,-oldDelta.delta);
+          const lessonUpdate=oldDelta?await applyLessonDelta(oldDelta.classId,-oldDelta.delta):null;
+          return sendJson(res,{success:true,...(lessonUpdate||{})});
         }catch(err){
           if(ex)await put(T_SCHEDULE,id,ex).catch(()=>null);
           if(oldDelta)await applyLessonDelta(oldDelta.classId,oldDelta.delta).catch(()=>null);
           throw err;
         }
-        return sendJson(res,{success:true});
       }
     }
     if(path==='/coaches'){await init();if(method==='GET')return sendJson(res,await scan(T_COACHES));if(method==='POST'){const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_COACHES,id,r);return sendJson(res,r);}}
