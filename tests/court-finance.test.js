@@ -1,7 +1,7 @@
 const assert = require('assert');
 const api = require('../api/index.js');
 
-const { computeCourtFinance, normalizeCourtRecord } = api._test;
+const { computeCourtFinance, normalizeCourtRecord, buildLegacyCourtOpeningHistory } = api._test;
 
 const recharge = {
   id: 'r1',
@@ -130,5 +130,47 @@ assert.deepStrictEqual(legacy.studentIds, ['stu-old']);
 assert.strictEqual(legacy.balance, 1200);
 assert.strictEqual(legacy.totalDeposit, 2000);
 assert.strictEqual(legacy.spentAmount, 800);
+
+const legacyDirectPaid = buildLegacyCourtOpeningHistory({
+  id: 'legacy-direct',
+  joinDate: '2026-04-01',
+  balance: 5000,
+  totalDeposit: 5000,
+  spentAmount: 500,
+  history: []
+});
+assert.deepStrictEqual(
+  computeCourtFinance({ history: legacyDirectPaid }),
+  {
+    balance: 5000,
+    totalDeposit: 5000,
+    spentAmount: 500,
+    receivedAmount: 5500,
+    storedValueSpent: 0,
+    directPaidSpent: 500
+  },
+  'legacy direct paid consumption should not reduce stored balance'
+);
+
+const legacyStoredPaid = buildLegacyCourtOpeningHistory({
+  id: 'legacy-stored',
+  joinDate: '2026-04-01',
+  balance: 4500,
+  totalDeposit: 5000,
+  spentAmount: 500,
+  history: []
+});
+assert.deepStrictEqual(
+  computeCourtFinance({ history: legacyStoredPaid }),
+  {
+    balance: 4500,
+    totalDeposit: 5000,
+    spentAmount: 500,
+    receivedAmount: 5000,
+    storedValueSpent: 500,
+    directPaidSpent: 0
+  },
+  'legacy stored value consumption should reduce stored balance'
+);
 
 console.log('court finance tests passed');

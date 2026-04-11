@@ -293,6 +293,38 @@ function normalizeCourtRecord(input){
     ...finance
   };
 }
+function buildLegacyCourtOpeningHistory(court){
+  const history=normalizeCourtHistory(court?.history);
+  if(history.length||!court)return history;
+  const total=normalizeMoney(court.totalDeposit);
+  const balance=normalizeMoney(court.balance);
+  const spent=normalizeMoney(court.spentAmount);
+  const date=court.joinDate||new Date().toISOString().slice(0,10);
+  const idBase=String(court.id||'legacy');
+  const stored=Math.max(0,total-balance);
+  const direct=Math.max(0,spent-stored);
+  const rows=[];
+  if(total>0)rows.push({id:'legacy-deposit-'+idBase,date,type:'充值',category:'历史储值',payMethod:'历史导入',amount:total,note:'旧数据期初'});
+  if(stored>0)rows.push({id:'legacy-stored-spent-'+idBase,date,type:'消费',category:'历史消费',payMethod:'储值扣款',amount:stored,note:'旧数据期初'});
+  if(direct>0)rows.push({id:'legacy-direct-spent-'+idBase,date,type:'消费',category:'历史消费',payMethod:'历史导入',amount:direct,note:'旧数据期初'});
+  return rows;
+}
+function legacyCourtFinanceWarnings(court){
+  const total=normalizeMoney(court?.totalDeposit);
+  const balance=normalizeMoney(court?.balance);
+  const spent=normalizeMoney(court?.spentAmount);
+  const warnings=[];
+  if(balance>total)warnings.push('余额大于累计充值');
+  if(total-balance>spent)warnings.push('余额减少金额大于累计消费');
+  return warnings;
+}
+function shouldMigrateLegacyCourtFinance(court){
+  return !normalizeCourtHistory(court?.history).length&&(
+    normalizeMoney(court?.balance)>0||
+    normalizeMoney(court?.totalDeposit)>0||
+    normalizeMoney(court?.spentAmount)>0
+  );
+}
 function parseLegacyCourtNotes(notes){
   const raw=String(notes||'').trim();
   if(!raw)return{notes:'',updates:{},changed:false};
@@ -415,6 +447,37 @@ module.exports = async (req, res) => {
       }
       return sendJson(res,{dryRun,total:rows.length,changed,preview});
     }
+    if(path==='/courts/migrate-finance-legacy'&&method==='POST'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const dryRun=body?.dryRun!==false;
+      const rows=await scan(T_COURTS);
+      let candidates=0,migrated=0,skipped=0;
+      const preview=[];
+      for(const row of rows){
+        if(!shouldMigrateLegacyCourtFinance(row))continue;
+        candidates++;
+        const history=buildLegacyCourtOpeningHistory(row);
+        const warnings=legacyCourtFinanceWarnings(row);
+        let computed=null;
+        try{computed=computeCourtFinance({...row,history});}catch(e){warnings.push(e.message);}
+        if(preview.length<20)preview.push({
+          id:row.id,
+          name:row.name||'',
+          before:{balance:normalizeMoney(row.balance),totalDeposit:normalizeMoney(row.totalDeposit),spentAmount:normalizeMoney(row.spentAmount),receivedAmount:normalizeMoney(row.receivedAmount)},
+          generated:history,
+          computed,
+          warnings
+        });
+        if(warnings.length){skipped++;continue;}
+        if(!dryRun){
+          const next=normalizeCourtRecord({...row,history,updatedAt:new Date().toISOString()});
+          await put(T_COURTS,row.id,next);
+          migrated++;
+        }
+      }
+      return sendJson(res,{dryRun,total:rows.length,candidates,migrated,skipped,preview});
+    }
     const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const r={...normalizeCourtRecord(body),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await get(T_COURTS,id).catch(()=>null);assertCanDeleteCourt(court);await del(T_COURTS,id);return sendJson(res,{success:true});}}
     if(path==='/students'){await init();if(method==='GET')return sendJson(res,await scan(T_STUDENTS));if(method==='POST'){const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
     const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
@@ -492,6 +555,8 @@ module.exports._test={
   rangesOverlap,
   computeCourtFinance,
   normalizeCourtRecord,
+  buildLegacyCourtOpeningHistory,
+  legacyCourtFinanceWarnings,
   buildClassPlanRecord,
   assertCanDeleteProduct,
   assertCanDeleteClass,

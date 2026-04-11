@@ -288,7 +288,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section" id="page-classes">
       <div class="stats-row" id="classStatsRow"></div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="clsSearch" placeholder="搜索班次/学员…" oninput="renderClasses()"></div>
+        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="clsSearch" placeholder="搜索班次/学员/课程…" oninput="renderClasses()"></div>
         <select class="fsel" id="clsStatusFilter" onchange="renderClasses()"><option value="">全部状态</option><option value="已排班">已排班</option><option value="已取消">已取消</option><option value="已结课">已结课</option></select>
         <button class="btn-add" onclick="openClassModal(null)">＋ 新建班次</button>
       </div>
@@ -300,7 +300,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section" id="page-plans">
       <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">💡 学习计划由「班次管理」自动生成，每个学员×班次 = 一条记录。</div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="planSearch" placeholder="搜索学员…" oninput="renderPlans()"></div>
+        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="planSearch" placeholder="搜索学员/班次/关联账户…" oninput="renderPlans()"></div>
         <select class="fsel" id="planStatusFilter" onchange="renderPlans()"><option value="">全部状态</option><option value="active">上课中</option><option value="已取消">已取消</option><option value="已结课">已结课</option></select>
       </div>
       <div class="tcard"><table><thead><tr><th>学员</th><th>手机号</th><th>班次</th><th>课程</th><th>教练</th><th>课时进度</th><th>状态</th></tr></thead><tbody id="planTbody"></tbody></table>
@@ -310,7 +310,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <!-- 排课表 -->
     <div class="page-section" id="page-schedule">
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="schSearch" placeholder="搜索学员/教练…" oninput="renderSchedule()"></div>
+        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="schSearch" placeholder="搜索学员/教练/班次…" oninput="renderSchedule()"></div>
         <select class="fsel" id="schStatusFilter" onchange="renderSchedule()"><option value="">全部状态</option><option value="已排课">已排课</option><option value="已结束">已结束</option><option value="已取消">已取消</option></select>
         <select class="fsel" id="schCampusFilter" onchange="renderSchedule()"><option value="">全部校区</option></select>
         <button class="btn-add" onclick="openScheduleModal(null)">＋ 添加排课</button>
@@ -334,6 +334,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
         <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="courtSearch" placeholder="搜索姓名或手机号" oninput="renderCourts()"></div>
         <button class="btn-sec" onclick="exportCourtCSV()">导出CSV</button>
         <button class="btn-sec" onclick="openCourtImport()">导入CSV</button>
+        <button class="btn-sec" onclick="openCourtFinanceMigrationPreview()">财务迁移预览</button>
         <button class="btn-sec btn-green" onclick="backupToObsidian()">备份</button>
         <button class="btn-add" onclick="openCourtModal(null)">＋ 添加订场用户</button>
       </div>
@@ -460,6 +461,27 @@ function courtsForStudent(stu){
     const linked=findStudentForCourt(c);
     return linked?.id===stu.id;
   });
+}
+function latestCourtUseDateForStudent(stu){
+  const rows=courtsForStudent(stu).flatMap(c=>parseArr(c.history).filter(h=>h.type==='消费'&&h.date));
+  rows.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  return rows[0]?.date||'';
+}
+function studentAccountSummaryHtml(stu){
+  const linkedCourts=courtsForStudent(stu);
+  if(!linkedCourts.length)return '<div style="color:var(--td);font-size:12px">暂无关联订场账户</div>';
+  return linkedCourts.map(c=>{const f=courtFinanceLocal(c);return `<div style="font-size:12px;color:var(--tb);margin:3px 0">${esc(c.name)}：余额 ¥${fmt(f.balance)}，累计消费 ¥${fmt(f.spentAmount)}</div>`;}).join('');
+}
+function studentClassSummaryHtml(stu){
+  const cls=classes.filter(c=>parseArr(c.studentIds).includes(stu?.id));
+  if(!cls.length)return '<div style="color:var(--td);font-size:12px">暂无班次</div>';
+  return cls.map(c=>`<div style="font-size:12px;color:var(--tb);margin:3px 0">${esc(c.className)}：${parseInt(c.usedLessons)||0}/${parseInt(c.totalLessons)||0}，${esc(c.coach)||'未分配教练'}</div>`).join('');
+}
+function classScheduleSummaryHtml(cls){
+  if(!cls)return '';
+  const rows=schedules.filter(s=>s.classId===cls.id).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0));
+  const recent=rows.slice(0,5).map(s=>`<div style="font-size:12px;color:var(--tb);margin:3px 0">${fmtDt(s.startTime)} · ${esc(s.coach)||'未分配'} · ${esc(s.status||'已排课')}</div>`).join('');
+  return `<div style="font-size:12px;color:var(--ts);margin-bottom:4px">已排课 ${rows.length} 次，剩余 ${Math.max(0,(parseInt(cls.totalLessons)||0)-(parseInt(cls.usedLessons)||0))} 节</div>${recent||'<div style="color:var(--td);font-size:12px">暂无排课记录</div>'}`;
 }
 function studentOpts(sel){
   return '<option value="">— 不关联 —</option>'+students.map(s=>`<option value="${s.id}"${sel===s.id?' selected':''}>${esc(s.name)}${s.phone?' · '+esc(s.phone):''}</option>`).join('');
@@ -694,9 +716,7 @@ function renderStudents(){
     // 最后订场：优先按studentId匹配，fallback到姓名
     const linkedCourts=courtsForStudent(s);
     const accountTag=linkedCourts.length?linkedCourts.map(c=>{const f=courtFinanceLocal(c);return `<span class="badge b-amber" style="font-size:10px;margin:1px">${esc(c.name)} ¥${fmt(f.balance)}</span>`;}).join(' '):'<span style="color:var(--td);font-size:12px">—</span>';
-    const courtUser=linkedCourts[0];
-    let lastCourt='';
-    if(courtUser){const hist=parseArr(courtUser.history).filter(h=>h.type==='消费'&&h.date).sort((a,b)=>b.date.localeCompare(a.date));if(hist.length)lastCourt=hist[0].date;}
+    const lastCourt=latestCourtUseDateForStudent(s);
     const courtDays=lastCourt?Math.floor((Date.now()-new Date(lastCourt))/(86400000)):null;
     const courtTag=lastCourt?(courtDays>30?'<span style="color:#dc2626;font-weight:600">'+lastCourt+'</span>':lastCourt):'<span style="color:var(--td)">—</span>';
     return `<tr><td><div class="uname">${esc(s.name)}</div><div class="udesc">${cn(s.campus)}</div></td><td style="color:var(--ts)">${esc(s.phone)||'—'}</td><td><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></td><td style="font-size:12px;color:var(--ts)">${esc(s.source)||'—'}</td><td style="font-size:12px">${lessonTag}</td><td style="font-size:12px">${courtTag}</td><td>${accountTag}</td><td>${cb}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(s.notes)||'—'}</td><td style="text-align:right"><button class="abtn" onclick="openStudentModal('${s.id}')">⚙️</button></td></tr>`;
@@ -705,7 +725,8 @@ function renderStudents(){
 function openStudentModal(id){
   editId=id;const s=id?students.find(x=>x.id===id):null;
   document.getElementById('mTitle').textContent=id?'✏️ 编辑学员':'➕ 添加学员';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="s_name" value="${rv(s,'name')}" placeholder="学员姓名"></div><div class="fg"><div class="flabel">手机号码</div><input class="finput" id="s_phone" value="${rv(s,'phone')}" placeholder="138****1234"></div><div class="fg"><div class="flabel">学员类型</div><select class="fselect" id="s_type"><option value="成人"${rv(s,'type','成人')==='成人'?' selected':''}>成人</option><option value="青少年"${rv(s,'type')==='青少年'?' selected':''}>青少年</option></select></div><div class="fg"><div class="flabel">来源</div><select class="fselect" id="s_source"><option value="">— 选择 —</option>${SOURCES.map(t=>`<option value="${t}"${rv(s,'source')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">活动范围</div><input class="finput" id="s_range" value="${rv(s,'activityRange')}" placeholder="例：朝阳"></div><div class="fg"><div class="flabel">所在校区</div><select class="fselect" id="s_campus">${campusOpts(rv(s,'campus'))}</select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="s_notes">${esc(rv(s,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${s.id}','${esc(s.name)}','student')">删除</button>`:''}<button class="btn-save" onclick="saveStudent()">保存</button></div>`;
+  const detail=id?`<div class="sec-ttl">关联信息</div><div style="background:rgba(217,119,6,0.06);border:0.5px solid rgba(217,119,6,0.16);border-radius:8px;padding:10px 12px;margin-bottom:12px"><div class="flabel">订场账户</div>${studentAccountSummaryHtml(s)}<div class="flabel" style="margin-top:8px">所在班次</div>${studentClassSummaryHtml(s)}<div class="flabel" style="margin-top:8px">最近记录</div><div style="font-size:12px;color:var(--tb)">最近上课：${schedules.filter(x=>parseArr(x.studentIds).includes(s.id)||String(x.studentName||'').includes(s.name)).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0))[0]?.startTime?.slice(0,10)||'—'}；最近订场：${latestCourtUseDateForStudent(s)||'—'}</div></div>`:'';
+  document.getElementById('mBody').innerHTML=`${detail}<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="s_name" value="${rv(s,'name')}" placeholder="学员姓名"></div><div class="fg"><div class="flabel">手机号码</div><input class="finput" id="s_phone" value="${rv(s,'phone')}" placeholder="138****1234"></div><div class="fg"><div class="flabel">学员类型</div><select class="fselect" id="s_type"><option value="成人"${rv(s,'type','成人')==='成人'?' selected':''}>成人</option><option value="青少年"${rv(s,'type')==='青少年'?' selected':''}>青少年</option></select></div><div class="fg"><div class="flabel">来源</div><select class="fselect" id="s_source"><option value="">— 选择 —</option>${SOURCES.map(t=>`<option value="${t}"${rv(s,'source')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">活动范围</div><input class="finput" id="s_range" value="${rv(s,'activityRange')}" placeholder="例：朝阳"></div><div class="fg"><div class="flabel">所在校区</div><select class="fselect" id="s_campus">${campusOpts(rv(s,'campus'))}</select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="s_notes">${esc(rv(s,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${s.id}','${esc(s.name)}','student')">删除</button>`:''}<button class="btn-save" onclick="saveStudent()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
 async function saveStudent(){
@@ -736,8 +757,9 @@ function renderClasses(){
   let list=classes.filter(c=>{
     if(sf&&c.status!==sf)return false;
     const ids=parseArr(c.studentIds);
-    const stuNames=ids.map(sid=>students.find(x=>x.id===sid)?.name||sid).join(' ');
-    return searchHit(q,c.className,c.classNo,c.coach,c.productName,c.status,c.notes,cn(c.campus),stuNames);
+    const stuText=ids.map(sid=>{const st=students.find(x=>x.id===sid);return [st?.name||sid,st?.phone||'',courtsForStudent(st).map(x=>`${x.name} ${x.phone||''}`).join(' ')].join(' ');}).join(' ');
+    const prod=products.find(x=>x.id===c.productId);
+    return searchHit(q,c.className,c.classNo,c.coach,c.productName,prod?.type,prod?.lessons,prod?.price,c.status,c.notes,cn(c.campus),stuText);
   });
   const active=classes.filter(c=>c.status==='已排班').length;
   const tL=classes.reduce((s,c)=>s+(parseInt(c.totalLessons)||0),0),uL=classes.reduce((s,c)=>s+(parseInt(c.usedLessons)||0),0);
@@ -766,7 +788,8 @@ function openClassModal(id){
   const dc=WEEKDAYS.map(d=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${d}" class="cls-day-cb" ${days.includes(d)?'checked':''}>${d}</label>`).join('');
   const previewName=c?esc(c.className):'<span style="color:var(--td)">选择课程后自动生成</span>';
   const noProductHint=products.length?'':`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">请先到「课程产品」创建课程产品，再回来创建班次。<button class="btn-sec" style="display:inline-flex;margin-left:8px;padding:5px 10px" onclick="closeModal();goPage('products')">去创建</button></div>`;
-  document.getElementById('mBody').innerHTML=`${noProductHint}<div class="sec-ttl">班次信息</div><div class="fgrid"><div class="fg full"><div class="flabel">班次名称</div><div id="cls_name_preview" style="padding:9px 12px;border:0.5px solid rgba(180,83,9,0.12);border-radius:9px;background:rgba(254,243,199,0.1);font-size:13px;color:var(--th);min-height:38px">${previewName}</div></div><div class="fg full"><div class="flabel">关联课程产品 *</div><select class="fselect" id="cls_prodId"><option value="">— 选择 —</option>${po}</select></div><div class="fg full"><div class="flabel">选择学员（多选）</div><div style="max-height:140px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${sc}</div></div><div class="fg"><div class="flabel">预设教练</div><select class="fselect" id="cls_coach"><option value="">— 未分配 —</option>${co}</select></div><div class="fg"><div class="flabel">所属校区</div><select class="fselect" id="cls_campus">${campusOpts(rv(c,'campus'))}</select></div><div class="fg"><div class="flabel">开始日期</div><input class="finput" id="cls_start" type="date" value="${rv(c,'startDate',today())}"></div><div class="fg"><div class="flabel">结束日期</div><input class="finput" id="cls_end" type="date" value="${rv(c,'endDate','')}"></div><div class="fg full"><div class="flabel">上课日（多选）</div><div style="padding:4px 0" id="cls_days_wrap">${dc}</div></div><div class="fg"><div class="flabel">应上课时</div><input class="finput" id="cls_total" type="number" value="${rv(c,'totalLessons',0)}"></div><div class="fg"><div class="flabel">已上课时</div><input class="finput" id="cls_used" type="number" value="${rv(c,'usedLessons',0)}"></div><div class="fg"><div class="flabel">状态</div><select class="fselect" id="cls_status">${CLS_STATUSES.map(t=>`<option value="${t}"${rv(c,'status','已排班')===t?' selected':''}>${t}</option>`).join('')}</select></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${c.id}','${esc(c.className)}','class')">删除</button>`:''}<button class="btn-save" onclick="saveClass()">保存</button></div>`;
+  const detail=id?`<div class="sec-ttl">排课记录</div><div style="background:rgba(217,119,6,0.06);border:0.5px solid rgba(217,119,6,0.16);border-radius:8px;padding:10px 12px;margin-bottom:12px">${classScheduleSummaryHtml(c)}</div>`:'';
+  document.getElementById('mBody').innerHTML=`${noProductHint}${detail}<div class="sec-ttl">班次信息</div><div class="fgrid"><div class="fg full"><div class="flabel">班次名称</div><div id="cls_name_preview" style="padding:9px 12px;border:0.5px solid rgba(180,83,9,0.12);border-radius:9px;background:rgba(254,243,199,0.1);font-size:13px;color:var(--th);min-height:38px">${previewName}</div></div><div class="fg full"><div class="flabel">关联课程产品 *</div><select class="fselect" id="cls_prodId"><option value="">— 选择 —</option>${po}</select></div><div class="fg full"><div class="flabel">选择学员（多选）</div><div style="max-height:140px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${sc}</div></div><div class="fg"><div class="flabel">预设教练</div><select class="fselect" id="cls_coach"><option value="">— 未分配 —</option>${co}</select></div><div class="fg"><div class="flabel">所属校区</div><select class="fselect" id="cls_campus">${campusOpts(rv(c,'campus'))}</select></div><div class="fg"><div class="flabel">开始日期</div><input class="finput" id="cls_start" type="date" value="${rv(c,'startDate',today())}"></div><div class="fg"><div class="flabel">结束日期</div><input class="finput" id="cls_end" type="date" value="${rv(c,'endDate','')}"></div><div class="fg full"><div class="flabel">上课日（多选）</div><div style="padding:4px 0" id="cls_days_wrap">${dc}</div></div><div class="fg"><div class="flabel">应上课时</div><input class="finput" id="cls_total" type="number" value="${rv(c,'totalLessons',0)}"></div><div class="fg"><div class="flabel">已上课时</div><input class="finput" id="cls_used" type="number" value="${rv(c,'usedLessons',0)}"></div><div class="fg"><div class="flabel">状态</div><select class="fselect" id="cls_status">${CLS_STATUSES.map(t=>`<option value="${t}"${rv(c,'status','已排班')===t?' selected':''}>${t}</option>`).join('')}</select></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${c.id}','${esc(c.className)}','class')">删除</button>`:''}<button class="btn-save" onclick="saveClass()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
   // 课程变更 → 自动更新班次名称预览 + 课时
   const prodEl=document.getElementById('cls_prodId');
@@ -823,7 +846,7 @@ async function saveClass(){
 function renderPlans(){
   const q=(document.getElementById('planSearch')?.value||'').toLowerCase();
   const sf=document.getElementById('planStatusFilter')?.value||'';
-  let list=plans.filter(p=>{if(!searchHit(q,p.studentName,p.studentPhone,p.className,p.productName,p.coach,p.status,cn(p.campus)))return false;if(sf&&p.status!==sf)return false;return true;});
+  let list=plans.filter(p=>{const stu=students.find(s=>s.id===p.studentId);const accountText=courtsForStudent(stu).map(c=>`${c.name} ${c.phone||''}`).join(' ');if(!searchHit(q,p.studentName,p.studentPhone,p.className,p.productName,p.coach,p.status,cn(p.campus),accountText))return false;if(sf&&p.status!==sf)return false;return true;});
   const total=list.length,pages=Math.ceil(total/PAGE_SIZE),slice=list.slice((planPage-1)*PAGE_SIZE,planPage*PAGE_SIZE);
   document.getElementById('planPagerInfo').textContent=`共 ${total} 条`;
   document.getElementById('planPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<button class="pbtn${i+1===planPage?' active':''}" onclick="planPage=${i+1};renderPlans()">${i+1}</button>`).join('');
@@ -844,7 +867,9 @@ function renderSchedule(){
   const cf=document.getElementById('schCampusFilter')?.value||'';
   const now=new Date();
   let list=schedules.filter(s=>{
-    if(!searchHit(q,s.studentName,s.coach,s.venue,s.status,cn(s.campus),s.notes,fmtDt(s.startTime),fmtDt(s.endTime)))return false;
+    const cls=s.classId?classes.find(c=>c.id===s.classId):null;
+    const stuText=parseArr(s.studentIds).map(sid=>{const st=students.find(x=>x.id===sid);return `${st?.name||sid} ${st?.phone||''}`;}).join(' ');
+    if(!searchHit(q,s.studentName,stuText,s.coach,s.venue,s.status,cn(s.campus),s.notes,cls?.className,cls?.productName,fmtDt(s.startTime),fmtDt(s.endTime)))return false;
     if(sf&&s.status!==sf)return false;if(cf&&s.campus!==cf)return false;return true;
   }).map(s=>{if(s.status==='已排课'&&s.endTime&&new Date(s.endTime)<now)return{...s,status:'已结束'};return s;}).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0));
   const total=list.length,pages=Math.ceil(total/PAGE_SIZE),slice=list.slice((schPage-1)*PAGE_SIZE,schPage*PAGE_SIZE);
@@ -1040,6 +1065,30 @@ function exportCourtCSV(){
   csv+=d.map(u=>{const f=courtFinanceLocal(u);return [u.name,u.phone||'',courtStudentNames(u),cn(u.campus),f.balance||0,f.totalDeposit||0,f.spentAmount||0,f.receivedAmount||0,u.owner||'',u.depositAttitude||'',u.familiarity||'',u.joinDate||'','"'+(u.notes||'').replace(/"/g,'""')+'"'].join(',')}).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FlowTennis_订场用户_'+today()+'.csv';a.click();toast('导出成功','success');
+}
+async function openCourtFinanceMigrationPreview(){
+  document.getElementById('mTitle').textContent='财务历史迁移预览';
+  document.getElementById('mBody').innerHTML='<div class="empty"><p>正在生成预览…</p></div>';
+  document.getElementById('overlay').classList.add('open');
+  try{
+    const res=await apiCall('POST','/courts/migrate-finance-legacy',{dryRun:true});
+    renderCourtFinanceMigrationPreview(res);
+  }catch(e){
+    document.getElementById('mBody').innerHTML=`<div class="empty"><p>预览失败：${esc(e.message)}</p></div><div class="mactions"><button class="btn-save" onclick="closeModal()">关闭</button></div>`;
+  }
+}
+function renderCourtFinanceMigrationPreview(res){
+  const rows=(res.preview||[]).map(x=>`<tr><td>${esc(x.name)||'—'}</td><td>余额 ¥${fmt(x.before?.balance)} / 储值 ¥${fmt(x.before?.totalDeposit)} / 消费 ¥${fmt(x.before?.spentAmount)}</td><td>${(x.generated||[]).map(h=>`${esc(h.type)} ¥${fmt(h.amount)} ${esc(h.payMethod)}`).join('<br>')||'—'}</td><td>${(x.warnings||[]).map(esc).join('<br>')||'可迁移'}</td></tr>`).join('');
+  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--ts);margin-bottom:12px">只处理没有充值/消费记录、但有旧余额/储值/消费金额的订场用户。带警告的数据不会自动写入。</div><div style="font-size:13px;color:var(--tb);margin-bottom:10px">共 ${res.total} 人，候选 ${res.candidates} 人，可迁移 ${Math.max(0,(res.candidates||0)-(res.skipped||0))} 人，需人工核对 ${res.skipped||0} 人。</div><div class="tcard" style="max-height:360px;overflow:auto"><table><thead><tr><th>客户</th><th>旧金额</th><th>将生成流水</th><th>结果</th></tr></thead><tbody>${rows||'<tr><td colspan="4"><div class="empty"><p>没有需要迁移的数据</p></div></td></tr>'}</tbody></table></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button><button class="btn-save" onclick="runCourtFinanceMigration()">执行无警告迁移</button></div>`;
+}
+async function runCourtFinanceMigration(){
+  if(!confirm('只会迁移无警告数据，带警告的数据会跳过。确定执行吗？'))return;
+  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='迁移中…';
+  try{
+    const res=await apiCall('POST','/courts/migrate-finance-legacy',{dryRun:false});
+    closeModal();toast(`迁移完成：${res.migrated||0} 人，跳过 ${res.skipped||0} 人`,'success');
+    await loadAll();
+  }catch(e){toast('迁移失败：'+e.message,'error');btn.disabled=false;btn.textContent='执行无警告迁移';}
 }
 let courtImportState={fileName:'',rows:[],summary:null};
 function openCourtImport(){
