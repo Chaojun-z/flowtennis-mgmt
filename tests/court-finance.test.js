@@ -163,6 +163,20 @@ assert.strictEqual(importedDepositText.receivedAmount, 6640);
 assert.strictEqual(importedDepositText.storedValueSpent, 5000);
 assert.strictEqual(importedDepositText.directPaidSpent, 1640);
 
+const importedDepositTextWithRemainingBalance = normalizeCourtRecord({
+  name: '已储值未用完客户',
+  depositAttitude: '已储值5000',
+  spentAmount: 4450,
+  joinDate: '2026-04-01',
+  history: []
+});
+assert.strictEqual(importedDepositTextWithRemainingBalance.balance, 550);
+assert.strictEqual(importedDepositTextWithRemainingBalance.totalDeposit, 5000);
+assert.strictEqual(importedDepositTextWithRemainingBalance.spentAmount, 4450);
+assert.strictEqual(importedDepositTextWithRemainingBalance.receivedAmount, 5000);
+assert.strictEqual(importedDepositTextWithRemainingBalance.storedValueSpent, 4450);
+assert.strictEqual(importedDepositTextWithRemainingBalance.directPaidSpent, 0);
+
 assert.deepStrictEqual(
   computeCourtFinance({
     history: [

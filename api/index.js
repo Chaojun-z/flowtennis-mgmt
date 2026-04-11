@@ -157,8 +157,11 @@ function assertPhone(value){
   return phone;
 }
 function normalizeMoney(value){
-  const n=parseFloat(value);
+  const n=parseFloat(String(value??'').replace(/,/g,''));
   return Number.isFinite(n)?n:0;
+}
+function hasMoneyValue(value){
+  return value!==undefined&&value!==null&&String(value).trim()!=='';
 }
 function normalizeStudentIds(input){
   const ids=Array.isArray(input.studentIds)?input.studentIds:(input.studentId?[input.studentId]:[]);
@@ -290,6 +293,11 @@ function normalizeCourtRecord(input){
   const inferredDeposit=extractDepositAmountFromText(input.depositAttitude);
   const normalizedInput={...input};
   if(inferredDeposit>0&&!normalizeMoney(normalizedInput.totalDeposit))normalizedInput.totalDeposit=inferredDeposit;
+  if(inferredDeposit>0&&!hasMoneyValue(input.balance)){
+    const spent=normalizeMoney(normalizedInput.spentAmount);
+    const total=normalizeMoney(normalizedInput.totalDeposit);
+    if(spent>0&&total>0)normalizedInput.balance=Math.max(0,total-spent);
+  }
   const currentHistory=normalizeCourtHistory(input.history);
   const history=currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(normalizedInput);
   const finance=computeCourtFinance({...normalizedInput,history});
@@ -354,6 +362,27 @@ async function deleteCourtsByIds(ids){
   }
   return {success:deleted.length,failed:errors.length,deleted,errors};
 }
+async function clearAllCourts(){
+  const existing=await scan(T_COURTS);
+  for(let i=0;i<existing.length;i+=20)await Promise.all(existing.slice(i,i+20).map(r=>del(T_COURTS,r.id)));
+  return existing.length;
+}
+async function importCourtRows(rows){
+  let success=0,failed=0;
+  const errors=[];
+  for(const row of rows){
+    try{
+      const id=uuidv4();
+      const record={...normalizeCourtRecord(row),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+      await put(T_COURTS,id,record);
+      success++;
+    }catch(e){
+      failed++;
+      errors.push({name:row?.name||'',error:e.message});
+    }
+  }
+  return {success,failed,errors};
+}
 function parseLegacyCourtNotes(notes){
   const raw=String(notes||'').trim();
   if(!raw)return{notes:'',updates:{},changed:false};
@@ -397,23 +426,22 @@ module.exports = async (req, res) => {
     if(path==='/admin/replace-courts'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
-      const existing=await scan(T_COURTS);
-      for(let i=0;i<existing.length;i+=20)await Promise.all(existing.slice(i,i+20).map(r=>del(T_COURTS,r.id)));
+      const cleared=await clearAllCourts();
       const rows=Array.isArray(body.rows)?body.rows:[];
-      let success=0,failed=0;
-      const errors=[];
-      for(const row of rows){
-        try{
-          const id=uuidv4();
-          const record={...normalizeCourtRecord(row),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-          await put(T_COURTS,id,record);
-          success++;
-        }catch(e){
-          failed++;
-          errors.push({name:row?.name||'',error:e.message});
-        }
-      }
-      return sendJson(res,{cleared:existing.length,success,failed,errors});
+      const result=await importCourtRows(rows);
+      return sendJson(res,{cleared,...result});
+    }
+    if(path==='/admin/clear-courts'&&method==='POST'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const cleared=await clearAllCourts();
+      return sendJson(res,{cleared});
+    }
+    if(path==='/admin/import-courts'&&method==='POST'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const rows=Array.isArray(body.rows)?body.rows:[];
+      return sendJson(res,await importCourtRows(rows));
     }
     if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
@@ -452,20 +480,7 @@ module.exports = async (req, res) => {
     if(path==='/courts/import'&&method==='POST'){
       await init();
       const rows=Array.isArray(body.rows)?body.rows:[];
-      let success=0,failed=0;
-      const errors=[];
-      for(const row of rows){
-        try{
-          const id=uuidv4();
-          const record={...normalizeCourtRecord(row),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-          await put(T_COURTS,id,record);
-          success++;
-        }catch(e){
-          failed++;
-          errors.push({name:row?.name||'',error:e.message});
-        }
-      }
-      return sendJson(res,{success,failed,errors});
+      return sendJson(res,await importCourtRows(rows));
     }
     if(path==='/courts/batch-delete'&&method==='POST'){
       await init();
@@ -613,6 +628,7 @@ module.exports._test={
   buildLegacyCourtOpeningHistory,
   legacyCourtFinanceWarnings,
   extractDepositAmountFromText,
+  importCourtRows,
   buildClassPlanRecord,
   assertCanDeleteProduct,
   assertCanDeleteClass,
