@@ -15,6 +15,7 @@ const record = rules.buildFeedbackRecord(
   {
     scheduleId: 'sch-1',
     studentId: 'stu-1',
+    studentIds: ['stu-1', 'stu-2'],
     studentName: '学员A',
     coach: '朝珺',
     startTime: '2026-04-11 09:00',
@@ -32,6 +33,7 @@ const record = rules.buildFeedbackRecord(
 assert.strictEqual(record.id, 'fb-1');
 assert.strictEqual(record.scheduleId, 'sch-1');
 assert.strictEqual(record.coach, '朝珺');
+assert.deepStrictEqual(record.studentIds, ['stu-1', 'stu-2']);
 assert.strictEqual(record.practicedToday, '底线练习');
 assert.strictEqual(record.knowledgePoint, '重心转移');
 assert.strictEqual(record.nextTraining, '脚步移动');

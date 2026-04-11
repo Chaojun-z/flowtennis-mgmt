@@ -183,7 +183,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .coach-ops-head{display:grid;grid-template-columns:160px minmax(1260px,1fr);gap:8px;margin:0 0 8px;color:rgba(254,243,199,.72);font-size:11px;overflow-x:auto}
 .coach-ops-row{display:contents}
 .coach-ops-name{background:var(--card-f);border:var(--borf);border-radius:10px;padding:10px 12px;color:var(--th);font-weight:700;min-height:54px}
-.coach-ops-line{background:var(--card-f);border:var(--borf);border-radius:10px;min-height:64px;position:relative;overflow:hidden;background-image:repeating-linear-gradient(90deg,rgba(180,83,9,.08),rgba(180,83,9,.08) 1px,transparent 1px,transparent calc(100% / 18))}
+.coach-ops-line{background:var(--card-f);border:var(--borf);border-radius:10px;min-height:64px;position:relative;overflow:hidden;background-image:repeating-linear-gradient(90deg,rgba(180,83,9,.08),rgba(180,83,9,.08) 1px,transparent 1px,transparent calc(100% / 15))}
 .coach-ops-hours{display:flex;justify-content:space-between;background:rgba(0,0,0,.08);border-radius:8px;padding:6px 4px;color:rgba(254,243,199,.8)}
 .coach-ops-hours span{font-size:10px;white-space:nowrap}
 .coach-ops-block{position:absolute;top:8px;bottom:8px;border-radius:8px;background:rgba(217,119,6,.18);border:0.5px solid rgba(217,119,6,.28);padding:7px;color:var(--tb);font-size:11px;overflow:hidden;cursor:pointer}
@@ -489,6 +489,34 @@ function billableSchedules(){return schedules.filter(s=>s.startTime&&s.status!==
 function scheduleFeedback(s){return feedbacks.find(f=>f.scheduleId===s.id)}
 function hasScheduleFeedback(s){return !!(s.feedbackId||s.feedbackAt||s.feedbackStatus==='已反馈'||scheduleFeedback(s))}
 function pendingFeedbackCount(list){const now=new Date();return list.filter(s=>s.status==='已结束'||(s.endTime&&dtObj(s.endTime)<now)).filter(s=>!hasScheduleFeedback(s)).length}
+function isoWeekValue(d){
+  const x=dayStart(d);
+  x.setDate(x.getDate()+3-((x.getDay()+6)%7));
+  const week1=new Date(x.getFullYear(),0,4);
+  return `${x.getFullYear()}-W${String(1+Math.round(((x-week1)/86400000-3+((week1.getDay()+6)%7))/7)).padStart(2,'0')}`;
+}
+function dateFromIsoWeek(v){
+  const m=String(v||'').match(/^(\d{4})-W(\d{2})$/);
+  if(!m)return null;
+  const d=new Date(Number(m[1]),0,4);
+  d.setDate(d.getDate()-((d.getDay()+6)%7)+(Number(m[2])-1)*7);
+  return dayStart(d);
+}
+function coachOpsInputValue(d,mode){
+  if(mode==='month')return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  if(mode==='week')return isoWeekValue(d);
+  return dateKey(d);
+}
+function coachOpsInputDate(){
+  const el=document.getElementById('coachOpsDate');
+  const raw=el?.value||today();
+  if(coachOpsMode==='month'){
+    const m=String(raw).match(/^(\d{4})-(\d{2})$/);
+    if(m)return new Date(Number(m[1]),Number(m[2])-1,1);
+  }
+  if(coachOpsMode==='week')return dateFromIsoWeek(raw)||new Date();
+  return dtObj(raw)||new Date();
+}
 function coachRiskCount(list){
   let count=0;
   const byCoach={};
@@ -514,12 +542,11 @@ function coachOverlapCount(list){
   return count;
 }
 function rangeBounds(kind){
-  const raw=document.getElementById('coachOpsDate')?.value||today();
-  const now=dtObj(raw)||new Date();
-  if(kind==='day'){const start=dayStart(now),end=addDays(start,1);return {start,end,label:raw};}
+  const now=coachOpsInputDate();
+  if(kind==='day'){const start=dayStart(now),end=addDays(start,1);return {start,end,label:dateKey(start)};}
   if(kind==='month')return {start:monthStart(now),end:new Date(now.getFullYear(),now.getMonth()+1,1),label:`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`};
   const start=weekStart(now),end=addDays(start,7);
-  return {start,end,label:'本周'};
+  return {start,end,label:`${dateKey(start)} 至 ${dateKey(addDays(end,-1))}`};
 }
 function distText(list,keyFn){
   const m={};
@@ -749,21 +776,26 @@ function syncViewportMode(){
 }
 
 let courts=[],students=[],products=[],plans=[],schedules=[],coaches=[],classes=[],campuses=[],feedbacks=[];
+let lastDataSyncAt=0,isSyncingAll=false;
+function applyLoadedData(data){
+  courts=Array.isArray(data?.courts)?data.courts:[];
+  students=Array.isArray(data?.students)?data.students:[];
+  products=Array.isArray(data?.products)?data.products:[];
+  plans=Array.isArray(data?.plans)?data.plans:[];
+  schedules=Array.isArray(data?.schedule)?data.schedule:[];
+  coaches=Array.isArray(data?.coaches)?data.coaches:[];
+  classes=Array.isArray(data?.classes)?data.classes:[];
+  campuses=Array.isArray(data?.campuses)?data.campuses:[];
+  feedbacks=Array.isArray(data?.feedbacks)?data.feedbacks:[];
+  CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});
+  lastDataSyncAt=Date.now();
+}
 async function loadAll(){
   const loading=document.getElementById('pageLoading');
   if(loading)loading.classList.add('show');
   try{
     const data=await apiCall('GET','/load-all');
-    courts=Array.isArray(data?.courts)?data.courts:[];
-    students=Array.isArray(data?.students)?data.students:[];
-    products=Array.isArray(data?.products)?data.products:[];
-    plans=Array.isArray(data?.plans)?data.plans:[];
-    schedules=Array.isArray(data?.schedule)?data.schedule:[];
-    coaches=Array.isArray(data?.coaches)?data.coaches:[];
-    classes=Array.isArray(data?.classes)?data.classes:[];
-    campuses=Array.isArray(data?.campuses)?data.campuses:[];
-    feedbacks=Array.isArray(data?.feedbacks)?data.feedbacks:[];
-    CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});
+    applyLoadedData(data);
     buildCampusTabs();
     renderAll();
   }catch(e){
@@ -773,6 +805,26 @@ async function loadAll(){
     if(loading)loading.classList.remove('show');
   }
 }
+async function syncAllQuietly(){
+  if(isSyncingAll||!currentUser)return;
+  if(document.getElementById('overlay')?.classList.contains('open'))return;
+  if(document.getElementById('importOv')?.classList.contains('open'))return;
+  if(document.getElementById('confOv')?.classList.contains('open'))return;
+  isSyncingAll=true;
+  try{
+    applyLoadedData(await apiCall('GET','/load-all'));
+    buildCampusTabs();
+    renderAll();
+  }catch(e){
+    if(String(e.message||'').includes('Token')||String(e.message||'').includes('登录'))doLogout();
+  }finally{isSyncingAll=false;}
+}
+function syncAllIfStale(){
+  if(Date.now()-lastDataSyncAt>8000)syncAllQuietly();
+}
+window.addEventListener('focus',syncAllIfStale);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncAllIfStale();});
+setInterval(syncAllQuietly,15000);
 function buildCampusTabs(){
   const el=document.getElementById('campusTabs');
   el.innerHTML='<button class="ctab'+(campus==='all'?' active':'')+'" onclick="setCampus(this,\'all\')">全部</button>'+campuses.map(c=>`<button class="ctab${campus===(c.code||c.id)?' active':''}" onclick="setCampus(this,'${c.code||c.id}')">${esc(c.name)}</button>`).join('');
@@ -852,14 +904,31 @@ function renderStudents(){
   }).join(''):'<tr><td colspan="10"><div class="empty"><div class="empty-ico">👥</div><p>暂无学员</p></div></td></tr>';
 }
 function studentFeedbackHistoryHtml(s){
-  const rows=feedbacks.filter(f=>f.studentId===s.id||String(f.studentName||'')===String(s.name||'')).sort((a,b)=>new Date(b.startTime||b.createdAt||0)-new Date(a.startTime||a.createdAt||0)).slice(0,8);
+  const rows=feedbacks.filter(f=>{
+    const fIds=parseArr(f.studentIds);
+    if(f.studentId===s.id||fIds.includes(s.id))return true;
+    const sch=schedules.find(x=>x.id===f.scheduleId);
+    if(sch&&parseArr(sch.studentIds).includes(s.id))return true;
+    return !f.studentId&&!fIds.length&&String(f.studentName||'')===String(s.name||'');
+  }).sort((a,b)=>new Date(b.startTime||b.createdAt||0)-new Date(a.startTime||a.createdAt||0)).slice(0,8);
   if(!rows.length)return '<div style="font-size:12px;color:var(--td)">暂无课后反馈</div>';
-  return rows.map(f=>`<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:8px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${fmtDt(f.startTime)} · ${esc(f.coach)||'—'}</div><div style="margin-top:3px">今天练习了：${esc(f.practicedToday)||'—'}</div><div style="margin-top:3px">知识点：${esc(f.knowledgePoint)||'—'}</div><div style="margin-top:3px">下节课我们训练：${esc(f.nextTraining)||'—'}</div></div>`).join('');
+  return rows.map(f=>{
+    const sch=schedules.find(x=>x.id===f.scheduleId)||{};
+    const cls=sch.classId?classes.find(c=>c.id===sch.classId):null;
+    const product=cls?.productName||products.find(p=>p.id===cls?.productId)?.name||'';
+    const course=[cls?.className,product].filter(Boolean).join(' / ')||'—';
+    const campus=f.campus||sch.campus,venue=f.venue||sch.venue;
+    return `<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:8px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${fmtDt(f.startTime||sch.startTime)} · ${esc(f.coach||sch.coach)||'—'}</div><div style="margin-top:3px;color:var(--ts)">校区/场地：${cn(campus)||'—'} ${esc(venue)||''}；课程：${esc(course)}</div><div style="margin-top:3px">今天练习了：${esc(f.practicedToday)||'—'}</div><div style="margin-top:3px">知识点：${esc(f.knowledgePoint)||'—'}</div><div style="margin-top:3px">下节课我们训练：${esc(f.nextTraining)||'—'}</div></div>`;
+  }).join('');
+}
+function studentLinkedDetailHtml(s,showAccount=true){
+  const latest=schedules.filter(x=>parseArr(x.studentIds).includes(s.id)||String(x.studentName||'').includes(s.name)).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0))[0];
+  return `<div class="sec-ttl">关联信息</div><div style="background:rgba(217,119,6,0.06);border:0.5px solid rgba(217,119,6,0.16);border-radius:8px;padding:10px 12px;margin-bottom:12px">${showAccount?`<div class="flabel">订场账户</div>${studentAccountSummaryHtml(s)}`:''}<div class="flabel" style="margin-top:${showAccount?8:0}px">所在班次</div>${studentClassSummaryHtml(s)}<div class="flabel" style="margin-top:8px">最近记录</div><div style="font-size:12px;color:var(--tb)">最近上课：${latest?.startTime?.slice(0,10)||'—'}；最近订场：${latestCourtUseDateForStudent(s)||'—'}</div><div class="flabel" style="margin-top:8px">课后反馈</div>${studentFeedbackHistoryHtml(s)}</div>`;
 }
 function openStudentModal(id){
   editId=id;const s=id?students.find(x=>x.id===id):null;
   document.getElementById('mTitle').textContent=id?'✏️ 编辑学员':'➕ 添加学员';
-  const detail=id?`<div class="sec-ttl">关联信息</div><div style="background:rgba(217,119,6,0.06);border:0.5px solid rgba(217,119,6,0.16);border-radius:8px;padding:10px 12px;margin-bottom:12px"><div class="flabel">订场账户</div>${studentAccountSummaryHtml(s)}<div class="flabel" style="margin-top:8px">所在班次</div>${studentClassSummaryHtml(s)}<div class="flabel" style="margin-top:8px">最近记录</div><div style="font-size:12px;color:var(--tb)">最近上课：${schedules.filter(x=>parseArr(x.studentIds).includes(s.id)||String(x.studentName||'').includes(s.name)).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0))[0]?.startTime?.slice(0,10)||'—'}；最近订场：${latestCourtUseDateForStudent(s)||'—'}</div><div class="flabel" style="margin-top:8px">课后反馈</div>${studentFeedbackHistoryHtml(s)}</div>`:'';
+  const detail=id?studentLinkedDetailHtml(s):'';
   document.getElementById('mBody').innerHTML=`${detail}<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="s_name" value="${rv(s,'name')}" placeholder="学员姓名"></div><div class="fg"><div class="flabel">手机号码</div><input class="finput" id="s_phone" value="${rv(s,'phone')}" placeholder="138****1234"></div><div class="fg"><div class="flabel">学员类型</div><select class="fselect" id="s_type"><option value="成人"${rv(s,'type','成人')==='成人'?' selected':''}>成人</option><option value="青少年"${rv(s,'type')==='青少年'?' selected':''}>青少年</option></select></div><div class="fg"><div class="flabel">来源</div><select class="fselect" id="s_source"><option value="">— 选择 —</option>${SOURCES.map(t=>`<option value="${t}"${rv(s,'source')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">活动范围</div><input class="finput" id="s_range" value="${rv(s,'activityRange')}" placeholder="例：朝阳"></div><div class="fg"><div class="flabel">所在校区</div><select class="fselect" id="s_campus">${campusOpts(rv(s,'campus'))}</select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="s_notes">${esc(rv(s,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${s.id}','${esc(s.name)}','student')">删除</button>`:''}<button class="btn-save" onclick="saveStudent()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
@@ -1109,7 +1178,7 @@ async function saveFeedback(scheduleId){
   const practicedToday=document.getElementById('fb_practiced').value.trim();
   const nextTraining=document.getElementById('fb_next_training').value.trim();
   if(!practicedToday||!nextTraining){toast('请填写「今天练习了」和「下节课我们训练」','warn');btn.disabled=false;btn.textContent='保存反馈';return;}
-  const data={scheduleId:s.id,studentId:studentIds[0]||'',studentName:s.studentName||'',coach:s.coach||'',startTime:s.startTime||'',campus:s.campus||'',venue:s.venue||'',lessonCount:s.lessonCount||0,remainingLessons:scheduleRemainingLessons(s),practicedToday,knowledgePoint:document.getElementById('fb_knowledge').value.trim(),nextTraining};
+  const data={scheduleId:s.id,studentId:studentIds[0]||'',studentIds,studentName:s.studentName||'',coach:s.coach||'',startTime:s.startTime||'',campus:s.campus||'',venue:s.venue||'',lessonCount:s.lessonCount||0,remainingLessons:scheduleRemainingLessons(s),practicedToday,knowledgePoint:document.getElementById('fb_knowledge').value.trim(),nextTraining};
   try{
     const saved=editId?await apiCall('PUT','/feedbacks/'+editId,data):await apiCall('POST','/feedbacks',data);
     const i=feedbacks.findIndex(f=>f.id===saved.id);if(i>=0)feedbacks[i]=saved;else feedbacks.unshift(saved);
@@ -1130,23 +1199,34 @@ function openScheduleDetail(scheduleId){
   document.getElementById('overlay').classList.add('open');
 }
 // ===== 教练运营 =====
-function ensureCoachOpsDate(){const el=document.getElementById('coachOpsDate');if(el&&!el.value)el.value=today();}
+function ensureCoachOpsDate(){
+  const el=document.getElementById('coachOpsDate');if(!el)return;
+  const type=coachOpsMode==='month'?'month':coachOpsMode==='week'?'week':'date';
+  if(el.type!==type){
+    const base=coachOpsInputDate();
+    el.type=type;
+    el.value=coachOpsInputValue(base,coachOpsMode);
+  }
+  if(!el.value)el.value=coachOpsInputValue(new Date(),coachOpsMode);
+}
 function setCoachOpsMode(mode){
+  const base=coachOpsInputDate();
   coachOpsMode=['day','week','month'].includes(mode)?mode:'day';
   const el=document.getElementById('coachOpsRange');if(el)el.value=coachOpsMode;
+  const d=document.getElementById('coachOpsDate');if(d){d.type=coachOpsMode==='month'?'month':coachOpsMode==='week'?'week':'date';d.value=coachOpsInputValue(base,coachOpsMode);}
   renderCoachOps();
 }
-function setCoachOpsToday(){const el=document.getElementById('coachOpsDate');if(el)el.value=today();renderCoachOps();}
+function setCoachOpsToday(){const el=document.getElementById('coachOpsDate');if(el)el.value=coachOpsInputValue(new Date(),coachOpsMode);renderCoachOps();}
 function shiftCoachOpsDate(step){
   const el=document.getElementById('coachOpsDate');if(!el)return;
   const mode=coachOpsMode;
-  const base=dtObj(el.value||today())||new Date();
-  if(mode==='month')el.value=dateKey(addMonths(base,step));
-  else if(mode==='week')el.value=dateKey(addDays(base,step*7));
+  const base=coachOpsInputDate();
+  if(mode==='month')el.value=coachOpsInputValue(addMonths(base,step),mode);
+  else if(mode==='week')el.value=coachOpsInputValue(addDays(base,step*7),mode);
   else el.value=dateKey(addDays(base,step));
   renderCoachOps();
 }
-function openCoachOpsDay(ds){coachOpsMode='day';const r=document.getElementById('coachOpsRange'),d=document.getElementById('coachOpsDate');if(r)r.value='day';if(d)d.value=ds;renderCoachOps();}
+function openCoachOpsDay(ds){coachOpsMode='day';const r=document.getElementById('coachOpsRange'),d=document.getElementById('coachOpsDate');if(r)r.value='day';if(d){d.type='date';d.value=ds;}renderCoachOps();}
 function coachOpsRows(){
   const now=new Date(),todayStr=today();
   const ws=weekStart(now),we=new Date(ws);we.setDate(ws.getDate()+7);
@@ -1174,9 +1254,10 @@ function renderCoachOps(){
   const rangeSelect=document.getElementById('coachOpsRange');if(rangeSelect)rangeSelect.value=mode;
   const range=rangeBounds(mode);
   const hourHost=document.getElementById('coachOpsHours');
-  if(hourHost)hourHost.innerHTML=mode==='day'?Array.from({length:19},(_,i)=>`<span>${i+6}:00</span>`).join(''):'';
+  const opsStartH=7,opsEndH=22,opsTotalMin=(opsEndH-opsStartH)*60;
+  if(hourHost)hourHost.innerHTML=mode==='day'?Array.from({length:opsEndH-opsStartH+1},(_,i)=>`<span>${i+opsStartH}:00</span>`).join(''):'';
   const title=document.getElementById('coachOpsViewTitle');
-  if(title)title.textContent=mode==='day'?`${range.label} 教练排课（6:00-24:00）`:mode==='week'?`${dateKey(range.start)} 至 ${dateKey(addDays(range.end,-1))} 教练周视图`:`${range.label} 教练月视图`;
+  if(title)title.textContent=mode==='day'?`${range.label} 教练排课（7:00-22:00）`:mode==='week'?`${dateKey(range.start)} 至 ${dateKey(addDays(range.end,-1))} 教练周视图`:`${range.label} 教练月视图`;
   const rows=coachOpsRows();
   const todayTotal=rows.reduce((n,r)=>n+r.todayRows.length,0);
   const weekTotal=rows.reduce((n,r)=>n+r.weekRows.length,0);
@@ -1191,12 +1272,12 @@ function renderCoachOps(){
   ].map(([label,val,u,cls])=>`<div class="scard"><div class="sc-icon ${cls}">📊</div><div><div class="sc-label">${label}</div><div class="sc-val">${val}<span class="u">${u}</span></div></div></div>`).join('');
   host.innerHTML=rows.map(r=>{
     if(mode==='day'){
-      const base=new Date(range.start);base.setHours(6,0,0,0);
+      const base=new Date(range.start);base.setHours(opsStartH,0,0,0);
       const blocks=r.rangeRows.sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime))).map(s=>{
         const startMin=(dateMs(s.startTime)-base.getTime())/60000;
         const endMin=(dateMs(s.endTime)-base.getTime())/60000;
-        const left=Math.max(0,Math.min(99,startMin/1080*100));
-        const width=Math.max(2,(Math.min(1080,endMin)-Math.max(0,startMin))/1080*100);
+        const left=Math.max(0,Math.min(99,startMin/opsTotalMin*100));
+        const width=Math.max(2,(Math.min(opsTotalMin,endMin)-Math.max(0,startMin))/opsTotalMin*100);
         return `<div class="coach-ops-block" style="left:${left}%;width:${Math.min(width,100-left)}%" onclick="openScheduleDetail('${s.id}')"><div class="coach-ops-time">${s.startTime.slice(11,16)}${s.endTime?' - '+s.endTime.slice(11,16):''}</div><div>${esc(s.studentName)||esc(classes.find(c=>c.id===s.classId)?.className)||'—'}</div><div style="color:var(--ts);margin-top:3px">${cn(s.campus)} · ${esc(s.venue)||'—'}</div></div>`;
       }).join('');
       return `<div class="coach-ops-row"><div class="coach-ops-name">${esc(r.name)}</div><div class="coach-ops-line">${blocks||'<span class="coach-ops-empty">当日暂无课程</span>'}</div></div>`;
@@ -1798,7 +1879,7 @@ function renderMyStudents(){
     const lastLesson=stuScheds.length?stuScheds[0].startTime.slice(0,10):'';
     const lessonDays=lastLesson?Math.floor((Date.now()-new Date(lastLesson))/(86400000)):null;
     const lessonTag=lastLesson?(lessonDays>30?'<span style="color:#dc2626;font-weight:600">'+lastLesson+'</span>':lastLesson):'<span style="color:var(--td)">—</span>';
-    return `<tr><td><div class="uname">${esc(s.name)}</div><div class="udesc">${cn(s.campus)}</div></td><td style="color:var(--ts)">${esc(s.phone)||'—'}</td><td><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></td><td>${cb}</td><td style="font-size:12px">${lessonTag}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(s.notes)||'—'}</td></tr>`;
+    return `<tr onclick="openMyStudentDetail('${s.id}')" style="cursor:pointer"><td><div class="uname">${esc(s.name)}</div><div class="udesc">${cn(s.campus)}</div></td><td style="color:var(--ts)">${esc(s.phone)||'—'}</td><td><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></td><td>${cb}</td><td style="font-size:12px">${lessonTag}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(s.notes)||'—'}</td></tr>`;
   }).join(''):'<tr><td colspan="6"><div class="empty"><div class="empty-ico">👥</div><p>暂无学员</p></div></td></tr>';
   const mobileHost=document.getElementById('myStuMobileList');
   if(mobileHost){
@@ -1806,9 +1887,15 @@ function renderMyStudents(){
       const sc=myCls.filter(c=>parseArr(c.studentIds).includes(s.id));
       const stuScheds=schedules.filter(x=>x.coach===cn2&&(parseArr(x.studentIds).includes(s.id)||(x.studentName||'').includes(s.name))&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
       const lastLesson=stuScheds.length?stuScheds[0].startTime.slice(0,10):'—';
-      return `<div class="coach-mobile-card"><div class="coach-mobile-main"><div class="coach-mobile-name">${esc(s.name)}</div><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></div><div class="coach-mobile-meta">手机号：${esc(s.phone)||'—'}<br>班次：${sc.map(c=>esc(c.className)).join('、')||'—'}<br>最后上课：${lastLesson}<br>备注：${esc(s.notes)||'—'}</div></div>`;
+      return `<div class="coach-mobile-card" onclick="openMyStudentDetail('${s.id}')"><div class="coach-mobile-main"><div class="coach-mobile-name">${esc(s.name)}</div><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></div><div class="coach-mobile-meta">手机号：${esc(s.phone)||'—'}<br>班次：${sc.map(c=>esc(c.className)).join('、')||'—'}<br>最后上课：${lastLesson}<br>备注：${esc(s.notes)||'—'}</div></div>`;
     }).join(''):'<div class="coach-mobile-empty">暂无学员</div>';
   }
+}
+function openMyStudentDetail(id){
+  const s=students.find(x=>x.id===id);if(!s)return;
+  document.getElementById('mTitle').textContent='👥 学员详情';
+  document.getElementById('mBody').innerHTML=`${studentLinkedDetailHtml(s,false)}<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名</div><div class="finput">${esc(s.name)||'—'}</div></div><div class="fg"><div class="flabel">手机号码</div><div class="finput">${esc(s.phone)||'—'}</div></div><div class="fg"><div class="flabel">学员类型</div><div class="finput">${esc(s.type)||'—'}</div></div><div class="fg"><div class="flabel">所在校区</div><div class="finput">${cn(s.campus)||'—'}</div></div><div class="fg full"><div class="flabel">备注</div><div class="finput" style="min-height:42px">${esc(s.notes)||'—'}</div></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button></div>`;
+  document.getElementById('overlay').classList.add('open');
 }
 function renderMyClasses(){
   const cn2=getMyCoachName();

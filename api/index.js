@@ -148,6 +148,7 @@ function buildFeedbackRecord(body,base,user){
     ...base,
     scheduleId:body.scheduleId,
     studentId:body.studentId||'',
+    studentIds:parseArr(body.studentIds).filter(Boolean),
     studentName:body.studentName||'',
     coach:body.coach||user?.name||'',
     startTime:body.startTime||'',
