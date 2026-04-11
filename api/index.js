@@ -97,6 +97,20 @@ function assertPhone(value){
   if(phone&&!isValidCnPhone(phone))throw new Error('手机号格式不正确');
   return phone;
 }
+function normalizeMoney(value){
+  const n=parseFloat(value);
+  return Number.isFinite(n)?n:0;
+}
+function normalizeCourtRecord(input){
+  return {
+    ...input,
+    phone:assertPhone(input.phone),
+    balance:normalizeMoney(input.balance),
+    totalDeposit:normalizeMoney(input.totalDeposit),
+    spentAmount:normalizeMoney(input.spentAmount),
+    history:Array.isArray(input.history)?input.history:[]
+  };
+}
 function parseLegacyCourtNotes(notes){
   const raw=String(notes||'').trim();
   if(!raw)return{notes:'',updates:{},changed:false};
@@ -165,7 +179,7 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,await scan(T_COURTS));
       if(method==='POST'){
         const id=uuidv4();
-        const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+        const r={...normalizeCourtRecord(body),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
         await put(T_COURTS,id,r);return sendJson(res,r);
       }
     }
@@ -177,7 +191,7 @@ module.exports = async (req, res) => {
       for(const row of rows){
         try{
           const id=uuidv4();
-          const record={...row,phone:assertPhone(row.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+          const record={...normalizeCourtRecord(row),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
           await put(T_COURTS,id,record);
           success++;
         }catch(e){
@@ -217,7 +231,7 @@ module.exports = async (req, res) => {
       }
       return sendJson(res,{dryRun,total:rows.length,changed,preview});
     }
-    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_COURTS,id);return sendJson(res,{success:true});}}
+    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const r={...normalizeCourtRecord(body),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_COURTS,id);return sendJson(res,{success:true});}}
     if(path==='/students'){await init();if(method==='GET')return sendJson(res,await scan(T_STUDENTS));if(method==='POST'){const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
     const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
     if(path==='/init-data'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const ss=body.students||[];for(const s of ss)await put(T_STUDENTS,s.id||uuidv4(),{...s,updatedAt:new Date().toISOString()});return sendJson(res,{success:true,count:ss.length});}
