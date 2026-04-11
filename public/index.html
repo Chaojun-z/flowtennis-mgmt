@@ -534,6 +534,7 @@ function courtFinanceLocal(c){
     if(h.type==='充值'){t.totalDeposit+=amount;t.receivedAmount+=amount;t.balance+=amount+bonus;}
     else if(h.type==='消费'){t.spentAmount+=amount;if(h.payMethod==='储值扣款'){t.storedValueSpent+=amount;t.balance-=amount;}else{t.directPaidSpent+=amount;t.receivedAmount+=amount;}}
     else if(h.type==='退款'){if(h.payMethod==='储值退款')t.balance-=amount;t.receivedAmount-=amount;}
+    else if(h.type==='冲正'){t.spentAmount-=amount;if(h.payMethod==='储值扣款'){t.storedValueSpent-=amount;t.balance+=amount;}else{t.directPaidSpent-=amount;t.receivedAmount-=amount;}}
   });
   Object.keys(t).forEach(k=>t[k]=Math.round(t[k]*100)/100);
   return t;
@@ -565,6 +566,7 @@ function courtFinanceConfirmText(h,studentId){
   const target=st?`，关联学员：${st.name}`:'，未关联具体学员';
   if(h.type==='充值')return `确认添加充值 ¥${fmt(h.amount)}？会增加当前余额和累计实收${target}。`;
   if(h.type==='退款')return h.payMethod==='储值退款'?`确认添加储值退款 ¥${fmt(h.amount)}？会减少当前余额和累计实收${target}。`:`确认添加退款 ¥${fmt(h.amount)}？会减少累计实收，不影响当前余额${target}。`;
+  if(h.type==='冲正')return h.payMethod==='储值扣款'?`确认添加储值扣款冲正 ¥${fmt(h.amount)}？会抵消一笔错误消费，并把余额加回${target}。`:`确认添加单次支付冲正 ¥${fmt(h.amount)}？会抵消一笔错误消费，并减少累计实收${target}。`;
   return h.payMethod==='储值扣款'?`确认添加储值扣款消费 ¥${fmt(h.amount)}？会减少当前余额，只增加累计消费，不重复增加累计实收${target}。`:`确认添加单次支付消费 ¥${fmt(h.amount)}？会增加累计消费和累计实收，不减少当前余额${target}。`;
 }
 
@@ -1050,8 +1052,8 @@ function renderCourts(){
 }
 function courtRecRow(h){
   const type=h.type||'消费',amount=Math.abs(parseFloat(h.amount)||0);
-  const cls=type==='充值'?'b-green':type==='退款'?'b-gray':'b-red';
-  const sign=type==='充值'?'+':type==='消费'?'-':'';
+  const cls=type==='充值'?'b-green':type==='退款'||type==='冲正'?'b-gray':'b-red';
+  const sign=type==='充值'?'+':type==='消费'?'-':type==='冲正'?'冲':'';
   const st=h.studentId?students.find(s=>s.id===h.studentId):null;
   const source=h.source==='import'?'导入':'';
   const meta=[source,h.category,h.payMethod,st?.name].filter(Boolean).map(esc).join(' · ');
@@ -1066,7 +1068,7 @@ function openCourtModal(id){
   document.getElementById('mTitle').textContent=id?'编辑订场用户':'添加订场用户';
   const linked=findStudentForCourt(r);
   const selectedIds=parseArr(r?.studentIds);if(!selectedIds.length&&linked)selectedIds.push(linked.id);
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="f_name" value="${rv(r,'name')}"></div><div class="fg"><div class="flabel">手机号</div><input class="finput" id="f_phone" value="${rv(r,'phone')}" placeholder="13800138000"></div><div class="fg full"><div class="flabel">关联学员（可多选）</div><div style="max-height:110px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${studentChecks(selectedIds)}</div></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="f_campus">${campusOpts(rv(r,'campus'))}</select></div><div class="fg"><div class="flabel">加入日期</div><input class="finput" id="f_joinDate" type="date" value="${rv(r,'joinDate',today())}"></div><div class="fg"><div class="flabel">累计充值</div><input class="finput" id="f_dep" type="number" value="${fin.totalDeposit}" readonly></div><div class="fg"><div class="flabel">当前余额</div><input class="finput" id="f_bal" type="number" value="${fin.balance}" readonly></div><div class="fg"><div class="flabel">累计消费</div><input class="finput" id="f_spent" type="number" value="${fin.spentAmount}" readonly></div><div class="fg"><div class="flabel">累计实收</div><input class="finput" id="f_received" type="number" value="${fin.receivedAmount}" readonly></div><div class="fg"><div class="flabel">对接人</div><input class="finput" id="f_owner" value="${rv(r,'owner')}"></div><div class="fg"><div class="flabel">对储值态度</div><input class="finput" id="f_attitude" value="${rv(r,'depositAttitude')}"></div><div class="fg"><div class="flabel">熟悉程度</div><input class="finput" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div><div class="sec-ttl">充值/消费记录</div><div class="rec-list" id="histList">${hist.map(h=>courtRecRow(h)).join('')}</div><div class="add-rec-row"><select class="fselect" id="nrType" style="min-width:82px" onchange="updateCourtFinancePreview()"><option value="充值">充值</option><option value="消费">消费</option><option value="退款">退款</option></select><select class="fselect" id="nrCategory" style="min-width:92px"><option value="订场">订场</option><option value="私教课">私教课</option><option value="班课">班课</option><option value="训练营">训练营</option><option value="退款">退款</option><option value="其他">其他</option></select><select class="fselect" id="nrPayMethod" style="min-width:96px" onchange="updateCourtFinancePreview()"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="储值扣款">储值扣款</option><option value="储值退款">储值退款</option><option value="其他">其他</option></select><select class="fselect" id="nrStudentId" style="min-width:100px">${courtStudentSelect('')}</select><input class="finput" id="nrDate" type="date" value="${today()}" style="max-width:150px"><input class="finput" id="nrAmt" type="number" placeholder="金额" style="max-width:100px"><input class="finput" id="nrNote" placeholder="备注"><button class="btn-add-rec" onclick="addCourtRec()">添加</button></div><div style="font-size:12px;color:var(--ts);margin-top:8px" id="financeHint">储值扣款会减少余额；微信/支付宝/现金/转账消费不减少余额。</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button>`:''}<button class="btn-save" onclick="saveCourt()">保存</button></div>`;
+  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="f_name" value="${rv(r,'name')}"></div><div class="fg"><div class="flabel">手机号</div><input class="finput" id="f_phone" value="${rv(r,'phone')}" placeholder="13800138000"></div><div class="fg full"><div class="flabel">关联学员（可多选）</div><div style="max-height:110px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${studentChecks(selectedIds)}</div></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="f_campus">${campusOpts(rv(r,'campus'))}</select></div><div class="fg"><div class="flabel">加入日期</div><input class="finput" id="f_joinDate" type="date" value="${rv(r,'joinDate',today())}"></div><div class="fg"><div class="flabel">累计充值</div><input class="finput" id="f_dep" type="number" value="${fin.totalDeposit}" readonly></div><div class="fg"><div class="flabel">当前余额</div><input class="finput" id="f_bal" type="number" value="${fin.balance}" readonly></div><div class="fg"><div class="flabel">累计消费</div><input class="finput" id="f_spent" type="number" value="${fin.spentAmount}" readonly></div><div class="fg"><div class="flabel">累计实收</div><input class="finput" id="f_received" type="number" value="${fin.receivedAmount}" readonly></div><div class="fg"><div class="flabel">对接人</div><input class="finput" id="f_owner" value="${rv(r,'owner')}"></div><div class="fg"><div class="flabel">对储值态度</div><input class="finput" id="f_attitude" value="${rv(r,'depositAttitude')}"></div><div class="fg"><div class="flabel">熟悉程度</div><input class="finput" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div><div class="sec-ttl">充值/消费记录</div><div class="rec-list" id="histList">${hist.map(h=>courtRecRow(h)).join('')}</div><div class="add-rec-row"><select class="fselect" id="nrType" style="min-width:82px" onchange="updateCourtFinancePreview()"><option value="充值">充值</option><option value="消费">消费</option><option value="退款">退款</option><option value="冲正">冲正</option></select><select class="fselect" id="nrCategory" style="min-width:92px"><option value="订场">订场</option><option value="私教课">私教课</option><option value="班课">班课</option><option value="训练营">训练营</option><option value="退款">退款</option><option value="冲正">冲正</option><option value="其他">其他</option></select><select class="fselect" id="nrPayMethod" style="min-width:96px" onchange="updateCourtFinancePreview()"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="储值扣款">储值扣款</option><option value="储值退款">储值退款</option><option value="其他">其他</option></select><select class="fselect" id="nrStudentId" style="min-width:100px">${courtStudentSelect('')}</select><input class="finput" id="nrDate" type="date" value="${today()}" style="max-width:150px"><input class="finput" id="nrAmt" type="number" placeholder="金额" style="max-width:100px"><input class="finput" id="nrNote" placeholder="备注"><button class="btn-add-rec" onclick="addCourtRec()">添加</button></div><div style="font-size:12px;color:var(--ts);margin-top:8px" id="financeHint">储值扣款会减少余额；微信/支付宝/现金/转账消费不减少余额。</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button>`:''}<button class="btn-save" onclick="saveCourt()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
   updateCourtFinancePreview();
 }
@@ -1081,6 +1083,7 @@ function addCourtRec(){
   const preview=courtFinanceLocal({...(base||{}),history:hist});
   if(preview.balance<0){toast('余额不足，不能使用储值扣款','warn');return;}
   if(preview.receivedAmount<0){toast('退款金额超过累计实收','warn');return;}
+  if(preview.spentAmount<0||preview.storedValueSpent<0||preview.directPaidSpent<0){toast('冲正金额超过已有消费','warn');return;}
   if(!confirm(courtFinanceConfirmText(h,studentId)))return;
   document.getElementById('f_bal').value=preview.balance;
   document.getElementById('f_dep').value=preview.totalDeposit;
@@ -1099,8 +1102,10 @@ function updateCourtFinancePreview(){
   if(type==='充值'&&pay.value==='储值扣款')pay.value='微信';
   if(type==='消费'&&pay.value==='储值退款')pay.value='储值扣款';
   if(type==='退款'&&pay.value==='储值扣款')pay.value='储值退款';
+  if(type==='冲正'&&pay.value==='储值退款')pay.value='储值扣款';
   if(type==='退款'&&cat)cat.value='退款';
-  hint.textContent=type==='充值'?'充值会增加余额和累计实收。':type==='退款'?(pay.value==='储值退款'?'储值退款会减少余额和累计实收。':'退款会减少累计实收，不影响余额。'):pay.value==='储值扣款'?'储值扣款会减少余额，只增加累计消费，不重复增加实收。':'单次支付消费不减少余额，会增加累计消费和累计实收。';
+  if(type==='冲正'&&cat)cat.value='冲正';
+  hint.textContent=type==='充值'?'充值会增加余额和累计实收。':type==='退款'?(pay.value==='储值退款'?'储值退款会减少余额和累计实收。':'退款会减少累计实收，不影响余额。'):type==='冲正'?(pay.value==='储值扣款'?'冲正用于抵消误操作的储值扣款消费，会把余额加回。':'冲正用于抵消误操作的单次支付消费，会减少累计消费和累计实收。'):pay.value==='储值扣款'?'储值扣款会减少余额，只增加累计消费，不重复增加实收。':'单次支付消费不减少余额，会增加累计消费和累计实收。';
 }
 async function saveCourt(){
   const name=document.getElementById('f_name').value.trim();if(!name){toast('请输入姓名','warn');return;}
@@ -1320,17 +1325,23 @@ async function runCourtImport(){
   const btn=document.getElementById('courtImportBtn');
   const rows=(courtImportState.rows||[]).filter(r=>r._status==='待导入');
   if(!rows.length){toast('没有可导入的数据','warn');return;}
-  btn.disabled=true;btn.textContent='导入中…';
+  btn.disabled=true;btn.textContent=`导入中 0/${rows.length}`;
   let success=0,failed=0;
   try{
-    const payload=rows.map(row=>({name:row.name,phone:row.phone,studentId:row.studentId,campus:row.campus,balance:row.balance,totalDeposit:row.totalDeposit,spentAmount:row.spentAmount,owner:row.owner,depositAttitude:row.depositAttitude,familiarity:row.familiarity,joinDate:row.joinDate,notes:row.notes,status:'active',history:[]}));
-    const result=await apiCall('POST','/courts/import',{rows:payload});
-    success=result.success||0;failed=result.failed||0;
-    rows.forEach((row,index)=>{
-      const err=result.errors?.find(e=>e.name===payload[index].name);
-      row._status=err?'无效':'已导入';
-      row._reason=err?err.error:'';
-    });
+    const makePayload=row=>({name:row.name,phone:row.phone,studentId:row.studentId,campus:row.campus,balance:row.balance,totalDeposit:row.totalDeposit,spentAmount:row.spentAmount,owner:row.owner,depositAttitude:row.depositAttitude,familiarity:row.familiarity,joinDate:row.joinDate,notes:row.notes,status:'active',history:[]});
+    for(let i=0;i<rows.length;i+=20){
+      const batchRows=rows.slice(i,i+20);
+      const payload=batchRows.map(makePayload);
+      const result=await apiCall('POST','/courts/import',{rows:payload});
+      success+=result.success||0;failed+=result.failed||0;
+      batchRows.forEach((row,index)=>{
+        const err=result.errors?.find(e=>e.name===payload[index].name);
+        row._status=err?'无效':'已导入';
+        row._reason=err?err.error:'';
+      });
+      btn.textContent=`导入中 ${Math.min(i+batchRows.length,rows.length)}/${rows.length}`;
+      renderCourtImportPreview();
+    }
     await loadAll();
     renderCourtImportPreview();
     renderCourts();
@@ -1390,9 +1401,10 @@ async function batchDeleteCourts(){
   if(!ids.length){toast('请选择要删除的订场用户','warn');return;}
   if(!confirm(`确定删除选中的 ${ids.length} 个订场用户？已有财务数据的用户会自动跳过。`))return;
   const btn=document.getElementById('courtBatchDelBtn');
-  if(btn){btn.disabled=true;btn.textContent='删除中…';}
+  if(btn){btn.disabled=true;btn.textContent=`删除中 0/${ids.length}`;}
   try{
     const result=await apiCall('POST','/courts/batch-delete',{ids});
+    if(btn)btn.textContent=`删除中 ${result.success||0}/${ids.length}`;
     const deleted=new Set(result.deleted||[]);
     courts=courts.filter(u=>!deleted.has(u.id));
     deleted.forEach(id=>selectedCourtIds.delete(id));

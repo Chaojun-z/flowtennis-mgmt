@@ -203,6 +203,52 @@ assert.throws(
   'refund cannot exceed received amount'
 );
 
+assert.deepStrictEqual(
+  computeCourtFinance({
+    history: [
+      recharge,
+      { id: 'stored-pay', date: '2026-04-11', type: '消费', payMethod: '储值扣款', category: '订场', amount: 500 },
+      { id: 'stored-reversal', date: '2026-04-11', type: '冲正', payMethod: '储值扣款', category: '冲正', amount: 500 }
+    ]
+  }),
+  {
+    balance: 5000,
+    totalDeposit: 5000,
+    spentAmount: 0,
+    receivedAmount: 5000,
+    storedValueSpent: 0,
+    directPaidSpent: 0
+  },
+  'stored value reversal should offset the wrong stored value consumption'
+);
+
+assert.deepStrictEqual(
+  computeCourtFinance({
+    history: [
+      recharge,
+      { id: 'direct-pay', date: '2026-04-11', type: '消费', payMethod: '微信', category: '订场', amount: 500 },
+      { id: 'direct-reversal', date: '2026-04-11', type: '冲正', payMethod: '微信', category: '冲正', amount: 500 }
+    ]
+  }),
+  {
+    balance: 5000,
+    totalDeposit: 5000,
+    spentAmount: 0,
+    receivedAmount: 5000,
+    storedValueSpent: 0,
+    directPaidSpent: 0
+  },
+  'direct paid reversal should offset the wrong direct paid consumption'
+);
+
+assert.throws(
+  () => computeCourtFinance({
+    history: [recharge, { id: 'reversal-too-much', date: '2026-04-11', type: '冲正', payMethod: '微信', category: '冲正', amount: 500 }]
+  }),
+  /冲正金额超过/,
+  'reversal cannot exceed existing consumption'
+);
+
 const legacyDirectPaid = buildLegacyCourtOpeningHistory({
   id: 'legacy-direct',
   joinDate: '2026-04-01',

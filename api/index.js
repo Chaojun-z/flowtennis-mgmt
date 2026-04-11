@@ -233,6 +233,21 @@ function computeCourtFinance(input){
       if(totals.receivedAmount<0)throw new Error('退款金额超过累计实收');
       continue;
     }
+    if(h.type==='冲正'){
+      totals.spentAmount-=amount;
+      if(totals.spentAmount<0)throw new Error('冲正金额超过累计消费');
+      if(h.payMethod==='储值扣款'){
+        totals.storedValueSpent-=amount;
+        if(totals.storedValueSpent<0)throw new Error('冲正金额超过储值扣款消费');
+        totals.balance+=amount;
+      }else{
+        totals.directPaidSpent-=amount;
+        if(totals.directPaidSpent<0)throw new Error('冲正金额超过单次支付消费');
+        totals.receivedAmount-=amount;
+        if(totals.receivedAmount<0)throw new Error('冲正金额超过累计实收');
+      }
+      continue;
+    }
   }
   Object.keys(totals).forEach(k=>{totals[k]=Math.round(totals[k]*100)/100;});
   return totals;
