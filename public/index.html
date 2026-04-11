@@ -434,6 +434,11 @@ function searchHit(q,...values){
 }
 function findStudentForCourt(c){
   if(!c)return null;
+  const ids=parseArr(c.studentIds);
+  if(ids.length){
+    const byIds=ids.map(id=>students.find(s=>s.id===id)).filter(Boolean);
+    if(byIds.length)return byIds[0];
+  }
   if(c.studentId){
     const byId=students.find(s=>s.id===c.studentId);
     if(byId)return byId;
@@ -449,6 +454,20 @@ function findStudentForCourt(c){
 function studentOpts(sel){
   return '<option value="">— 不关联 —</option>'+students.map(s=>`<option value="${s.id}"${sel===s.id?' selected':''}>${esc(s.name)}${s.phone?' · '+esc(s.phone):''}</option>`).join('');
 }
+function studentChecks(ids){
+  ids=parseArr(ids);
+  return students.map(s=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${s.id}" class="court-stu-cb" ${ids.includes(s.id)?'checked':''}>${esc(s.name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无学员</span>';
+}
+function courtStudentSelect(sel){
+  return '<option value="">— 不关联 —</option>'+students.map(s=>`<option value="${s.id}"${sel===s.id?' selected':''}>${esc(s.name)}</option>`).join('');
+}
+function courtStudentNames(c){
+  const ids=parseArr(c?.studentIds);
+  const names=ids.map(id=>students.find(s=>s.id===id)?.name).filter(Boolean);
+  if(names.length)return names.join('、');
+  const st=findStudentForCourt(c);
+  return st?.name||'';
+}
 function resolveStudentIdByText(value){
   const raw=String(value||'').trim();
   if(!raw)return '';
@@ -458,6 +477,37 @@ function resolveStudentIdByText(value){
   if(byPhone)return byPhone.id;
   const byName=students.find(s=>String(s.name||'').trim()===raw);
   return byName?byName.id:'';
+}
+function normalizeCourtHistoryLocal(history){
+  return parseArr(history).map(h=>{
+    const raw=parseFloat(h.amount)||0;
+    const type=h.type||'消费';
+    return {...h,type,payMethod:h.payMethod||(type==='消费'&&raw<0?'储值扣款':''),category:h.category||'其他',studentId:h.studentId||'',amount:Math.abs(raw),bonusAmount:parseFloat(h.bonusAmount)||0};
+  });
+}
+function courtFinanceLocal(c){
+  const hist=normalizeCourtHistoryLocal(c?.history);
+  if(!hist.length)return{balance:parseFloat(c?.balance)||0,totalDeposit:parseFloat(c?.totalDeposit)||0,spentAmount:parseFloat(c?.spentAmount)||0,receivedAmount:parseFloat(c?.receivedAmount??c?.totalDeposit)||0,storedValueSpent:parseFloat(c?.storedValueSpent)||0,directPaidSpent:parseFloat(c?.directPaidSpent)||0};
+  const t={balance:0,totalDeposit:0,spentAmount:0,receivedAmount:0,storedValueSpent:0,directPaidSpent:0};
+  hist.forEach(h=>{
+    const amount=parseFloat(h.amount)||0,bonus=parseFloat(h.bonusAmount)||0;
+    if(h.type==='充值'){t.totalDeposit+=amount;t.receivedAmount+=amount;t.balance+=amount+bonus;}
+    else if(h.type==='消费'){t.spentAmount+=amount;if(h.payMethod==='储值扣款'){t.storedValueSpent+=amount;t.balance-=amount;}else{t.directPaidSpent+=amount;t.receivedAmount+=amount;}}
+    else if(h.type==='退款'){if(h.payMethod==='储值退款')t.balance-=amount;t.receivedAmount-=amount;}
+  });
+  Object.keys(t).forEach(k=>t[k]=Math.round(t[k]*100)/100);
+  return t;
+}
+function courtBaseHistoryForSave(c){
+  const hist=normalizeCourtHistoryLocal(c?.history);
+  if(hist.length||!c)return hist;
+  const total=parseFloat(c.totalDeposit)||0,balance=parseFloat(c.balance)||0,spent=parseFloat(c.spentAmount)||0,date=c.joinDate||today();
+  const stored=Math.max(0,total-balance),direct=Math.max(0,spent-stored);
+  const rows=[];
+  if(total>0)rows.push({id:'legacy-deposit-'+(c.id||uid()),date,type:'充值',category:'历史储值',payMethod:'历史导入',amount:total,note:'旧数据期初'});
+  if(stored>0)rows.push({id:'legacy-stored-spent-'+(c.id||uid()),date,type:'消费',category:'历史消费',payMethod:'储值扣款',amount:stored,note:'旧数据期初'});
+  if(direct>0)rows.push({id:'legacy-direct-spent-'+(c.id||uid()),date,type:'消费',category:'历史消费',payMethod:'历史导入',amount:direct,note:'旧数据期初'});
+  return rows;
 }
 
 let token=localStorage.getItem('ft_token');
@@ -888,7 +938,7 @@ function renderCourts(){
     if(tableCampus&&c.campus!==tableCampus)return false;
     if(tableOwner&&String(c.owner||'').trim()!==tableOwner)return false;
     const linked=findStudentForCourt(c);
-    return searchHit(q,c.name,c.phone,cn(c.campus),c.owner,c.depositAttitude,c.familiarity,c.notes,c.balance,c.totalDeposit,c.spentAmount,linked?.name,linked?.phone);
+    return searchHit(q,c.name,c.phone,cn(c.campus),c.owner,c.depositAttitude,c.familiarity,c.notes,c.balance,c.totalDeposit,c.spentAmount,c.receivedAmount,courtStudentNames(c),linked?.name,linked?.phone);
   });
   if(courtSortKey){
     list.sort((a,b)=>{
@@ -896,49 +946,76 @@ function renderCourts(){
       return courtSortDir==='desc'?bv-av:av-bv;
     });
   }
-  const totBal=base.reduce((s,u)=>s+(u.balance||0),0),totDep=base.reduce((s,u)=>s+(u.totalDeposit||0),0),totSpent=base.reduce((s,u)=>s+(u.spentAmount||0),0);
-  const act=base.filter(u=>u.balance>500).length,low=base.filter(u=>u.balance>0&&u.balance<=500).length;
-  document.getElementById('courtStatsRow').innerHTML=`<div class="scard"><div class="sc-icon si-a">🏟️</div><div><div class="sc-label">订场用户</div><div class="sc-val">${base.length}<span class="u">人</span></div></div></div><div class="scard"><div class="sc-icon si-b">✅</div><div><div class="sc-label">余额充足</div><div class="sc-val">${act}<span class="u">人</span></div><div class="sc-sub" style="color:${low?'#b45309':''}">低余额 ${low}</div></div></div><div class="scard"><div class="sc-icon si-c">💳</div><div><div class="sc-label">余额合计</div><div class="sc-val">¥${fmt(totBal)}</div></div></div><div class="scard"><div class="sc-icon si-d">💰</div><div><div class="sc-label">储值合计</div><div class="sc-val">¥${fmt(totDep)}</div></div></div><div class="scard"><div class="sc-icon si-e">¥</div><div><div class="sc-label">消费合计</div><div class="sc-val">¥${fmt(totSpent)}</div></div></div>`;
+  const finBase=base.map(courtFinanceLocal);
+  const totBal=finBase.reduce((s,u)=>s+u.balance,0),totDep=finBase.reduce((s,u)=>s+u.totalDeposit,0),totSpent=finBase.reduce((s,u)=>s+u.spentAmount,0),totReceived=finBase.reduce((s,u)=>s+u.receivedAmount,0);
+  const low=finBase.filter(u=>u.balance>0&&u.balance<=500).length;
+  document.getElementById('courtStatsRow').innerHTML=`<div class="scard"><div class="sc-icon si-a">🏟️</div><div><div class="sc-label">订场用户</div><div class="sc-val">${base.length}<span class="u">人</span></div></div></div><div class="scard"><div class="sc-icon si-c">💳</div><div><div class="sc-label">余额合计</div><div class="sc-val">¥${fmt(totBal)}</div><div class="sc-sub" style="color:${low?'#b45309':''}">低余额 ${low}</div></div></div><div class="scard"><div class="sc-icon si-d">💰</div><div><div class="sc-label">累计充值</div><div class="sc-val">¥${fmt(totDep)}</div></div></div><div class="scard"><div class="sc-icon si-e">¥</div><div><div class="sc-label">累计消费</div><div class="sc-val">¥${fmt(totSpent)}</div></div></div><div class="scard"><div class="sc-icon si-b">✅</div><div><div class="sc-label">累计实收</div><div class="sc-val">¥${fmt(totReceived)}</div></div></div>`;
   const total=list.length,pages=Math.ceil(total/PAGE_SIZE),slice=list.slice((courtPage-1)*PAGE_SIZE,courtPage*PAGE_SIZE);
   document.getElementById('courtPagerInfo').textContent=`共 ${total} 条`;
   document.getElementById('courtPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<button class="pbtn${i+1===courtPage?' active':''}" onclick="courtPage=${i+1};renderCourts()">${i+1}</button>`).join('');
   document.getElementById('courtTbody').innerHTML=slice.length?slice.map(u=>{
-    const pct=u.totalDeposit>0?Math.min(100,Math.round(u.balance/u.totalDeposit*100)):0;
-    const pc=pct>50?'pf-gold':pct>20?'pf-warn':'pf-red';const w=u.balance>0&&u.balance<=500;
-    return `<tr class="${w?'warn-row':''}"><td style="max-width:120px"><div class="uname">${esc(u.name)}</div></td><td style="color:var(--ts)">${esc(u.phone)||'—'}</td><td><span class="campus-tag">${cn(u.campus)}</span></td><td>${esc(u.owner)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(u.familiarity)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(u.depositAttitude)||'—'}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${pct}%"></div></div><span class="prog-txt">¥${fmt(u.balance)} ${w?'<span class="warn-txt">低余额</span>':''}</span></div></td><td>¥${fmt(u.spentAmount||0)}</td><td><span class="hist-link" onclick="openCourtHist('${u.id}')">${parseArr(u.history).length} 条</span></td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(u.notes)||'—'}</td><td style="text-align:right"><button class="abtn" onclick="openCourtModal('${u.id}')">⚙️</button></td></tr>`;
+    const f=courtFinanceLocal(u);
+    const pct=f.totalDeposit>0?Math.min(100,Math.round(f.balance/f.totalDeposit*100)):0;
+    const pc=pct>50?'pf-gold':pct>20?'pf-warn':'pf-red';const w=f.balance>0&&f.balance<=500;
+    return `<tr class="${w?'warn-row':''}"><td style="max-width:120px"><div class="uname">${esc(u.name)}</div></td><td style="color:var(--ts)">${esc(u.phone)||'—'}</td><td><span class="campus-tag">${cn(u.campus)}</span></td><td>${esc(u.owner)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(u.familiarity)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(u.depositAttitude)||'—'}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${pct}%"></div></div><span class="prog-txt">¥${fmt(f.balance)} ${w?'<span class="warn-txt">低余额</span>':''}</span></div></td><td>¥${fmt(f.spentAmount)}</td><td><span class="hist-link" onclick="openCourtHist('${u.id}')">${parseArr(u.history).length} 条</span></td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(u.notes)||'—'}</td><td style="text-align:right"><button class="abtn" onclick="openCourtModal('${u.id}')">⚙️</button></td></tr>`;
   }).join(''):'<tr><td colspan="11"><div class="empty"><div class="empty-ico">🏟️</div><p>暂无订场用户</p></div></td></tr>';
 }
-function courtRecRow(h){const ip=h.type==='充值'||(h.amount>0);return `<div class="rec-item"><span class="rec-date">📅 ${h.date}</span><span class="badge ${ip?'b-green':'b-red'}" style="font-size:10px">${h.type||'充值'}</span>${ip?`<span class="rec-amt plus">+¥${fmt(Math.abs(h.amount))}</span>`:`<span class="rec-amt minus">-¥${fmt(Math.abs(h.amount))}</span>`}<span class="rec-note">${esc(h.note)||''}</span></div>`;}
+function courtRecRow(h){
+  const type=h.type||'消费',amount=Math.abs(parseFloat(h.amount)||0);
+  const cls=type==='充值'?'b-green':type==='退款'?'b-gray':'b-red';
+  const sign=type==='充值'?'+':type==='消费'?'-':'';
+  const st=h.studentId?students.find(s=>s.id===h.studentId):null;
+  const meta=[h.category,h.payMethod,st?.name].filter(Boolean).map(esc).join(' · ');
+  return `<div class="rec-item"><span class="rec-date">${h.date}</span><span class="badge ${cls}" style="font-size:10px">${esc(type)}</span><span class="rec-amt ${type==='充值'?'plus':'minus'}">${sign}¥${fmt(amount)}</span><span class="rec-note">${meta}${h.note?' · '+esc(h.note):''}</span></div>`;
+}
 function openCourtModal(id){
   editId=id;_pending=[];const r=id?courts.find(x=>x.id===id):null;
-  const hist=parseArr(rv(r,'history',[]));
+  const hist=normalizeCourtHistoryLocal(rv(r,'history',[]));
+  const fin=courtFinanceLocal(r||{history:[]});
   const modal=document.querySelector('#overlay .modal');
   if(modal)modal.classList.add('modal-court');
   document.getElementById('mTitle').textContent=id?'编辑订场用户':'添加订场用户';
   const linked=findStudentForCourt(r);
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="f_name" value="${rv(r,'name')}"></div><div class="fg"><div class="flabel">手机号</div><input class="finput" id="f_phone" value="${rv(r,'phone')}" placeholder="13800138000"></div><div class="fg"><div class="flabel">关联学员</div><select class="fselect" id="f_studentId">${studentOpts(rv(r,'studentId',linked?.id||''))}</select></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="f_campus">${campusOpts(rv(r,'campus'))}</select></div><div class="fg"><div class="flabel">加入日期</div><input class="finput" id="f_joinDate" type="date" value="${rv(r,'joinDate',today())}"></div><div class="fg"><div class="flabel">历史储值</div><input class="finput" id="f_dep" type="number" value="${rv(r,'totalDeposit',0)}"></div><div class="fg"><div class="flabel">当前余额</div><input class="finput" id="f_bal" type="number" value="${rv(r,'balance',0)}"></div><div class="fg"><div class="flabel">消费金额</div><input class="finput" id="f_spent" type="number" value="${rv(r,'spentAmount',0)}"></div><div class="fg"><div class="flabel">对接人</div><input class="finput" id="f_owner" value="${rv(r,'owner')}"></div><div class="fg"><div class="flabel">对储值态度</div><input class="finput" id="f_attitude" value="${rv(r,'depositAttitude')}"></div><div class="fg"><div class="flabel">熟悉程度</div><input class="finput" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div><div class="sec-ttl">充值/消费记录</div><div class="rec-list" id="histList">${hist.map(h=>courtRecRow(h)).join('')}</div><div class="add-rec-row"><select class="fselect" id="nrType" style="min-width:82px"><option value="充值">充值</option><option value="消费">消费</option></select><input class="finput" id="nrDate" type="date" value="${today()}" style="max-width:160px"><input class="finput" id="nrAmt" type="number" placeholder="金额" style="max-width:110px"><input class="finput" id="nrNote" placeholder="备注"><button class="btn-add-rec" onclick="addCourtRec()">添加</button></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button>`:''}<button class="btn-save" onclick="saveCourt()">保存</button></div>`;
+  const selectedIds=parseArr(r?.studentIds);if(!selectedIds.length&&linked)selectedIds.push(linked.id);
+  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="f_name" value="${rv(r,'name')}"></div><div class="fg"><div class="flabel">手机号</div><input class="finput" id="f_phone" value="${rv(r,'phone')}" placeholder="13800138000"></div><div class="fg full"><div class="flabel">关联学员（可多选）</div><div style="max-height:110px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${studentChecks(selectedIds)}</div></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="f_campus">${campusOpts(rv(r,'campus'))}</select></div><div class="fg"><div class="flabel">加入日期</div><input class="finput" id="f_joinDate" type="date" value="${rv(r,'joinDate',today())}"></div><div class="fg"><div class="flabel">累计充值</div><input class="finput" id="f_dep" type="number" value="${fin.totalDeposit}" readonly></div><div class="fg"><div class="flabel">当前余额</div><input class="finput" id="f_bal" type="number" value="${fin.balance}" readonly></div><div class="fg"><div class="flabel">累计消费</div><input class="finput" id="f_spent" type="number" value="${fin.spentAmount}" readonly></div><div class="fg"><div class="flabel">累计实收</div><input class="finput" id="f_received" type="number" value="${fin.receivedAmount}" readonly></div><div class="fg"><div class="flabel">对接人</div><input class="finput" id="f_owner" value="${rv(r,'owner')}"></div><div class="fg"><div class="flabel">对储值态度</div><input class="finput" id="f_attitude" value="${rv(r,'depositAttitude')}"></div><div class="fg"><div class="flabel">熟悉程度</div><input class="finput" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div><div class="sec-ttl">充值/消费记录</div><div class="rec-list" id="histList">${hist.map(h=>courtRecRow(h)).join('')}</div><div class="add-rec-row"><select class="fselect" id="nrType" style="min-width:82px" onchange="updateCourtFinancePreview()"><option value="充值">充值</option><option value="消费">消费</option></select><select class="fselect" id="nrCategory" style="min-width:92px"><option value="订场">订场</option><option value="私教课">私教课</option><option value="班课">班课</option><option value="训练营">训练营</option><option value="其他">其他</option></select><select class="fselect" id="nrPayMethod" style="min-width:96px" onchange="updateCourtFinancePreview()"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="储值扣款">储值扣款</option><option value="其他">其他</option></select><select class="fselect" id="nrStudentId" style="min-width:100px">${courtStudentSelect('')}</select><input class="finput" id="nrDate" type="date" value="${today()}" style="max-width:150px"><input class="finput" id="nrAmt" type="number" placeholder="金额" style="max-width:100px"><input class="finput" id="nrNote" placeholder="备注"><button class="btn-add-rec" onclick="addCourtRec()">添加</button></div><div style="font-size:12px;color:var(--ts);margin-top:8px" id="financeHint">储值扣款会减少余额；微信/支付宝/现金/转账消费不减少余额。</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button>`:''}<button class="btn-save" onclick="saveCourt()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
+  updateCourtFinancePreview();
 }
 function addCourtRec(){
   const type=document.getElementById('nrType').value,date=document.getElementById('nrDate').value,amt=parseFloat(document.getElementById('nrAmt').value),note=document.getElementById('nrNote').value.trim();
+  const category=document.getElementById('nrCategory').value,payMethod=document.getElementById('nrPayMethod').value,studentId=document.getElementById('nrStudentId').value;
   if(!date){toast('请选择日期','warn');return;}
   if(!amt||isNaN(amt)){toast('请输入金额','warn');return;}
-  const real=type==='消费'?-Math.abs(amt):Math.abs(amt);
-  const h={id:uid(),date,type,amount:real,note};
-  document.getElementById('f_bal').value=(parseFloat(document.getElementById('f_bal').value)||0)+real;
-  if(type==='充值')document.getElementById('f_dep').value=(parseFloat(document.getElementById('f_dep').value)||0)+Math.abs(amt);
-  if(type==='消费')document.getElementById('f_spent').value=(parseFloat(document.getElementById('f_spent').value)||0)+Math.abs(amt);
+  const h={id:uid(),date,type,category,payMethod,studentId,amount:Math.abs(amt),note};
+  const base=editId?courts.find(u=>u.id===editId):null;
+  const hist=[...courtBaseHistoryForSave(base),..._pending,h];
+  const preview=courtFinanceLocal({...(base||{}),history:hist});
+  if(preview.balance<0){toast('余额不足，不能使用储值扣款','warn');return;}
+  document.getElementById('f_bal').value=preview.balance;
+  document.getElementById('f_dep').value=preview.totalDeposit;
+  document.getElementById('f_spent').value=preview.spentAmount;
+  document.getElementById('f_received').value=preview.receivedAmount;
   document.getElementById('nrDate').value=today();document.getElementById('nrAmt').value='';document.getElementById('nrNote').value='';
   document.getElementById('histList').insertAdjacentHTML('afterbegin',courtRecRow(h));_pending.push(h);
+  updateCourtFinancePreview();
+}
+function updateCourtFinancePreview(){
+  const type=document.getElementById('nrType')?.value;
+  const pay=document.getElementById('nrPayMethod');
+  const hint=document.getElementById('financeHint');
+  if(!pay||!hint)return;
+  if(type==='充值'&&pay.value==='储值扣款')pay.value='微信';
+  hint.textContent=type==='充值'?'充值会增加余额和累计实收。':pay.value==='储值扣款'?'储值扣款会减少余额，只增加累计消费，不重复增加实收。':'单次支付消费不减少余额，会增加累计消费和累计实收。';
 }
 async function saveCourt(){
   const name=document.getElementById('f_name').value.trim();if(!name){toast('请输入姓名','warn');return;}
   const phone=document.getElementById('f_phone').value.trim();if(!validateCnPhone(phone)){toast('手机号格式不正确','warn');return;}
   const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
-  const rawH=editId?parseArr(courts.find(u=>u.id===editId)?.history):[];
-  const rec={name,phone,studentId:document.getElementById('f_studentId').value,campus:document.getElementById('f_campus').value,joinDate:document.getElementById('f_joinDate').value,totalDeposit:parseFloat(document.getElementById('f_dep').value)||0,balance:parseFloat(document.getElementById('f_bal').value)||0,spentAmount:parseFloat(document.getElementById('f_spent').value)||0,owner:document.getElementById('f_owner').value.trim(),depositAttitude:document.getElementById('f_attitude').value.trim(),familiarity:document.getElementById('f_familiarity').value.trim(),notes:document.getElementById('f_notes').value.trim(),status:'active',history:[...rawH,..._pending]};
+  const rawH=editId?courtBaseHistoryForSave(courts.find(u=>u.id===editId)):[];
+  const studentIds=[...document.querySelectorAll('.court-stu-cb:checked')].map(cb=>cb.value);
+  const rec={name,phone,studentId:studentIds[0]||'',studentIds,campus:document.getElementById('f_campus').value,joinDate:document.getElementById('f_joinDate').value,totalDeposit:parseFloat(document.getElementById('f_dep').value)||0,balance:parseFloat(document.getElementById('f_bal').value)||0,spentAmount:parseFloat(document.getElementById('f_spent').value)||0,receivedAmount:parseFloat(document.getElementById('f_received').value)||0,owner:document.getElementById('f_owner').value.trim(),depositAttitude:document.getElementById('f_attitude').value.trim(),familiarity:document.getElementById('f_familiarity').value.trim(),notes:document.getElementById('f_notes').value.trim(),status:'active',history:[...rawH,..._pending]};
   try{
-    if(editId){await apiCall('PUT','/courts/'+editId,rec);const i=courts.findIndex(u=>u.id===editId);courts[i]={...courts[i],...rec,id:editId};}
+    if(editId){const saved=await apiCall('PUT','/courts/'+editId,rec);const i=courts.findIndex(u=>u.id===editId);courts[i]=saved;}
     else{const r=await apiCall('POST','/courts',rec);courts.unshift(r);}
     closeModal();toast(editId?'修改成功 ✓':'添加成功 ✓','success');renderCourts();renderStudents();
   }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
@@ -952,8 +1029,8 @@ function openCourtHist(id){
 }
 function exportCourtCSV(){
   const d=campus==='all'?courts:courts.filter(u=>u.campus===campus);
-  let csv='姓名,手机号,关联学员,校区,余额,储值,消费金额,对接人,对储值态度,熟悉程度,加入日期,备注\n';
-  csv+=d.map(u=>{const st=findStudentForCourt(u);return [u.name,u.phone||'',st?.name||'',cn(u.campus),u.balance||0,u.totalDeposit||0,u.spentAmount||0,u.owner||'',u.depositAttitude||'',u.familiarity||'',u.joinDate||'','"'+(u.notes||'').replace(/"/g,'""')+'"'].join(',')}).join('\n');
+  let csv='姓名,手机号,关联学员,校区,余额,储值,消费金额,实收金额,对接人,对储值态度,熟悉程度,加入日期,备注\n';
+  csv+=d.map(u=>{const f=courtFinanceLocal(u);return [u.name,u.phone||'',courtStudentNames(u),cn(u.campus),f.balance||0,f.totalDeposit||0,f.spentAmount||0,f.receivedAmount||0,u.owner||'',u.depositAttitude||'',u.familiarity||'',u.joinDate||'','"'+(u.notes||'').replace(/"/g,'""')+'"'].join(',')}).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FlowTennis_订场用户_'+today()+'.csv';a.click();toast('导出成功','success');
 }
@@ -1212,7 +1289,7 @@ async function backupToObsidian(){
   md+='\n## 班次（'+classes.length+'个）\n\n| 名称 | 课程 | 教练 | 应上 | 已上 | 状态 |\n|------|------|------|------|------|------|\n';
   classes.forEach(c=>{md+='| '+esc(c.className)+' | '+(c.productName||'')+' | '+(c.coach||'')+' | '+(c.totalLessons||0)+' | '+(c.usedLessons||0)+' | '+(c.status||'')+' |\n';});
   md+='\n## 订场（'+courts.length+'人）\n\n| 姓名 | 手机号 | 关联学员 | 校区 | 余额 | 储值 | 消费金额 | 对接人 | 对储值态度 | 熟悉程度 | 备注 |\n|------|------|------|------|------|------|------|------|------|------|------|\n';
-  courts.forEach(c=>{const st=findStudentForCourt(c);md+='| '+esc(c.name)+' | '+(c.phone||'')+' | '+esc(st?.name||'')+' | '+cn(c.campus)+' | ¥'+fmt(c.balance)+' | ¥'+fmt(c.totalDeposit)+' | ¥'+fmt(c.spentAmount||0)+' | '+esc(c.owner||'')+' | '+esc(c.depositAttitude||'')+' | '+esc(c.familiarity||'')+' | '+esc(c.notes||'')+' |\n';});
+  courts.forEach(c=>{const f=courtFinanceLocal(c);md+='| '+esc(c.name)+' | '+(c.phone||'')+' | '+esc(courtStudentNames(c))+' | '+cn(c.campus)+' | ¥'+fmt(f.balance)+' | ¥'+fmt(f.totalDeposit)+' | ¥'+fmt(f.spentAmount||0)+' | '+esc(c.owner||'')+' | '+esc(c.depositAttitude||'')+' | '+esc(c.familiarity||'')+' | '+esc(c.notes||'')+' |\n';});
   md+='\n---\n\n- 学员：'+students.length+'\n- 班次：'+classes.length+'\n- 计划：'+plans.length+'\n- 订场：'+courts.length+'\n- 排课：'+schedules.length+'\n';
   const blob=new Blob([md],{type:'text/markdown;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FlowTennis备份-'+ds+'.md';a.click();toast('备份已下载','success');
   }catch(e){toast('备份失败：'+e.message,'error');}

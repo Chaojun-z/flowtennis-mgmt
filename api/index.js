@@ -152,14 +152,85 @@ function normalizeMoney(value){
   const n=parseFloat(value);
   return Number.isFinite(n)?n:0;
 }
+function normalizeStudentIds(input){
+  const ids=Array.isArray(input.studentIds)?input.studentIds:(input.studentId?[input.studentId]:[]);
+  return [...new Set(ids.map(x=>String(x||'').trim()).filter(Boolean))];
+}
+function normalizeCourtHistory(history){
+  if(!Array.isArray(history))return[];
+  return history.map((h)=> {
+    const amountRaw=normalizeMoney(h.amount);
+    const type=h.type||'消费';
+    const payMethod=h.payMethod||(type==='消费'&&amountRaw<0?'储值扣款':'');
+    return {
+      ...h,
+      type,
+      payMethod,
+      category:h.category||'其他',
+      studentId:h.studentId||'',
+      amount:Math.abs(amountRaw),
+      bonusAmount:normalizeMoney(h.bonusAmount)
+    };
+  });
+}
+function computeCourtFinance(input){
+  const history=normalizeCourtHistory(input.history);
+  if(!history.length){
+    return {
+      balance:normalizeMoney(input.balance),
+      totalDeposit:normalizeMoney(input.totalDeposit),
+      spentAmount:normalizeMoney(input.spentAmount),
+      receivedAmount:normalizeMoney(input.receivedAmount!=null?input.receivedAmount:input.totalDeposit),
+      storedValueSpent:normalizeMoney(input.storedValueSpent),
+      directPaidSpent:normalizeMoney(input.directPaidSpent)
+    };
+  }
+  const totals={balance:0,totalDeposit:0,spentAmount:0,receivedAmount:0,storedValueSpent:0,directPaidSpent:0};
+  for(const h of history){
+    const amount=normalizeMoney(h.amount);
+    const bonus=normalizeMoney(h.bonusAmount);
+    if(amount<=0)throw new Error('流水金额必须大于0');
+    if(h.type==='充值'){
+      totals.totalDeposit+=amount;
+      totals.receivedAmount+=amount;
+      totals.balance+=amount+bonus;
+      continue;
+    }
+    if(h.type==='消费'){
+      totals.spentAmount+=amount;
+      if(h.payMethod==='储值扣款'){
+        totals.storedValueSpent+=amount;
+        totals.balance-=amount;
+        if(totals.balance<0)throw new Error('余额不足，不能使用储值扣款');
+      }else{
+        totals.directPaidSpent+=amount;
+        totals.receivedAmount+=amount;
+      }
+      continue;
+    }
+    if(h.type==='退款'){
+      if(h.payMethod==='储值退款'){
+        totals.balance-=amount;
+        if(totals.balance<0)throw new Error('余额不足，不能退款');
+      }
+      totals.receivedAmount-=amount;
+      continue;
+    }
+  }
+  Object.keys(totals).forEach(k=>{totals[k]=Math.round(totals[k]*100)/100;});
+  return totals;
+}
 function normalizeCourtRecord(input){
+  const history=normalizeCourtHistory(input.history);
+  const finance=computeCourtFinance({...input,history});
+  const studentIds=normalizeStudentIds(input);
   return {
     ...input,
     phone:assertPhone(input.phone),
-    balance:normalizeMoney(input.balance),
-    totalDeposit:normalizeMoney(input.totalDeposit),
-    spentAmount:normalizeMoney(input.spentAmount),
-    history:Array.isArray(input.history)?input.history:[]
+    studentId:studentIds[0]||'',
+    studentIds,
+    history,
+    ...finance
   };
 }
 function parseLegacyCourtNotes(notes){
@@ -355,5 +426,7 @@ module.exports._test={
   scheduleLessonDelta,
   assertLessonCapacity,
   validateScheduleConflicts,
-  rangesOverlap
+  rangesOverlap,
+  computeCourtFinance,
+  normalizeCourtRecord
 };
