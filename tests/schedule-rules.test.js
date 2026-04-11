@@ -135,6 +135,33 @@ assert.throws(
       endTime: '2026-04-11 11:30',
       coach: '李教练',
       campus: 'mabao',
+      venue: '1号场',
+      studentIds: ['stu-2'],
+      status: '已排课'
+    },
+    [{
+      id: 'old',
+      startTime: '2026-04-11 10:00',
+      endTime: '2026-04-11 11:00',
+      coach: '王教练',
+      campus: 'mabao',
+      venue: '马坡1号场',
+      studentIds: ['stu-1'],
+      status: '已排课'
+    }]
+  ),
+  /场地.*已被占用/,
+  'legacy venue names should be normalized before conflict checks'
+);
+
+assert.throws(
+  () => rules.validateScheduleConflicts(
+    {
+      id: 'new',
+      startTime: '2026-04-11 10:30',
+      endTime: '2026-04-11 11:30',
+      coach: '李教练',
+      campus: 'mabao',
       venue: '2号场',
       studentIds: ['stu-1'],
       status: '已排课'
@@ -204,5 +231,8 @@ assert.deepStrictEqual(
   ['跨校区提醒：朝珺上一节在 mabao，下一节在 guowang，中间仅 10 分钟'],
   'cross-campus schedules less than 60 minutes apart should return a warning'
 );
+
+assert.strictEqual(rules.normalizeVenue('马坡1号场'), '1号场');
+assert.strictEqual(rules.normalizeVenue('4号场'), '4号场');
 
 console.log('schedule rules tests passed');

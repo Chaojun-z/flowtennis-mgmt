@@ -21,16 +21,9 @@ const record = rules.buildFeedbackRecord(
     campus: 'mabao',
     venue: '1号场',
     lessonCount: 1,
-    forehand: '稳定击球',
-    backhand: '继续加强',
-    footwork: '启动积极',
-    rally: '能完成多拍',
-    readyPosition: '注意架拍',
-    serve: '本节未练',
-    focus: '正手连续性',
-    performance: '专注',
-    problems: '击球点偏晚',
-    nextAdvice: '下次加强步伐'
+    practicedToday: '底线练习',
+    knowledgePoint: '重心转移',
+    nextTraining: '脚步移动'
   },
   { id: 'fb-1' },
   { name: '朝珺' }
@@ -39,8 +32,9 @@ const record = rules.buildFeedbackRecord(
 assert.strictEqual(record.id, 'fb-1');
 assert.strictEqual(record.scheduleId, 'sch-1');
 assert.strictEqual(record.coach, '朝珺');
-assert.strictEqual(record.template.forehand, '稳定击球');
-assert.strictEqual(record.nextAdvice, '下次加强步伐');
+assert.strictEqual(record.practicedToday, '底线练习');
+assert.strictEqual(record.knowledgePoint, '重心转移');
+assert.strictEqual(record.nextTraining, '脚步移动');
 
 assert.doesNotThrow(
   () => rules.assertCanWriteFeedback(

@@ -347,7 +347,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section" id="page-coachops">
       <div class="stats-row" id="coachOpsStats"></div>
       <div class="toolbar">
-        <select class="fsel" id="coachOpsRange" onchange="renderCoachOps()"><option value="day">日视图</option><option value="week">周视图</option><option value="month">月视图</option></select>
+        <select class="fsel" id="coachOpsRange" onchange="setCoachOpsMode(this.value)"><option value="day">日视图</option><option value="week">周视图</option><option value="month">月视图</option></select>
         <button class="btn-sec" onclick="shiftCoachOpsDate(-1)">上一段</button>
         <input class="finput" id="coachOpsDate" type="date" style="max-width:170px" onchange="renderCoachOps()">
         <button class="btn-sec" onclick="shiftCoachOpsDate(1)">下一段</button>
@@ -796,6 +796,7 @@ function renderAll(){
 let currentPage=localStorage.getItem(PAGE_KEY)||'students',campus=localStorage.getItem(CAMPUS_KEY)||'all',editId=null,delId=null,delType=null,_pending=[];
 let stuPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1;
 let courtSortKey='',courtSortDir='desc',courtCampusFilterValue='',courtOwnerFilterValue='',selectedCourtIds=new Set();
+let coachOpsMode='day';
 
 function goPage(pg,el){
   syncViewportMode();
@@ -853,7 +854,7 @@ function renderStudents(){
 function studentFeedbackHistoryHtml(s){
   const rows=feedbacks.filter(f=>f.studentId===s.id||String(f.studentName||'')===String(s.name||'')).sort((a,b)=>new Date(b.startTime||b.createdAt||0)-new Date(a.startTime||a.createdAt||0)).slice(0,8);
   if(!rows.length)return '<div style="font-size:12px;color:var(--td)">暂无课后反馈</div>';
-  return rows.map(f=>`<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:8px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${fmtDt(f.startTime)} · ${esc(f.coach)||'—'}</div><div style="margin-top:3px">重点：${esc(f.template?.focus)||'—'}</div><div style="margin-top:3px">表现：${esc(f.performance)||'—'}</div><div style="margin-top:3px">建议：${esc(f.nextAdvice)||'—'}</div></div>`).join('');
+  return rows.map(f=>`<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:8px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${fmtDt(f.startTime)} · ${esc(f.coach)||'—'}</div><div style="margin-top:3px">今天练习了：${esc(f.practicedToday)||'—'}</div><div style="margin-top:3px">知识点：${esc(f.knowledgePoint)||'—'}</div><div style="margin-top:3px">下节课我们训练：${esc(f.nextTraining)||'—'}</div></div>`).join('');
 }
 function openStudentModal(id){
   editId=id;const s=id?students.find(x=>x.id===id):null;
@@ -1083,15 +1084,14 @@ function scheduleRemainingLessons(s){
 function openFeedbackModal(scheduleId){
   const s=schedules.find(x=>x.id===scheduleId);if(!s){toast('找不到排课记录','error');return;}
   const fb=scheduleFeedback(s)||{};
-  const tpl=fb.template||{};
   editId=fb.id||null;
   document.getElementById('mTitle').textContent=fb.id?'✏️ 编辑课后反馈':'📝 课后反馈';
-  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">${fmtDt(s.startTime)} · ${esc(s.studentName)||'—'} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''}</div><div class="sec-ttl">训练模板</div><div class="fgrid"><div class="fg"><div class="flabel">正手</div><input class="finput" id="fb_forehand" value="${esc(tpl.forehand)}"></div><div class="fg"><div class="flabel">反手</div><input class="finput" id="fb_backhand" value="${esc(tpl.backhand)}"></div><div class="fg"><div class="flabel">脚步</div><input class="finput" id="fb_footwork" value="${esc(tpl.footwork)}"></div><div class="fg"><div class="flabel">回合</div><input class="finput" id="fb_rally" value="${esc(tpl.rally)}"></div><div class="fg"><div class="flabel">架拍</div><input class="finput" id="fb_ready" value="${esc(tpl.readyPosition)}"></div><div class="fg"><div class="flabel">发球</div><input class="finput" id="fb_serve" value="${esc(tpl.serve)}"></div><div class="fg full"><div class="flabel">本节重点</div><input class="finput" id="fb_focus" value="${esc(tpl.focus)}"></div><div class="fg full"><div class="flabel">课堂表现</div><textarea class="finput ftextarea" id="fb_performance">${esc(fb.performance)}</textarea></div><div class="fg full"><div class="flabel">问题点</div><textarea class="finput ftextarea" id="fb_problems">${esc(fb.problems)}</textarea></div><div class="fg full"><div class="flabel">下次建议</div><textarea class="finput ftextarea" id="fb_next">${esc(fb.nextAdvice)}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-sec" onclick="copyFeedbackDraft('${s.id}')">复制给学员</button><button class="btn-save" onclick="saveFeedback('${s.id}')">保存反馈</button></div>`;
+  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">${fmtDt(s.startTime)} · ${esc(s.studentName)||'—'} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''}</div><div class="sec-ttl">反馈内容</div><div class="fgrid"><div class="fg full"><div class="flabel">今天练习了 *</div><textarea class="finput ftextarea" id="fb_practiced">${esc(fb.practicedToday||fb.template?.focus||fb.performance)}</textarea></div><div class="fg full"><div class="flabel">知识点（非必填）</div><textarea class="finput ftextarea" id="fb_knowledge">${esc(fb.knowledgePoint||fb.problems)}</textarea></div><div class="fg full"><div class="flabel">下节课我们训练 *</div><textarea class="finput ftextarea" id="fb_next_training">${esc(fb.nextTraining||fb.nextAdvice)}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-sec" onclick="copyFeedbackDraft('${s.id}')">复制给学员</button><button class="btn-save" onclick="saveFeedback('${s.id}')">保存反馈</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
 function feedbackDraftText(s){
   const v=id=>document.getElementById(id)?.value.trim()||'';
-  return [`${s.studentName||'学员'} ${fmtDt(s.startTime)} 课后反馈`,`本节重点：${v('fb_focus')||'—'}`,`正手：${v('fb_forehand')||'—'}`,`反手：${v('fb_backhand')||'—'}`,`脚步：${v('fb_footwork')||'—'}`,`回合：${v('fb_rally')||'—'}`,`架拍：${v('fb_ready')||'—'}`,`发球：${v('fb_serve')||'—'}`,`课堂表现：${v('fb_performance')||'—'}`,`问题点：${v('fb_problems')||'—'}`,`下次建议：${v('fb_next')||'—'}`].join('\n');
+  return [`${s.studentName||'学员'} ${fmtDt(s.startTime)} 课后反馈`,`今天练习了：${v('fb_practiced')||'—'}`,`知识点：${v('fb_knowledge')||'—'}`,`下节课我们训练：${v('fb_next_training')||'—'}`].join('\n');
 }
 async function copyText(text){
   if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return;}
@@ -1106,7 +1106,10 @@ async function saveFeedback(scheduleId){
   const s=schedules.find(x=>x.id===scheduleId);if(!s)return;
   const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
   const studentIds=parseArr(s.studentIds);
-  const data={scheduleId:s.id,studentId:studentIds[0]||'',studentName:s.studentName||'',coach:s.coach||'',startTime:s.startTime||'',campus:s.campus||'',venue:s.venue||'',lessonCount:s.lessonCount||0,remainingLessons:scheduleRemainingLessons(s),forehand:document.getElementById('fb_forehand').value.trim(),backhand:document.getElementById('fb_backhand').value.trim(),footwork:document.getElementById('fb_footwork').value.trim(),rally:document.getElementById('fb_rally').value.trim(),readyPosition:document.getElementById('fb_ready').value.trim(),serve:document.getElementById('fb_serve').value.trim(),focus:document.getElementById('fb_focus').value.trim(),performance:document.getElementById('fb_performance').value.trim(),problems:document.getElementById('fb_problems').value.trim(),nextAdvice:document.getElementById('fb_next').value.trim()};
+  const practicedToday=document.getElementById('fb_practiced').value.trim();
+  const nextTraining=document.getElementById('fb_next_training').value.trim();
+  if(!practicedToday||!nextTraining){toast('请填写「今天练习了」和「下节课我们训练」','warn');btn.disabled=false;btn.textContent='保存反馈';return;}
+  const data={scheduleId:s.id,studentId:studentIds[0]||'',studentName:s.studentName||'',coach:s.coach||'',startTime:s.startTime||'',campus:s.campus||'',venue:s.venue||'',lessonCount:s.lessonCount||0,remainingLessons:scheduleRemainingLessons(s),practicedToday,knowledgePoint:document.getElementById('fb_knowledge').value.trim(),nextTraining};
   try{
     const saved=editId?await apiCall('PUT','/feedbacks/'+editId,data):await apiCall('POST','/feedbacks',data);
     const i=feedbacks.findIndex(f=>f.id===saved.id);if(i>=0)feedbacks[i]=saved;else feedbacks.unshift(saved);
@@ -1115,7 +1118,7 @@ async function saveFeedback(scheduleId){
 }
 function feedbackSummaryHtml(fb){
   if(!fb)return '—';
-  const parts=[fb.template?.focus,fb.performance,fb.nextAdvice].filter(Boolean);
+  const parts=[fb.practicedToday||fb.template?.focus,fb.knowledgePoint,fb.nextTraining||fb.nextAdvice].filter(Boolean);
   return parts.length?parts.map(esc).join('；'):'已填写';
 }
 function openScheduleDetail(scheduleId){
@@ -1128,22 +1131,27 @@ function openScheduleDetail(scheduleId){
 }
 // ===== 教练运营 =====
 function ensureCoachOpsDate(){const el=document.getElementById('coachOpsDate');if(el&&!el.value)el.value=today();}
+function setCoachOpsMode(mode){
+  coachOpsMode=['day','week','month'].includes(mode)?mode:'day';
+  const el=document.getElementById('coachOpsRange');if(el)el.value=coachOpsMode;
+  renderCoachOps();
+}
 function setCoachOpsToday(){const el=document.getElementById('coachOpsDate');if(el)el.value=today();renderCoachOps();}
 function shiftCoachOpsDate(step){
   const el=document.getElementById('coachOpsDate');if(!el)return;
-  const mode=document.getElementById('coachOpsRange')?.value||'day';
+  const mode=coachOpsMode;
   const base=dtObj(el.value||today())||new Date();
   if(mode==='month')el.value=dateKey(addMonths(base,step));
   else if(mode==='week')el.value=dateKey(addDays(base,step*7));
   else el.value=dateKey(addDays(base,step));
   renderCoachOps();
 }
-function openCoachOpsDay(ds){const r=document.getElementById('coachOpsRange'),d=document.getElementById('coachOpsDate');if(r)r.value='day';if(d)d.value=ds;renderCoachOps();}
+function openCoachOpsDay(ds){coachOpsMode='day';const r=document.getElementById('coachOpsRange'),d=document.getElementById('coachOpsDate');if(r)r.value='day';if(d)d.value=ds;renderCoachOps();}
 function coachOpsRows(){
   const now=new Date(),todayStr=today();
   const ws=weekStart(now),we=new Date(ws);we.setDate(ws.getDate()+7);
   const ms=monthStart(now),me=new Date(now.getFullYear(),now.getMonth()+1,1);
-  const range=rangeBounds(document.getElementById('coachOpsRange')?.value||'week');
+  const range=rangeBounds(coachOpsMode);
   const all=billableSchedules();
   const names=[...new Set([...activeCoachNames(),...all.map(s=>s.coach).filter(Boolean)])];
   return names.map(name=>{
@@ -1161,7 +1169,9 @@ function coachOpsRows(){
 function renderCoachOps(){
   const host=document.getElementById('coachOpsTimeline');if(!host)return;
   ensureCoachOpsDate();
-  const mode=document.getElementById('coachOpsRange')?.value||'day';
+  host.innerHTML='<div class="coach-ops-empty">加载中…</div>';
+  const mode=coachOpsMode;
+  const rangeSelect=document.getElementById('coachOpsRange');if(rangeSelect)rangeSelect.value=mode;
   const range=rangeBounds(mode);
   const hourHost=document.getElementById('coachOpsHours');
   if(hourHost)hourHost.innerHTML=mode==='day'?Array.from({length:19},(_,i)=>`<span>${i+6}:00</span>`).join(''):'';
@@ -1171,9 +1181,10 @@ function renderCoachOps(){
   const todayTotal=rows.reduce((n,r)=>n+r.todayRows.length,0);
   const weekTotal=rows.reduce((n,r)=>n+r.weekRows.length,0);
   const monthTotal=rows.reduce((n,r)=>n+r.monthRows.length,0);
+  const rangeTotal=rows.reduce((n,r)=>n+r.rangeRows.length,0);
   const pending=rows.reduce((n,r)=>n+r.pending,0);
   document.getElementById('coachOpsStats').innerHTML=[
-    ['今日上课',todayTotal,'节','si-a'],
+    [mode==='day'?'当日上课':'今日上课',mode==='day'?rangeTotal:todayTotal,'节','si-a'],
     ['本周上课',weekTotal,'节','si-b'],
     ['本月上课',monthTotal,'节','si-c'],
     ['未反馈',pending,'节','si-e']

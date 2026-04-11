@@ -23,6 +23,9 @@ function scan(t){return new Promise((res,rej)=>{const rows=[];function f(sk){gc(
 function del(t,id){return new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));});}
 function mkTable(t){return new Promise(res=>{gc().createTable({tableMeta:{tableName:t,primaryKey:[{name:'id',type:TableStore.PrimaryKeyType.STRING}]},reservedThroughput:{capacityUnit:{read:0,write:0}},tableOptions:{timeToLive:-1,maxVersions:1}},e=>res(e?'exists':'ok'));});}
 async function timed(label,fn){const startedAt=Date.now();try{return await fn();}finally{console.log(`[api-timing] ${label} ${Date.now()-startedAt}ms`);}}
+function withTimeout(promise,ms,fallback){
+  return Promise.race([promise,new Promise((res)=>setTimeout(()=>res(fallback),ms))]);
+}
 function isTableMissingError(err){return /not.*exist|table.*not.*exist|OTSObjectNotExist/i.test(String(err?.message||err||''));}
 async function putFeedback(id,row){
   try{return await put(T_FEEDBACKS,id,row);}
@@ -30,6 +33,13 @@ async function putFeedback(id,row){
     if(!isTableMissingError(err))throw err;
     await mkTable(T_FEEDBACKS);
     return put(T_FEEDBACKS,id,row);
+  }
+}
+async function scanFeedbacks(){
+  try{return await scan(T_FEEDBACKS);}
+  catch(err){
+    if(!isTableMissingError(err))throw err;
+    return [];
   }
 }
 function parseArr(v){if(Array.isArray(v))return v;if(typeof v==='string'&&v){try{return JSON.parse(v)}catch{return[]}}return[];}
@@ -66,6 +76,11 @@ function scheduleLessonDelta(rec){
   return {classId:rec.classId,delta:lessonCount};
 }
 function dateMs(v){if(!v)return NaN;return new Date(String(v).replace(' ','T')).getTime();}
+function normalizeVenue(v){
+  const raw=String(v||'').trim();
+  const m=raw.match(/([1-4])\s*号场/);
+  return m?`${m[1]}号场`:raw;
+}
 function rangesOverlap(aStart,aEnd,bStart,bEnd){
   const as=dateMs(aStart),ae=dateMs(aEnd),bs=dateMs(bStart),be=dateMs(bEnd);
   if(!Number.isFinite(as)||!Number.isFinite(ae)||!Number.isFinite(bs)||!Number.isFinite(be))return false;
@@ -102,7 +117,9 @@ function validateScheduleConflicts(candidate,schedules,excludeId){
     if(!rec||rec.id===(excludeId||candidate.id)||!isBillableSchedule(rec))continue;
     if(!rangesOverlap(candidate.startTime,candidate.endTime,rec.startTime,rec.endTime))continue;
     if(candidate.coach&&rec.coach&&candidate.coach===rec.coach)throw new Error(`教练「${candidate.coach}」此时间已有课程`);
-    if(candidate.venue&&rec.venue&&candidate.venue===rec.venue&&(candidate.campus||'')===(rec.campus||''))throw new Error(`场地「${candidate.venue}」此时间已被占用`);
+    const candidateVenue=normalizeVenue(candidate.venue);
+    const recVenue=normalizeVenue(rec.venue);
+    if(candidateVenue&&recVenue&&candidateVenue===recVenue&&(candidate.campus||'')===(rec.campus||''))throw new Error(`场地「${candidateVenue}」此时间已被占用`);
     if(shareStudent(candidate,rec))throw new Error('学员此时间已有课程');
   }
 }
@@ -127,15 +144,6 @@ function collectScheduleRiskWarnings(candidate,schedules,excludeId){
 function buildFeedbackRecord(body,base,user){
   if(!body.scheduleId)throw new Error('缺少排课ID');
   const now=new Date().toISOString();
-  const template={
-    forehand:body.forehand||'',
-    backhand:body.backhand||'',
-    footwork:body.footwork||'',
-    rally:body.rally||'',
-    readyPosition:body.readyPosition||'',
-    serve:body.serve||'',
-    focus:body.focus||''
-  };
   return {
     ...base,
     scheduleId:body.scheduleId,
@@ -147,10 +155,9 @@ function buildFeedbackRecord(body,base,user){
     venue:body.venue||'',
     lessonCount:body.lessonCount||0,
     remainingLessons:body.remainingLessons||'',
-    template,
-    performance:body.performance||'',
-    problems:body.problems||'',
-    nextAdvice:body.nextAdvice||'',
+    practicedToday:body.practicedToday||body.focus||body.performance||'',
+    knowledgePoint:body.knowledgePoint||body.problems||'',
+    nextTraining:body.nextTraining||body.nextAdvice||'',
     sentToStudent:body.sentToStudent||false,
     updatedBy:user?.name||'',
     updatedAt:now,
@@ -543,7 +550,7 @@ module.exports = async (req, res) => {
         timed('load-all scan coaches',()=>scan(T_COACHES).catch(()=>[])),
         timed('load-all scan classes',()=>scan(T_CLASSES).catch(()=>[])),
         timed('load-all scan campuses',()=>scan(T_CAMPUSES).catch(()=>[])),
-        timed('load-all scan feedbacks',()=>scan(T_FEEDBACKS).catch(()=>[]))
+        timed('load-all scan feedbacks',()=>withTimeout(scanFeedbacks().catch(()=>[]),3000,[]))
       ]);
       return sendJson(res,{
         courts:Array.isArray(courts)?courts:[],
@@ -648,7 +655,7 @@ module.exports = async (req, res) => {
     const plM=path.match(/^\/plans\/(.+)$/);if(plM){const id=plM[1];if(method==='GET')return sendJson(res,await get(T_PLANS,id));if(method==='PUT'){const r={...body,id,updatedAt:new Date().toISOString()};await put(T_PLANS,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_PLANS,id);return sendJson(res,{success:true});}}
     if(path==='/feedbacks'){
       await init();
-      if(method==='GET')return sendJson(res,await scan(T_FEEDBACKS));
+      if(method==='GET')return sendJson(res,await withTimeout(scanFeedbacks().catch(()=>[]),3000,[]));
       if(method==='POST'){
         const id=uuidv4();
         const schedule=await get(T_SCHEDULE,body.scheduleId).catch(()=>null);
@@ -679,7 +686,7 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,await scan(T_SCHEDULE));
       if(method==='POST'){
         const id=uuidv4();
-        const r={...body,id,status:body.status||'已排课',createdBy:user.name,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+        const r={...body,venue:normalizeVenue(body.venue),id,status:body.status||'已排课',createdBy:user.name,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
         const risk=await validateScheduleSave(r,null);
         await put(T_SCHEDULE,id,r);
         const nextDelta=scheduleLessonDelta(r);
@@ -693,7 +700,7 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,await get(T_SCHEDULE,id));
       if(method==='PUT'){
         const ex=await get(T_SCHEDULE,id).catch(()=>null);
-        const r={...ex,...body,id,updatedAt:new Date().toISOString()};
+        const r={...ex,...body,venue:normalizeVenue(body.venue??ex?.venue),id,updatedAt:new Date().toISOString()};
         const oldDelta=scheduleLessonDelta(ex);
         const nextDelta=scheduleLessonDelta(r);
         const risk=await validateScheduleSave(r,ex);
@@ -743,6 +750,7 @@ module.exports._test={
   collectScheduleRiskWarnings,
   buildFeedbackRecord,
   assertCanWriteFeedback,
+  normalizeVenue,
   rangesOverlap,
   computeCourtFinance,
   normalizeCourtRecord,

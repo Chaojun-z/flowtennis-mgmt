@@ -1,4 +1,4 @@
-const SW_VERSION = 'flowtennis-shell-v1';
+const SW_VERSION = 'flowtennis-shell-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -33,7 +33,7 @@ self.addEventListener('fetch', (event) => {
 
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => caches.match('/index.html'))
+      fetch(req, { cache: 'no-store' }).catch(() => caches.match('/index.html'))
     );
     return;
   }
@@ -41,13 +41,10 @@ self.addEventListener('fetch', (event) => {
   if (!APP_SHELL.includes(url.pathname)) return;
 
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
+    fetch(req, { cache: 'no-store' }).then((res) => {
         const cloned = res.clone();
         caches.open(SW_VERSION).then((cache) => cache.put(req, cloned));
         return res;
-      });
-    })
+      }).catch(() => caches.match(req))
   );
 });
