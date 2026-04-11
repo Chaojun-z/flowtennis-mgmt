@@ -179,12 +179,19 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .coach-mobile-time{font-size:15px;font-weight:700;color:var(--amber-base);white-space:nowrap}
 .coach-mobile-meta{margin-top:6px;font-size:12px;line-height:1.6;color:var(--ts)}
 .coach-mobile-empty{padding:18px 14px;text-align:center;color:var(--ts);font-size:12px;background:rgba(254,243,199,0.2);border-radius:12px;border:0.5px dashed rgba(180,83,9,0.16)}
-.coach-ops-grid{display:grid;grid-template-columns:160px minmax(980px,1fr);gap:8px;overflow-x:auto}
-.coach-ops-head{display:grid;grid-template-columns:160px minmax(980px,1fr);gap:8px;margin:0 0 8px;color:rgba(254,243,199,.72);font-size:11px;overflow-x:auto}
-.coach-ops-grid,.coach-ops-head{scrollbar-width:none}.coach-ops-grid::-webkit-scrollbar,.coach-ops-head::-webkit-scrollbar{display:none}
+.coach-ops-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(254,243,199,.16);border:0.5px solid rgba(254,243,199,.22);border-radius:14px;padding:10px 12px;margin-bottom:14px}
+.coach-ops-select,.coach-date-btn,.coach-ops-nav{height:38px;border:none;border-radius:8px;background:rgba(255,255,255,.84);color:var(--th);padding:0 13px;font-size:13px;font-weight:700;font-family:inherit;box-shadow:0 5px 18px rgba(60,20,0,.10);cursor:pointer}
+.coach-ops-select{appearance:none;min-width:112px;background-image:linear-gradient(45deg,transparent 50%,var(--amber-base) 50%),linear-gradient(135deg,var(--amber-base) 50%,transparent 50%);background-position:calc(100% - 16px) 16px,calc(100% - 11px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:30px}
+.coach-date-wrap{position:relative}.coach-date-btn{min-width:178px;text-align:left}.coach-ops-nav{color:var(--amber-base);min-width:72px}.coach-ops-nav:hover,.coach-date-btn:hover,.coach-ops-select:hover{background:#fff}
+.coach-date-pop{display:none;position:absolute;top:44px;left:0;width:292px;background:rgba(255,251,245,.98);border:0.5px solid rgba(180,83,9,.18);border-radius:12px;box-shadow:0 18px 54px rgba(60,20,0,.28);padding:12px;z-index:30;color:var(--th)}
+.coach-date-pop.open{display:block}.coach-picker-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.coach-picker-title{font-size:15px;font-weight:800}.coach-picker-move{width:28px;height:28px;border:none;border-radius:7px;background:rgba(180,83,9,.08);color:var(--amber-base);cursor:pointer;font-size:16px}.coach-picker-weekdays,.coach-picker-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.coach-picker-weekdays span{font-size:11px;color:var(--ts);text-align:center;font-weight:700}.coach-picker-day,.coach-picker-month{border:none;border-radius:8px;background:rgba(180,83,9,.06);color:var(--th);height:34px;font-size:13px;font-family:inherit;cursor:pointer}.coach-picker-day:hover,.coach-picker-month:hover{background:rgba(217,119,6,.16)}.coach-picker-day.muted{color:rgba(28,25,23,.35)}.coach-picker-day.active,.coach-picker-month.active{background:var(--amber-base);color:#fff;font-weight:800}.coach-picker-day.week-active{box-shadow:inset 0 0 0 2px var(--amber-base);font-weight:800}.coach-picker-months{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.coach-picker-month{height:38px}
+#page-coachops .stats-row{gap:10px;margin-bottom:12px}#page-coachops .scard{border-radius:14px;padding:14px 16px;background:rgba(255,255,255,.84)}#page-coachops .sc-icon{display:none}
+.coach-ops-scroll{overflow-x:auto;scrollbar-width:thin;scrollbar-color:rgba(120,53,15,.32) transparent;padding-bottom:6px}.coach-ops-scroll::-webkit-scrollbar{height:6px}.coach-ops-scroll::-webkit-scrollbar-thumb{background:rgba(120,53,15,.28);border-radius:999px}.coach-ops-scroll::-webkit-scrollbar-track{background:transparent}
+.coach-ops-head,.coach-ops-row{display:grid;grid-template-columns:160px minmax(980px,1fr);gap:8px;min-width:1156px}
+.coach-ops-head{margin:0 0 8px;color:rgba(254,243,199,.72);font-size:11px}
 .coach-ops-tabs{display:flex;gap:8px;margin:2px 0 12px}.coach-ops-tab{border:none;border-radius:8px;padding:9px 14px;background:rgba(254,243,199,.26);color:var(--cream-pale);font-size:13px;font-weight:700;cursor:pointer}.coach-ops-tab.active{background:rgba(254,243,199,.82);color:var(--amber-deep)}
-.coach-ops-row{display:contents}
-.coach-ops-name{background:var(--card-f);border:var(--borf);border-radius:10px;padding:10px 12px;color:var(--th);font-weight:700;min-height:54px}
+.coach-ops-name,.coach-ops-corner{position:sticky;left:0;z-index:4;background:rgba(255,247,237,.96);border:var(--borf);border-radius:10px;padding:10px 12px;color:var(--th);font-weight:700;min-height:54px;box-shadow:10px 0 16px rgba(146,64,14,.14)}
+.coach-ops-corner{min-height:auto;color:rgba(254,243,199,.72);background:rgba(120,53,15,.82);box-shadow:10px 0 16px rgba(120,53,15,.18)}
 .coach-ops-line{background:var(--card-f);border:var(--borf);border-radius:10px;min-height:64px;position:relative;overflow:hidden;background-image:repeating-linear-gradient(90deg,rgba(180,83,9,.08),rgba(180,83,9,.08) 1px,transparent 1px,transparent calc(100% / 15))}
 .coach-ops-hours{display:flex;justify-content:space-between;background:rgba(0,0,0,.08);border-radius:8px;padding:6px 4px;color:rgba(254,243,199,.8)}
 .coach-ops-hours span{font-size:10px;white-space:nowrap}
@@ -352,17 +359,23 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
         <button class="coach-ops-tab active" id="coachOpsTabSchedule" onclick="setCoachOpsPanel('schedule')">教练排课</button>
         <button class="coach-ops-tab" id="coachOpsTabWorkload" onclick="setCoachOpsPanel('workload')">教练工作量</button>
       </div>
-      <div class="toolbar">
-        <select class="fsel" id="coachOpsRange" onchange="setCoachOpsMode(this.value)"><option value="day">日视图</option><option value="week">周视图</option><option value="month">月视图</option></select>
-        <button class="btn-sec" onclick="shiftCoachOpsDate(-1)">上一段</button>
-        <input class="finput" id="coachOpsDate" type="date" style="max-width:170px" onchange="renderCoachOps()">
-        <button class="btn-sec" onclick="shiftCoachOpsDate(1)">下一段</button>
-        <button class="btn-sec" onclick="setCoachOpsToday()">回到今天</button>
+      <div class="coach-ops-toolbar">
+        <select class="coach-ops-select" id="coachOpsRange" onchange="setCoachOpsMode(this.value)"><option value="day">日视图</option><option value="week">周视图</option><option value="month">月视图</option></select>
+        <button class="coach-ops-nav" onclick="shiftCoachOpsDate(-1)">上一段</button>
+        <div class="coach-date-wrap">
+          <input id="coachOpsDate" type="hidden" value="">
+          <button class="coach-date-btn" id="coachOpsDateBtn" onclick="toggleCoachOpsPicker()" type="button"></button>
+          <div class="coach-date-pop" id="coachOpsPicker"></div>
+        </div>
+        <button class="coach-ops-nav" onclick="shiftCoachOpsDate(1)">下一段</button>
+        <button class="coach-ops-nav" onclick="setCoachOpsToday()">回到今天</button>
       </div>
       <div id="coachOpsSchedulePanel">
         <div style="font-size:14px;font-weight:600;color:var(--cream-pale);margin:4px 0 10px" id="coachOpsViewTitle">教练排课</div>
-        <div class="coach-ops-head"><div>教练</div><div class="coach-ops-hours" id="coachOpsHours"></div></div>
-        <div class="coach-ops-grid" id="coachOpsTimeline"></div>
+        <div class="coach-ops-scroll">
+          <div class="coach-ops-head"><div class="coach-ops-corner">教练</div><div class="coach-ops-hours" id="coachOpsHours"></div></div>
+          <div id="coachOpsTimeline"></div>
+        </div>
       </div>
       <div id="coachOpsWorkloadPanel" style="display:none">
         <div style="font-size:14px;font-weight:600;color:var(--cream-pale);margin:4px 0 10px">教练工作量</div>
@@ -527,6 +540,15 @@ function coachOpsInputDate(){
   }
   if(coachOpsMode==='week')return dateFromIsoWeek(raw)||new Date();
   return dtObj(raw)||new Date();
+}
+function coachOpsDateLabel(){
+  const d=coachOpsInputDate();
+  if(coachOpsMode==='month')return `${d.getFullYear()} 年 ${d.getMonth()+1} 月`;
+  if(coachOpsMode==='week'){
+    const s=weekStart(d),e=addDays(s,6);
+    return `${s.getMonth()+1}/${s.getDate()} - ${e.getMonth()+1}/${e.getDate()}`;
+  }
+  return `${d.getFullYear()} / ${String(d.getMonth()+1).padStart(2,'0')} / ${String(d.getDate()).padStart(2,'0')}`;
 }
 function coachRiskCount(list){
   let count=0;
@@ -774,6 +796,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();});
   window.addEventListener('resize',syncViewportMode);
+  document.addEventListener('click',e=>{if(!e.target.closest?.('.coach-date-wrap'))closeCoachOpsPicker();});
   if(token&&currentUser)showApp();else document.getElementById('loginPage').style.display='flex';
 });
 
@@ -865,7 +888,7 @@ function renderAll(){
 let currentPage=localStorage.getItem(PAGE_KEY)||'students',campus=localStorage.getItem(CAMPUS_KEY)||'all',editId=null,delId=null,delType=null,_pending=[];
 let stuPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1;
 let courtSortKey='',courtSortDir='desc',courtCampusFilterValue='',courtOwnerFilterValue='',selectedCourtIds=new Set();
-let coachOpsMode='day',coachOpsPanel='schedule';
+let coachOpsMode='day',coachOpsPanel='schedule',coachOpsPickerMonth=null;
 
 function goPage(pg,el){
   syncViewportMode();
@@ -883,7 +906,7 @@ function goPage(pg,el){
   document.getElementById('page-'+pg).classList.add('active');currentPage=pg;
   localStorage.setItem(PAGE_KEY,currentPage);
   document.getElementById('campusTabs').style.display=['students','courts'].includes(pg)?'flex':'none';
-  const t={students:'👥 学员信息',classes:'📋 班次管理',plans:'📚 学习计划',schedule:'📅 排课表',coachops:'📊 教练运营',coaches:'👨‍🏫 教练管理',courts:'🏟️ 订场用户',products:'🏷️ 课程产品',campusmgr:'⚙️ 校区管理',myschedule:'📅 我的课表',mystudents:'👥 我的学员',myclasses:'📋 我的班次'};
+  const t={students:'👥 学员信息',classes:'📋 班次管理',plans:'📚 学习计划',schedule:'📅 排课表',coachops:'教练运营',coaches:'👨‍🏫 教练管理',courts:'🏟️ 订场用户',products:'🏷️ 课程产品',campusmgr:'⚙️ 校区管理',myschedule:'📅 我的课表',mystudents:'👥 我的学员',myclasses:'📋 我的班次'};
   document.getElementById('topTitle').textContent=t[pg]||'';
   if(pg==='coachops')renderCoachOps();
   if(pg==='myschedule')renderMySchedule();
@@ -1233,21 +1256,61 @@ function setCoachOpsPanel(panel){
   if(scheduleTab)scheduleTab.classList.toggle('active',coachOpsPanel==='schedule');
   if(workloadTab)workloadTab.classList.toggle('active',coachOpsPanel==='workload');
 }
+function updateCoachOpsDateButton(){
+  const btn=document.getElementById('coachOpsDateBtn');
+  if(btn)btn.textContent=coachOpsDateLabel();
+}
+function closeCoachOpsPicker(){document.getElementById('coachOpsPicker')?.classList.remove('open');}
+function toggleCoachOpsPicker(){
+  const pop=document.getElementById('coachOpsPicker');if(!pop)return;
+  coachOpsPickerMonth=monthStart(coachOpsInputDate());
+  renderCoachOpsPicker();
+  pop.classList.toggle('open');
+}
+function moveCoachOpsPickerMonth(step){coachOpsPickerMonth=addMonths(coachOpsPickerMonth||coachOpsInputDate(),step);renderCoachOpsPicker();}
+function pickCoachOpsDate(value){
+  const el=document.getElementById('coachOpsDate');if(!el)return;
+  el.value=value;
+  closeCoachOpsPicker();
+  renderCoachOps();
+}
+function renderCoachOpsPicker(){
+  const pop=document.getElementById('coachOpsPicker');if(!pop)return;
+  const selected=coachOpsInputDate();
+  const base=coachOpsPickerMonth||monthStart(selected);
+  if(coachOpsMode==='month'){
+    const months=Array.from({length:12},(_,i)=>{
+      const active=selected.getFullYear()===base.getFullYear()&&selected.getMonth()===i;
+      return `<button class="coach-picker-month ${active?'active':''}" onclick="pickCoachOpsDate('${base.getFullYear()}-${String(i+1).padStart(2,'0')}')">${i+1}月</button>`;
+    }).join('');
+    pop.innerHTML=`<div class="coach-picker-head"><button class="coach-picker-move" onclick="moveCoachOpsPickerMonth(-12)">‹</button><div class="coach-picker-title">${base.getFullYear()} 年</div><button class="coach-picker-move" onclick="moveCoachOpsPickerMonth(12)">›</button></div><div class="coach-picker-months">${months}</div>`;
+    return;
+  }
+  const first=new Date(base.getFullYear(),base.getMonth(),1);
+  const gridStart=addDays(first,-((first.getDay()+6)%7));
+  const selectedKey=dateKey(selected);
+  const weekKey=coachOpsMode==='week'?isoWeekValue(selected):'';
+  const days=Array.from({length:42},(_,i)=>{
+    const d=addDays(gridStart,i),ds=dateKey(d);
+    const muted=d.getMonth()!==base.getMonth();
+    const active=coachOpsMode==='day'&&ds===selectedKey;
+    const weekActive=coachOpsMode==='week'&&isoWeekValue(d)===weekKey;
+    const clickValue=coachOpsMode==='week'?isoWeekValue(d):ds;
+    return `<button class="coach-picker-day ${muted?'muted':''} ${active?'active':''} ${weekActive?'week-active':''}" onclick="pickCoachOpsDate('${clickValue}')">${d.getDate()}</button>`;
+  }).join('');
+  pop.innerHTML=`<div class="coach-picker-head"><button class="coach-picker-move" onclick="moveCoachOpsPickerMonth(-1)">‹</button><div class="coach-picker-title">${base.getFullYear()} 年 ${base.getMonth()+1} 月</div><button class="coach-picker-move" onclick="moveCoachOpsPickerMonth(1)">›</button></div><div class="coach-picker-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="coach-picker-grid">${days}</div>`;
+}
 function ensureCoachOpsDate(){
   const el=document.getElementById('coachOpsDate');if(!el)return;
-  const type=coachOpsMode==='month'?'month':coachOpsMode==='week'?'week':'date';
-  if(el.type!==type){
-    const base=coachOpsInputDate();
-    el.type=type;
-    el.value=coachOpsInputValue(base,coachOpsMode);
-  }
   if(!el.value)el.value=coachOpsInputValue(new Date(),coachOpsMode);
+  updateCoachOpsDateButton();
 }
 function setCoachOpsMode(mode){
   const base=coachOpsInputDate();
   coachOpsMode=['day','week','month'].includes(mode)?mode:'day';
   const el=document.getElementById('coachOpsRange');if(el)el.value=coachOpsMode;
-  const d=document.getElementById('coachOpsDate');if(d){d.type=coachOpsMode==='month'?'month':coachOpsMode==='week'?'week':'date';d.value=coachOpsInputValue(base,coachOpsMode);}
+  const d=document.getElementById('coachOpsDate');if(d)d.value=coachOpsInputValue(base,coachOpsMode);
+  closeCoachOpsPicker();
   renderCoachOps();
 }
 function setCoachOpsToday(){const el=document.getElementById('coachOpsDate');if(el)el.value=coachOpsInputValue(new Date(),coachOpsMode);renderCoachOps();}
@@ -1260,7 +1323,7 @@ function shiftCoachOpsDate(step){
   else el.value=dateKey(addDays(base,step));
   renderCoachOps();
 }
-function openCoachOpsDay(ds){coachOpsMode='day';const r=document.getElementById('coachOpsRange'),d=document.getElementById('coachOpsDate');if(r)r.value='day';if(d){d.type='date';d.value=ds;}renderCoachOps();}
+function openCoachOpsDay(ds){coachOpsMode='day';const r=document.getElementById('coachOpsRange'),d=document.getElementById('coachOpsDate');if(r)r.value='day';if(d)d.value=ds;renderCoachOps();}
 function coachOpsRows(){
   const now=new Date(),todayStr=today();
   const ws=weekStart(now),we=new Date(ws);we.setDate(ws.getDate()+7);
@@ -1304,7 +1367,7 @@ function renderCoachOps(){
     ['本周上课',weekTotal,'节','si-b'],
     ['本月上课',monthTotal,'节','si-c'],
     ['未反馈',pending,'节','si-e']
-  ].map(([label,val,u,cls])=>`<div class="scard"><div class="sc-icon ${cls}">📊</div><div><div class="sc-label">${label}</div><div class="sc-val">${val}<span class="u">${u}</span></div></div></div>`).join('');
+  ].map(([label,val,u,cls])=>`<div class="scard"><div class="sc-icon ${cls}"></div><div><div class="sc-label">${label}</div><div class="sc-val">${val}<span class="u">${u}</span></div></div></div>`).join('');
   host.innerHTML=rows.map(r=>{
     if(mode==='day'){
       const base=new Date(range.start);base.setHours(opsStartH,0,0,0);
