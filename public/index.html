@@ -796,31 +796,14 @@ async function saveClass(){
   const className=classNo+'-'+(prod?prod.name:'');
   const data={className,classNo,productId,productName:prod?prod.name:'',studentIds,coach:document.getElementById('cls_coach').value,campus:document.getElementById('cls_campus').value,startDate:document.getElementById('cls_start').value,endDate:document.getElementById('cls_end').value,scheduleDays,totalLessons:parseInt(document.getElementById('cls_total').value)||0,usedLessons:parseInt(document.getElementById('cls_used').value)||0,status:document.getElementById('cls_status').value,updatedBy:currentUser?.name||''};
   try{
-    if(editId){await apiCall('PUT','/classes/'+editId,data);const i=classes.findIndex(x=>x.id===editId);classes[i]={...classes[i],...data,id:editId};}
-    else{const r=await apiCall('POST','/classes',data);classes.unshift(r);}
-    await syncPlans(editId||classes[0].id,data,studentIds);
+    let res;
+    if(editId){res=await apiCall('PUT','/classes/'+editId,data);const saved=res.class||res;const i=classes.findIndex(x=>x.id===editId);classes[i]=saved;}
+    else{res=await apiCall('POST','/classes',data);classes.unshift(res.class||res);}
+    if(Array.isArray(res?.plans)){
+      res.plans.forEach(p=>{const i=plans.findIndex(x=>x.id===p.id);if(i>=0)plans[i]=p;else plans.unshift(p);});
+    }
     closeModal();toast(editId?'班次修改成功 ✓':'班次创建成功 ✓','success');renderClasses();renderPlans();renderStudents();
   }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
-}
-async function syncPlans(classId,cd,sids){
-  // 学习计划的课时进度以班次 usedLessons 为准（一个班次全体学员同步）
-  await Promise.all(sids.map(async (sid)=>{
-    const st=students.find(x=>x.id===sid);
-    const ep=plans.find(p=>p.classId===classId&&p.studentId===sid);
-    const pd={classId,studentId:sid,studentName:st?st.name:sid,studentPhone:st?st.phone||'':'',className:cd.className,productName:cd.productName,coach:cd.coach,campus:cd.campus,totalLessons:cd.totalLessons,usedLessons:parseInt(cd.usedLessons)||0,status:cd.status==='已取消'?'已取消':cd.status==='已结课'?'已结课':'active'};
-    if(ep){
-      await apiCall('PUT','/plans/'+ep.id,pd);
-      const i=plans.findIndex(x=>x.id===ep.id);plans[i]={...plans[i],...pd};
-      return;
-    }
-    const r=await apiCall('POST','/plans',pd);plans.unshift(r);
-  }));
-
-  const orphans=plans.filter(p=>p.classId===classId&&!sids.includes(p.studentId));
-  await Promise.all(orphans.map(async (op)=>{
-    await apiCall('PUT','/plans/'+op.id,{...op,status:'已取消'});
-    const i=plans.findIndex(x=>x.id===op.id);if(i>=0)plans[i].status='已取消';
-  }));
 }
 // ===== 学习计划 =====
 function renderPlans(){
@@ -1274,7 +1257,7 @@ async function doDelete(){
     else if(delType==='product')products=products.filter(u=>u.id!==delId);
     else if(delType==='plan')plans=plans.filter(u=>u.id!==delId);
     else if(delType==='schedule')schedules=schedules.filter(u=>u.id!==delId);
-    else if(delType==='class')classes=classes.filter(u=>u.id!==delId);
+    else if(delType==='class'){classes=classes.filter(u=>u.id!==delId);plans=plans.filter(p=>p.classId!==delId);}
     else if(delType==='coach')coaches=coaches.filter(u=>u.id!==delId);
     else if(delType==='campus'){campuses=campuses.filter(u=>u.id!==delId);CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});buildCampusTabs();}
     closeConf();closeModal();toast('已删除','error');renderAll();
