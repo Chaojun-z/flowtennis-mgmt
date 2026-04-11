@@ -37,6 +37,25 @@ assert.doesNotThrow(
 );
 
 assert.throws(
+  () => rules.assertLessonCapacity(
+    { id: 'class-a', totalLessons: 10, usedLessons: 10 },
+    { classId: 'class-a', delta: 1 },
+    { classId: 'class-a', delta: 2 }
+  ),
+  /剩余课时不足/,
+  'increasing lesson count should check remaining lessons after subtracting the old count'
+);
+
+assert.doesNotThrow(
+  () => rules.assertLessonCapacity(
+    { id: 'class-a', totalLessons: 10, usedLessons: 10 },
+    { classId: 'class-a', delta: 1 },
+    null
+  ),
+  'cancelling a schedule should not require remaining lesson capacity'
+);
+
+assert.throws(
   () => rules.validateScheduleConflicts(
     {
       id: 'new',

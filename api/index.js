@@ -164,6 +164,11 @@ function normalizeStudentIds(input){
   const ids=Array.isArray(input.studentIds)?input.studentIds:(input.studentId?[input.studentId]:[]);
   return [...new Set(ids.map(x=>String(x||'').trim()).filter(Boolean))];
 }
+function extractDepositAmountFromText(text){
+  const raw=String(text||'');
+  const m=raw.match(/已储值\s*([0-9]+(?:\.[0-9]+)?)/);
+  return m?normalizeMoney(m[1]):0;
+}
 function normalizeCourtHistory(history){
   if(!Array.isArray(history))return[];
   return history.map((h)=> {
@@ -222,6 +227,7 @@ function computeCourtFinance(input){
         if(totals.balance<0)throw new Error('余额不足，不能退款');
       }
       totals.receivedAmount-=amount;
+      if(totals.receivedAmount<0)throw new Error('退款金额超过累计实收');
       continue;
     }
   }
@@ -281,13 +287,16 @@ async function syncClassPlans(classId,cls){
   return saved;
 }
 function normalizeCourtRecord(input){
+  const inferredDeposit=extractDepositAmountFromText(input.depositAttitude);
+  const normalizedInput={...input};
+  if(inferredDeposit>0&&!normalizeMoney(normalizedInput.totalDeposit))normalizedInput.totalDeposit=inferredDeposit;
   const currentHistory=normalizeCourtHistory(input.history);
-  const history=currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(input);
-  const finance=computeCourtFinance({...input,history});
-  const studentIds=normalizeStudentIds(input);
+  const history=currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(normalizedInput);
+  const finance=computeCourtFinance({...normalizedInput,history});
+  const studentIds=normalizeStudentIds(normalizedInput);
   return {
-    ...input,
-    phone:assertPhone(input.phone),
+    ...normalizedInput,
+    phone:assertPhone(normalizedInput.phone),
     studentId:studentIds[0]||'',
     studentIds,
     history,
@@ -385,6 +394,27 @@ module.exports = async (req, res) => {
     if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');await put(T_USERS,id,{id,name,password:hashed,role:nextRole,coachId:coachId||'',coachName:nextCoachName});return sendJson(res,{success:true,id,name,role:nextRole,coachId:coachId||'',coachName:nextCoachName});}
     if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);const updates={...u,coachId:coachId||''};if(body.name)updates.name=body.name;updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');await put(T_USERS,id,updates);return sendJson(res,{success:true});}
     if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await scan(T_USERS);return sendJson(res,all.map(u=>({id:u.id,name:u.name,role:u.role,coachId:u.coachId||'',coachName:u.coachName||''})));}
+    if(path==='/admin/replace-courts'&&method==='POST'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const existing=await scan(T_COURTS);
+      for(let i=0;i<existing.length;i+=20)await Promise.all(existing.slice(i,i+20).map(r=>del(T_COURTS,r.id)));
+      const rows=Array.isArray(body.rows)?body.rows:[];
+      let success=0,failed=0;
+      const errors=[];
+      for(const row of rows){
+        try{
+          const id=uuidv4();
+          const record={...normalizeCourtRecord(row),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+          await put(T_COURTS,id,record);
+          success++;
+        }catch(e){
+          failed++;
+          errors.push({name:row?.name||'',error:e.message});
+        }
+      }
+      return sendJson(res,{cleared:existing.length,success,failed,errors});
+    }
     if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
       await init();
@@ -582,6 +612,7 @@ module.exports._test={
   normalizeCourtRecord,
   buildLegacyCourtOpeningHistory,
   legacyCourtFinanceWarnings,
+  extractDepositAmountFromText,
   buildClassPlanRecord,
   assertCanDeleteProduct,
   assertCanDeleteClass,

@@ -149,6 +149,46 @@ assert.strictEqual(importedDirectPaid.history.length, 2);
 assert.strictEqual(importedDirectPaid.history[1].source, 'import');
 assert.strictEqual(importedDirectPaid.history[1].payMethod, '历史导入');
 
+const importedDepositText = normalizeCourtRecord({
+  name: '已储值客户',
+  depositAttitude: '已储值5000',
+  spentAmount: 6640,
+  joinDate: '2026-04-01',
+  history: []
+});
+assert.strictEqual(importedDepositText.balance, 0);
+assert.strictEqual(importedDepositText.totalDeposit, 5000);
+assert.strictEqual(importedDepositText.spentAmount, 6640);
+assert.strictEqual(importedDepositText.receivedAmount, 6640);
+assert.strictEqual(importedDepositText.storedValueSpent, 5000);
+assert.strictEqual(importedDepositText.directPaidSpent, 1640);
+
+assert.deepStrictEqual(
+  computeCourtFinance({
+    history: [
+      recharge,
+      { id: 'refund-stored', date: '2026-04-11', type: '退款', payMethod: '储值退款', category: '退款', amount: 500 }
+    ]
+  }),
+  {
+    balance: 4500,
+    totalDeposit: 5000,
+    spentAmount: 0,
+    receivedAmount: 4500,
+    storedValueSpent: 0,
+    directPaidSpent: 0
+  },
+  'stored value refund should reduce balance and received amount'
+);
+
+assert.throws(
+  () => computeCourtFinance({
+    history: [{ id: 'refund-too-much', date: '2026-04-11', type: '退款', payMethod: '微信', category: '退款', amount: 500 }]
+  }),
+  /退款金额超过累计实收/,
+  'refund cannot exceed received amount'
+);
+
 const legacyDirectPaid = buildLegacyCourtOpeningHistory({
   id: 'legacy-direct',
   joinDate: '2026-04-01',
