@@ -42,6 +42,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;position:relative;z-index:1}
 .topbar{height:var(--topH);background:rgba(0,0,0,0.12);backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(255,255,255,0.12);display:flex;align-items:center;padding:0 24px;gap:14px;flex-shrink:0}
 .tb-title{font-size:16px;font-weight:600;color:var(--cream-pale);flex:1}
+.coach-top-logout{display:none;background:rgba(255,255,255,0.12);border:0.5px solid rgba(255,255,255,0.18);border-radius:10px;padding:7px 12px;color:var(--cream-pale);font-size:12px;cursor:pointer;font-family:inherit}
 .ctab{padding:6px 14px;border-radius:18px;border:0.5px solid rgba(254,243,199,0.2);background:transparent;color:rgba(254,243,199,0.55);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit}
 .ctab:hover{border-color:rgba(254,243,199,0.4);color:rgba(254,243,199,0.85);background:rgba(255,255,255,0.07)}.ctab.active{background:linear-gradient(135deg,var(--amber-base),var(--amber-warm));border-color:transparent;color:#fff;font-weight:600;box-shadow:0 3px 12px rgba(180,83,9,0.4)}
 .content{flex:1;overflow-y:auto;padding:22px 24px}.content::-webkit-scrollbar{width:4px}.content::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:2px}
@@ -141,6 +142,42 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .wg-block .wgb-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wg-block .wgb-info{color:var(--td);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .my-today-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:18px}
 .today-card{background:var(--card-f);border:var(--borf);border-radius:14px;padding:14px 16px;box-shadow:var(--shm);border-left:4px solid var(--amber-warm)}.today-card .tc-time{font-size:16px;font-weight:700;color:var(--th)}.today-card .tc-stu{font-size:13px;font-weight:600;color:var(--amber-base);margin-top:4px}.today-card .tc-info{font-size:12px;color:var(--ts);margin-top:3px}
+.coach-mobile-only{display:none}
+.coach-mobile-list{display:flex;flex-direction:column;gap:12px}
+.coach-mobile-day{background:var(--card-f);border:var(--borf);border-radius:16px;padding:14px;box-shadow:var(--shm)}
+.coach-mobile-dayhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.coach-mobile-daytitle{font-size:14px;font-weight:700;color:var(--th)}
+.coach-mobile-daydate{font-size:12px;color:var(--ts)}
+.coach-mobile-card{background:rgba(254,243,199,0.28);border:0.5px solid rgba(180,83,9,0.12);border-radius:14px;padding:12px 13px}
+.coach-mobile-card+.coach-mobile-card{margin-top:8px}
+.coach-mobile-main{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.coach-mobile-name{font-size:14px;font-weight:700;color:var(--th)}
+.coach-mobile-time{font-size:15px;font-weight:700;color:var(--amber-base);white-space:nowrap}
+.coach-mobile-meta{margin-top:6px;font-size:12px;line-height:1.6;color:var(--ts)}
+.coach-mobile-empty{padding:18px 14px;text-align:center;color:var(--ts);font-size:12px;background:rgba(254,243,199,0.2);border-radius:12px;border:0.5px dashed rgba(180,83,9,0.16)}
+@media (max-width:900px){
+  body.coach-mobile{overflow:auto;padding-bottom:88px}
+  body.coach-mobile .sidebar{top:auto;bottom:0;width:100%;height:74px;border-right:none;border-top:0.5px solid rgba(255,255,255,0.16);flex-direction:row;overflow:hidden;background:rgba(60,20,0,0.72)}
+  body.coach-mobile .sb-logo,body.coach-mobile .sb-sec,body.coach-mobile .sb-bottom,body.coach-mobile #sbAdminView{display:none!important}
+  body.coach-mobile #sbCoachView{display:flex!important;align-items:stretch;justify-content:space-around;width:100%;padding:0 6px}
+  body.coach-mobile #sbCoachView .sb-item{flex:1;flex-direction:column;justify-content:center;gap:4px;margin:6px 4px;padding:8px 4px;font-size:11px;border-radius:12px}
+  body.coach-mobile #sbCoachView .sb-item.active::before{display:none}
+  body.coach-mobile #sbCoachView .sb-icon{width:auto;font-size:16px}
+  body.coach-mobile .main{margin-left:0;min-height:100vh}
+  body.coach-mobile .topbar{position:sticky;top:0;z-index:80;padding:0 14px;height:58px}
+  body.coach-mobile .tb-title{font-size:15px}
+  body.coach-mobile #campusTabs{display:none!important}
+  body.coach-mobile .coach-top-logout{display:block}
+  body.coach-mobile .content{padding:14px}
+  body.coach-mobile .stats-row{grid-template-columns:1fr;gap:10px}
+  body.coach-mobile .week-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  body.coach-mobile .week-label{grid-column:1/-1;order:-1;font-size:14px}
+  body.coach-mobile .week-nav button{padding:10px 8px}
+  body.coach-mobile .week-nav button:last-child{grid-column:1/-1;margin-left:0}
+  body.coach-mobile .week-grid,body.coach-mobile .desktop-only{display:none!important}
+  body.coach-mobile .coach-mobile-only{display:block}
+  body.coach-mobile .today-card{padding:12px 13px}
+}
 </style>
 </head>
 <body>
@@ -189,6 +226,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
   <div class="topbar">
     <div class="tb-title" id="topTitle">👥 学员信息</div>
     <div style="display:flex;gap:4px;flex-wrap:wrap" id="campusTabs"></div>
+    <button class="coach-top-logout" id="coachTopLogout" onclick="doLogout()">退出</button>
   </div>
   <div class="content">
     <!-- 学员信息 -->
@@ -281,16 +319,19 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
         <button onclick="myWeekOffset=0;renderMySchedule()" style="margin-left:auto">回到本周</button>
       </div>
       <div class="week-grid" id="myWeekGrid"></div>
+      <div class="coach-mobile-list coach-mobile-only" id="myMobileSchedule"></div>
     </div>
     <!-- 我的学员（教练视角） -->
     <div class="page-section" id="page-mystudents">
       <div class="stats-row" id="myStudentStats"></div>
-      <div class="tcard"><table><thead><tr><th>学员</th><th>手机号</th><th>类型</th><th>所上班次</th><th>最后上课</th><th>备注</th></tr></thead><tbody id="myStuTbody"></tbody></table></div>
+      <div class="tcard desktop-only"><table><thead><tr><th>学员</th><th>手机号</th><th>类型</th><th>所上班次</th><th>最后上课</th><th>备注</th></tr></thead><tbody id="myStuTbody"></tbody></table></div>
+      <div class="coach-mobile-list coach-mobile-only" id="myStuMobileList"></div>
     </div>
     <!-- 我的班次（教练视角） -->
     <div class="page-section" id="page-myclasses">
       <div class="stats-row" id="myClassStats"></div>
-      <div class="tcard"><table><thead><tr><th>班次名称</th><th>课程</th><th>学员</th><th>课时进度</th><th>日期</th><th>状态</th></tr></thead><tbody id="myClsTbody"></tbody></table></div>
+      <div class="tcard desktop-only"><table><thead><tr><th>班次名称</th><th>课程</th><th>学员</th><th>课时进度</th><th>日期</th><th>状态</th></tr></thead><tbody id="myClsTbody"></tbody></table></div>
+      <div class="coach-mobile-list coach-mobile-only" id="myClsMobileList"></div>
     </div>
     <!-- 校区管理 -->
     <div class="page-section" id="page-campusmgr">
@@ -400,18 +441,26 @@ function showApp(){
     document.getElementById('sbCoachView').style.display='none';
     if(currentUser?.role==='admin'){const el=document.getElementById('sbCampusMgr');if(el)el.style.display='';}
   }
+  syncViewportMode();
   loadAll();
 }
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();});
-if(token&&currentUser)showApp();else document.getElementById('loginPage').style.display='flex';
+  window.addEventListener('resize',syncViewportMode);
+  if(token&&currentUser)showApp();else document.getElementById('loginPage').style.display='flex';
 });
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('/service-worker.js').catch(()=>null);
   });
+}
+
+function syncViewportMode(){
+  const isCoach=currentUser?.role==='editor'&&currentUser?.coachName;
+  const isMobile=window.innerWidth<=900;
+  document.body.classList.toggle('coach-mobile',!!(isCoach&&isMobile));
 }
 
 let courts=[],students=[],products=[],plans=[],schedules=[],coaches=[],classes=[],campuses=[];
@@ -439,6 +488,7 @@ function buildCampusTabs(){
   el.innerHTML='<button class="ctab active" onclick="setCampus(this,\'all\')">全部</button>'+campuses.map(c=>`<button class="ctab" onclick="setCampus(this,'${c.code||c.id}')">${esc(c.name)}</button>`).join('');
 }
 function renderAll(){
+  syncViewportMode();
   initClsCounter();
   const scf=document.getElementById('schCampusFilter');
   if(scf)scf.innerHTML='<option value="">全部校区</option>'+campuses.map(c=>`<option value="${c.code||c.id}">${esc(c.name)}</option>`).join('');
@@ -462,6 +512,7 @@ let currentPage='students',campus='all',editId=null,delId=null,delType=null,_pen
 let stuPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1;
 
 function goPage(pg,el){
+  syncViewportMode();
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));if(el)el.classList.add('active');
   document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
   document.getElementById('page-'+pg).classList.add('active');currentPage=pg;
@@ -1059,6 +1110,7 @@ async function saveCampus(){
 // ===== 教练视角 =====
 let myWeekOffset=0;
 function getMyCoachName(){return currentUser?.coachName||currentUser?.name||'';}
+function isCoachMobile(){return document.body.classList.contains('coach-mobile');}
 function getWeekDates(offset){
   const now=new Date();now.setDate(now.getDate()+offset*7);
   const day=now.getDay(),diff=now.getDate()-day+(day===0?-6:1);
@@ -1099,6 +1151,14 @@ function renderMySchedule(){
     });
   }
   document.getElementById('myWeekGrid').innerHTML=html;
+  const mobileHost=document.getElementById('myMobileSchedule');
+  if(mobileHost){
+    mobileHost.innerHTML=week.map((d,i)=>{
+      const ds=d.toISOString().slice(0,10);
+      const dayScheds=myScheds.filter(s=>s.startTime.slice(0,10)===ds);
+      return `<div class="coach-mobile-day"><div class="coach-mobile-dayhead"><div class="coach-mobile-daytitle">${WDNAMES[i]}</div><div class="coach-mobile-daydate">${d.getMonth()+1}/${d.getDate()}${ds===todayStr?' · 今天':''}</div></div>${dayScheds.length?dayScheds.map(s=>`<div class="coach-mobile-card"><div class="coach-mobile-main"><div class="coach-mobile-name">${esc(s.studentName)||'—'}</div><div class="coach-mobile-time">${s.startTime.slice(11,16)}${s.endTime?' - '+s.endTime.slice(11,16):''}</div></div><div class="coach-mobile-meta">${esc(s.venue)||'—'} · ${cn(s.campus)}${s.className?` · ${esc(s.className)}`:''}</div></div>`).join(''):'<div class="coach-mobile-empty">当天暂无课程</div>'}</div>`;
+    }).join('');
+  }
 }
 function renderMyStudents(){
   const cn2=getMyCoachName();
@@ -1116,6 +1176,15 @@ function renderMyStudents(){
     const lessonTag=lastLesson?(lessonDays>30?'<span style="color:#dc2626;font-weight:600">'+lastLesson+'</span>':lastLesson):'<span style="color:var(--td)">—</span>';
     return `<tr><td><div class="uname">${esc(s.name)}</div><div class="udesc">${cn(s.campus)}</div></td><td style="color:var(--ts)">${esc(s.phone)||'—'}</td><td><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></td><td>${cb}</td><td style="font-size:12px">${lessonTag}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(s.notes)||'—'}</td></tr>`;
   }).join(''):'<tr><td colspan="6"><div class="empty"><div class="empty-ico">👥</div><p>暂无学员</p></div></td></tr>';
+  const mobileHost=document.getElementById('myStuMobileList');
+  if(mobileHost){
+    mobileHost.innerHTML=myStus.length?myStus.map(s=>{
+      const sc=myCls.filter(c=>parseArr(c.studentIds).includes(s.id));
+      const stuScheds=schedules.filter(x=>x.coach===cn2&&(parseArr(x.studentIds).includes(s.id)||(x.studentName||'').includes(s.name))&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
+      const lastLesson=stuScheds.length?stuScheds[0].startTime.slice(0,10):'—';
+      return `<div class="coach-mobile-card"><div class="coach-mobile-main"><div class="coach-mobile-name">${esc(s.name)}</div><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></div><div class="coach-mobile-meta">手机号：${esc(s.phone)||'—'}<br>班次：${sc.map(c=>esc(c.className)).join('、')||'—'}<br>最后上课：${lastLesson}<br>备注：${esc(s.notes)||'—'}</div></div>`;
+    }).join(''):'<div class="coach-mobile-empty">暂无学员</div>';
+  }
 }
 function renderMyClasses(){
   const cn2=getMyCoachName();
@@ -1132,6 +1201,16 @@ function renderMyClasses(){
     const pct=tl>0?Math.round(rem/tl*100):0,pc=pct>40?'pf-gold':pct>15?'pf-warn':'pf-red';
     return `<tr><td><div class="uname">${esc(c.className)||'—'}</div><div class="udesc">${esc(c.classNo)||''}</div></td><td style="font-weight:500;color:var(--th)">${prod?prod.name:'—'}</td><td style="font-size:12px">${names}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${pct}%"></div></div><span class="prog-txt">${ul}/${tl} 剩${rem}</span></div></td><td style="font-size:11px;color:var(--ts)">${c.startDate||'—'}~${c.endDate||'—'}</td><td><span class="badge ${ss[c.status]||'b-gray'}">${c.status||'已排班'}</span></td></tr>`;
   }).join(''):'<tr><td colspan="6"><div class="empty"><div class="empty-ico">📋</div><p>暂无班次</p></div></td></tr>';
+  const mobileHost=document.getElementById('myClsMobileList');
+  if(mobileHost){
+    mobileHost.innerHTML=myCls.length?myCls.map(c=>{
+      const prod=products.find(x=>x.id===c.productId);
+      const ids=parseArr(c.studentIds);
+      const names=ids.map(sid=>{const st=students.find(x=>x.id===sid);return st?esc(st.name):esc(sid);}).join('、')||'—';
+      const tl=parseInt(c.totalLessons)||0,ul=parseInt(c.usedLessons)||0,rem=tl-ul;
+      return `<div class="coach-mobile-card"><div class="coach-mobile-main"><div class="coach-mobile-name">${esc(c.className)||'—'}</div><span class="badge ${ss[c.status]||'b-gray'}">${c.status||'已排班'}</span></div><div class="coach-mobile-meta">课程：${prod?esc(prod.name):'—'}<br>学员：${names}<br>课时：${ul}/${tl}，剩余 ${rem}<br>日期：${c.startDate||'—'} ~ ${c.endDate||'—'}</div></div>`;
+    }).join(''):'<div class="coach-mobile-empty">暂无班次</div>';
+  }
 }
 
 </script>
