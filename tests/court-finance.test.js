@@ -130,6 +130,24 @@ assert.deepStrictEqual(legacy.studentIds, ['stu-old']);
 assert.strictEqual(legacy.balance, 1200);
 assert.strictEqual(legacy.totalDeposit, 2000);
 assert.strictEqual(legacy.spentAmount, 800);
+assert.strictEqual(legacy.history.length, 2);
+assert.strictEqual(legacy.history[0].source, 'import');
+
+const importedDirectPaid = normalizeCourtRecord({
+  name: '导入客户',
+  balance: 5000,
+  totalDeposit: 5000,
+  spentAmount: 500,
+  joinDate: '2026-04-01',
+  history: []
+});
+assert.strictEqual(importedDirectPaid.balance, 5000);
+assert.strictEqual(importedDirectPaid.totalDeposit, 5000);
+assert.strictEqual(importedDirectPaid.spentAmount, 500);
+assert.strictEqual(importedDirectPaid.receivedAmount, 5500);
+assert.strictEqual(importedDirectPaid.history.length, 2);
+assert.strictEqual(importedDirectPaid.history[1].source, 'import');
+assert.strictEqual(importedDirectPaid.history[1].payMethod, '历史导入');
 
 const legacyDirectPaid = buildLegacyCourtOpeningHistory({
   id: 'legacy-direct',

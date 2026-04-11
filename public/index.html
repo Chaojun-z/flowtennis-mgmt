@@ -78,7 +78,13 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:18px;font-size:11px;font-weight:600;white-space:nowrap}
 .b-amber{background:rgba(217,119,6,0.15);color:var(--amber-base);border:0.5px solid rgba(217,119,6,0.25)}.b-cream{background:var(--cream-soft);color:#92400E;border:0.5px solid rgba(146,64,14,0.2)}.b-green{background:rgba(5,150,105,0.1);color:#065f46;border:0.5px solid rgba(5,150,105,0.2)}.b-red{background:rgba(220,38,38,0.1);color:#991b1b;border:0.5px solid rgba(220,38,38,0.18)}.b-gray{background:rgba(107,114,128,0.1);color:#4b5563;border:0.5px solid rgba(107,114,128,0.15)}.b-blue{background:rgba(59,130,246,0.1);color:#1d4ed8;border:0.5px solid rgba(59,130,246,0.2)}.b-purple{background:rgba(139,92,246,0.1);color:#6d28d9;border:0.5px solid rgba(139,92,246,0.2)}
 .campus-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(217,119,6,0.12);color:var(--amber-base);border:0.5px solid rgba(217,119,6,0.22);border-radius:7px;padding:3px 7px;font-size:11.5px;font-weight:500;white-space:nowrap}
-.th-filter{margin-left:5px;max-width:92px;border:0.5px solid rgba(180,83,9,.18);border-radius:7px;background:rgba(254,243,199,.55);color:var(--ts);font-size:10.5px;padding:3px 5px;outline:none}
+.th-filter-wrap{display:inline-flex;position:relative;margin-left:5px;vertical-align:middle}
+.th-filter-btn{width:20px;height:20px;border:none;border-radius:6px;background:rgba(180,83,9,.08);color:var(--amber-base);font-size:11px;cursor:pointer;line-height:20px}
+.th-filter-btn.active{background:var(--amber-base);color:#fff}
+.th-filter-menu{display:none;position:absolute;top:24px;left:0;min-width:92px;background:rgba(253,248,241,.98);border:0.5px solid rgba(180,83,9,.18);border-radius:8px;box-shadow:var(--shm);padding:4px;z-index:30}
+.th-filter-menu.open{display:block}
+.th-filter-menu button{display:block;width:100%;border:none;background:transparent;text-align:left;padding:6px 8px;border-radius:6px;font-size:11px;color:var(--tb);cursor:pointer;white-space:nowrap}
+.th-filter-menu button:hover,.th-filter-menu button.active{background:rgba(180,83,9,.10);color:var(--amber-base)}
 .th-sort{margin-left:5px;border:none;background:rgba(180,83,9,.08);color:var(--amber-base);border-radius:6px;padding:2px 5px;font-size:10px;cursor:pointer}
 .prog-wrap{display:flex;align-items:center;gap:7px}.prog-track{width:68px;height:5px;background:rgba(180,83,9,0.1);border-radius:3px;overflow:hidden;flex-shrink:0}.prog-fill{height:100%;border-radius:3px}
 .pf-gold{background:linear-gradient(90deg,var(--amber-base),var(--amber-warm))}.pf-warn{background:linear-gradient(90deg,#d97706,#f59e0b)}.pf-red{background:linear-gradient(90deg,#dc2626,#ef4444)}
@@ -338,7 +344,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
         <button class="btn-sec btn-green" onclick="backupToObsidian()">备份</button>
         <button class="btn-add" onclick="openCourtModal(null)">＋ 添加订场用户</button>
       </div>
-      <div class="tcard"><table><thead><tr><th style="width:120px">姓名</th><th>手机号</th><th>校区<select class="th-filter" id="courtCampusFilter" onchange="courtPage=1;renderCourts()"></select></th><th>对接人<select class="th-filter" id="courtOwnerFilter" onchange="courtPage=1;renderCourts()"></select></th><th>熟悉程度</th><th>对储值态度</th><th>当前余额<button class="th-sort" onclick="setCourtSort('balance')">排序</button></th><th>消费金额<button class="th-sort" onclick="setCourtSort('spentAmount')">排序</button></th><th>充值/消费记录</th><th>备注</th><th style="text-align:right">操作</th></tr></thead><tbody id="courtTbody"></tbody></table>
+      <div class="tcard"><table><thead><tr><th style="width:120px">姓名</th><th>手机号</th><th>校区<span class="th-filter-wrap"><button class="th-filter-btn" id="courtCampusFilterBtn" onclick="toggleCourtFilterMenu('campus')">⌛</button><span class="th-filter-menu" id="courtCampusFilterMenu"></span></span></th><th>对接人<span class="th-filter-wrap"><button class="th-filter-btn" id="courtOwnerFilterBtn" onclick="toggleCourtFilterMenu('owner')">⌛</button><span class="th-filter-menu" id="courtOwnerFilterMenu"></span></span></th><th>熟悉程度</th><th>对储值态度</th><th>当前余额<button class="th-sort" onclick="setCourtSort('balance')">排序</button></th><th>消费金额<button class="th-sort" onclick="setCourtSort('spentAmount')">排序</button></th><th>充值/消费记录</th><th>备注</th><th style="text-align:right">操作</th></tr></thead><tbody id="courtTbody"></tbody></table>
         <div class="pager"><span class="pager-info" id="courtPagerInfo">共 0 条</span><div style="display:flex;gap:3px" id="courtPagerBtns"></div></div>
       </div>
     </div>
@@ -433,6 +439,7 @@ function searchHit(q,...values){
   const keyword=String(q).toLowerCase().trim();
   return values.some(v=>String(v||'').toLowerCase().includes(keyword));
 }
+function jsArg(v){return JSON.stringify(String(v||'')).replace(/"/g,'&quot;').replace(/</g,'\\u003c');}
 function findStudentForCourt(c){
   if(!c)return null;
   const ids=parseArr(c.studentIds);
@@ -536,9 +543,9 @@ function courtBaseHistoryForSave(c){
   const total=parseFloat(c.totalDeposit)||0,balance=parseFloat(c.balance)||0,spent=parseFloat(c.spentAmount)||0,date=c.joinDate||today();
   const stored=Math.max(0,total-balance),direct=Math.max(0,spent-stored);
   const rows=[];
-  if(total>0)rows.push({id:'legacy-deposit-'+(c.id||uid()),date,type:'充值',category:'历史储值',payMethod:'历史导入',amount:total,note:'旧数据期初'});
-  if(stored>0)rows.push({id:'legacy-stored-spent-'+(c.id||uid()),date,type:'消费',category:'历史消费',payMethod:'储值扣款',amount:stored,note:'旧数据期初'});
-  if(direct>0)rows.push({id:'legacy-direct-spent-'+(c.id||uid()),date,type:'消费',category:'历史消费',payMethod:'历史导入',amount:direct,note:'旧数据期初'});
+  if(total>0)rows.push({id:'legacy-deposit-'+(c.id||uid()),date,type:'充值',category:'历史储值',payMethod:'历史导入',amount:total,note:'期初导入汇总',source:'import'});
+  if(stored>0)rows.push({id:'legacy-stored-spent-'+(c.id||uid()),date,type:'消费',category:'历史消费',payMethod:'储值扣款',amount:stored,note:'期初导入汇总',source:'import'});
+  if(direct>0)rows.push({id:'legacy-direct-spent-'+(c.id||uid()),date,type:'消费',category:'历史消费',payMethod:'历史导入',amount:direct,note:'期初导入汇总',source:'import'});
   return rows;
 }
 
@@ -668,7 +675,7 @@ function renderAll(){
 
 let currentPage=localStorage.getItem(PAGE_KEY)||'students',campus=localStorage.getItem(CAMPUS_KEY)||'all',editId=null,delId=null,delType=null,_pending=[];
 let stuPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1;
-let courtSortKey='',courtSortDir='desc';
+let courtSortKey='',courtSortDir='desc',courtCampusFilterValue='',courtOwnerFilterValue='';
 
 function goPage(pg,el){
   syncViewportMode();
@@ -941,18 +948,31 @@ async function saveSchedule(){
 }
 // ===== 订场用户 =====
 function renderCourtHeaderFilters(base){
-  const campusEl=document.getElementById('courtCampusFilter');
-  const ownerEl=document.getElementById('courtOwnerFilter');
-  if(campusEl){
-    const current=campusEl.value;
+  const campusMenu=document.getElementById('courtCampusFilterMenu');
+  const ownerMenu=document.getElementById('courtOwnerFilterMenu');
+  const campusBtn=document.getElementById('courtCampusFilterBtn');
+  const ownerBtn=document.getElementById('courtOwnerFilterBtn');
+  if(campusMenu){
     const opts=[...new Set(base.map(c=>c.campus).filter(Boolean))];
-    campusEl.innerHTML='<option value="">全部</option>'+opts.map(v=>`<option value="${esc(v)}"${current===v?' selected':''}>${cn(v)}</option>`).join('');
+    campusMenu.innerHTML=[`<button class="${courtCampusFilterValue?'':'active'}" onclick="setCourtHeaderFilter('campus','')">全部</button>`,...opts.map(v=>`<button class="${courtCampusFilterValue===v?'active':''}" onclick="setCourtHeaderFilter('campus',${jsArg(v)})">${cn(v)}</button>`)].join('');
   }
-  if(ownerEl){
-    const current=ownerEl.value;
+  if(ownerMenu){
     const opts=[...new Set(base.map(c=>String(c.owner||'').trim()).filter(Boolean))];
-    ownerEl.innerHTML='<option value="">全部</option>'+opts.map(v=>`<option value="${esc(v)}"${current===v?' selected':''}>${esc(v)}</option>`).join('');
+    ownerMenu.innerHTML=[`<button class="${courtOwnerFilterValue?'':'active'}" onclick="setCourtHeaderFilter('owner','')">全部</button>`,...opts.map(v=>`<button class="${courtOwnerFilterValue===v?'active':''}" onclick="setCourtHeaderFilter('owner',${jsArg(v)})">${esc(v)}</button>`)].join('');
   }
+  if(campusBtn)campusBtn.classList.toggle('active',!!courtCampusFilterValue);
+  if(ownerBtn)ownerBtn.classList.toggle('active',!!courtOwnerFilterValue);
+}
+function toggleCourtFilterMenu(type){
+  const menu=document.getElementById(type==='campus'?'courtCampusFilterMenu':'courtOwnerFilterMenu');
+  document.querySelectorAll('.th-filter-menu').forEach(x=>{if(x!==menu)x.classList.remove('open');});
+  if(menu)menu.classList.toggle('open');
+}
+function setCourtHeaderFilter(type,value){
+  if(type==='campus')courtCampusFilterValue=value;
+  if(type==='owner')courtOwnerFilterValue=value;
+  document.querySelectorAll('.th-filter-menu').forEach(x=>x.classList.remove('open'));
+  courtPage=1;renderCourts();
 }
 function setCourtSort(key){
   if(courtSortKey===key)courtSortDir=courtSortDir==='desc'?'asc':'desc';
@@ -961,8 +981,8 @@ function setCourtSort(key){
 }
 function renderCourts(){
   const q=(document.getElementById('courtSearch')?.value||'').toLowerCase();
-  const tableCampus=document.getElementById('courtCampusFilter')?.value||'';
-  const tableOwner=document.getElementById('courtOwnerFilter')?.value||'';
+  const tableCampus=courtCampusFilterValue;
+  const tableOwner=courtOwnerFilterValue;
   const base=courts.filter(c=>campus==='all'||c.campus===campus);
   renderCourtHeaderFilters(base);
   let list=courts.filter(c=>{
@@ -997,7 +1017,8 @@ function courtRecRow(h){
   const cls=type==='充值'?'b-green':type==='退款'?'b-gray':'b-red';
   const sign=type==='充值'?'+':type==='消费'?'-':'';
   const st=h.studentId?students.find(s=>s.id===h.studentId):null;
-  const meta=[h.category,h.payMethod,st?.name].filter(Boolean).map(esc).join(' · ');
+  const source=h.source==='import'?'导入':'';
+  const meta=[source,h.category,h.payMethod,st?.name].filter(Boolean).map(esc).join(' · ');
   return `<div class="rec-item"><span class="rec-date">${h.date}</span><span class="badge ${cls}" style="font-size:10px">${esc(type)}</span><span class="rec-amt ${type==='充值'?'plus':'minus'}">${sign}¥${fmt(amount)}</span><span class="rec-note">${meta}${h.note?' · '+esc(h.note):''}</span></div>`;
 }
 function openCourtModal(id){

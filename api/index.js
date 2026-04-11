@@ -281,7 +281,8 @@ async function syncClassPlans(classId,cls){
   return saved;
 }
 function normalizeCourtRecord(input){
-  const history=normalizeCourtHistory(input.history);
+  const currentHistory=normalizeCourtHistory(input.history);
+  const history=currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(input);
   const finance=computeCourtFinance({...input,history});
   const studentIds=normalizeStudentIds(input);
   return {
@@ -304,9 +305,9 @@ function buildLegacyCourtOpeningHistory(court){
   const stored=Math.max(0,total-balance);
   const direct=Math.max(0,spent-stored);
   const rows=[];
-  if(total>0)rows.push({id:'legacy-deposit-'+idBase,date,type:'充值',category:'历史储值',payMethod:'历史导入',amount:total,note:'旧数据期初'});
-  if(stored>0)rows.push({id:'legacy-stored-spent-'+idBase,date,type:'消费',category:'历史消费',payMethod:'储值扣款',amount:stored,note:'旧数据期初'});
-  if(direct>0)rows.push({id:'legacy-direct-spent-'+idBase,date,type:'消费',category:'历史消费',payMethod:'历史导入',amount:direct,note:'旧数据期初'});
+  if(total>0)rows.push({id:'legacy-deposit-'+idBase,date,type:'充值',category:'历史储值',payMethod:'历史导入',amount:total,note:'期初导入汇总',source:'import'});
+  if(stored>0)rows.push({id:'legacy-stored-spent-'+idBase,date,type:'消费',category:'历史消费',payMethod:'储值扣款',amount:stored,note:'期初导入汇总',source:'import'});
+  if(direct>0)rows.push({id:'legacy-direct-spent-'+idBase,date,type:'消费',category:'历史消费',payMethod:'历史导入',amount:direct,note:'期初导入汇总',source:'import'});
   return rows;
 }
 function legacyCourtFinanceWarnings(court){
