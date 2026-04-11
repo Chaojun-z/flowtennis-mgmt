@@ -23,6 +23,15 @@ function scan(t){return new Promise((res,rej)=>{const rows=[];function f(sk){gc(
 function del(t,id){return new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));});}
 function mkTable(t){return new Promise(res=>{gc().createTable({tableMeta:{tableName:t,primaryKey:[{name:'id',type:TableStore.PrimaryKeyType.STRING}]},reservedThroughput:{capacityUnit:{read:0,write:0}},tableOptions:{timeToLive:-1,maxVersions:1}},e=>res(e?'exists':'ok'));});}
 async function timed(label,fn){const startedAt=Date.now();try{return await fn();}finally{console.log(`[api-timing] ${label} ${Date.now()-startedAt}ms`);}}
+function isTableMissingError(err){return /not.*exist|table.*not.*exist|OTSObjectNotExist/i.test(String(err?.message||err||''));}
+async function putFeedback(id,row){
+  try{return await put(T_FEEDBACKS,id,row);}
+  catch(err){
+    if(!isTableMissingError(err))throw err;
+    await mkTable(T_FEEDBACKS);
+    return put(T_FEEDBACKS,id,row);
+  }
+}
 function parseArr(v){if(Array.isArray(v))return v;if(typeof v==='string'&&v){try{return JSON.parse(v)}catch{return[]}}return[];}
 function isBillableSchedule(rec){return rec&&rec.status!=='已取消';}
 async function applyLessonDelta(classId,delta){
@@ -147,6 +156,13 @@ function buildFeedbackRecord(body,base,user){
     updatedAt:now,
     createdAt:base.createdAt||now
   };
+}
+function assertCanWriteFeedback(user,schedule){
+  if(user?.role==='admin')return;
+  const coachName=String(user?.coachName||user?.name||'').trim();
+  const scheduleCoach=String(schedule?.coach||'').trim();
+  if(coachName&&scheduleCoach&&coachName===scheduleCoach)return;
+  throw new Error('只能填写自己的课程反馈');
 }
 async function validateScheduleSave(nextRec,oldRec){
   const schedules=await timed('scan schedule for conflict check',()=>scan(T_SCHEDULE));
@@ -635,8 +651,11 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,await scan(T_FEEDBACKS));
       if(method==='POST'){
         const id=uuidv4();
+        const schedule=await get(T_SCHEDULE,body.scheduleId).catch(()=>null);
+        if(!schedule)return sendJson(res,{error:'排课不存在'},404);
+        assertCanWriteFeedback(user,schedule);
         const r=buildFeedbackRecord(body,{id},user);
-        await put(T_FEEDBACKS,id,r);
+        await putFeedback(id,r);
         return sendJson(res,r);
       }
     }
@@ -647,8 +666,11 @@ module.exports = async (req, res) => {
       if(method==='PUT'){
         const ex=await get(T_FEEDBACKS,id).catch(()=>null);
         if(!ex)return sendJson(res,{error:'反馈不存在'},404);
+        const schedule=await get(T_SCHEDULE,body.scheduleId||ex.scheduleId).catch(()=>null);
+        if(!schedule)return sendJson(res,{error:'排课不存在'},404);
+        assertCanWriteFeedback(user,schedule);
         const r=buildFeedbackRecord({...ex,...body},{...ex,id},user);
-        await put(T_FEEDBACKS,id,r);
+        await putFeedback(id,r);
         return sendJson(res,r);
       }
     }
@@ -720,6 +742,7 @@ module.exports._test={
   validateScheduleConflicts,
   collectScheduleRiskWarnings,
   buildFeedbackRecord,
+  assertCanWriteFeedback,
   rangesOverlap,
   computeCourtFinance,
   normalizeCourtRecord,

@@ -42,4 +42,29 @@ assert.strictEqual(record.coach, '朝珺');
 assert.strictEqual(record.template.forehand, '稳定击球');
 assert.strictEqual(record.nextAdvice, '下次加强步伐');
 
+assert.doesNotThrow(
+  () => rules.assertCanWriteFeedback(
+    { role: 'admin', name: '管理员' },
+    { coach: '朝珺' }
+  ),
+  'admin can write any schedule feedback'
+);
+
+assert.doesNotThrow(
+  () => rules.assertCanWriteFeedback(
+    { role: 'editor', coachName: '朝珺', name: '朝珺' },
+    { coach: '朝珺' }
+  ),
+  'coach can write own schedule feedback'
+);
+
+assert.throws(
+  () => rules.assertCanWriteFeedback(
+    { role: 'editor', coachName: '白杨静', name: '白杨静' },
+    { coach: '朝珺' }
+  ),
+  /只能填写自己的课程反馈/,
+  'coach cannot write other coach schedule feedback'
+);
+
 console.log('feedback rules tests passed');

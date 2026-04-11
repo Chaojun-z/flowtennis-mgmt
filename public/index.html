@@ -179,14 +179,16 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .coach-mobile-time{font-size:15px;font-weight:700;color:var(--amber-base);white-space:nowrap}
 .coach-mobile-meta{margin-top:6px;font-size:12px;line-height:1.6;color:var(--ts)}
 .coach-mobile-empty{padding:18px 14px;text-align:center;color:var(--ts);font-size:12px;background:rgba(254,243,199,0.2);border-radius:12px;border:0.5px dashed rgba(180,83,9,0.16)}
-.coach-ops-grid{display:grid;grid-template-columns:160px 1fr;gap:8px}
-.coach-ops-head{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:0 0 8px;color:rgba(254,243,199,.72);font-size:11px}
+.coach-ops-grid{display:grid;grid-template-columns:160px minmax(760px,1fr);gap:8px;overflow-x:auto}
+.coach-ops-head{display:grid;grid-template-columns:160px minmax(760px,1fr);gap:8px;margin:0 0 8px;color:rgba(254,243,199,.72);font-size:11px;overflow-x:auto}
 .coach-ops-row{display:contents}
 .coach-ops-name{background:var(--card-f);border:var(--borf);border-radius:10px;padding:10px 12px;color:var(--th);font-weight:700;min-height:54px}
-.coach-ops-line{background:var(--card-f);border:var(--borf);border-radius:10px;padding:8px;min-height:54px;display:flex;gap:8px;align-items:stretch;overflow-x:auto}
-.coach-ops-block{min-width:150px;border-radius:8px;background:rgba(217,119,6,.14);border:0.5px solid rgba(217,119,6,.22);padding:8px;color:var(--tb);font-size:12px}
+.coach-ops-line{background:var(--card-f);border:var(--borf);border-radius:10px;min-height:64px;position:relative;overflow:hidden;background-image:repeating-linear-gradient(90deg,rgba(180,83,9,.08),rgba(180,83,9,.08) 1px,transparent 1px,transparent calc(100% / 15))}
+.coach-ops-hours{display:grid;grid-template-columns:repeat(15,1fr);background:rgba(0,0,0,.08);border-radius:8px;padding:6px 0;color:rgba(254,243,199,.8)}
+.coach-ops-hours span{text-align:left;font-size:10px;padding-left:4px}
+.coach-ops-block{position:absolute;top:8px;bottom:8px;border-radius:8px;background:rgba(217,119,6,.18);border:0.5px solid rgba(217,119,6,.28);padding:7px;color:var(--tb);font-size:11px;overflow:hidden;cursor:pointer}
 .coach-ops-time{font-weight:800;color:var(--amber-base);margin-bottom:3px}
-.coach-ops-empty{color:var(--ts);font-size:12px;align-self:center;padding-left:4px}
+.coach-ops-empty{color:var(--ts);font-size:12px;position:absolute;left:10px;top:22px}
 .risk-text{color:#b45309;font-size:11px;margin-top:4px;font-weight:700}
 @media (max-width:900px){
   body.coach-mobile{overflow:auto;padding-bottom:88px}
@@ -342,10 +344,10 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
         <select class="fsel" id="coachOpsRange" onchange="renderCoachOps()"><option value="week">本周</option><option value="month">本月</option></select>
       </div>
       <div style="font-size:14px;font-weight:600;color:var(--cream-pale);margin:4px 0 10px">今日教练排课</div>
-      <div class="coach-ops-head"><div>教练</div><div>课程</div></div>
+      <div class="coach-ops-head"><div>教练</div><div class="coach-ops-hours" id="coachOpsHours"></div></div>
       <div class="coach-ops-grid" id="coachOpsTimeline"></div>
       <div style="font-size:14px;font-weight:600;color:var(--cream-pale);margin:18px 0 10px">教练工作量</div>
-      <div class="tcard"><table><thead><tr><th>教练</th><th>今日</th><th>本周</th><th>本月</th><th>未反馈</th><th>主要校区</th><th>风险</th></tr></thead><tbody id="coachOpsTbody"></tbody></table></div>
+      <div class="tcard"><table><thead><tr><th>教练</th><th>今日</th><th>本周</th><th>本月</th><th>当前范围</th><th>时长</th><th>未反馈</th><th>校区分布</th><th>时间段</th><th>风险</th></tr></thead><tbody id="coachOpsTbody"></tbody></table></div>
     </div>
     <!-- 教练管理 -->
     <div class="page-section" id="page-coaches">
@@ -384,6 +386,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section" id="page-myschedule">
       <div class="stats-row" id="myScheduleStats"></div>
       <div id="myTodaySection"></div>
+      <div id="myPendingFeedbackSection"></div>
       <div class="week-nav">
         <button onclick="myWeekOffset--;renderMySchedule()">◀ 上一周</button>
         <span class="week-label" id="myWeekLabel"></span>
@@ -481,6 +484,33 @@ function coachRiskCount(list){
     }
   });
   return count;
+}
+function coachOverlapCount(list){
+  let count=0;
+  const rows=list.filter(s=>s.startTime&&s.endTime).sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
+  for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length;j++){
+    if(rows[j].startTime>=rows[i].endTime)break;
+    if(rows[i].coach&&rows[i].coach===rows[j].coach)count++;
+  }
+  return count;
+}
+function rangeBounds(kind){
+  const now=new Date();
+  if(kind==='month')return {start:monthStart(now),end:new Date(now.getFullYear(),now.getMonth()+1,1),label:'本月'};
+  const start=weekStart(now),end=new Date(start);end.setDate(start.getDate()+7);
+  return {start,end,label:'本周'};
+}
+function distText(list,keyFn){
+  const m={};
+  list.forEach(x=>{const k=keyFn(x);if(k)m[k]=(m[k]||0)+1;});
+  const arr=Object.entries(m).sort((a,b)=>b[1]-a[1]);
+  return arr.length?arr.map(([k,v])=>`${k}${v}`).join(' / '):'—';
+}
+function timeBand(s){
+  const h=parseInt(String(s.startTime||'').slice(11,13));
+  if(h<12)return '上午';
+  if(h<18)return '下午';
+  return '晚上';
 }
 function searchHit(q,...values){
   if(!q)return true;
@@ -1035,8 +1065,21 @@ function openFeedbackModal(scheduleId){
   const tpl=fb.template||{};
   editId=fb.id||null;
   document.getElementById('mTitle').textContent=fb.id?'✏️ 编辑课后反馈':'📝 课后反馈';
-  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">${fmtDt(s.startTime)} · ${esc(s.studentName)||'—'} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''}</div><div class="sec-ttl">训练模板</div><div class="fgrid"><div class="fg"><div class="flabel">正手</div><input class="finput" id="fb_forehand" value="${esc(tpl.forehand)}"></div><div class="fg"><div class="flabel">反手</div><input class="finput" id="fb_backhand" value="${esc(tpl.backhand)}"></div><div class="fg"><div class="flabel">脚步</div><input class="finput" id="fb_footwork" value="${esc(tpl.footwork)}"></div><div class="fg"><div class="flabel">回合</div><input class="finput" id="fb_rally" value="${esc(tpl.rally)}"></div><div class="fg"><div class="flabel">架拍</div><input class="finput" id="fb_ready" value="${esc(tpl.readyPosition)}"></div><div class="fg"><div class="flabel">发球</div><input class="finput" id="fb_serve" value="${esc(tpl.serve)}"></div><div class="fg full"><div class="flabel">本节重点</div><input class="finput" id="fb_focus" value="${esc(tpl.focus)}"></div><div class="fg full"><div class="flabel">课堂表现</div><textarea class="finput ftextarea" id="fb_performance">${esc(fb.performance)}</textarea></div><div class="fg full"><div class="flabel">问题点</div><textarea class="finput ftextarea" id="fb_problems">${esc(fb.problems)}</textarea></div><div class="fg full"><div class="flabel">下次建议</div><textarea class="finput ftextarea" id="fb_next">${esc(fb.nextAdvice)}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="saveFeedback('${s.id}')">保存反馈</button></div>`;
+  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">${fmtDt(s.startTime)} · ${esc(s.studentName)||'—'} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''}</div><div class="sec-ttl">训练模板</div><div class="fgrid"><div class="fg"><div class="flabel">正手</div><input class="finput" id="fb_forehand" value="${esc(tpl.forehand)}"></div><div class="fg"><div class="flabel">反手</div><input class="finput" id="fb_backhand" value="${esc(tpl.backhand)}"></div><div class="fg"><div class="flabel">脚步</div><input class="finput" id="fb_footwork" value="${esc(tpl.footwork)}"></div><div class="fg"><div class="flabel">回合</div><input class="finput" id="fb_rally" value="${esc(tpl.rally)}"></div><div class="fg"><div class="flabel">架拍</div><input class="finput" id="fb_ready" value="${esc(tpl.readyPosition)}"></div><div class="fg"><div class="flabel">发球</div><input class="finput" id="fb_serve" value="${esc(tpl.serve)}"></div><div class="fg full"><div class="flabel">本节重点</div><input class="finput" id="fb_focus" value="${esc(tpl.focus)}"></div><div class="fg full"><div class="flabel">课堂表现</div><textarea class="finput ftextarea" id="fb_performance">${esc(fb.performance)}</textarea></div><div class="fg full"><div class="flabel">问题点</div><textarea class="finput ftextarea" id="fb_problems">${esc(fb.problems)}</textarea></div><div class="fg full"><div class="flabel">下次建议</div><textarea class="finput ftextarea" id="fb_next">${esc(fb.nextAdvice)}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-sec" onclick="copyFeedbackDraft('${s.id}')">复制给学员</button><button class="btn-save" onclick="saveFeedback('${s.id}')">保存反馈</button></div>`;
   document.getElementById('overlay').classList.add('open');
+}
+function feedbackDraftText(s){
+  const v=id=>document.getElementById(id)?.value.trim()||'';
+  return [`${s.studentName||'学员'} ${fmtDt(s.startTime)} 课后反馈`,`本节重点：${v('fb_focus')||'—'}`,`正手：${v('fb_forehand')||'—'}`,`反手：${v('fb_backhand')||'—'}`,`脚步：${v('fb_footwork')||'—'}`,`回合：${v('fb_rally')||'—'}`,`架拍：${v('fb_ready')||'—'}`,`发球：${v('fb_serve')||'—'}`,`课堂表现：${v('fb_performance')||'—'}`,`问题点：${v('fb_problems')||'—'}`,`下次建议：${v('fb_next')||'—'}`].join('\n');
+}
+async function copyText(text){
+  if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text);return;}
+  const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
+}
+async function copyFeedbackDraft(scheduleId){
+  const s=schedules.find(x=>x.id===scheduleId);if(!s)return;
+  try{await copyText(feedbackDraftText(s));toast('反馈文案已复制','success');}
+  catch(e){toast('复制失败，请手动复制','error');}
 }
 async function saveFeedback(scheduleId){
   const s=schedules.find(x=>x.id===scheduleId);if(!s)return;
@@ -1049,11 +1092,25 @@ async function saveFeedback(scheduleId){
     closeModal();toast('反馈已保存 ✓','success');renderSchedule();renderCoachOps();renderMySchedule();
   }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存反馈';}
 }
+function feedbackSummaryHtml(fb){
+  if(!fb)return '—';
+  const parts=[fb.template?.focus,fb.performance,fb.nextAdvice].filter(Boolean);
+  return parts.length?parts.map(esc).join('；'):'已填写';
+}
+function openScheduleDetail(scheduleId){
+  const s=schedules.find(x=>x.id===scheduleId);if(!s)return;
+  const cls=s.classId?classes.find(c=>c.id===s.classId):null;
+  const fb=scheduleFeedback(s);
+  document.getElementById('mTitle').textContent='📌 排课详情';
+  document.getElementById('mBody').innerHTML=`<div class="fgrid"><div class="fg"><div class="flabel">学员 / 班次</div><div class="finput">${esc(s.studentName)||esc(cls?.className)||'—'}</div></div><div class="fg"><div class="flabel">教练</div><div class="finput">${esc(s.coach)||'—'}</div></div><div class="fg"><div class="flabel">上课时间</div><div class="finput">${fmtDt(s.startTime)}</div></div><div class="fg"><div class="flabel">下课时间</div><div class="finput">${fmtDt(s.endTime)}</div></div><div class="fg"><div class="flabel">校区 / 场地</div><div class="finput">${cn(s.campus)} ${esc(s.venue)||''}</div></div><div class="fg"><div class="flabel">消耗课时</div><div class="finput">${parseInt(s.lessonCount)||0} 节</div></div><div class="fg"><div class="flabel">班次剩余课时</div><div class="finput">${scheduleRemainingLessons(s)===''?'—':scheduleRemainingLessons(s)+' 节'}</div></div><div class="fg"><div class="flabel">反馈状态</div><div class="finput">${fb?'已反馈':'待反馈'}</div></div><div class="fg full"><div class="flabel">反馈摘要</div><div class="finput" style="min-height:42px">${feedbackSummaryHtml(fb)}</div></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button><button class="btn-save" onclick="openFeedbackModal('${s.id}')">${fb?'查看/编辑反馈':'填写反馈'}</button></div>`;
+  document.getElementById('overlay').classList.add('open');
+}
 // ===== 教练运营 =====
 function coachOpsRows(){
   const now=new Date(),todayStr=today();
   const ws=weekStart(now),we=new Date(ws);we.setDate(ws.getDate()+7);
   const ms=monthStart(now),me=new Date(now.getFullYear(),now.getMonth()+1,1);
+  const range=rangeBounds(document.getElementById('coachOpsRange')?.value||'week');
   const all=billableSchedules();
   const names=[...new Set([...activeCoachNames(),...all.map(s=>s.coach).filter(Boolean)])];
   return names.map(name=>{
@@ -1061,14 +1118,17 @@ function coachOpsRows(){
     const todayRows=mine.filter(s=>s.startTime.slice(0,10)===todayStr);
     const weekRows=mine.filter(s=>inRange(s.startTime,ws,we));
     const monthRows=mine.filter(s=>inRange(s.startTime,ms,me));
+    const rangeRows=mine.filter(s=>inRange(s.startTime,range.start,range.end));
     const campusMap={};
-    monthRows.forEach(s=>{if(s.campus)campusMap[s.campus]=(campusMap[s.campus]||0)+1});
+    rangeRows.forEach(s=>{if(s.campus)campusMap[s.campus]=(campusMap[s.campus]||0)+1});
     const mainCampus=Object.entries(campusMap).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
-    return {name,todayRows,weekRows,monthRows,mainCampus,pending:pendingFeedbackCount(mine),risks:coachRiskCount(mine)};
+    return {name,todayRows,weekRows,monthRows,rangeRows,mainCampus,pending:pendingFeedbackCount(rangeRows),risks:coachRiskCount(rangeRows),conflicts:coachOverlapCount(rangeRows)};
   });
 }
 function renderCoachOps(){
   const host=document.getElementById('coachOpsTimeline');if(!host)return;
+  const hourHost=document.getElementById('coachOpsHours');
+  if(hourHost)hourHost.innerHTML=Array.from({length:15},(_,i)=>`<span>${i+7}:00</span>`).join('');
   const rows=coachOpsRows();
   const todayTotal=rows.reduce((n,r)=>n+r.todayRows.length,0);
   const weekTotal=rows.reduce((n,r)=>n+r.weekRows.length,0);
@@ -1081,10 +1141,16 @@ function renderCoachOps(){
     ['未反馈',pending,'节','si-e']
   ].map(([label,val,u,cls])=>`<div class="scard"><div class="sc-icon ${cls}">📊</div><div><div class="sc-label">${label}</div><div class="sc-val">${val}<span class="u">${u}</span></div></div></div>`).join('');
   host.innerHTML=rows.map(r=>{
-    const blocks=r.todayRows.sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime))).map(s=>`<div class="coach-ops-block"><div class="coach-ops-time">${s.startTime.slice(11,16)}${s.endTime?' - '+s.endTime.slice(11,16):''}</div><div>${esc(s.studentName)||esc(classes.find(c=>c.id===s.classId)?.className)||'—'}</div><div style="color:var(--ts);margin-top:3px">${cn(s.campus)} · ${esc(s.venue)||'—'}</div>${hasScheduleFeedback(s)?'<div class="badge b-green" style="margin-top:5px">已反馈</div>':'<div class="badge b-red" style="margin-top:5px">待反馈</div>'}</div>`).join('');
+    const blocks=r.todayRows.sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime))).map(s=>{
+      const start=dtObj(s.startTime),end=dtObj(s.endTime);
+      const startMin=((start?.getHours()||7)-7)*60+(start?.getMinutes()||0);
+      const width=Math.max(durMin(s.startTime,s.endTime),30)/900*100;
+      const left=Math.max(0,Math.min(98,startMin/900*100));
+      return `<div class="coach-ops-block" style="left:${left}%;width:${Math.min(width,100-left)}%" onclick="openScheduleDetail('${s.id}')"><div class="coach-ops-time">${s.startTime.slice(11,16)}${s.endTime?' - '+s.endTime.slice(11,16):''}</div><div>${esc(s.studentName)||esc(classes.find(c=>c.id===s.classId)?.className)||'—'}</div><div style="color:var(--ts);margin-top:3px">${cn(s.campus)} · ${esc(s.venue)||'—'}</div></div>`;
+    }).join('');
     return `<div class="coach-ops-row"><div class="coach-ops-name">${esc(r.name)}</div><div class="coach-ops-line">${blocks||'<span class="coach-ops-empty">今日暂无课程</span>'}</div></div>`;
   }).join('');
-  document.getElementById('coachOpsTbody').innerHTML=rows.map(r=>`<tr><td><div class="uname">${esc(r.name)}</div></td><td>${r.todayRows.length}</td><td>${r.weekRows.length}</td><td>${r.monthRows.length}</td><td><span class="badge ${r.pending?'b-red':'b-green'}">${r.pending}</span></td><td>${r.mainCampus?cn(r.mainCampus):'—'}</td><td>${r.risks?`<span class="badge b-amber">跨校区紧 ${r.risks}</span>`:'<span class="badge b-green">正常</span>'}</td></tr>`).join('');
+  document.getElementById('coachOpsTbody').innerHTML=rows.map(r=>`<tr><td><div class="uname">${esc(r.name)}</div></td><td>${r.todayRows.length}</td><td>${r.weekRows.length}</td><td>${r.monthRows.length}</td><td>${r.rangeRows.length} 节</td><td>${r.rangeRows.reduce((n,s)=>n+durMin(s.startTime,s.endTime),0)} 分钟</td><td><span class="badge ${r.pending?'b-red':'b-green'}">${r.pending}</span></td><td>${distText(r.rangeRows,s=>cn(s.campus))}</td><td>${distText(r.rangeRows,timeBand)}</td><td>${r.conflicts?`<span class="badge b-red">冲突 ${r.conflicts}</span>`:r.risks?`<span class="badge b-amber">跨校区紧 ${r.risks}</span>`:'<span class="badge b-green">正常</span>'}</td></tr>`).join('');
 }
 // ===== 订场用户 =====
 function renderCourtHeaderFilters(base){
@@ -1623,6 +1689,9 @@ function renderMySchedule(){
   // 今日课程卡片
   const todayScheds=currentToday.sort((a,b)=>a.startTime.localeCompare(b.startTime));
   document.getElementById('myTodaySection').innerHTML=todayScheds.length?`<div style="font-size:14px;font-weight:600;color:var(--cream-pale);margin-bottom:10px">📌 今日课程（${todayScheds.length}节）</div><div class="my-today-cards">${todayScheds.map((s,i)=>{const st=s.startTime.slice(11,16),et=s.endTime?s.endTime.slice(11,16):'';const prev=todayScheds[i-1];const gap=prev&&prev.campus!==s.campus?durMin(prev.endTime,s.startTime):-1;const risk=gap>=0&&gap<60;return `<div class="today-card"><div class="tc-time">${st}${et?' — '+et:''}</div><div class="tc-stu">${esc(s.studentName)||'—'}</div><div class="tc-info">${esc(s.venue)||'—'} · ${cn(s.campus)}</div>${risk?`<div class="risk-text">跨校区提醒：上一节 ${cn(prev.campus)}，中间仅 ${gap} 分钟</div>`:''}<button class="btn-sec" style="margin-top:9px;width:100%;justify-content:center" onclick="openFeedbackModal('${s.id}')">${scheduleFeedback(s)?'查看/编辑反馈':'填写反馈'}</button></div>`;}).join('')}</div>`:`<div style="background:rgba(5,150,105,0.08);border:0.5px solid rgba(5,150,105,0.2);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--ts);margin-bottom:14px">✅ 今日暂无排课</div>`;
+  const pendingRows=allMine.filter(s=>!hasScheduleFeedback(s)&&(s.status==='已结束'||(s.endTime&&dtObj(s.endTime)<now))).sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime))).slice(0,8);
+  const pendingHost=document.getElementById('myPendingFeedbackSection');
+  if(pendingHost)pendingHost.innerHTML=pendingRows.length?`<div style="font-size:14px;font-weight:600;color:var(--cream-pale);margin:2px 0 10px">📝 待反馈课程（${pendingRows.length}节）</div><div class="my-today-cards">${pendingRows.map(s=>`<div class="today-card"><div class="tc-time">${fmtDt(s.startTime)}</div><div class="tc-stu">${esc(s.studentName)||'—'}</div><div class="tc-info">${cn(s.campus)} · ${esc(s.venue)||'—'}</div><button class="btn-sec" style="margin-top:9px;width:100%;justify-content:center" onclick="openFeedbackModal('${s.id}')">填写反馈</button></div>`).join('')}</div>`:'';
   // 周历网格
   const myScheds=allMine;
   const startH=7,endH=22;
