@@ -932,7 +932,7 @@ function normalizeCourtImportRows(rawRows){
   courts.forEach(item=>getCourtDedupKeys(item).forEach(k=>existingKeys.add(k)));
   const seenKeys=new Set();
   const rows=rawRows.map((row,index)=>{
-    const name=readRowValue(row,['姓名','用户','订场用户','名称','客户']);
+    const name=readRowValue(row,['姓名','用户名','用户','订场用户','名称','客户']);
     const phone=readRowValue(row,['手机号','电话','手机','联系方式']);
     const campusRaw=readRowValue(row,['校区','门店','区域']);
     const campus=normalizeCampusCode(campusRaw||'mabao');
@@ -940,8 +940,8 @@ function normalizeCourtImportRows(rawRows){
     const depositRaw=readRowValue(row,['储值','历史储值','总储值','累计储值']);
     const joinDate=readRowValue(row,['加入日期','加入时间','日期']);
     const baseNotes=readRowValue(row,['备注','说明']);
-    const extras=collectUnknownNotes(row,['姓名','用户','订场用户','名称','客户','手机号','电话','手机','联系方式','校区','门店','区域','余额','储值','历史储值','总储值','累计储值','加入日期','加入时间','日期','备注','说明','消费金额','消费']);
-    const specialAmount=readRowValue(row,['消费金额','消费']);
+    const extras=collectUnknownNotes(row,['姓名','用户名','用户','订场用户','名称','客户','手机号','电话','手机','联系方式','校区','门店','区域','余额','储值','历史储值','总储值','累计储值','加入日期','加入时间','日期','备注','说明','消费金额','消费','消费金额（仅自己订场部分）']);
+    const specialAmount=readRowValue(row,['消费金额','消费','消费金额（仅自己订场部分）']);
     if(specialAmount)extras.push(`消费金额：${specialAmount}`);
     const notes=[baseNotes,...extras].filter(Boolean).join('；');
     const item={name,phone,campus,balance:parseFloat(balanceRaw)||0,totalDeposit:parseFloat(depositRaw)||0,joinDate,notes,status:'active',history:[]};
