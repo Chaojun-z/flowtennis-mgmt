@@ -113,6 +113,10 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .import-empty{padding:26px 14px;text-align:center;color:var(--ts);font-size:13px}
 .import-file{display:none}
 @media (max-width:900px){.import-grid{grid-template-columns:1fr}}
+#importOv .modal{width:min(1100px,95vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+#importOv .mbody{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;min-height:0;overflow:hidden;padding-bottom:16px}
+#courtImportPreview{min-height:0;overflow:auto;padding-right:4px}
+#importOv .import-actions{position:sticky;bottom:0;z-index:2;margin-top:0;padding-top:12px;background:linear-gradient(180deg,rgba(253,248,241,0),rgba(253,248,241,.92) 18%,rgba(253,248,241,.98) 100%)}
 .mactions{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:0.5px solid rgba(180,83,9,0.12)}
 .btn-cancel{flex:1;padding:10px;border-radius:9px;border:0.5px solid rgba(180,83,9,0.2);background:transparent;color:var(--ts);font-size:13px;cursor:pointer;font-family:inherit;transition:all .13s}.btn-cancel:hover{border-color:var(--amber-base);color:var(--th)}
 .btn-save{flex:2;padding:10px;border-radius:9px;border:none;background:linear-gradient(135deg,var(--amber-base),var(--amber-warm));color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(180,83,9,0.35);transition:all .14s}.btn-save:hover{transform:translateY(-1px)}.btn-save:disabled{opacity:.6;transform:none;cursor:not-allowed}
