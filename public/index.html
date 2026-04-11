@@ -87,9 +87,10 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .btn-add-rec{background:linear-gradient(135deg,var(--amber-base),var(--amber-warm));color:#fff;border:none;border-radius:9px;padding:0 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .14s;box-shadow:0 3px 10px rgba(180,83,9,0.3);height:38px}.btn-add-rec:hover{transform:translateY(-1px)}.btn-add-rec:disabled{opacity:.6;transform:none;cursor:not-allowed}
 .import-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:10px}
 .import-box{border:0.5px dashed rgba(180,83,9,0.25);border-radius:12px;padding:14px;background:rgba(254,243,199,0.14)}
-.import-drop{border:1px dashed rgba(180,83,9,0.25);border-radius:12px;padding:18px;text-align:center;background:rgba(254,243,199,0.18);cursor:pointer;color:var(--ts);font-size:13px;transition:all .15s}
+.import-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:100%;min-height:124px;border:1px dashed rgba(180,83,9,0.25);border-radius:12px;padding:18px;text-align:center;background:rgba(254,243,199,0.18);cursor:pointer;color:var(--ts);font-size:13px;line-height:1.55;transition:all .15s}
 .import-drop:hover{border-color:var(--amber-warm);background:rgba(254,243,199,0.28)}
-.import-drop strong{color:var(--th)}
+.import-drop strong{display:block;color:var(--th);font-size:15px;line-height:1.35}
+.import-drop-sub{max-width:100%;color:var(--ts)}
 .import-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .import-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(180,83,9,0.09);color:var(--amber-base)}
 .import-pill.ok{background:rgba(5,150,105,0.1);color:#065f46}
@@ -103,6 +104,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .import-actions .btn-save,.import-actions .btn-cancel{flex:1}
 .import-empty{padding:26px 14px;text-align:center;color:var(--ts);font-size:13px}
 .import-file{display:none}
+@media (max-width:900px){.import-grid{grid-template-columns:1fr}}
 .mactions{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:0.5px solid rgba(180,83,9,0.12)}
 .btn-cancel{flex:1;padding:10px;border-radius:9px;border:0.5px solid rgba(180,83,9,0.2);background:transparent;color:var(--ts);font-size:13px;cursor:pointer;font-family:inherit;transition:all .13s}.btn-cancel:hover{border-color:var(--amber-base);color:var(--th)}
 .btn-save{flex:2;padding:10px;border-radius:9px;border:none;background:linear-gradient(135deg,var(--amber-base),var(--amber-warm));color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(180,83,9,0.35);transition:all .14s}.btn-save:hover{transform:translateY(-1px)}.btn-save:disabled{opacity:.6;transform:none;cursor:not-allowed}
@@ -402,8 +404,15 @@ document.addEventListener('DOMContentLoaded',()=>{
 let courts=[],students=[],products=[],plans=[],schedules=[],coaches=[],classes=[],campuses=[];
 async function loadAll(){
   try{
-    const[c,s,p,pl,sch,co,cl,ca]=await Promise.all([apiCall('GET','/courts'),apiCall('GET','/students'),apiCall('GET','/products'),apiCall('GET','/plans'),apiCall('GET','/schedule'),apiCall('GET','/coaches').catch(()=>[]),apiCall('GET','/classes').catch(()=>[]),apiCall('GET','/campuses').catch(()=>[])]);
-    courts=c||[];students=s||[];products=p||[];plans=pl||[];schedules=sch||[];coaches=Array.isArray(co)?co:[];classes=Array.isArray(cl)?cl:[];campuses=Array.isArray(ca)?ca:[];
+    const data=await apiCall('GET','/load-all');
+    courts=Array.isArray(data?.courts)?data.courts:[];
+    students=Array.isArray(data?.students)?data.students:[];
+    products=Array.isArray(data?.products)?data.products:[];
+    plans=Array.isArray(data?.plans)?data.plans:[];
+    schedules=Array.isArray(data?.schedule)?data.schedule:[];
+    coaches=Array.isArray(data?.coaches)?data.coaches:[];
+    classes=Array.isArray(data?.classes)?data.classes:[];
+    campuses=Array.isArray(data?.campuses)?data.campuses:[];
     CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});
     buildCampusTabs();
     renderAll();
@@ -777,7 +786,7 @@ let courtImportState={fileName:'',rows:[],summary:null};
 function openCourtImport(){
   courtImportState={fileName:'',rows:[],summary:null};
   document.getElementById('importTitle').textContent='📥 导入订场用户';
-  document.getElementById('importBody').innerHTML=`<div class="import-grid"><div class="import-box"><label class="import-drop" for="courtImportFile"><strong>点击选择 CSV 文件</strong><div style="margin-top:6px">支持 UTF-8 / GBK / GB18030 编码，额外列会自动忽略</div></label><input class="import-file" id="courtImportFile" type="file" accept=".csv,text/csv" onchange="handleCourtImportFile(this)"><div class="import-meta" id="courtImportMeta"><span class="import-pill">未选择文件</span></div><div class="import-note" style="margin-top:10px">导入规则：<br>1. 必填字段：姓名。<br>2. 校区默认顺义马坡（mabao）。<br>3. 余额/储值默认 0。<br>4. 额外字段会合并进备注，不会导致失败。<br>5. 已存在的用户会按手机号优先、否则按“姓名+校区”去重。</div></div><div class="import-box"><div class="import-note"><strong>建议列名</strong><br>姓名、手机号、校区、余额、储值、加入日期、备注<br><br><strong>特殊字段</strong><br>消费金额、类型、来源、群/独立标记等，会自动保留到备注中。</div></div></div><div style="margin-top:14px" id="courtImportPreview"><div class="import-empty">请选择 CSV 文件后预览数据</div></div><div class="import-actions"><button class="btn-cancel" onclick="closeCourtImport()">取消</button><button class="btn-save" id="courtImportBtn" onclick="runCourtImport()" disabled>导入</button></div>`;
+  document.getElementById('importBody').innerHTML=`<div class="import-grid"><div class="import-box"><label class="import-drop" for="courtImportFile"><strong>点击选择 CSV 文件</strong><div class="import-drop-sub">支持 UTF-8 / GBK / GB18030 编码，额外列会自动忽略</div></label><input class="import-file" id="courtImportFile" type="file" accept=".csv,text/csv" onchange="handleCourtImportFile(this)"><div class="import-meta" id="courtImportMeta"><span class="import-pill">未选择文件</span></div><div class="import-note" style="margin-top:10px">导入规则：<br>1. 必填字段：姓名。<br>2. 校区默认顺义马坡（mabao）。<br>3. 余额/储值默认 0。<br>4. 额外字段会合并进备注，不会导致失败。<br>5. 已存在的用户会按手机号优先、否则按“姓名+校区”去重。</div></div><div class="import-box"><div class="import-note"><strong>建议列名</strong><br>姓名、手机号、校区、余额、储值、加入日期、备注<br><br><strong>特殊字段</strong><br>消费金额、类型、来源、群/独立标记等，会自动保留到备注中。</div></div></div><div style="margin-top:14px" id="courtImportPreview"><div class="import-empty">请选择 CSV 文件后预览数据</div></div><div class="import-actions"><button class="btn-cancel" onclick="closeCourtImport()">取消</button><button class="btn-save" id="courtImportBtn" onclick="runCourtImport()" disabled>导入</button></div>`;
   document.getElementById('importOv').classList.add('open');
 }
 function closeCourtImport(){

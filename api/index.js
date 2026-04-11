@@ -78,6 +78,29 @@ module.exports = async (req, res) => {
     if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);const updates={...u,coachId:coachId||''};if(body.name)updates.name=body.name;updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');await put(T_USERS,id,updates);return sendJson(res,{success:true});}
     if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await scan(T_USERS);return sendJson(res,all.map(u=>({id:u.id,name:u.name,role:u.role,coachId:u.coachId||'',coachName:u.coachName||''})));}
     if(path==='/auth/me')return sendJson(res,user);
+    if(path==='/load-all'&&method==='GET'){
+      await init();
+      const [courts,students,products,plans,schedule,coaches,classes,campuses]=await Promise.all([
+        scan(T_COURTS),
+        scan(T_STUDENTS),
+        scan(T_PRODUCTS),
+        scan(T_PLANS),
+        scan(T_SCHEDULE),
+        scan(T_COACHES).catch(()=>[]),
+        scan(T_CLASSES).catch(()=>[]),
+        scan(T_CAMPUSES).catch(()=>[])
+      ]);
+      return sendJson(res,{
+        courts:Array.isArray(courts)?courts:[],
+        students:Array.isArray(students)?students:[],
+        products:Array.isArray(products)?products:[],
+        plans:Array.isArray(plans)?plans:[],
+        schedule:Array.isArray(schedule)?schedule:[],
+        coaches:Array.isArray(coaches)?coaches:[],
+        classes:Array.isArray(classes)?classes:[],
+        campuses:Array.isArray(campuses)?campuses:[]
+      });
+    }
     if(path==='/auth/change-password'&&method==='POST'){const u=await get(T_USERS,user.id);if(!await bcrypt.compare(body.oldPassword,u.password))return sendJson(res,{error:'原密码错误'},400);await put(T_USERS,user.id,{...u,password:await bcrypt.hash(body.newPassword,10)});return sendJson(res,{success:true});}
     if(path==='/courts'){await init();if(method==='GET')return sendJson(res,await scan(T_COURTS));if(method==='POST'){const id=uuidv4();const r={...body,id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}}
     const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const r={...body,id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_COURTS,id);return sendJson(res,{success:true});}}
