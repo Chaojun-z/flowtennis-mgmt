@@ -208,6 +208,53 @@ function filterLoadAllForUser(data,user){
     feedbacks:normalized.feedbacks.filter(f=>scheduleIds.has(f.scheduleId))
   };
 }
+function sameCoachName(a,b){return String(a||'').trim()===String(b||'').trim();}
+function buildCoachRenameUpdates(oldName,newName,data,now=new Date().toISOString()){
+  const oldCoach=String(oldName||'').trim();
+  const nextCoach=String(newName||'').trim();
+  const empty={classes:[],schedule:[],plans:[],users:[],feedbacks:[]};
+  if(!oldCoach||!nextCoach||oldCoach===nextCoach)return empty;
+  const touch=row=>({...row,updatedAt:now});
+  return {
+    classes:(data.classes||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach})),
+    schedule:(data.schedule||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach})),
+    plans:(data.plans||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach})),
+    users:(data.users||[]).filter(r=>sameCoachName(r.coachName,oldCoach)).map(r=>touch({...r,coachName:nextCoach})),
+    feedbacks:(data.feedbacks||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach}))
+  };
+}
+function assertCanDeleteCoachName(name,data){
+  const coach=String(name||'').trim();
+  if(!coach)return;
+  const used=
+    (data.classes||[]).some(r=>sameCoachName(r.coach,coach))||
+    (data.schedule||[]).some(r=>sameCoachName(r.coach,coach))||
+    (data.plans||[]).some(r=>sameCoachName(r.coach,coach))||
+    (data.users||[]).some(r=>sameCoachName(r.coachName,coach))||
+    (data.feedbacks||[]).some(r=>sameCoachName(r.coach,coach));
+  if(used)throw new Error('该教练已有班次、排课、学习计划、账号或反馈关联，不能直接删除');
+}
+async function loadCoachReferenceData(){
+  const [classes,schedule,plans,users,feedbacks]=await Promise.all([
+    timed('scan classes for coach references',()=>scan(T_CLASSES).catch(()=>[])),
+    timed('scan schedule for coach references',()=>scan(T_SCHEDULE).catch(()=>[])),
+    timed('scan plans for coach references',()=>scan(T_PLANS).catch(()=>[])),
+    timed('scan users for coach references',()=>scan(T_USERS).catch(()=>[])),
+    timed('scan feedbacks for coach references',()=>withTimeout(scanFeedbacks().catch(()=>[]),3000,[]))
+  ]);
+  return {classes,schedule,plans,users,feedbacks};
+}
+async function applyCoachRename(oldName,newName){
+  const updates=buildCoachRenameUpdates(oldName,newName,await loadCoachReferenceData());
+  await Promise.all([
+    ...updates.classes.map(r=>put(T_CLASSES,r.id,r)),
+    ...updates.schedule.map(r=>put(T_SCHEDULE,r.id,r)),
+    ...updates.plans.map(r=>put(T_PLANS,r.id,r)),
+    ...updates.users.map(r=>put(T_USERS,r.id,r)),
+    ...updates.feedbacks.map(r=>putFeedback(r.id,r))
+  ]);
+  return updates;
+}
 async function validateScheduleSave(nextRec,oldRec){
   const schedules=await timed('scan schedule for conflict check',()=>scan(T_SCHEDULE));
   validateScheduleConflicts(nextRec,schedules,nextRec.id);
@@ -770,8 +817,8 @@ module.exports = async (req, res) => {
         }
       }
     }
-    if(path==='/coaches'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();if(method==='GET')return sendJson(res,await scan(T_COACHES));if(method==='POST'){const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_COACHES,id,r);return sendJson(res,r);}}
-    const coM=path.match(/^\/coaches\/(.+)$/);if(coM){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=coM[1];if(method==='PUT'){const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_COACHES,id,r);return sendJson(res,r);}if(method==='DELETE'){await del(T_COACHES,id);return sendJson(res,{success:true});}}
+    if(path==='/coaches'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();if(method==='GET')return sendJson(res,await scan(T_COACHES));if(method==='POST'){const id=uuidv4();const name=String(body.name||'').trim();if(!name)return sendJson(res,{error:'请填写教练姓名'},400);const r={...body,name,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_COACHES,id,r);return sendJson(res,r);}}
+    const coM=path.match(/^\/coaches\/(.+)$/);if(coM){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=coM[1];if(method==='PUT'){const old=await get(T_COACHES,id).catch(()=>null);if(!old)return sendJson(res,{error:'教练不存在'},404);const name=String(body.name||'').trim();if(!name)return sendJson(res,{error:'请填写教练姓名'},400);const r={...body,name,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_COACHES,id,r);const coachUpdates=await applyCoachRename(old.name,name);return sendJson(res,{...r,coachUpdates});}if(method==='DELETE'){const old=await get(T_COACHES,id).catch(()=>null);if(!old)return sendJson(res,{success:true});assertCanDeleteCoachName(old.name,await loadCoachReferenceData());await del(T_COACHES,id);return sendJson(res,{success:true});}}
     if(path==='/classes'){await init();if(method==='GET')return sendJson(res,await scan(T_CLASSES));if(method==='POST'){const id=uuidv4();const r={...body,id,usedLessons:body.usedLessons||0,status:body.status||'已排班',createdBy:user.name,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}}
     const clM=path.match(/^\/classes\/(.+)$/);if(clM){const id=clM[1];if(method==='GET')return sendJson(res,await get(T_CLASSES,id));if(method==='PUT'){const r={...body,id,updatedAt:new Date().toISOString()};await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}if(method==='DELETE'){assertCanDeleteClass(id,await scan(T_SCHEDULE));const classPlans=(await scan(T_PLANS)).filter(p=>p.classId===id);for(const p of classPlans)await del(T_PLANS,p.id);await del(T_CLASSES,id);return sendJson(res,{success:true});}}
     if(path==='/campuses'){await init();if(method==='GET')return sendJson(res,await scan(T_CAMPUSES));if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=body.code||uuidv4();const r={...body,id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_CAMPUSES,id,r);return sendJson(res,r);}}
@@ -788,6 +835,8 @@ module.exports._test={
   buildFeedbackRecord,
   assertCanWriteFeedback,
   filterLoadAllForUser,
+  buildCoachRenameUpdates,
+  assertCanDeleteCoachName,
   normalizeVenue,
   rangesOverlap,
   computeCourtFinance,
