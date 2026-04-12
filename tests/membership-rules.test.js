@@ -7,6 +7,7 @@ assert.ok(rules, 'api._test should expose membership rule helpers');
 assert.ok(rules.MEMBERSHIP_TABLES, 'membership tables should be exposed for runtime bootstrap checks');
 assert.ok(rules.normalizeMembershipBenefitTemplate, 'membership benefit template helper should be exposed');
 assert.ok(rules.allocateMembershipBenefitUsage, 'membership benefit allocation helper should be exposed');
+assert.ok(rules.buildMembershipAccountEventRecord, 'membership account event helper should be exposed');
 assert.ok(rules.isDuplicateMembershipOrderSubmission, 'membership order duplicate guard should be exposed');
 assert.deepStrictEqual(
   rules.MEMBERSHIP_TABLES,
@@ -130,6 +131,7 @@ assert.deepStrictEqual(
 assert.strictEqual(first.historyRow.amount, 5000);
 assert.strictEqual(first.historyRow.bonusAmount, 498);
 assert.strictEqual(first.order.benefitSnapshot.ballMachine.count, 8, 'order stores deal snapshot instead of plan template');
+assert.strictEqual(first.order.planBenefitTemplateSnapshot.ballMachine.count, 6, 'order should keep the original plan benefit template snapshot');
 assert.strictEqual(plan.benefitTemplate.ballMachine.count, 6, 'plan template should remain unchanged after deal snapshot override');
 
 const adjustedPurchase = rules.buildMembershipPurchase({
@@ -171,6 +173,23 @@ assert.deepStrictEqual(
     customBenefits: [{ label: '节日赠礼', unit: '份', count: 2 }]
   },
   'one-off purchase benefit adjustments should only affect the current order snapshot'
+);
+
+const emptySnapshotOrder = rules.normalizeMembershipOrderViewRecord(
+  {
+    id: 'mord-empty',
+    membershipPlanId: plan.id,
+    membershipAccountId: 'macc-empty',
+    courtId: court.id,
+    benefitSnapshot: {}
+  },
+  plan
+);
+
+assert.strictEqual(
+  emptySnapshotOrder.benefitSnapshot.publicLesson.count,
+  2,
+  'empty order snapshot should fall back to membership plan benefit template'
 );
 
 const renewal = rules.buildMembershipPurchase({
@@ -293,6 +312,34 @@ assert.deepStrictEqual(
   'benefit consumption should deduct the earliest-expiring batch first'
 );
 
+const legacyAllocatedUsage = rules.allocateMembershipBenefitUsage({
+  membershipAccountId: 'macc-legacy',
+  courtId: 'court-legacy',
+  benefitCode: 'stringingLabor',
+  benefitLabel: '穿线免手工费',
+  unit: '次',
+  consumeCount: 1,
+  orders: [{
+    id: 'legacy-order-1',
+    membershipAccountId: 'macc-legacy',
+    courtId: 'court-legacy',
+    stringingLaborCount: 6,
+    benefitValidUntil: '2026-12-01',
+    status: 'active'
+  }],
+  ledger: [],
+  now: '2026-05-01T00:00:00.000Z',
+  idFactory: () => 'legacy-alloc-1'
+});
+
+assert.deepStrictEqual(
+  legacyAllocatedUsage.map(x => ({ membershipOrderId: x.membershipOrderId, delta: x.delta, benefitCode: x.benefitCode })),
+  [
+    { membershipOrderId: 'legacy-order-1', delta: -1, benefitCode: 'stringingLabor' }
+  ],
+  'legacy membership orders without benefitSnapshot should still be consumable by benefit ledger allocation'
+);
+
 assert.throws(
   () => rules.allocateMembershipBenefitUsage({
     membershipAccountId: 'macc-1',
@@ -355,6 +402,12 @@ assert.strictEqual(
   'same request key should be treated as duplicate even outside the short window'
 );
 
+assert.strictEqual(
+  rules.isTransientStorageError(new Error('Client network socket disconnected before secure TLS connection was established')),
+  true,
+  'transient tls disconnect should be recognized as retryable storage error'
+);
+
 assert.throws(
   () => rules.buildMembershipBenefitLedgerRecord({
     membershipAccountId: 'macc-1',
@@ -364,6 +417,36 @@ assert.throws(
   }),
   /购买批次/,
   'benefit usage must reference membership order batch'
+);
+
+const voidedEvent = rules.buildMembershipAccountEventRecord({
+  membershipAccountId: 'macc-1',
+  courtId: 'court-1',
+  eventType: 'voided',
+  beforeStatus: 'active',
+  afterStatus: 'voided',
+  operator: '管理员',
+  reason: '手动作废会员'
+}, { id: 'evt-void-1', now: '2026-04-12T10:00:00.000Z' });
+
+assert.deepStrictEqual(
+  {
+    id: voidedEvent.id,
+    eventType: voidedEvent.eventType,
+    beforeStatus: voidedEvent.beforeStatus,
+    afterStatus: voidedEvent.afterStatus,
+    operator: voidedEvent.operator,
+    reason: voidedEvent.reason
+  },
+  {
+    id: 'evt-void-1',
+    eventType: 'voided',
+    beforeStatus: 'active',
+    afterStatus: 'voided',
+    operator: '管理员',
+    reason: '手动作废会员'
+  },
+  'voiding membership should create an auditable account event'
 );
 
 const coachLoaded = rules.filterLoadAllForUser({

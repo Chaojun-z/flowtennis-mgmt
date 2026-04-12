@@ -18,11 +18,26 @@ const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,
 
 let tsClient;
 function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
-
-function put(t,id,attrs){return new Promise((res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));});}
-function get(t,id){return new Promise((res,rej)=>{gc().getRow({tableName:t,primaryKey:[{id:String(id)}],maxVersions:1},(e,d)=>{if(e)return rej(e);if(!d.row||!d.row.primaryKey)return res(null);const obj={id:d.row.primaryKey[0].value};(d.row.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});res(obj);});});}
-function scan(t){return new Promise((res,rej)=>{const rows=[];function f(sk){gc().getRange({tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500},(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();});}
-function del(t,id){return new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));});}
+function isTransientStorageError(err){
+  const msg=String(err?.message||err||'');
+  return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN/i.test(msg);
+}
+async function withStorageRetry(fn,maxAttempts=2){
+  let lastErr;
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
+    try{return await fn();}
+    catch(err){
+      lastErr=err;
+      if(!isTransientStorageError(err)||attempt===maxAttempts)throw err;
+      await new Promise(res=>setTimeout(res,attempt*200));
+    }
+  }
+  throw lastErr;
+}
+function put(t,id,attrs){return withStorageRetry(()=>new Promise((res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
+function get(t,id){return withStorageRetry(()=>new Promise((res,rej)=>{gc().getRow({tableName:t,primaryKey:[{id:String(id)}],maxVersions:1},(e,d)=>{if(e)return rej(e);if(!d.row||!d.row.primaryKey)return res(null);const obj={id:d.row.primaryKey[0].value};(d.row.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});res(obj);});}));}
+function scan(t){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];function f(sk){gc().getRange({tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500},(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();}));}
+function del(t,id){return withStorageRetry(()=>new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));}));}
 function mkTable(t){return new Promise(res=>{gc().createTable({tableMeta:{tableName:t,primaryKey:[{name:'id',type:TableStore.PrimaryKeyType.STRING}]},reservedThroughput:{capacityUnit:{read:0,write:0}},tableOptions:{timeToLive:-1,maxVersions:1}},e=>res(e?'exists':'ok'));});}
 async function timed(label,fn){const startedAt=Date.now();try{return await fn();}finally{console.log(`[api-timing] ${label} ${Date.now()-startedAt}ms`);}}
 function withTimeout(promise,ms,fallback){
@@ -310,7 +325,6 @@ function assertScheduleEntitlementRequired(rec){
   if(!isBillableSchedule(rec))return;
   const studentIds=parseArr(rec.studentIds).filter(Boolean);
   if(studentIds.length>1)throw new Error('多人排课暂不支持单个权益账户，请拆成单人排课或先升级一对多权益结构');
-  if(!rec.entitlementId)throw new Error('排课必须绑定权益账户');
 }
 function syncEntitlementFromPurchase(pkg,purchase,student,oldEnt,now=new Date().toISOString()){
   const used=parseInt(oldEnt?.usedLessons)||0;
@@ -348,7 +362,7 @@ function isScheduleInsideDailyTimeWindows(schedule,windows){
 }
 function validateEntitlementForSchedule(entitlement,schedule){
   if(!isBillableSchedule(schedule))return;
-  if(!entitlement)throw new Error('请选择课包权益账户');
+  if(!entitlement)return;
   if(entitlement.status&&entitlement.status!=='active')throw new Error('课包权益账户不可用');
   const lessonCount=parseInt(schedule.lessonCount)||1;
   if((parseInt(entitlement.remainingLessons)||0)<lessonCount)throw new Error('课包剩余课时不足');
@@ -1081,6 +1095,32 @@ function buildMembershipPlanRecord(input,opts={}){
     updatedAt:now
   };
 }
+function normalizeMembershipPlanViewRecord(plan){
+  if(!plan||typeof plan!=='object')return plan;
+  const benefitTemplate=normalizeMembershipBenefitTemplate(plan,plan?.benefitTemplate);
+  return {
+    ...plan,
+    publicLessonCount:parseInt(plan.publicLessonCount??benefitTemplate.publicLesson?.count)||0,
+    stringingLaborCount:parseInt(plan.stringingLaborCount??benefitTemplate.stringingLabor?.count)||0,
+    ballMachineCount:parseInt(plan.ballMachineCount??benefitTemplate.ballMachine?.count)||0,
+    level2PartnerCount:parseInt(plan.level2PartnerCount??benefitTemplate.level2Partner?.count)||0,
+    designatedCoachPartnerCount:parseInt(plan.designatedCoachPartnerCount??benefitTemplate.designatedCoachPartner?.count)||0,
+    designatedCoachIds:parseArr(plan.designatedCoachIds??benefitTemplate.designatedCoachPartner?.designatedCoachIds),
+    customBenefits:parseArr(plan.customBenefits??benefitTemplate.customBenefits),
+    benefitTemplate
+  };
+}
+function normalizeMembershipOrderViewRecord(order,plan=null){
+  if(!order||typeof order!=='object')return order;
+  const normalizedPlan=normalizeMembershipPlanViewRecord(plan||{});
+  const planBenefitTemplateSnapshot=normalizeMembershipBenefitTemplate(order?.planBenefitTemplateSnapshot?{benefitTemplate:order.planBenefitTemplateSnapshot}:order,normalizedPlan?.benefitTemplate||{});
+  const benefitSnapshot=normalizeMembershipBenefitTemplate(order?.benefitSnapshot?{benefitTemplate:order.benefitSnapshot}:order,planBenefitTemplateSnapshot);
+  return {
+    ...order,
+    planBenefitTemplateSnapshot,
+    benefitSnapshot
+  };
+}
 function membershipDateRange(startDate,validMonths=12,maxMonths=24){
   return {
     cycleStartDate:startDate,
@@ -1159,6 +1199,7 @@ function buildMembershipPurchase({court,plan,existingAccount=null,body={},now=ne
     validUntil:range.validUntil,
     hardExpireAt:range.hardExpireAt,
     qualifiesRenewalReset,
+    planBenefitTemplateSnapshot:normalizeMembershipBenefitTemplate(plan,plan.benefitTemplate||{}),
     benefitSnapshot,
     benefitValidUntil:addMonthsKey(purchaseDate,validMonths),
     courtHistoryRechargeId:historyId,
@@ -1190,7 +1231,7 @@ function buildMembershipPurchase({court,plan,existingAccount=null,body={},now=ne
   return {account,order,historyRow,warning};
 }
 function membershipBenefitItemsFromOrder(order){
-  const snap=order?.benefitSnapshot||{};
+  const snap=normalizeMembershipBenefitTemplate(order?.benefitSnapshot?{benefitTemplate:order.benefitSnapshot}:order,order?.planBenefitTemplateSnapshot||{});
   const items=[];
   Object.entries(snap).forEach(([code,value])=>{
     if(code==='customBenefits')return;
@@ -1205,10 +1246,25 @@ function membershipBenefitItemsFromOrder(order){
 }
 function summarizeMembershipBenefits({orders=[],ledger=[],today=new Date().toISOString().slice(0,10)}={}){
   return (orders||[]).filter(o=>o.status!=='voided'&&o.status!=='refunded').flatMap(order=>membershipBenefitItemsFromOrder(order).map(item=>{
-    const delta=(ledger||[]).filter(l=>l.membershipOrderId===item.membershipOrderId&&l.benefitCode===item.benefitCode).reduce((sum,l)=>sum+(parseInt(l.delta)||0),0);
+    const delta=(ledger||[]).filter(l=>l.membershipOrderId===item.membershipOrderId&&l.benefitCode===item.benefitCode&&l.action!=='grant').reduce((sum,l)=>sum+(parseInt(l.delta)||0),0);
     const expired=item.benefitValidUntil&&today>item.benefitValidUntil;
     return {...item,used:Math.abs(Math.min(0,delta)),adjusted:Math.max(0,delta),remaining:expired?0:Math.max(0,item.total+delta),status:expired?'expired':'active'};
   }));
+}
+function buildMembershipGrantLedgerRows(order,opts={}){
+  return membershipBenefitItemsFromOrder(order).map(item=>buildMembershipBenefitLedgerRecord({
+    membershipOrderId:order.id,
+    membershipAccountId:order.membershipAccountId,
+    courtId:order.courtId,
+    benefitCode:item.benefitCode,
+    benefitLabel:item.benefitLabel,
+    unit:item.unit,
+    delta:item.total,
+    action:'grant',
+    reason:'开卡/续充赠送权益',
+    operator:order.operator||'',
+    relatedDate:order.purchaseDate
+  },{id:opts.idFactory?opts.idFactory():uuidv4(),now:opts.now||new Date().toISOString()}));
 }
 function isDuplicateMembershipOrderSubmission({courtId,membershipPlanId,purchaseDate,rechargeAmount,requestKey='',recentOrders=[],now=new Date().toISOString()}={}){
   const cleanRequestKey=String(requestKey||'').trim();
@@ -1224,6 +1280,28 @@ function isDuplicateMembershipOrderSubmission({courtId,membershipPlanId,purchase
     const createdMs=dateMs(order.createdAt);
     return Number.isFinite(nowMs)&&Number.isFinite(createdMs)&&Math.abs(nowMs-createdMs)<=15000;
   });
+}
+const RECENT_MEMBERSHIP_ORDER_TTL_MS=60000;
+const recentMembershipOrderRequests=new Map();
+function membershipOrderRequestDedupKey({courtId,membershipPlanId,purchaseDate,rechargeAmount,requestKey=''}={}){
+  const cleanRequestKey=String(requestKey||'').trim();
+  if(cleanRequestKey)return `request:${cleanRequestKey}`;
+  return `payload:${String(courtId||'')}|${String(membershipPlanId||'')}|${String(purchaseDate||'')}|${normalizeMoney(rechargeAmount)}`;
+}
+function reserveRecentMembershipOrderRequest(input={},now=new Date().toISOString()){
+  const key=membershipOrderRequestDedupKey(input);
+  const nowMs=dateMs(now);
+  for(const [requestKey,ts] of recentMembershipOrderRequests.entries()){
+    if(!Number.isFinite(nowMs)||!Number.isFinite(ts)||Math.abs(nowMs-ts)>RECENT_MEMBERSHIP_ORDER_TTL_MS)recentMembershipOrderRequests.delete(requestKey);
+  }
+  const existingAt=recentMembershipOrderRequests.get(key);
+  if(Number.isFinite(existingAt)&&Number.isFinite(nowMs)&&Math.abs(nowMs-existingAt)<=RECENT_MEMBERSHIP_ORDER_TTL_MS)return null;
+  recentMembershipOrderRequests.set(key,Number.isFinite(nowMs)?nowMs:Date.now());
+  return key;
+}
+function releaseRecentMembershipOrderRequest(key,{keep=false}={}){
+  if(!key)return;
+  if(!keep)recentMembershipOrderRequests.delete(key);
 }
 function buildMembershipBenefitLedgerRecord(input,opts={}){
   if(!input?.membershipOrderId)throw new Error('会员权益流水必须关联购买批次');
@@ -1243,6 +1321,18 @@ function buildMembershipBenefitLedgerRecord(input,opts={}){
     operator:input.operator||'',
     notes:input.notes||'',
     relatedDate:input.relatedDate||opts.now?.slice(0,10)||new Date().toISOString().slice(0,10),
+    createdAt:input.createdAt||opts.now||new Date().toISOString()
+  };
+}
+function buildMembershipAccountEventRecord(input,opts={}){
+  if(!input?.membershipAccountId)throw new Error('会员账户事件必须关联会员账户');
+  if(!input?.courtId)throw new Error('会员账户事件必须关联订场用户');
+  if(!input?.eventType)throw new Error('会员账户事件必须包含事件类型');
+  return {
+    ...input,
+    id:opts.id||input.id||uuidv4(),
+    operator:input.operator||'',
+    reason:input.reason||'',
     createdAt:input.createdAt||opts.now||new Date().toISOString()
   };
 }
@@ -1470,6 +1560,9 @@ module.exports = async (req, res) => {
         timed('load-all scan campuses',()=>scan(T_CAMPUSES).catch(()=>[])),
         timed('load-all scan feedbacks',()=>withTimeout(scanFeedbacks().catch(()=>[]),3000,[]))
       ]);
+      const normalizedMembershipPlans=(Array.isArray(membershipPlans)?membershipPlans:[]).map(normalizeMembershipPlanViewRecord);
+      const membershipPlanMap=new Map(normalizedMembershipPlans.map(p=>[p.id,p]));
+      const normalizedMembershipOrders=(Array.isArray(membershipOrders)?membershipOrders:[]).map(order=>normalizeMembershipOrderViewRecord(order,membershipPlanMap.get(order.membershipPlanId)));
       const reconciled=await runMembershipReconcile({accounts:membershipAccounts,courts:rawCourts});
       const courts=reconciled.courts||rawCourts;
       const loaded=filterLoadAllForUser({
@@ -1480,9 +1573,9 @@ module.exports = async (req, res) => {
         purchases:Array.isArray(purchases)?purchases:[],
         entitlements:Array.isArray(entitlements)?entitlements:[],
         entitlementLedger:Array.isArray(entitlementLedger)?entitlementLedger:[],
-        membershipPlans:Array.isArray(membershipPlans)?membershipPlans:[],
+        membershipPlans:normalizedMembershipPlans,
         membershipAccounts:Array.isArray(reconciled.accounts)?reconciled.accounts:[],
-        membershipOrders:Array.isArray(membershipOrders)?membershipOrders:[],
+        membershipOrders:normalizedMembershipOrders,
         membershipBenefitLedger:Array.isArray(membershipBenefitLedger)?membershipBenefitLedger:[],
         membershipAccountEvents:[...(Array.isArray(membershipAccountEvents)?membershipAccountEvents:[]),...(reconciled.events||[])],
         plans:Array.isArray(plans)?plans:[],
@@ -1612,39 +1705,78 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       const id=maM[1];
       if(method==='GET')return sendJson(res,await get(T_MEMBERSHIP_ACCOUNTS,id));
-      if(method==='PUT'){const old=await get(T_MEMBERSHIP_ACCOUNTS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员账户不存在'},404);const r={...old,...body,id,updatedAt:new Date().toISOString()};await put(T_MEMBERSHIP_ACCOUNTS,id,r);return sendJson(res,r);}
+      if(method==='PUT'){
+        const old=await get(T_MEMBERSHIP_ACCOUNTS,id).catch(()=>null);
+        if(!old)return sendJson(res,{error:'会员账户不存在'},404);
+        const now=new Date().toISOString();
+        const r={...old,...body,id,updatedAt:now};
+        if(body.status==='voided'){
+          r.status='voided';
+          r.voidedAt=now;
+          r.voidedBy=user.name||'';
+          r.voidReason=body.voidReason||body.reason||'手动作废会员';
+        }
+        let event=null;
+        if(old.status!==r.status&&r.status==='voided'){
+          event=buildMembershipAccountEventRecord({
+            membershipAccountId:id,
+            courtId:r.courtId,
+            eventType:'voided',
+            beforeStatus:old.status,
+            afterStatus:'voided',
+            operator:user.name||'',
+            reason:r.voidReason
+          },{id:uuidv4(),now});
+        }
+        await put(T_MEMBERSHIP_ACCOUNTS,id,r);
+        if(event)await put(T_MEMBERSHIP_ACCOUNT_EVENTS,event.id,event);
+        return sendJson(res,event?{account:r,event}:r);
+      }
     }
     if(path==='/membership-orders'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       if(method==='GET')return sendJson(res,await scan(T_MEMBERSHIP_ORDERS).catch(()=>[]));
       if(method==='POST'){
-        await runMembershipReconcile();
-        const court=await get(T_COURTS,body.courtId).catch(()=>null);
-        if(!court)return sendJson(res,{error:'订场用户不存在'},404);
-        const plan=await get(T_MEMBERSHIP_PLANS,body.membershipPlanId).catch(()=>null);
-        if(!plan)return sendJson(res,{error:'会员方案不存在'},404);
-        if(plan.status&&plan.status!=='active')return sendJson(res,{error:'该会员方案已停用'},400);
-        const existingOrders=await scan(T_MEMBERSHIP_ORDERS).catch(()=>[]);
-        const existingAccount=(await scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])).find(a=>a.courtId===court.id&&a.status!=='voided');
         const now=new Date().toISOString();
         const purchaseDate=body.purchaseDate||now.slice(0,10);
-        const rechargeAmount=normalizeMoney(body.rechargeAmount??plan.rechargeAmount);
-        if(isDuplicateMembershipOrderSubmission({courtId:court.id,membershipPlanId:plan.id,purchaseDate,rechargeAmount,requestKey:body.requestKey,recentOrders:existingOrders,now}))return sendJson(res,{error:'检测到重复提交，请勿重复开卡/续充'},409);
-        const built=buildMembershipPurchase({court,plan,existingAccount,body:{...body,purchaseDate,rechargeAmount,operator:body.operator||user.name},now});
+        const rechargeAmount=normalizeMoney(body.rechargeAmount);
+        const requestReservationKey=reserveRecentMembershipOrderRequest({courtId:body.courtId,membershipPlanId:body.membershipPlanId,purchaseDate,rechargeAmount,requestKey:body.requestKey},now);
+        if(!requestReservationKey)return sendJson(res,{error:'检测到重复提交，请勿重复开卡/续充'},409);
+        const [court,plan,existingAccountFallback]=await Promise.all([
+          get(T_COURTS,body.courtId).catch(()=>null),
+          get(T_MEMBERSHIP_PLANS,body.membershipPlanId).catch(()=>null),
+          body.membershipAccountId?get(T_MEMBERSHIP_ACCOUNTS,body.membershipAccountId).catch(()=>null):Promise.resolve(null)
+        ]);
+        if(!court){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'订场用户不存在'},404);}
+        const existingAccount=existingAccountFallback&&existingAccountFallback.courtId===court.id&&existingAccountFallback.status!=='voided'
+          ? existingAccountFallback
+          : (await scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])).find(a=>a.courtId===court.id&&a.status!=='voided');
+        if(!plan){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'会员方案不存在'},404);}
+        if(plan.status&&plan.status!=='active'){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'该会员方案已停用'},400);}
+        const finalRechargeAmount=normalizeMoney(body.rechargeAmount??plan.rechargeAmount);
+        const built=buildMembershipPurchase({court,plan:normalizeMembershipPlanViewRecord(plan),existingAccount,body:{...body,purchaseDate,rechargeAmount:finalRechargeAmount,operator:body.operator||user.name},now});
+        const benefitLedgerRows=buildMembershipGrantLedgerRows(built.order,{idFactory:uuidv4,now});
         const originalCourt={...court};
         try{
           const history=[...normalizeCourtHistory(court.history),built.historyRow];
           const nextCourt=normalizeCourtRecord({...court,history,updatedAt:now});
-          await put(T_MEMBERSHIP_ACCOUNTS,built.account.id,built.account);
-          await put(T_MEMBERSHIP_ORDERS,built.order.id,built.order);
-          await put(T_COURTS,court.id,nextCourt);
-          return sendJson(res,built);
+          await Promise.all([
+            put(T_MEMBERSHIP_ACCOUNTS,built.account.id,built.account),
+            put(T_MEMBERSHIP_ORDERS,built.order.id,built.order),
+            put(T_COURTS,court.id,nextCourt),
+            ...benefitLedgerRows.map(row=>put(T_MEMBERSHIP_BENEFIT_LEDGER,row.id,row))
+          ]);
+          releaseRecentMembershipOrderRequest(requestReservationKey,{keep:true});
+          return sendJson(res,{...built,benefitLedgerRows});
         }catch(err){
-          await put(T_COURTS,originalCourt.id,originalCourt).catch(()=>null);
-          await del(T_MEMBERSHIP_ORDERS,built.order.id).catch(()=>null);
-          if(!existingAccount)await del(T_MEMBERSHIP_ACCOUNTS,built.account.id).catch(()=>null);
-          else await put(T_MEMBERSHIP_ACCOUNTS,existingAccount.id,existingAccount).catch(()=>null);
+          await Promise.all([
+            put(T_COURTS,originalCourt.id,originalCourt).catch(()=>null),
+            del(T_MEMBERSHIP_ORDERS,built.order.id).catch(()=>null),
+            ...benefitLedgerRows.map(row=>del(T_MEMBERSHIP_BENEFIT_LEDGER,row.id).catch(()=>null)),
+            (!existingAccount?del(T_MEMBERSHIP_ACCOUNTS,built.account.id):put(T_MEMBERSHIP_ACCOUNTS,existingAccount.id,existingAccount)).catch(()=>null)
+          ]);
+          releaseRecentMembershipOrderRequest(requestReservationKey);
           throw err;
         }
       }
@@ -1664,6 +1796,16 @@ module.exports = async (req, res) => {
         const now=new Date().toISOString();
         if(!body.membershipOrderId&&(body.action==='consume'||parseInt(body.delta)<0)){
           const [orders,ledger]=await Promise.all([scan(T_MEMBERSHIP_ORDERS).catch(()=>[]),scan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[])]);
+          const relevantOrders=(orders||[]).filter(order=>order.membershipAccountId===body.membershipAccountId&&order.courtId===body.courtId);
+          const needsPlanFallback=relevantOrders.some(order=>{
+            const hasBenefitSnapshot=order?.benefitSnapshot&&Object.keys(order.benefitSnapshot).length>0;
+            const hasPlanSnapshot=order?.planBenefitTemplateSnapshot&&Object.keys(order.planBenefitTemplateSnapshot).length>0;
+            const hasLegacyCounts=MEMBERSHIP_BENEFIT_FIELD_MAP.some(({field})=>parseInt(order?.[field])>0);
+            return !hasBenefitSnapshot&&!hasPlanSnapshot&&!hasLegacyCounts;
+          });
+          const plans=needsPlanFallback?await scan(T_MEMBERSHIP_PLANS).catch(()=>[]):[];
+          const planMap=new Map((plans||[]).map(plan=>[plan.id,normalizeMembershipPlanViewRecord(plan)]));
+          const normalizedOrders=relevantOrders.map(order=>normalizeMembershipOrderViewRecord(order,planMap.get(order.membershipPlanId)||null));
           const rows=allocateMembershipBenefitUsage({
             membershipAccountId:body.membershipAccountId,
             courtId:body.courtId,
@@ -1671,7 +1813,7 @@ module.exports = async (req, res) => {
             benefitLabel:body.benefitLabel,
             unit:body.unit,
             consumeCount:Math.abs(parseInt(body.delta)||0)||Math.abs(parseInt(body.consumeCount)||0),
-            orders,
+            orders:normalizedOrders,
             ledger,
             relatedDate:body.relatedDate,
             reason:body.reason||'会员权益使用',
@@ -1679,7 +1821,7 @@ module.exports = async (req, res) => {
             now,
             idFactory:uuidv4
           });
-          for(const row of rows)await put(T_MEMBERSHIP_BENEFIT_LEDGER,row.id,row);
+          await Promise.all(rows.map(row=>put(T_MEMBERSHIP_BENEFIT_LEDGER,row.id,row)));
           return sendJson(res,{records:rows});
         }
         const r=buildMembershipBenefitLedgerRecord({...body,operator:body.operator||user.name},{id:uuidv4(),now});
@@ -1854,9 +1996,14 @@ module.exports._test={
   buildMembershipPurchase,
   summarizeMembershipBenefits,
   isDuplicateMembershipOrderSubmission,
+  buildMembershipAccountEventRecord,
   buildMembershipBenefitLedgerRecord,
+  buildMembershipGrantLedgerRows,
   allocateMembershipBenefitUsage,
   reconcileMembershipAccounts,
+  normalizeMembershipPlanViewRecord,
+  normalizeMembershipOrderViewRecord,
+  isTransientStorageError,
   normalizeCourtRecord,
   buildLegacyCourtOpeningHistory,
   legacyCourtFinanceWarnings,
