@@ -22,4 +22,10 @@ assert.match(
   'coach ops day view needs dateMs so schedule blocks render instead of interrupting the table'
 );
 
+assert.match(
+  html,
+  /function openCoachOpsCreateSchedule/,
+  'coach ops should expose a grid click entry for creating schedules'
+);
+
 console.log('coach ops view tests passed');

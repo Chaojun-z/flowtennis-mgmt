@@ -91,4 +91,35 @@ assert.doesNotThrow(
   'empty court account can be deleted'
 );
 
+assert.throws(
+  () => rules.assertCanDeleteStudent('stu-1', {
+    classes: [{ id: 'class-a', studentIds: ['stu-1'] }],
+    schedule: [],
+    plans: [],
+    courts: [],
+    feedbacks: []
+  }),
+  /该学员已有班次、排课、学习计划、订场账户或反馈关联/,
+  'student linked to class should not be deletable'
+);
+
+assert.throws(
+  () => rules.assertCanEditClassWithSchedules(
+    { id: 'class-a', coach: '朝珺', studentIds: ['stu-1'] },
+    { id: 'class-a', coach: '白杨静', studentIds: ['stu-1'] },
+    [{ id: 'sch-1', classId: 'class-a' }]
+  ),
+  /该班次已有排课，不能直接修改教练或学员/,
+  'class with schedules should not allow changing coach'
+);
+
+assert.doesNotThrow(
+  () => rules.assertCanEditClassWithSchedules(
+    { id: 'class-a', coach: '朝珺', studentIds: ['stu-1'] },
+    { id: 'class-a', coach: '朝珺', studentIds: ['stu-1'], totalLessons: 12 },
+    [{ id: 'sch-1', classId: 'class-a' }]
+  ),
+  'class with schedules can still edit unrelated fields'
+);
+
 console.log('class plan rules tests passed');

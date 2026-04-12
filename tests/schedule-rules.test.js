@@ -246,4 +246,32 @@ assert.doesNotThrow(
   'schedule without feedback can be deleted'
 );
 
+assert.throws(
+  () => rules.validateCourtBookingConflicts(
+    {
+      startTime: '2026-04-11 09:30',
+      endTime: '2026-04-11 10:30',
+      campus: 'mabao',
+      venue: '1号场',
+      status: '已排课'
+    },
+    [{
+      id: 'court-1',
+      name: '订场用户A',
+      campus: 'mabao',
+      history: [{
+        type: '消费',
+        category: '订场',
+        date: '2026-04-11',
+        startTime: '09:00',
+        endTime: '10:00',
+        venue: '1号场',
+        amount: 100
+      }]
+    }]
+  ),
+  /已被订场用户.*订场用户A.*订场/,
+  'court bookings should block schedule venue conflicts'
+);
+
 console.log('schedule rules tests passed');

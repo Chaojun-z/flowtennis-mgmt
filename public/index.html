@@ -1142,8 +1142,8 @@ function renderSchedule(){
     return `<tr><td style="font-weight:600;color:var(--th)">${fmtDt(s.startTime)}</td><td style="color:var(--ts)">${fmtDt(s.endTime)}</td><td><span class="badge b-amber">${dur?dur+'分钟':'—'}</span></td><td><div class="uname">${esc(s.studentName)||'—'}</div></td><td style="font-weight:500">${esc(s.coach)||'—'}</td><td style="font-size:12px;color:var(--ts)">${cls?cls.className:'—'}</td><td style="color:var(--ts);font-size:12px">${esc(s.venue)||'—'}</td><td><button class="abtn" title="${fb?'查看/编辑反馈':'填写反馈'}" onclick="openFeedbackModal('${s.id}')">${fb?'✅':'📝'}</button></td><td><span class="badge ${ss[s.status]||'b-gray'}">${s.status||'已排课'}</span></td><td style="text-align:right;display:flex;gap:4px;justify-content:flex-end"><button class="abtn" onclick="openScheduleModal('${s.id}')">⚙️</button><button class="abtn" style="background:rgba(220,38,38,0.08);color:#dc2626" onclick="confirmDel('${s.id}','此排课','schedule')">🗑️</button></td></tr>`;
   }).join(''):'<tr><td colspan="10"><div class="empty"><div class="empty-ico">📅</div><p>暂无排课</p></div></td></tr>';
 }
-function openScheduleModal(id){
-  editId=id;const s=id?schedules.find(x=>x.id===id):null;
+function openScheduleModal(id,seed={}){
+  editId=id;const s=id?schedules.find(x=>x.id===id):(seed||null);
   document.getElementById('mTitle').textContent=id?'✏️ 编辑排课':'➕ 添加排课';
   const clOpts=classes.filter(c=>c.status==='已排班').map(c=>{const rem=(parseInt(c.totalLessons)||0)-(parseInt(c.usedLessons)||0);return `<option value="${c.id}"${rv(s,'classId')===c.id?' selected':''}>${esc(c.className)} 剩余${rem}节</option>`;}).join('');
   const coOpts=activeCoachNames().map(c=>`<option value="${c}"${rv(s,'coach')===c?' selected':''}>${c}</option>`).join('');
@@ -1335,6 +1335,20 @@ function shiftCoachOpsDate(step){
   renderCoachOps();
 }
 function openCoachOpsDay(ds){coachOpsMode='day';const r=document.getElementById('coachOpsRange'),d=document.getElementById('coachOpsDate');if(r)r.value='day';if(d)d.value=ds;renderCoachOps();}
+function openCoachOpsCreateSchedule(coach,date,startTime='09:00'){
+  const h=Math.min(22,parseInt(startTime.slice(0,2))||9),m=startTime.slice(3,5)||'00';
+  const endH=Math.min(23,h+1);
+  const co=coaches.find(c=>coachName(c.name)===coachName(coach));
+  openScheduleModal(null,{startTime:`${date} ${String(h).padStart(2,'0')}:${m}`,endTime:`${date} ${String(endH).padStart(2,'0')}:${m}`,coach:coachName(coach),campus:co?.campus||'',venue:'1号场',lessonCount:1,status:'已排课'});
+}
+function openCoachOpsLineCreate(e,coach,date){
+  if(e.target.closest('.coach-ops-block'))return;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const pct=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+  const minutes=Math.round((pct*(22-7)*60)/30)*30;
+  const h=Math.min(22,7+Math.floor(minutes/60)),m=minutes%60;
+  openCoachOpsCreateSchedule(coach,date,`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+}
 function coachOpsRows(){
   const now=new Date(),todayStr=today();
   const ws=weekStart(now),we=new Date(ws);we.setDate(ws.getDate()+7);
@@ -1390,9 +1404,9 @@ function renderCoachOps(){
         const endMin=(endMs-base.getTime())/60000;
         const left=Math.max(0,Math.min(99,startMin/opsTotalMin*100));
         const width=Math.max(2,(Math.min(opsTotalMin,endMin)-Math.max(0,startMin))/opsTotalMin*100);
-        return `<div class="coach-ops-block" style="left:${left}%;width:${Math.min(width,100-left)}%" onclick="openScheduleDetail('${s.id}')"><div class="coach-ops-time">${s.startTime.slice(11,16)}${s.endTime?' - '+s.endTime.slice(11,16):''}</div><div>${esc(s.studentName)||esc(classes.find(c=>c.id===s.classId)?.className)||'—'}</div><div style="color:var(--ts);margin-top:3px">${cn(s.campus)} · ${esc(s.venue)||'—'}</div></div>`;
+        return `<div class="coach-ops-block" style="left:${left}%;width:${Math.min(width,100-left)}%" onclick="event.stopPropagation();openScheduleDetail('${s.id}')"><div class="coach-ops-time">${s.startTime.slice(11,16)}${s.endTime?' - '+s.endTime.slice(11,16):''}</div><div>${esc(s.studentName)||esc(classes.find(c=>c.id===s.classId)?.className)||'—'}</div><div style="color:var(--ts);margin-top:3px">${cn(s.campus)} · ${esc(s.venue)||'—'}</div></div>`;
       }).join('');
-      return `<div class="coach-ops-row"><div class="coach-ops-name">${esc(r.name)}</div><div class="coach-ops-line">${blocks||'<span class="coach-ops-empty">当日暂无课程</span>'}</div></div>`;
+      return `<div class="coach-ops-row"><div class="coach-ops-name">${esc(r.name)}</div><div class="coach-ops-line" onclick="openCoachOpsLineCreate(event,${jsArg(r.name)},'${dateKey(range.start)}')">${blocks||'<span class="coach-ops-empty">当日暂无课程</span>'}</div></div>`;
     }
     const days=[];
     const gridStart=mode==='month'?weekStart(range.start):range.start;
@@ -1401,7 +1415,7 @@ function renderCoachOps(){
     const cells=days.map(d=>{
       const ds=dateKey(d);
       const dayRows=r.rangeRows.filter(s=>s.startTime.slice(0,10)===ds).sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
-      return `<div class="coach-ops-daycell ${dayRows.length?'has-course':''}" onclick="openCoachOpsDay('${ds}')"><strong>${d.getMonth()+1}/${d.getDate()}</strong>${dayRows.length?`${dayRows.length}节<br>${dayRows.slice(0,2).map(s=>s.startTime.slice(11,16)+' '+(s.studentName||'')).join('<br>')}`:'无课'}</div>`;
+      return `<div class="coach-ops-daycell ${dayRows.length?'has-course':''}" onclick="openCoachOpsCreateSchedule(${jsArg(r.name)},'${ds}')"><strong>${d.getMonth()+1}/${d.getDate()}</strong>${dayRows.length?`${dayRows.length}节<br>${dayRows.slice(0,2).map(s=>s.startTime.slice(11,16)+' '+(s.studentName||'')).join('<br>')}`:'无课'}</div>`;
     }).join('');
     return `<div class="coach-ops-row"><div class="coach-ops-name">${esc(r.name)}</div><div class="coach-ops-period-line ${mode==='week'?'coach-ops-week':'coach-ops-month'}">${cells}</div></div>`;
   }).join('');
@@ -1496,7 +1510,8 @@ function courtRecRow(h){
   const sign=type==='充值'?'+':type==='消费'?'-':type==='冲正'?'冲':'';
   const st=h.studentId?students.find(s=>s.id===h.studentId):null;
   const source=h.source==='import'?'导入':'';
-  const meta=[source,h.category,h.payMethod,st?.name].filter(Boolean).map(esc).join(' · ');
+  const booking=h.category==='订场'&&h.startTime&&h.endTime?`${h.startTime}-${h.endTime}${h.venue?' '+h.venue:''}`:'';
+  const meta=[source,h.category,h.payMethod,booking,st?.name].filter(Boolean).map(esc).join(' · ');
   return `<div class="rec-item"><span class="rec-date">${h.date}</span><span class="badge ${cls}" style="font-size:10px">${esc(type)}</span><span class="rec-amt ${type==='充值'?'plus':'minus'}">${sign}¥${fmt(amount)}</span><span class="rec-note">${meta}${h.note?' · '+esc(h.note):''}</span></div>`;
 }
 function openCourtModal(id){
@@ -1508,16 +1523,21 @@ function openCourtModal(id){
   document.getElementById('mTitle').textContent=id?'编辑订场用户':'添加订场用户';
   const linked=findStudentForCourt(r);
   const selectedIds=parseArr(r?.studentIds);if(!selectedIds.length&&linked)selectedIds.push(linked.id);
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="f_name" value="${rv(r,'name')}"></div><div class="fg"><div class="flabel">手机号</div><input class="finput" id="f_phone" value="${rv(r,'phone')}" placeholder="13800138000"></div><div class="fg full"><div class="flabel">关联学员（可多选）</div><div style="max-height:110px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${studentChecks(selectedIds)}</div></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="f_campus">${campusOpts(rv(r,'campus'))}</select></div><div class="fg"><div class="flabel">加入日期</div><input class="finput" id="f_joinDate" type="date" value="${rv(r,'joinDate',today())}"></div><div class="fg"><div class="flabel">累计充值</div><input class="finput" id="f_dep" type="number" value="${fin.totalDeposit}" readonly></div><div class="fg"><div class="flabel">当前余额</div><input class="finput" id="f_bal" type="number" value="${fin.balance}" readonly></div><div class="fg"><div class="flabel">累计消费</div><input class="finput" id="f_spent" type="number" value="${fin.spentAmount}" readonly></div><div class="fg"><div class="flabel">累计实收</div><input class="finput" id="f_received" type="number" value="${fin.receivedAmount}" readonly></div><div class="fg"><div class="flabel">对接人</div><input class="finput" id="f_owner" value="${rv(r,'owner')}"></div><div class="fg"><div class="flabel">对储值态度</div><input class="finput" id="f_attitude" value="${rv(r,'depositAttitude')}"></div><div class="fg"><div class="flabel">熟悉程度</div><input class="finput" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div><div class="sec-ttl">充值/消费记录</div><div class="rec-list" id="histList">${hist.map(h=>courtRecRow(h)).join('')}</div><div class="add-rec-row"><select class="fselect" id="nrType" style="min-width:82px" onchange="updateCourtFinancePreview()"><option value="充值">充值</option><option value="消费">消费</option><option value="退款">退款</option><option value="冲正">冲正</option></select><select class="fselect" id="nrCategory" style="min-width:92px"><option value="订场">订场</option><option value="私教课">私教课</option><option value="班课">班课</option><option value="训练营">训练营</option><option value="退款">退款</option><option value="冲正">冲正</option><option value="其他">其他</option></select><select class="fselect" id="nrPayMethod" style="min-width:96px" onchange="updateCourtFinancePreview()"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="储值扣款">储值扣款</option><option value="储值退款">储值退款</option><option value="其他">其他</option></select><select class="fselect" id="nrStudentId" style="min-width:100px">${courtStudentSelect('')}</select><input class="finput" id="nrDate" type="date" value="${today()}" style="max-width:150px"><input class="finput" id="nrAmt" type="number" placeholder="金额" style="max-width:100px"><input class="finput" id="nrNote" placeholder="备注"><button class="btn-add-rec" onclick="addCourtRec()">添加</button></div><div style="font-size:12px;color:var(--ts);margin-top:8px" id="financeHint">储值扣款会减少余额；微信/支付宝/现金/转账消费不减少余额。</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button>`:''}<button class="btn-save" onclick="saveCourt()">保存</button></div>`;
+  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="f_name" value="${rv(r,'name')}"></div><div class="fg"><div class="flabel">手机号</div><input class="finput" id="f_phone" value="${rv(r,'phone')}" placeholder="13800138000"></div><div class="fg full"><div class="flabel">关联学员（可多选）</div><div style="max-height:110px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${studentChecks(selectedIds)}</div></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="f_campus">${campusOpts(rv(r,'campus'))}</select></div><div class="fg"><div class="flabel">加入日期</div><input class="finput" id="f_joinDate" type="date" value="${rv(r,'joinDate',today())}"></div><div class="fg"><div class="flabel">累计充值</div><input class="finput" id="f_dep" type="number" value="${fin.totalDeposit}" readonly></div><div class="fg"><div class="flabel">当前余额</div><input class="finput" id="f_bal" type="number" value="${fin.balance}" readonly></div><div class="fg"><div class="flabel">累计消费</div><input class="finput" id="f_spent" type="number" value="${fin.spentAmount}" readonly></div><div class="fg"><div class="flabel">累计实收</div><input class="finput" id="f_received" type="number" value="${fin.receivedAmount}" readonly></div><div class="fg"><div class="flabel">对接人</div><input class="finput" id="f_owner" value="${rv(r,'owner')}"></div><div class="fg"><div class="flabel">对储值态度</div><input class="finput" id="f_attitude" value="${rv(r,'depositAttitude')}"></div><div class="fg"><div class="flabel">熟悉程度</div><input class="finput" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div><div class="sec-ttl">充值/消费记录</div><div class="rec-list" id="histList">${hist.map(h=>courtRecRow(h)).join('')}</div><div class="add-rec-row"><select class="fselect" id="nrType" style="min-width:82px" onchange="updateCourtFinancePreview()"><option value="充值">充值</option><option value="消费">消费</option><option value="退款">退款</option><option value="冲正">冲正</option></select><select class="fselect" id="nrCategory" style="min-width:92px"><option value="订场">订场</option><option value="私教课">私教课</option><option value="班课">班课</option><option value="训练营">训练营</option><option value="退款">退款</option><option value="冲正">冲正</option><option value="其他">其他</option></select><select class="fselect" id="nrPayMethod" style="min-width:96px" onchange="updateCourtFinancePreview()"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="储值扣款">储值扣款</option><option value="储值退款">储值退款</option><option value="其他">其他</option></select><select class="fselect" id="nrStudentId" style="min-width:100px">${courtStudentSelect('')}</select><input class="finput" id="nrDate" type="date" value="${today()}" style="max-width:150px"><input class="finput" id="nrStartTime" type="time" style="max-width:110px"><input class="finput" id="nrEndTime" type="time" style="max-width:110px"><select class="fselect" id="nrVenue" style="min-width:92px">${venueOpts('1号场')}</select><input class="finput" id="nrAmt" type="number" placeholder="金额" style="max-width:100px"><input class="finput" id="nrNote" placeholder="备注"><button class="btn-add-rec" onclick="addCourtRec()">添加</button></div><div style="font-size:12px;color:var(--ts);margin-top:8px" id="financeHint">储值扣款会减少余额；微信/支付宝/现金/转账消费不减少余额。</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button>`:''}<button class="btn-save" onclick="saveCourt()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
   updateCourtFinancePreview();
 }
 function addCourtRec(){
   const type=document.getElementById('nrType').value,date=document.getElementById('nrDate').value,amt=parseFloat(document.getElementById('nrAmt').value),note=document.getElementById('nrNote').value.trim();
   const category=document.getElementById('nrCategory').value,payMethod=document.getElementById('nrPayMethod').value,studentId=document.getElementById('nrStudentId').value;
+  const startTime=document.getElementById('nrStartTime')?.value||'',endTime=document.getElementById('nrEndTime')?.value||'',venue=document.getElementById('nrVenue')?.value||'',recCampus=document.getElementById('f_campus')?.value||'';
   if(!date){toast('请选择日期','warn');return;}
   if(!amt||isNaN(amt)){toast('请输入金额','warn');return;}
-  const h={id:uid(),date,type,category,payMethod,studentId,amount:Math.abs(amt),note};
+  if(type==='消费'&&category==='订场'){
+    if(!startTime||!endTime||!venue){toast('订场记录请填写时间和场地','warn');return;}
+    if(endTime<=startTime){toast('订场结束时间不能早于开始时间','warn');return;}
+  }
+  const h={id:uid(),date,type,category,payMethod,studentId,amount:Math.abs(amt),note,startTime,endTime,venue,campus:recCampus};
   const base=editId?courts.find(u=>u.id===editId):null;
   const hist=[...courtBaseHistoryForSave(base),..._pending,h];
   const preview=courtFinanceLocal({...(base||{}),history:hist});
@@ -1530,6 +1550,7 @@ function addCourtRec(){
   document.getElementById('f_spent').value=preview.spentAmount;
   document.getElementById('f_received').value=preview.receivedAmount;
   document.getElementById('nrDate').value=today();document.getElementById('nrAmt').value='';document.getElementById('nrNote').value='';
+  const stEl=document.getElementById('nrStartTime'),etEl=document.getElementById('nrEndTime');if(stEl)stEl.value='';if(etEl)etEl.value='';
   document.getElementById('histList').insertAdjacentHTML('afterbegin',courtRecRow(h));_pending.push(h);
   updateCourtFinancePreview();
 }
