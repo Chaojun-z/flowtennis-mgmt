@@ -13,6 +13,7 @@ const ENABLE_DEFAULT_USER_BOOTSTRAP = process.env.ENABLE_DEFAULT_USER_BOOTSTRAP 
 const ENABLE_TABLE_BOOTSTRAP = process.env.ENABLE_TABLE_BOOTSTRAP === 'true';
 
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger';
+const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER];
 
 let tsClient;
 function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
@@ -42,6 +43,7 @@ async function scanFeedbacks(){
     return [];
   }
 }
+function getRuntimeEnsuredTables(){return [...RUNTIME_ENSURED_TABLES];}
 function parseArr(v){if(Array.isArray(v))return v;if(typeof v==='string'&&v){try{return JSON.parse(v)}catch{return[]}}return[];}
 function isBillableSchedule(rec){return rec&&rec.status!=='已取消';}
 async function applyLessonDelta(classId,delta){
@@ -523,6 +525,7 @@ async function init(){
   const startedAt=Date.now();
   const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
   if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
+  for(const t of RUNTIME_ENSURED_TABLES)await mkTable(t);
   if(ENABLE_TABLE_BOOTSTRAP){
     for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CAMPUSES,T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER])await mkTable(t);
     await bootstrapDefaultUsers();
@@ -1180,5 +1183,6 @@ module.exports._test={
   assertCanDeleteSchedule,
   assertCanDeleteStudent,
   assertCanDeleteCourt,
-  deleteCourtsByIds
+  deleteCourtsByIds,
+  getRuntimeEnsuredTables
 };

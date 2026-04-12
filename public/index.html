@@ -94,18 +94,21 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .pager{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:0.5px solid rgba(180,83,9,0.1)}.pager-info{font-size:12px;color:var(--td)}
 .pbtn{width:28px;height:28px;border-radius:7px;border:none;background:transparent;cursor:pointer;font-size:12.5px;color:var(--ts);font-family:inherit;transition:all .13s}.pbtn:hover{background:rgba(180,83,9,0.1);color:var(--amber-base)}.pbtn.active{background:var(--amber-base);color:#fff;font-weight:600}
 .overlay{position:fixed;inset:0;background:rgba(60,20,0,0.55);backdrop-filter:blur(10px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}.overlay.open{opacity:1;pointer-events:all}
-.modal{background:var(--card-f);backdrop-filter:var(--bf);border:var(--borf);border-radius:20px;width:580px;max-width:95vw;box-shadow:0 30px 90px rgba(60,20,0,0.35);transform:translateY(16px) scale(.97);transition:transform .22s cubic-bezier(.34,1.56,.64,1);max-height:90vh;overflow-y:auto;color:var(--tb)}.overlay.open .modal{transform:translateY(0) scale(1)}
+.modal{background:var(--card-f);backdrop-filter:var(--bf);border:var(--borf);border-radius:20px;width:580px;max-width:95vw;box-shadow:0 30px 90px rgba(60,20,0,0.35);transform:translateY(16px) scale(.97);transition:transform .22s cubic-bezier(.34,1.56,.64,1);max-height:90vh;overflow:hidden;color:var(--tb);display:flex;flex-direction:column}.overlay.open .modal{transform:translateY(0) scale(1)}
 .modal::-webkit-scrollbar{width:4px}.modal::-webkit-scrollbar-thumb{background:rgba(180,83,9,0.2);border-radius:2px}
 .modal.modal-court{display:flex;flex-direction:column;overflow:hidden}
+.modal.modal-wide{width:min(920px,95vw)}
+.modal.modal-tight{width:min(640px,95vw)}
 .modal.modal-court .mbody{overflow:auto;padding-bottom:16px}
 .modal.modal-court .mactions{position:sticky;bottom:0;z-index:2;margin-top:0;padding-top:12px;background:rgba(253,248,241,.72);backdrop-filter:blur(12px)}
 .mhead{padding:22px 22px 0;display:flex;align-items:center;justify-content:space-between}.mtitle{font-size:16px;font-weight:700;color:var(--th)}.mclose{width:30px;height:30px;border-radius:8px;border:none;background:rgba(180,83,9,0.08);color:var(--ts);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .13s}.mclose:hover{background:#dc2626;color:#fff}
-.mbody{padding:16px 22px 22px}
+.mbody{padding:16px 22px 0;overflow:auto}
 .sec-ttl{font-size:10px;font-weight:700;color:var(--amber-base);letter-spacing:1.3px;text-transform:uppercase;margin:14px 0 9px;display:flex;align-items:center;gap:7px}.sec-ttl::after{content:'';flex:1;height:0.5px;background:rgba(180,83,9,0.2)}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}.fg{display:flex;flex-direction:column;gap:5px}.fg.full{grid-column:1/-1}
 .flabel{font-size:11px;font-weight:600;color:var(--ts);letter-spacing:.4px;text-transform:uppercase}
 .finput,.fselect{border:0.5px solid rgba(180,83,9,0.2);border-radius:9px;padding:9px 12px;font-size:13px;color:var(--th);outline:none;font-family:inherit;transition:border-color .14s;background:rgba(254,243,199,0.2);width:100%}.finput:focus,.fselect:focus{border-color:var(--amber-warm);background:rgba(254,243,199,0.35)}
 .ftextarea{resize:vertical;min-height:62px}
+.fselect.modern-select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--amber-base) 50%),linear-gradient(135deg,var(--amber-base) 50%,transparent 50%);background-position:calc(100% - 18px) 16px,calc(100% - 13px) 16px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
 .rec-list{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto}
 .rec-item{display:flex;align-items:center;gap:9px;background:rgba(254,243,199,0.25);border-radius:8px;padding:8px 11px;border:0.5px solid rgba(180,83,9,0.12);font-size:12.5px}
 .rec-date{color:var(--ts);font-size:11.5px;min-width:72px}.rec-amt{font-weight:700}.rec-amt.plus{color:#065f46}.rec-amt.minus{color:#991b1b}.rec-note{color:var(--td);flex:1}
@@ -135,17 +138,49 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 #importOv .mbody{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:14px;min-height:0;overflow:hidden;padding-bottom:16px}
 #courtImportPreview{min-height:0;overflow:auto;padding-right:4px}
 #importOv .import-actions{position:sticky;bottom:0;z-index:2;margin-top:0;padding-top:12px;background:linear-gradient(180deg,rgba(253,248,241,0),rgba(253,248,241,.92) 18%,rgba(253,248,241,.98) 100%)}
-.mactions{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:0.5px solid rgba(180,83,9,0.12)}
+.mactions{display:flex;gap:8px;margin-top:16px;padding:14px 0 22px;border-top:0.5px solid rgba(180,83,9,0.12);position:sticky;bottom:0;z-index:2;background:linear-gradient(180deg,rgba(253,248,241,0),rgba(253,248,241,.92) 16%,rgba(253,248,241,.98) 100%);backdrop-filter:blur(12px)}
 .btn-cancel{flex:1;padding:10px;border-radius:9px;border:0.5px solid rgba(180,83,9,0.2);background:transparent;color:var(--ts);font-size:13px;cursor:pointer;font-family:inherit;transition:all .13s}.btn-cancel:hover{border-color:var(--amber-base);color:var(--th)}
 .btn-save{flex:2;padding:10px;border-radius:9px;border:none;background:linear-gradient(135deg,var(--amber-base),var(--amber-warm));color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(180,83,9,0.35);transition:all .14s}.btn-save:hover{transform:translateY(-1px)}.btn-save:disabled{opacity:.6;transform:none;cursor:not-allowed}
 .btn-del{padding:10px 14px;border-radius:9px;border:0.5px solid rgba(220,38,38,0.25);background:transparent;color:#dc2626;font-size:13px;cursor:pointer;font-family:inherit;transition:all .13s}.btn-del:hover{background:#dc2626;color:#fff;border-color:#dc2626}
+.page-head-card{background:rgba(255,248,238,.14);border:0.5px solid rgba(255,244,230,.18);border-radius:16px;padding:16px 18px;margin-bottom:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.page-head-main{display:flex;flex-direction:column;gap:6px}
+.page-head-title{font-size:18px;font-weight:800;color:var(--cream-pale)}
+.page-head-desc{font-size:13px;line-height:1.7;color:rgba(255,247,237,.82);max-width:720px}
+.page-head-actions{display:flex;gap:10px;flex-wrap:wrap}
+.light-btn{height:38px;border:none;border-radius:8px;background:rgba(255,255,255,.88);color:var(--amber-base);padding:0 14px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 5px 18px rgba(60,20,0,.1)}
+.course-filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(254,243,199,.16);border:0.5px solid rgba(254,243,199,.22);border-radius:14px;padding:10px 12px;margin-bottom:14px}
+.filter-search{display:flex;align-items:center;gap:8px;flex:1;min-width:220px;height:38px;border:none;border-radius:8px;background:rgba(255,255,255,.84);padding:0 13px;box-shadow:0 5px 18px rgba(60,20,0,.1)}
+.filter-search input{border:none;outline:none;background:transparent;color:var(--th);font-size:13px;width:100%;font-family:inherit}
+.filter-search input::placeholder{color:var(--td)}
+.filter-search-mark{width:14px;height:14px;border:2px solid rgba(180,83,9,.55);border-radius:50%;position:relative;flex:0 0 auto}
+.filter-search-mark::after{content:'';position:absolute;right:-5px;bottom:-4px;width:7px;height:2px;background:rgba(180,83,9,.55);transform:rotate(45deg);border-radius:999px}
+.page-stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.page-stat-row .scard{border-radius:14px;padding:14px 16px;background:rgba(255,255,255,.84)}
+.page-stat-row .sc-icon{display:none}
+.package-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.package-hero-empty{padding:56px 18px;text-align:center;color:rgba(255,247,237,.76);background:rgba(255,248,238,.08);border:0.5px dashed rgba(255,247,237,.18);border-radius:16px}
+.purchase-table td{vertical-align:top}
+.purchase-toolbar-spacer{flex:1}
+.table-meta{font-size:12px;color:var(--td);margin-top:2px}
+.filter-date-wrap{position:relative}
+.filter-hidden-date{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.global-date-pop{display:none;position:fixed;width:292px;background:rgba(255,251,245,.98);border:0.5px solid rgba(180,83,9,.18);border-radius:12px;box-shadow:0 18px 54px rgba(60,20,0,.28);padding:12px;z-index:320;color:var(--th)}
+.global-date-pop.open{display:block}
+.form-section{background:rgba(255,252,248,.62);border:0.5px solid rgba(180,83,9,.12);border-radius:14px;padding:14px 14px 12px;margin-bottom:12px}
+.form-section-title{font-size:12px;font-weight:800;color:var(--amber-base);margin-bottom:10px}
+.choice-grid{display:flex;flex-wrap:wrap;gap:8px}
+.choice-tag{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;background:rgba(254,243,199,.3);border:0.5px solid rgba(180,83,9,.12);font-size:12.5px;color:var(--tb)}
+.choice-tag input{margin:0}
+.inline-help{font-size:12px;color:var(--ts);line-height:1.6}
+@media(max-width:900px){.page-head-card{flex-direction:column}.page-head-actions,.purchase-toolbar-spacer{width:100%}.page-stat-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .conf-ov{position:fixed;inset:0;background:rgba(60,20,0,0.65);backdrop-filter:blur(12px);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .18s}.conf-ov.open{opacity:1;pointer-events:all}
 .conf-box{background:var(--card-f);border:var(--borf);border-radius:18px;padding:28px;width:340px;text-align:center;box-shadow:0 24px 80px rgba(60,20,0,0.35);transform:scale(.95);transition:transform .18s;color:var(--tb)}.conf-ov.open .conf-box{transform:scale(1)}
 .conf-acts{display:flex;gap:9px;margin-top:20px}.conf-no{flex:1;padding:10px;border-radius:9px;border:0.5px solid rgba(180,83,9,0.2);background:transparent;color:var(--ts);cursor:pointer;font-family:inherit;font-size:13px}.conf-yes{flex:1;padding:10px;border-radius:9px;border:none;background:#dc2626;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600}.conf-yes:hover{background:#b91c1c}
 .toasts{position:fixed;top:18px;right:22px;z-index:400;display:flex;flex-direction:column;gap:7px}
 .toast{background:var(--card-f);border-radius:11px;padding:11px 16px;box-shadow:var(--shf);display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;min-width:200px;color:var(--th);animation:tIn .24s cubic-bezier(.34,1.56,.64,1);border-left:3.5px solid var(--amber-warm)}.toast.success{border-color:#059669}.toast.error{border-color:#dc2626}.toast.warn{border-color:var(--amber-base)}
 @keyframes tIn{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:translateX(0)}}
-.empty{text-align:center;padding:52px 20px;color:rgba(120,53,15,0.4)}.empty-ico{font-size:42px;margin-bottom:10px;opacity:.35}
+.empty{text-align:center;padding:52px 20px;color:rgba(120,53,15,0.4)}.empty-ico{display:none}
+.sc-icon{display:none}
 .loading{text-align:center;padding:40px;color:var(--ts);font-size:13px}
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:4px}
 .product-card{background:var(--card-f);backdrop-filter:var(--bf);border:var(--borf);border-radius:14px;padding:18px;box-shadow:var(--shm);transition:transform .14s,box-shadow .14s;cursor:pointer}.product-card:hover{transform:translateY(-2px);box-shadow:var(--shf)}
@@ -261,7 +296,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 <body>
 <div class="login-page" id="loginPage">
   <div class="login-card">
-    <div class="login-logo"><span class="icon">🎾</span><div class="brand">网球兄弟</div><div class="sub">FlowTennis · 管理系统</div></div>
+    <div class="login-logo"><span class="icon"></span><div class="brand">网球兄弟</div><div class="sub">FlowTennis · 管理系统</div></div>
     <div class="login-err" id="loginErr"></div>
     <label class="login-label">账号</label>
     <input class="login-input" id="loginUser" placeholder="请输入账号" autocomplete="username">
@@ -274,7 +309,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 
 <div id="app" style="display:none;width:100%;min-height:100vh">
 <aside class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">🎾 网球兄弟</div><div class="sb-tagline">· TENNIS · FLOW ·</div></div>
+  <div class="sb-logo"><div class="sb-brand">网球兄弟</div><div class="sb-tagline">· TENNIS · FLOW ·</div></div>
   <!-- 教练视角 -->
   <div id="sbCoachView" style="display:none">
   <div class="sb-sec">我的工作</div>
@@ -307,7 +342,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 
 <div class="main">
   <div class="topbar">
-    <div class="tb-title" id="topTitle">👥 学员信息</div>
+    <div class="tb-title" id="topTitle">学员信息</div>
     <div style="display:flex;gap:4px;flex-wrap:wrap" id="campusTabs"></div>
     <button class="coach-top-logout" id="coachTopLogout" onclick="doLogout()">退出</button>
   </div>
@@ -316,10 +351,10 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section active" id="page-students">
       <div class="stats-row" id="studentStatsRow"></div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="stuSearch" placeholder="搜索姓名/手机号/关联账户…" oninput="renderStudents()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="stuSearch" placeholder="搜索姓名/手机号/关联账户…" oninput="renderStudents()"></div>
         <select class="fsel" id="stuTypeFilter" onchange="renderStudents()"><option value="">全部类型</option><option value="成人">成人</option><option value="青少年">青少年</option></select>
         <select class="fsel" id="stuSourceFilter" onchange="renderStudents()"><option value="">全部来源</option><option value="大众点评">大众点评</option><option value="抖音">抖音</option><option value="视频号">视频号</option><option value="小红书">小红书</option><option value="转介绍">转介绍</option><option value="播客">播客</option><option value="其他">其他</option></select>
-        <button class="btn-sec" onclick="exportStudentCSV()">📥 导出CSV</button>
+        <button class="btn-sec" onclick="exportStudentCSV()">导出CSV</button>
         <button class="btn-add" onclick="openStudentModal(null)">＋ 添加学员</button>
       </div>
       <div class="tcard"><table><thead><tr><th>学员</th><th>手机号</th><th>类型</th><th>来源</th><th>最后上课</th><th>最后订场</th><th>关联账户</th><th>所上班次</th><th>备注</th><th style="text-align:right">操作</th></tr></thead><tbody id="stuTbody"></tbody></table>
@@ -330,7 +365,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section" id="page-classes">
       <div class="stats-row" id="classStatsRow"></div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="clsSearch" placeholder="搜索班次/学员/课程…" oninput="renderClasses()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="clsSearch" placeholder="搜索班次/学员/课程…" oninput="renderClasses()"></div>
         <select class="fsel" id="clsStatusFilter" onchange="renderClasses()"><option value="">全部状态</option><option value="已排班">已排班</option><option value="已取消">已取消</option><option value="已结课">已结课</option></select>
         <button class="btn-add" onclick="openClassModal(null)">＋ 新建班次</button>
       </div>
@@ -340,9 +375,9 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     </div>
     <!-- 学习计划 -->
     <div class="page-section" id="page-plans">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">💡 学习计划由「班次管理」自动生成，每个学员×班次 = 一条记录。</div>
+      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">学习计划由「班次管理」自动生成，每个学员 × 班次 = 一条记录。</div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="planSearch" placeholder="搜索学员/班次/关联账户…" oninput="renderPlans()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="planSearch" placeholder="搜索学员/班次/关联账户…" oninput="renderPlans()"></div>
         <select class="fsel" id="planStatusFilter" onchange="renderPlans()"><option value="">全部状态</option><option value="active">上课中</option><option value="已取消">已取消</option><option value="已结课">已结课</option></select>
       </div>
       <div class="tcard"><table><thead><tr><th>学员</th><th>手机号</th><th>班次</th><th>课程</th><th>教练</th><th>课时进度</th><th>状态</th></tr></thead><tbody id="planTbody"></tbody></table>
@@ -352,7 +387,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <!-- 排课表 -->
     <div class="page-section" id="page-schedule">
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="schSearch" placeholder="搜索学员/教练/班次…" oninput="renderSchedule()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="schSearch" placeholder="搜索学员/教练/班次…" oninput="renderSchedule()"></div>
         <select class="fsel" id="schStatusFilter" onchange="renderSchedule()"><option value="">全部状态</option><option value="已排课">已排课</option><option value="已结束">已结束</option><option value="已取消">已取消</option></select>
         <select class="fsel" id="schCampusFilter" onchange="renderSchedule()"><option value="">全部校区</option></select>
         <button class="btn-add" onclick="openScheduleModal(null)">＋ 添加排课</button>
@@ -393,7 +428,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <!-- 教练管理 -->
     <div class="page-section" id="page-coaches">
       <div class="toolbar" style="margin-bottom:16px">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="coachSearch" placeholder="搜索教练…" oninput="renderCoaches()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="coachSearch" placeholder="搜索教练…" oninput="renderCoaches()"></div>
         <button class="btn-add" onclick="openCoachModal()">＋ 新增教练</button>
       </div>
       <div class="tcard"><table><thead><tr><th>姓名</th><th>电话</th><th>校区</th><th>状态</th><th>备注</th><th style="text-align:right">操作</th></tr></thead><tbody id="coachTbody"></tbody></table></div>
@@ -402,7 +437,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section" id="page-courts">
       <div class="stats-row" id="courtStatsRow"></div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="courtSearch" placeholder="搜索姓名或手机号" oninput="renderCourts()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="courtSearch" placeholder="搜索姓名或手机号" oninput="renderCourts()"></div>
         <button class="btn-sec" onclick="exportCourtCSV()">导出CSV</button>
         <button class="btn-sec" onclick="openCourtImport()">导入CSV</button>
         <button class="btn-sec" onclick="openCourtFinanceMigrationPreview()">财务迁移预览</button>
@@ -418,7 +453,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     <div class="page-section" id="page-products">
       <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">课程产品只定义课程模板。后续创建班次、售卖课包，都是基于这里的课程产品。</div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="prodSearch" placeholder="搜索课程…" oninput="renderProducts()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="prodSearch" placeholder="搜索课程…" oninput="renderProducts()"></div>
         <select class="fsel" id="prodTypeFilter" onchange="renderProducts()"><option value="">全部类型</option><option value="私教">私教</option><option value="训练营">训练营</option><option value="专项训练">专项训练</option></select>
         <button class="btn-add" onclick="openProductModal(null)">＋ 新增课程产品</button>
       </div>
@@ -426,31 +461,51 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     </div>
     <!-- 售卖课包 -->
     <div class="page-section" id="page-packages">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">售卖课包是某次具体销售方案。必须先有课程产品，再基于课程产品创建售卖课包。</div>
-      <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="pkgSearch" placeholder="搜索课包…" oninput="renderPackages()"></div>
-        <select class="fsel" id="pkgTypeFilter" onchange="renderPackages()"><option value="">全部类型</option><option value="私教">私教</option><option value="训练营">训练营</option><option value="专项训练">专项训练</option></select>
-        <button class="btn-sec" onclick="goPage('products')">先看课程产品</button>
-        <button class="btn-add" onclick="openPackageModal(null)">＋ 新增售卖课包</button>
+      <div class="page-head-card">
+        <div class="page-head-main">
+          <div class="page-head-title">课程模板和售卖方案分开管理</div>
+          <div class="page-head-desc">课程产品定义上什么课；售卖课包定义怎么卖、什么时候能买、什么时候能用。创建售卖课包时会直接绑定一个课程产品。</div>
+        </div>
+        <div class="page-head-actions">
+          <button class="light-btn" onclick="goPage('products')">查看课程产品</button>
+          <button class="btn-add" style="margin-left:0" onclick="openPackageModal(null)">新增售卖课包</button>
+        </div>
       </div>
-      <div class="product-grid" id="packageGrid"></div>
+      <div class="course-filter-bar">
+        <div class="filter-search"><span class="filter-search-mark"></span><input type="text" id="pkgSearch" placeholder="搜索课包名称、课程产品、时段" oninput="renderPackages()"></div>
+        <select class="coach-ops-select" id="pkgTypeFilter" onchange="renderPackages()"><option value="">全部类型</option><option value="私教">私教</option><option value="训练营">训练营</option><option value="专项训练">专项训练</option></select>
+        <select class="coach-ops-select" id="pkgStatusFilter" onchange="renderPackages()"><option value="">全部状态</option><option value="active">启用</option><option value="inactive">停用</option></select>
+      </div>
+      <div class="package-list" id="packageGrid"></div>
     </div>
     <!-- 购买记录 -->
     <div class="page-section" id="page-purchases">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">购买记录是学员实际购买课包后的交易流水。建议从学员详情进入购买，这里也可以直接新增。</div>
-      <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="purSearch" placeholder="搜索学员/课包…" oninput="renderPurchases()"></div>
-        <select class="fsel" id="purStatusFilter" onchange="renderPurchases()"><option value="">全部状态</option><option value="active">正常</option><option value="voided">已作废</option></select>
-        <button class="btn-sec" onclick="goPage('packages')">先看售卖课包</button>
-        <button class="btn-add" onclick="openPurchaseEntryModal()">＋ 新增购买记录</button>
+      <div class="page-stat-row" id="purchaseStatsRow"></div>
+      <div class="course-filter-bar">
+        <div class="filter-search"><span class="filter-search-mark"></span><input type="text" id="purSearch" placeholder="搜索学员、课包、课程产品" oninput="renderPurchases()"></div>
+        <select class="coach-ops-select" id="purStudentFilter" onchange="renderPurchases()"><option value="">全部学员</option></select>
+        <select class="coach-ops-select" id="purPackageFilter" onchange="renderPurchases()"><option value="">全部课包</option></select>
+        <select class="coach-ops-select" id="purStatusFilter" onchange="renderPurchases()"><option value="">全部状态</option><option value="active">正常</option><option value="voided">已作废</option></select>
+        <div class="filter-date-wrap">
+          <button class="coach-date-btn" id="purDateFromBtn" onclick="toggleGlobalDatePicker(event,'purDateFrom','purDateFromBtn')">开始日期</button>
+          <input class="filter-hidden-date" id="purDateFrom" type="date" onchange="syncDateButton('purDateFrom','purDateFromBtn','开始日期');renderPurchases()">
+        </div>
+        <div class="filter-date-wrap">
+          <button class="coach-date-btn" id="purDateToBtn" onclick="toggleGlobalDatePicker(event,'purDateTo','purDateToBtn')">结束日期</button>
+          <input class="filter-hidden-date" id="purDateTo" type="date" onchange="syncDateButton('purDateTo','purDateToBtn','结束日期');renderPurchases()">
+        </div>
+        <div class="purchase-toolbar-spacer"></div>
+        <button class="btn-sec" onclick="exportPurchaseCSV()">导出</button>
+        <button class="btn-sec" onclick="openPurchaseImport()">导入</button>
+        <button class="btn-add" style="margin-left:0" onclick="openPurchaseEntryModal()">新增购买记录</button>
       </div>
-      <div class="tcard"><table><thead><tr><th>购买日期</th><th>学员</th><th>课包</th><th>实收</th><th>剩余课时</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody id="purchaseTbody"></tbody></table></div>
+      <div class="tcard purchase-table"><table><thead><tr><th>购买日期</th><th>学员</th><th>售卖课包</th><th>课程产品</th><th>实收</th><th>权益进度</th><th>有效期</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody id="purchaseTbody"></tbody></table></div>
     </div>
     <!-- 权益账户 -->
     <div class="page-section" id="page-entitlements">
       <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">权益账户是学员当前可用课时余额。排课时实际消耗的是这里，不是直接消耗课程产品。</div>
       <div class="toolbar">
-        <div class="search-box"><span style="color:rgba(180,83,9,0.4);font-size:14px">🔍</span><input type="text" id="entSearch" placeholder="搜索学员/课包…" oninput="renderEntitlements()"></div>
+        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="entSearch" placeholder="搜索学员/课包…" oninput="renderEntitlements()"></div>
         <select class="fsel" id="entStatusFilter" onchange="renderEntitlements()"><option value="">全部状态</option><option value="active">正常</option><option value="depleted">已用完</option><option value="voided">已作废</option></select>
       </div>
       <div class="tcard"><table><thead><tr><th>学员</th><th>课包</th><th>课程类型</th><th>课时余额</th><th>有效期</th><th>时段</th><th>状态</th></tr></thead><tbody id="entitlementTbody"></tbody></table></div>
@@ -483,7 +538,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     </div>
     <!-- 校区管理 -->
     <div class="page-section" id="page-campusmgr">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">⚙️ 校区管理仅管理员可操作。新增/修改校区后，全系统（顶部切换、下拉选项等）即时生效。</div>
+      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">校区管理仅管理员可操作。新增/修改校区后，全系统（顶部切换、下拉选项等）即时生效。</div>
       <div class="toolbar" style="margin-bottom:16px">
         <button class="btn-add" onclick="openCampusModal(null)">＋ 新增校区</button>
       </div>
@@ -495,23 +550,24 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 <div class="page-loading" id="pageLoading"><div class="page-loading-card">数据加载中…</div></div>
 
 <div class="overlay" id="overlay">
-  <div class="modal"><div class="mhead"><div class="mtitle" id="mTitle">操作</div><button class="mclose" onclick="closeModal()">✕</button></div><div class="mbody" id="mBody"></div></div>
+  <div class="modal"><div class="mhead"><div class="mtitle" id="mTitle">操作</div><button class="mclose" onclick="closeModal()">关闭</button></div><div class="mbody" id="mBody"></div></div>
 </div>
 <div class="overlay" id="importOv">
   <div class="modal">
-    <div class="mhead"><div class="mtitle" id="importTitle">📥 导入订场用户</div><button class="mclose" onclick="closeCourtImport()">✕</button></div>
+    <div class="mhead"><div class="mtitle" id="importTitle">导入订场用户</div><button class="mclose" onclick="closeCourtImport()">关闭</button></div>
     <div class="mbody" id="importBody"></div>
   </div>
 </div>
 <div class="conf-ov" id="confOv">
   <div class="conf-box">
-    <div style="font-size:36px;margin-bottom:12px">⚠️</div>
+    <div style="font-size:36px;margin-bottom:12px">!</div>
     <div style="font-size:16px;font-weight:700;margin-bottom:7px;color:var(--th)">确认删除？</div>
     <div style="font-size:12.5px;color:var(--ts);line-height:1.6" id="confDesc">此操作不可恢复。</div>
     <div style="margin:12px 0"><input class="finput" id="confInput" placeholder="请输入「确认删除」" style="text-align:center;font-size:13px"></div><div class="conf-acts"><button class="conf-no" onclick="closeConf()">取消</button><button class="conf-yes" id="confYesBtn" onclick="doDelete()" disabled style="opacity:0.4;cursor:not-allowed">确认删除</button></div>
   </div>
 </div>
 <div class="toasts" id="toasts"></div>
+<div class="global-date-pop" id="globalDatePicker"></div>
 <script>
 const API='';
 let CAMPUS={};
@@ -531,6 +587,8 @@ const PAGE_SIZE=15;
 const PRODUCT_TYPES=['私教','训练营','专项训练'];
 const SCH_STATUSES=['已排课','已结束','已取消'];
 const CLS_STATUSES=['已排班','已取消','已结课'];
+let globalDatePickerState={targetInputId:'',targetButtonId:'',label:'',viewDate:today()};
+let purchaseImportState={fileName:'',rows:[],summary:null};
 
 function fmt(n){return(n||0).toLocaleString('zh-CN')}
 function localDateKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -639,6 +697,67 @@ function searchHit(q,...values){
   if(!q)return true;
   const keyword=String(q).toLowerCase().trim();
   return values.some(v=>String(v||'').toLowerCase().includes(keyword));
+}
+function setDateInputValue(inputId,value){
+  const input=document.getElementById(inputId);
+  if(input)input.value=value||'';
+}
+function syncDateButton(inputId,buttonId,emptyLabel){
+  const input=document.getElementById(inputId),btn=document.getElementById(buttonId);
+  if(btn)btn.textContent=input?.value||emptyLabel;
+}
+function closeGlobalDatePicker(){
+  const pop=document.getElementById('globalDatePicker');
+  if(pop)pop.classList.remove('open');
+  globalDatePickerState.targetInputId='';
+  globalDatePickerState.targetButtonId='';
+}
+function moveGlobalDatePickerMonth(step){
+  const base=dtObj(globalDatePickerState.viewDate)||new Date();
+  globalDatePickerState.viewDate=dateKey(addMonths(base,step));
+  renderGlobalDatePicker();
+}
+function pickGlobalDate(dateValue){
+  if(!globalDatePickerState.targetInputId)return;
+  setDateInputValue(globalDatePickerState.targetInputId,dateValue);
+  syncDateButton(globalDatePickerState.targetInputId,globalDatePickerState.targetButtonId,globalDatePickerState.label);
+  closeGlobalDatePicker();
+  const input=document.getElementById(globalDatePickerState.targetInputId);
+  if(input&&typeof input.onchange==='function')input.onchange();
+  else if(input)input.dispatchEvent(new Event('change',{bubbles:true}));
+}
+function renderGlobalDatePicker(){
+  const pop=document.getElementById('globalDatePicker');
+  if(!pop||!globalDatePickerState.targetButtonId)return;
+  const base=dtObj(globalDatePickerState.viewDate)||new Date();
+  const monthStartDate=new Date(base.getFullYear(),base.getMonth(),1);
+  const monthEndDate=new Date(base.getFullYear(),base.getMonth()+1,0);
+  const lead=(monthStartDate.getDay()+6)%7;
+  const startCell=addDays(monthStartDate,-lead);
+  const activeValue=document.getElementById(globalDatePickerState.targetInputId)?.value||'';
+  const rect=document.getElementById(globalDatePickerState.targetButtonId)?.getBoundingClientRect();
+  if(rect){
+    pop.style.top=`${Math.min(window.innerHeight-320,rect.bottom+8)}px`;
+    pop.style.left=`${Math.max(12,Math.min(window.innerWidth-304,rect.left))}px`;
+  }
+  const cells=Array.from({length:42},(_,idx)=>{
+    const d=addDays(startCell,idx);
+    const value=dateKey(d);
+    const muted=d<monthStartDate||d>monthEndDate;
+    return `<button class="coach-picker-day${muted?' muted':''}${value===activeValue?' active':''}" onclick="pickGlobalDate('${value}')">${d.getDate()}</button>`;
+  }).join('');
+  pop.innerHTML=`<div class="coach-picker-head"><button class="coach-picker-move" onclick="moveGlobalDatePickerMonth(-1)">&lt;</button><div class="coach-picker-title">${base.getFullYear()} 年 ${base.getMonth()+1} 月</div><button class="coach-picker-move" onclick="moveGlobalDatePickerMonth(1)">&gt;</button></div><div class="coach-picker-weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div><div class="coach-picker-grid">${cells}</div>`;
+}
+function toggleGlobalDatePicker(event,inputId,buttonId,label=''){
+  if(event){event.preventDefault();event.stopPropagation();}
+  const btn=document.getElementById(buttonId);
+  const pop=document.getElementById('globalDatePicker');
+  const nextLabel=label||btn?.textContent||'选择日期';
+  const isSame=globalDatePickerState.targetInputId===inputId&&pop?.classList.contains('open');
+  if(isSame){closeGlobalDatePicker();return;}
+  globalDatePickerState={targetInputId:inputId,targetButtonId:buttonId,label:nextLabel,viewDate:document.getElementById(inputId)?.value||today()};
+  renderGlobalDatePicker();
+  pop?.classList.add('open');
 }
 function jsArg(v){return JSON.stringify(String(v||'')).replace(/"/g,'&quot;').replace(/</g,'\\u003c');}
 function findStudentForCourt(c){
@@ -843,7 +962,7 @@ function doLogout(){
 }
 function showApp(){
   document.getElementById('loginPage').style.display='none';document.getElementById('app').style.display='';
-  document.getElementById('userNamePill').textContent='👤 '+(currentUser?.name||'用户');
+  document.getElementById('userNamePill').textContent=(currentUser?.name||'用户');
   const isAdmin=currentUser?.role==='admin';
   const isCoach=currentUser?.role==='editor'&&currentUser?.coachName;
   if(isAdmin){
@@ -864,7 +983,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   document.getElementById('loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();});
   window.addEventListener('resize',syncViewportMode);
-  document.addEventListener('click',e=>{if(!e.target.closest?.('.coach-date-wrap'))closeCoachOpsPicker();});
+  document.addEventListener('click',e=>{
+    if(!e.target.closest?.('.coach-date-wrap'))closeCoachOpsPicker();
+    if(!e.target.closest?.('.filter-date-wrap')&&!e.target.closest?.('#globalDatePicker'))closeGlobalDatePicker();
+  });
   if(token&&currentUser)showApp();else document.getElementById('loginPage').style.display='flex';
 });
 
@@ -900,7 +1022,7 @@ function applyLoadedData(data){
   if(data?.user){
     currentUser=data.user;
     localStorage.setItem('ft_user',JSON.stringify(currentUser));
-    document.getElementById('userNamePill').textContent='👤 '+(currentUser?.name||'用户');
+    document.getElementById('userNamePill').textContent=(currentUser?.name||'用户');
   }
   CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});
   lastDataSyncAt=Date.now();
@@ -983,7 +1105,7 @@ function goPage(pg,el){
   document.getElementById('page-'+pg).classList.add('active');currentPage=pg;
   localStorage.setItem(PAGE_KEY,currentPage);
   document.getElementById('campusTabs').style.display=['students','courts'].includes(pg)?'flex':'none';
-  const t={students:'👥 学员信息',classes:'📋 班次管理',plans:'📚 学习计划',schedule:'📅 排课表',coachops:'教练运营',products:'🏷️ 课程产品',packages:'🎫 售卖课包',purchases:'🧾 购买记录',entitlements:'📦 权益账户',coaches:'👨‍🏫 教练管理',courts:'🏟️ 订场用户',campusmgr:'⚙️ 校区管理',myschedule:'📅 我的课表',mystudents:'👥 我的学员',myclasses:'📋 我的班次'};
+  const t={students:'学员信息',classes:'班次管理',plans:'学习计划',schedule:'排课表',coachops:'教练运营',products:'课程产品',packages:'售卖课包',purchases:'购买记录',entitlements:'权益账户',coaches:'教练管理',courts:'订场用户',campusmgr:'校区管理',myschedule:'我的课表',mystudents:'我的学员',myclasses:'我的班次'};
   document.getElementById('topTitle').textContent=t[pg]||'';
   if(pg==='coachops')renderCoachOps();
   if(pg==='myschedule')renderMySchedule();
@@ -1023,7 +1145,7 @@ function renderStudents(){
     const lastCourt=latestCourtUseDateForStudent(s);
     const courtDays=lastCourt?Math.floor((Date.now()-new Date(lastCourt))/(86400000)):null;
     const courtTag=lastCourt?(courtDays>30?'<span style="color:#dc2626;font-weight:600">'+lastCourt+'</span>':lastCourt):'<span style="color:var(--td)">—</span>';
-    return `<tr><td><div class="uname">${esc(s.name)}</div><div class="udesc">${cn(s.campus)}</div></td><td style="color:var(--ts)">${esc(s.phone)||'—'}</td><td><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></td><td style="font-size:12px;color:var(--ts)">${esc(s.source)||'—'}</td><td style="font-size:12px">${lessonTag}</td><td style="font-size:12px">${courtTag}</td><td>${accountTag}</td><td>${cb}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(s.notes)||'—'}</td><td style="text-align:right"><button class="abtn" onclick="openStudentModal('${s.id}')">⚙️</button></td></tr>`;
+    return `<tr><td><div class="uname">${esc(s.name)}</div><div class="udesc">${cn(s.campus)}</div></td><td style="color:var(--ts)">${esc(s.phone)||'—'}</td><td><span class="badge ${s.type==='青少年'?'b-amber':'b-cream'}">${s.type||'—'}</span></td><td style="font-size:12px;color:var(--ts)">${esc(s.source)||'—'}</td><td style="font-size:12px">${lessonTag}</td><td style="font-size:12px">${courtTag}</td><td>${accountTag}</td><td>${cb}</td><td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(s.notes)||'—'}</td><td style="text-align:right"><button class="abtn" onclick="openStudentModal('${s.id}')">编辑</button></td></tr>`;
   }).join(''):'<tr><td colspan="10"><div class="empty"><div class="empty-ico">👥</div><p>暂无学员</p></div></td></tr>';
 }
 function studentFeedbackHistoryHtml(s){
@@ -1051,7 +1173,7 @@ function studentLinkedDetailHtml(s,showAccount=true){
 }
 function openStudentModal(id){
   editId=id;const s=id?students.find(x=>x.id===id):null;
-  document.getElementById('mTitle').textContent=id?'✏️ 编辑学员':'➕ 添加学员';
+  document.getElementById('mTitle').textContent=id?'编辑学员':'添加学员';
   const detail=id?studentLinkedDetailHtml(s):'';
   document.getElementById('mBody').innerHTML=`${detail}<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="s_name" value="${rv(s,'name')}" placeholder="学员姓名"></div><div class="fg"><div class="flabel">手机号码</div><input class="finput" id="s_phone" value="${rv(s,'phone')}" placeholder="138****1234"></div><div class="fg"><div class="flabel">学员类型</div><select class="fselect" id="s_type"><option value="成人"${rv(s,'type','成人')==='成人'?' selected':''}>成人</option><option value="青少年"${rv(s,'type')==='青少年'?' selected':''}>青少年</option></select></div><div class="fg"><div class="flabel">来源</div><select class="fselect" id="s_source"><option value="">— 选择 —</option>${SOURCES.map(t=>`<option value="${t}"${rv(s,'source')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">活动范围</div><input class="finput" id="s_range" value="${rv(s,'activityRange')}" placeholder="例：朝阳"></div><div class="fg"><div class="flabel">所在校区</div><select class="fselect" id="s_campus">${campusOpts(rv(s,'campus'))}</select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="s_notes">${esc(rv(s,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${s.id}','${esc(s.name)}','student')">删除</button>`:''}<button class="btn-save" onclick="saveStudent()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
@@ -1102,13 +1224,13 @@ function renderClasses(){
     const days=parseArr(c.scheduleDays).join(' ')||'—';
     const tl=parseInt(c.totalLessons)||0,ul=parseInt(c.usedLessons)||0,rem=tl-ul;
     const pct=tl>0?Math.round(rem/tl*100):0,pc=pct>40?'pf-gold':pct>15?'pf-warn':'pf-red';
-    return `<tr><td><div class="uname">${esc(c.className)||'—'}</div><div class="udesc">${esc(c.classNo)||''}</div></td><td style="font-weight:500;color:var(--th)">${prod?prod.name:'—'}</td><td style="font-size:12px">${names}</td><td style="font-weight:500">${esc(c.coach)||'—'}</td><td style="font-size:11px;color:var(--ts)">${days}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${pct}%"></div></div><span class="prog-txt">${ul}/${tl} 剩${rem}</span></div></td><td style="font-size:11px;color:var(--ts)">${c.startDate||'—'}~${c.endDate||'—'}</td><td><span class="badge ${ss[c.status]||'b-gray'}">${c.status||'已排班'}</span></td><td style="text-align:right"><button class="abtn" onclick="openClassModal('${c.id}')">⚙️</button></td></tr>`;
+    return `<tr><td><div class="uname">${esc(c.className)||'—'}</div><div class="udesc">${esc(c.classNo)||''}</div></td><td style="font-weight:500;color:var(--th)">${prod?prod.name:'—'}</td><td style="font-size:12px">${names}</td><td style="font-weight:500">${esc(c.coach)||'—'}</td><td style="font-size:11px;color:var(--ts)">${days}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${pct}%"></div></div><span class="prog-txt">${ul}/${tl} 剩${rem}</span></div></td><td style="font-size:11px;color:var(--ts)">${c.startDate||'—'}~${c.endDate||'—'}</td><td><span class="badge ${ss[c.status]||'b-gray'}">${c.status||'已排班'}</span></td><td style="text-align:right"><button class="abtn" onclick="openClassModal('${c.id}')">编辑</button></td></tr>`;
   }).join(''):'<tr><td colspan="9"><div class="empty"><div class="empty-ico">📋</div><p>暂无班次</p></div></td></tr>';
 }
 function openClassModal(id){
   editId=id;const c=id?classes.find(x=>x.id===id):null;
   const sIds=c?parseArr(c.studentIds):[];const days=c?parseArr(c.scheduleDays):[];
-  document.getElementById('mTitle').textContent=id?'✏️ 编辑班次':'➕ 新建班次';
+  document.getElementById('mTitle').textContent=id?'编辑班次':'新建班次';
   const po=products.map(p=>`<option value="${p.id}"${rv(c,'productId')===p.id?' selected':''}>${esc(p.name)}（${p.type}，${p.lessons}节）</option>`).join('');
   const co=activeCoachNames().map(x=>`<option value="${x}"${rv(c,'coach')===x?' selected':''}>${x}</option>`).join('');
   const sc=students.map(s=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${s.id}" class="cls-stu-cb" ${sIds.includes(s.id)?'checked':''}>${esc(s.name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无学员</span>';
@@ -1206,7 +1328,7 @@ function renderSchedule(){
   document.getElementById('schTbody').innerHTML=slice.length?slice.map(s=>{
     const dur=durMin(s.startTime,s.endTime);const cls=s.classId?classes.find(c=>c.id===s.classId):null;
     const fb=scheduleFeedback(s);
-    return `<tr><td style="font-weight:600;color:var(--th)">${fmtDt(s.startTime)}</td><td style="color:var(--ts)">${fmtDt(s.endTime)}</td><td><span class="badge b-amber">${dur?dur+'分钟':'—'}</span></td><td><div class="uname">${esc(s.studentName)||'—'}</div><div class="udesc">${esc(s.packageName)||esc(s.courseType)||'—'}</div></td><td style="font-weight:500">${esc(s.coach)||'—'}</td><td style="font-size:12px;color:var(--ts)">${cls?cls.className:'—'}</td><td style="color:var(--ts);font-size:12px">${esc(s.venue)||'—'}</td><td><button class="abtn" title="${fb?'查看/编辑反馈':'填写反馈'}" onclick="openFeedbackModal('${s.id}')">${fb?'✅':'📝'}</button></td><td><span class="badge ${ss[s.status]||'b-gray'}">${s.status||'已排课'}</span></td><td style="text-align:right;display:flex;gap:4px;justify-content:flex-end"><button class="abtn" onclick="openScheduleModal('${s.id}')">⚙️</button><button class="abtn" style="background:rgba(220,38,38,0.08);color:#dc2626" onclick="confirmDel('${s.id}','此排课','schedule')">🗑️</button></td></tr>`;
+    return `<tr><td style="font-weight:600;color:var(--th)">${fmtDt(s.startTime)}</td><td style="color:var(--ts)">${fmtDt(s.endTime)}</td><td><span class="badge b-amber">${dur?dur+'分钟':'—'}</span></td><td><div class="uname">${esc(s.studentName)||'—'}</div><div class="udesc">${esc(s.packageName)||esc(s.courseType)||'—'}</div></td><td style="font-weight:500">${esc(s.coach)||'—'}</td><td style="font-size:12px;color:var(--ts)">${cls?cls.className:'—'}</td><td style="color:var(--ts);font-size:12px">${esc(s.venue)||'—'}</td><td><button class="abtn" title="${fb?'查看/编辑反馈':'填写反馈'}" onclick="openFeedbackModal('${s.id}')">${fb?'反馈':'填写'}</button></td><td><span class="badge ${ss[s.status]||'b-gray'}">${s.status||'已排课'}</span></td><td style="text-align:right;display:flex;gap:4px;justify-content:flex-end"><button class="abtn" onclick="openScheduleModal('${s.id}')">编辑</button><button class="abtn" style="background:rgba(220,38,38,0.08);color:#dc2626" onclick="confirmDel('${s.id}','此排课','schedule')">删除</button></td></tr>`;
   }).join(''):'<tr><td colspan="10"><div class="empty"><div class="empty-ico">📅</div><p>暂无排课</p></div></td></tr>';
 }
 function deriveStudentIdsFromNames(text){
@@ -1214,7 +1336,7 @@ function deriveStudentIdsFromNames(text){
 }
 function openScheduleModal(id,seed={}){
   editId=id;const s=id?schedules.find(x=>x.id===id):(seed||null);
-  document.getElementById('mTitle').textContent=id?'✏️ 编辑排课':'➕ 添加排课';
+  document.getElementById('mTitle').textContent=id?'编辑排课':'添加排课';
   const clOpts=classes.filter(c=>c.status==='已排班').map(c=>{const rem=(parseInt(c.totalLessons)||0)-(parseInt(c.usedLessons)||0);return `<option value="${c.id}"${rv(s,'classId')===c.id?' selected':''}>${esc(c.className)} 剩余${rem}节</option>`;}).join('');
   const coOpts=activeCoachNames().map(c=>`<option value="${c}"${rv(s,'coach')===c?' selected':''}>${c}</option>`).join('');
   document.getElementById('mBody').innerHTML=`<input type="hidden" id="sch_stuIds" value="${rv(s,'studentIds','[]')}"><div class="sec-ttl">排课信息</div><div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">排课是一次上课记录；关联班次后会自动消课，并会校验教练、学员、场地时间冲突。</div><div class="fgrid"><div class="fg"><div class="flabel">上课时间 *</div><input class="finput" id="sch_start" type="datetime-local" value="${rv(s,'startTime','').replace(' ','T')}" onchange="refreshSchEntitlementOptions()"></div><div class="fg"><div class="flabel">下课时间</div><input class="finput" id="sch_end" type="datetime-local" value="${rv(s,'endTime','').replace(' ','T')}" onchange="refreshSchEntitlementOptions()"></div><div class="fg full"><div class="flabel">关联班次</div><select class="fselect" id="sch_classId" onchange="onSchClassChange()"><option value="">— 不关联 —</option>${clOpts}</select><div id="sch_class_hint" style="font-size:12px;color:var(--ts);margin-top:6px"></div></div><div class="fg"><div class="flabel">学员</div><input class="finput" id="sch_stuName" value="${rv(s,'studentName')}" placeholder="选班次自动填入" onblur="refreshSchEntitlementOptions()"></div><div class="fg"><div class="flabel">课程类型</div><select class="fselect" id="sch_courseType" onchange="refreshSchEntitlementOptions()">${PRODUCT_TYPES.map(t=>`<option value="${t}"${rv(s,'courseType')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">教练</div><select class="fselect" id="sch_coach" onchange="refreshSchEntitlementOptions()"><option value="">— 选择 —</option>${coOpts}</select></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="sch_campus" onchange="refreshSchEntitlementOptions()">${campusOpts(rv(s,'campus'))}</select></div><div class="fg"><div class="flabel">场地</div><select class="fselect" id="sch_venue">${venueOpts(rv(s,'venue','1号场'))}</select></div><div class="fg"><div class="flabel">消课节数</div><input class="finput" id="sch_lc" type="number" value="${rv(s,'lessonCount',1)}" onchange="refreshSchEntitlementOptions()"></div><div class="fg"><div class="flabel">权益账户</div><select class="fselect" id="sch_entitlement"><option value="${rv(s,'entitlementId','')}">${rv(s,'packageName','— 自动推荐 —')||'— 自动推荐 —'}</option></select><div id="sch_ent_hint" style="font-size:12px;color:var(--ts);margin-top:6px"></div></div><div class="fg"><div class="flabel">状态</div><select class="fselect" id="sch_status">${SCH_STATUSES.map(t=>`<option value="${t}"${rv(s,'status','已排课')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="sch_notes">${esc(rv(s,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${s.id}','此排课','schedule')">删除</button>`:''}<button class="btn-save" onclick="saveSchedule()">保存</button></div>`;
@@ -1303,7 +1425,7 @@ function openFeedbackModal(scheduleId){
   const s=schedules.find(x=>x.id===scheduleId);if(!s){toast('找不到排课记录','error');return;}
   const fb=scheduleFeedback(s)||{};
   editId=fb.id||null;
-  document.getElementById('mTitle').textContent=fb.id?'✏️ 编辑课后反馈':'📝 课后反馈';
+  document.getElementById('mTitle').textContent=fb.id?'编辑课后反馈':'课后反馈';
   document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">${fmtDt(s.startTime)} · ${esc(s.studentName)||'—'} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''}</div><div class="sec-ttl">反馈内容</div><div class="fgrid"><div class="fg full"><div class="flabel">今天练习了 *</div><textarea class="finput ftextarea" id="fb_practiced">${esc(fb.practicedToday||fb.template?.focus||fb.performance)}</textarea></div><div class="fg full"><div class="flabel">知识点（非必填）</div><textarea class="finput ftextarea" id="fb_knowledge">${esc(fb.knowledgePoint||fb.problems)}</textarea></div><div class="fg full"><div class="flabel">下节课我们训练 *</div><textarea class="finput ftextarea" id="fb_next_training">${esc(fb.nextTraining||fb.nextAdvice)}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-sec" onclick="copyFeedbackDraft('${s.id}')">复制给学员</button><button class="btn-save" onclick="saveFeedback('${s.id}')">保存反馈</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
@@ -1344,7 +1466,7 @@ function openScheduleDetail(scheduleId){
   const cls=s.classId?classes.find(c=>c.id===s.classId):null;
   const fb=scheduleFeedback(s);
   const ent=findEntitlementForSchedule(s);
-  document.getElementById('mTitle').textContent='📌 排课详情';
+  document.getElementById('mTitle').textContent='排课详情';
   document.getElementById('mBody').innerHTML=`<div class="fgrid"><div class="fg"><div class="flabel">学员 / 班次</div><div class="finput">${esc(s.studentName)||esc(cls?.className)||'—'}</div></div><div class="fg"><div class="flabel">教练</div><div class="finput">${esc(s.coach)||'—'}</div></div><div class="fg"><div class="flabel">上课时间</div><div class="finput">${fmtDt(s.startTime)}</div></div><div class="fg"><div class="flabel">下课时间</div><div class="finput">${fmtDt(s.endTime)}</div></div><div class="fg"><div class="flabel">课程类型</div><div class="finput">${esc(s.courseType)||esc(ent?.courseType)||'—'}</div></div><div class="fg"><div class="flabel">课包 / 权益</div><div class="finput">${scheduleEntitlementSummary(s)}</div></div><div class="fg"><div class="flabel">校区 / 场地</div><div class="finput">${cn(s.campus)} ${esc(s.venue)||''}</div></div><div class="fg"><div class="flabel">可用时段</div><div class="finput">${esc(s.timeBand)||esc(ent?.timeBand)||'全天'}</div></div><div class="fg"><div class="flabel">消耗课时</div><div class="finput">${parseInt(s.lessonCount)||0} 节</div></div><div class="fg"><div class="flabel">班次剩余课时</div><div class="finput">${scheduleRemainingLessons(s)===''?'—':scheduleRemainingLessons(s)+' 节'}</div></div><div class="fg"><div class="flabel">反馈状态</div><div class="finput">${fb?'已反馈':'待反馈'}</div></div><div class="fg full"><div class="flabel">反馈摘要</div><div class="finput" style="min-height:42px">${feedbackSummaryHtml(fb)}</div></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button><button class="btn-save" onclick="openFeedbackModal('${s.id}')">${fb?'查看/编辑反馈':'填写反馈'}</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
@@ -1676,7 +1798,7 @@ async function saveCourt(){
 }
 function openCourtHist(id){
   const u=courts.find(x=>x.id===id);if(!u)return;editId=null;
-  document.getElementById('mTitle').textContent=`💳 ${esc(u.name)} · 充值/消费记录`;
+  document.getElementById('mTitle').textContent=`${esc(u.name)} · 充值/消费记录`;
   const hist=[...parseArr(u.history)].reverse();
   document.getElementById('mBody').innerHTML=`<div class="rec-list" style="max-height:320px">${hist.length?hist.map(h=>courtRecRow(h)).join(''):'<div class="empty"><p>暂无记录</p></div>'}</div><div class="mactions"><button class="btn-save" style="flex:1" onclick="closeModal()">关闭</button></div>`;
   document.getElementById('overlay').classList.add('open');
@@ -1908,30 +2030,185 @@ async function runCourtImport(){
     btn.textContent='导入';
   }
 }
+function closePurchaseImport(){
+  document.getElementById('importOv').classList.remove('open');
+  purchaseImportState={fileName:'',rows:[],summary:null};
+}
+function normalizePackageIdByText(value){
+  const raw=String(value||'').trim();
+  if(!raw)return '';
+  const byId=packages.find(p=>p.id===raw);
+  if(byId)return byId.id;
+  const byName=packages.find(p=>String(p.name||'').trim()===raw);
+  return byName?.id||'';
+}
+function normalizePurchaseImportRows(rawRows){
+  const rows=rawRows.map((row,index)=>{
+    const studentText=readRowValue(row,['学员','学员姓名','姓名','手机号','电话']);
+    const phone=readRowValue(row,['手机号','电话','手机']);
+    const studentId=resolveStudentIdByText(studentText||phone);
+    const packageId=normalizePackageIdByText(readRowValue(row,['售卖课包','课包','课包名称']));
+    const student=students.find(s=>s.id===studentId);
+    const pkg=packages.find(p=>p.id===packageId);
+    const item={studentId,studentName:student?.name||'',packageId,packageName:pkg?.name||'',purchaseDate:readRowValue(row,['购买日期','日期'])||today(),amountPaid:importMoney(readRowValue(row,['实收','实收金额','金额']))||(pkg?.price||0),payMethod:readRowValue(row,['支付方式','支付'])||'微信',notes:readRowValue(row,['备注','说明'])||''};
+    let status='待导入',reason='';
+    if(!studentId){status='无效';reason='学员未匹配';}
+    else if(!packageId){status='无效';reason='课包未匹配';}
+    else if(pkg?.status==='inactive'){status='无效';reason='课包已停用';}
+    return {...item,_rowIndex:index+2,_status:status,_reason:reason};
+  });
+  return {rows,summary:{total:rows.length,valid:rows.filter(r=>r._status==='待导入').length,invalid:rows.filter(r=>r._status!=='待导入').length}};
+}
+function renderPurchaseImportPreview(){
+  const host=document.getElementById('purchaseImportPreview');
+  const meta=document.getElementById('purchaseImportMeta');
+  const btn=document.getElementById('purchaseImportBtn');
+  const {rows,summary}=purchaseImportState;
+  if(meta){
+    meta.innerHTML=purchaseImportState.fileName?[
+      `<span class="import-pill ok">文件：${esc(purchaseImportState.fileName)}</span>`,
+      `<span class="import-pill">总计 ${summary.total} 行</span>`,
+      `<span class="import-pill ok">可导入 ${summary.valid} 行</span>`,
+      summary.invalid?`<span class="import-pill warn">无效 ${summary.invalid} 行</span>`:''
+    ].join(''):'<span class="import-pill">未选择文件</span>';
+  }
+  if(btn)btn.disabled=!summary||summary.valid===0;
+  if(!rows.length){if(host)host.innerHTML='<div class="import-empty">请选择 CSV 文件后预览数据</div>';return;}
+  const previewRows=rows.slice(0,50).map(r=>{
+    const cls=r._status==='待导入'?'ok':'err';
+    const statusText=r._status==='待导入'?'可导入':`无效：${r._reason}`;
+    const pkg=packages.find(p=>p.id===r.packageId);
+    return `<tr class="import-row ${cls}"><td>${esc(r.studentName||'')}</td><td>${esc(pkg?.productName||'')}</td><td>${esc(r.packageName||'')}</td><td>${esc(r.purchaseDate||'')}</td><td>${fmt(r.amountPaid)||0}</td><td>${esc(r.payMethod||'')}</td><td style="max-width:220px;white-space:normal;word-break:break-word">${esc(r.notes||'')}</td><td><span class="import-status ${cls}">${statusText}</span></td></tr>`;
+  }).join('');
+  if(host)host.innerHTML=`<div class="import-table-wrap"><table class="import-table"><thead><tr><th>学员</th><th>课程产品</th><th>售卖课包</th><th>购买日期</th><th>实收</th><th>支付方式</th><th>备注</th><th>结果</th></tr></thead><tbody>${previewRows}</tbody></table></div>${rows.length>50?`<div class="import-note" style="margin-top:8px">仅预览前 50 行，实际会按全部可导入数据执行。</div>`:''}`;
+}
+async function handlePurchaseImportFile(input){
+  const file=input.files&&input.files[0];
+  if(!file)return;
+  try{
+    const buf=await file.arrayBuffer();
+    let text='';
+    for(const enc of ['utf-8','gb18030','gbk']){
+      try{text=new TextDecoder(enc).decode(buf);if(text)break;}catch{text='';}
+    }
+    const raw=parseCsvText(text);
+    const normalized=normalizePurchaseImportRows(raw);
+    purchaseImportState={fileName:file.name,rows:normalized.rows,summary:normalized.summary};
+    renderPurchaseImportPreview();
+  }catch(e){
+    toast('读取失败：'+e.message,'error');
+  }
+}
+function openPurchaseImport(){
+  purchaseImportState={fileName:'',rows:[],summary:null};
+  document.getElementById('importTitle').textContent='导入购买记录';
+  document.getElementById('importBody').innerHTML=`<div class="import-grid"><div class="import-box"><label class="import-drop" for="purchaseImportFile"><strong>点击选择 CSV 文件</strong><div class="import-drop-sub">支持 UTF-8 / GBK / GB18030 编码</div></label><input class="import-file" id="purchaseImportFile" type="file" accept=".csv,text/csv" onchange="handlePurchaseImportFile(this)"><div class="import-meta" id="purchaseImportMeta"><span class="import-pill">未选择文件</span></div><div class="import-note" style="margin-top:10px">建议列名：学员、售卖课包、购买日期、实收、支付方式、备注。<br>学员可以写姓名或手机号；售卖课包必须能匹配到现有课包。</div></div><div class="import-box"><div class="import-note"><strong>导入规则</strong><br>1. 导入时仍按现有购买逻辑逐条创建。<br>2. 每条购买都会自动生成权益账户。<br>3. 不存在的学员或课包会直接拦下，不会半条写入。</div></div></div><div style="margin-top:14px" id="purchaseImportPreview"><div class="import-empty">请选择 CSV 文件后预览数据</div></div><div class="import-actions"><button class="btn-cancel" onclick="closePurchaseImport()">取消</button><button class="btn-save" id="purchaseImportBtn" onclick="runPurchaseImport()" disabled>导入</button></div>`;
+  document.getElementById('importOv').classList.add('open');
+}
+async function runPurchaseImport(){
+  const btn=document.getElementById('purchaseImportBtn');
+  const rows=(purchaseImportState.rows||[]).filter(r=>r._status==='待导入');
+  if(!rows.length){toast('没有可导入的数据','warn');return;}
+  btn.disabled=true;btn.textContent=`导入中 0/${rows.length}`;
+  let success=0,failed=0;
+  try{
+    for(let i=0;i<rows.length;i++){
+      const row=rows[i];
+      try{
+        const res=await apiCall('POST','/purchases',{studentId:row.studentId,packageId:row.packageId,purchaseDate:row.purchaseDate,amountPaid:row.amountPaid,payMethod:row.payMethod,notes:row.notes});
+        if(res.purchase)purchases.unshift(res.purchase);
+        if(res.entitlement)entitlements.unshift(res.entitlement);
+        row._status='已导入';
+        success++;
+      }catch(e){
+        row._status='无效';
+        row._reason=e.message;
+        failed++;
+      }
+      btn.textContent=`导入中 ${i+1}/${rows.length}`;
+      renderPurchaseImportPreview();
+    }
+    renderStudents();renderPurchases();renderEntitlements();
+    toast(`导入完成：成功 ${success} 行，失败 ${failed} 行`,failed?'warn':'success');
+    closePurchaseImport();
+  }catch(e){
+    toast('导入失败：'+e.message,'error');
+  }finally{
+    btn.disabled=false;
+    btn.textContent='导入';
+  }
+}
 // ===== 课程产品 =====
 function renderProducts(){
   const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
   const tf=document.getElementById('prodTypeFilter')?.value||'';
   const list=products.filter(p=>{if(!searchHit(q,p.name,p.type,p.price,p.lessons,p.maxStudents,p.notes))return false;if(tf&&p.type!==tf)return false;return true;});
   const tc={'私教':'b-amber','训练营':'b-green','专项训练':'b-blue'};
-  document.getElementById('productGrid').innerHTML=list.length?list.map(p=>`<div class="product-card"><div class="pc-type"><span class="badge ${tc[p.type]||'b-gray'}">${p.type||'—'}</span></div><div class="pc-name">${esc(p.name)}</div><div class="pc-row"><span>人数</span><span class="pc-val">${p.maxStudents||'不限'}</span></div><div class="pc-row"><span>定价</span><span class="pc-val">¥${fmt(p.price)}</span></div><div class="pc-row"><span>课时</span><span class="pc-val">${p.lessons||0} 节</span></div><div class="pc-actions"><button class="btn-sec" style="flex:1;justify-content:center" onclick="openProductModal('${p.id}')">✏️ 编辑</button><button class="btn-sec" style="flex:1;justify-content:center" onclick="openPackageModal(null,'${p.id}')">➕ 建课包</button><button class="btn-sec" style="color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="confirmDel('${p.id}','${esc(p.name)}','product')">🗑️</button></div></div>`).join(''):'<div style="grid-column:1/-1"><div class="empty"><div class="empty-ico">🏷️</div><p>暂无课程产品</p></div></div>';
+  document.getElementById('productGrid').innerHTML=list.length?list.map(p=>`<div class="product-card"><div class="pc-type"><span class="badge ${tc[p.type]||'b-gray'}">${p.type||'—'}</span></div><div class="pc-name">${esc(p.name)}</div><div class="pc-row"><span>人数</span><span class="pc-val">${p.maxStudents||'不限'}</span></div><div class="pc-row"><span>定价</span><span class="pc-val">¥${fmt(p.price)}</span></div><div class="pc-row"><span>课时</span><span class="pc-val">${p.lessons||0} 节</span></div><div class="pc-actions"><button class="btn-sec" style="flex:1;justify-content:center" onclick="openProductModal('${p.id}')">编辑</button><button class="btn-sec" style="flex:1;justify-content:center" onclick="openPackageModal(null,'${p.id}')">建课包</button><button class="btn-sec" style="color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="confirmDel('${p.id}','${esc(p.name)}','product')">删除</button></div></div>`).join(''):'<div style="grid-column:1/-1"><div class="empty"><p>暂无课程产品</p></div></div>';
 }
 function renderPackages(){
   const q=(document.getElementById('pkgSearch')?.value||'').toLowerCase();
   const tf=document.getElementById('pkgTypeFilter')?.value||'';
+  const sf=document.getElementById('pkgStatusFilter')?.value||'';
   const tc={'私教':'b-amber','训练营':'b-green','专项训练':'b-blue'};
-  const list=packages.filter(p=>{if(!searchHit(q,p.name,p.courseType,p.price,p.lessons,p.timeBand,p.notes,p.productName))return false;if(tf&&p.courseType!==tf)return false;return true;});
-  document.getElementById('packageGrid').innerHTML=list.length?list.map(p=>`<div class="product-card"><div class="pc-type"><span class="badge ${tc[p.courseType]||'b-gray'}">${p.courseType||'—'}</span></div><div class="pc-name">${esc(p.name)}</div><div class="pc-row"><span>所属课程</span><span class="pc-val">${esc(p.productName)||'—'}</span></div><div class="pc-row"><span>价格/课时</span><span class="pc-val">¥${fmt(p.price)} / ${p.lessons||0} 节</span></div><div class="pc-row"><span>活动期</span><span class="pc-val">${esc(p.saleStartDate)||'—'} ~ ${esc(p.saleEndDate)||'—'}</span></div><div class="pc-row"><span>可用时段</span><span class="pc-val">${esc(p.timeBand)||'全天'}</span></div><div class="pc-row"><span>状态</span><span class="pc-val">${p.status==='inactive'?'停用':'启用'}</span></div><div class="pc-actions"><button class="btn-sec" style="flex:1;justify-content:center" onclick="openPackageModal('${p.id}')">✏️ 编辑</button><button class="btn-sec" style="flex:1;justify-content:center" onclick="goPage('purchases')">查看购买</button><button class="btn-sec" style="color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="confirmDel('${p.id}','${esc(p.name)}','package')">🗑️</button></div></div>`).join(''):'<div style="grid-column:1/-1"><div class="empty"><div class="empty-ico">🎫</div><p>暂无售卖课包</p></div></div>';
+  const list=packages.filter(p=>{if(!searchHit(q,p.name,p.courseType,p.price,p.lessons,p.timeBand,p.notes,p.productName))return false;if(tf&&p.courseType!==tf)return false;if(sf&&String(p.status||'active')!==sf)return false;return true;});
+  const host=document.getElementById('packageGrid');
+  if(!products.length){
+    host.innerHTML=`<div class="package-hero-empty" style="grid-column:1/-1"><div style="font-size:18px;font-weight:800;color:var(--cream-pale)">还没有课程产品</div><div style="margin-top:8px;font-size:13px;line-height:1.7">先创建课程产品，再基于课程产品创建售卖课包。</div><div style="margin-top:14px"><button class="light-btn" onclick="goPage('products')">去创建课程产品</button></div></div>`;
+    return;
+  }
+  host.innerHTML=list.length?list.map(p=>{
+    const status=String(p.status||'active');
+    const usageWindow=[p.usageStartDate||'不限',p.usageEndDate||'不限'].join(' - ');
+    const saleWindow=[p.saleStartDate||'不限',p.saleEndDate||'不限'].join(' - ');
+    const timeWindow=[p.timeBand||'全天',p.dailyTimeWindows?.[0]?.startTime||'',p.dailyTimeWindows?.[0]?.endTime||''].filter(Boolean).join(' · ');
+    return `<div class="product-card"><div class="pc-type"><span class="badge ${tc[p.courseType]||'b-gray'}">${p.courseType||'—'}</span><span class="badge ${status==='inactive'?'b-gray':'b-green'}" style="margin-left:6px">${status==='inactive'?'停用':'启用'}</span></div><div class="pc-name">${esc(p.name)}</div><div class="pc-row"><span>课程产品</span><span class="pc-val">${esc(p.productName)||'—'}</span></div><div class="pc-row"><span>售卖规则</span><span class="pc-val">¥${fmt(p.price)} / ${p.lessons||0} 节 / ${p.maxStudents||1} 人</span></div><div class="pc-row"><span>活动期</span><span class="pc-val">${esc(saleWindow)}</span></div><div class="pc-row"><span>使用期</span><span class="pc-val">${esc(usageWindow)}</span></div><div class="pc-row"><span>使用时段</span><span class="pc-val">${esc(timeWindow||'全天')}</span></div><div class="pc-actions"><button class="btn-sec" style="flex:1;justify-content:center" onclick="openPackageModal('${p.id}')">编辑</button><button class="btn-sec" style="flex:1;justify-content:center" onclick="focusPurchaseByPackage('${p.id}')">查看购买</button><button class="btn-sec" style="color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="confirmDel('${p.id}','${esc(p.name)}','package')">删除</button></div></div>`;
+  }).join(''):`<div class="package-hero-empty" style="grid-column:1/-1"><div style="font-size:18px;font-weight:800;color:var(--cream-pale)">暂无售卖课包</div><div style="margin-top:8px;font-size:13px;line-height:1.7">先选一个课程产品，再创建对应的售卖方案。</div><div style="margin-top:14px"><button class="light-btn" onclick="openPackageModal(null)">创建售卖课包</button></div></div>`;
 }
-function renderPurchases(){
+function refreshPurchaseFilters(){
+  const stuEl=document.getElementById('purStudentFilter');
+  const pkgEl=document.getElementById('purPackageFilter');
+  if(stuEl){
+    const selected=stuEl.value||'';
+    stuEl.innerHTML='<option value="">全部学员</option>'+students.map(s=>`<option value="${s.id}"${selected===s.id?' selected':''}>${esc(s.name)}</option>`).join('');
+  }
+  if(pkgEl){
+    const selected=pkgEl.value||'';
+    pkgEl.innerHTML='<option value="">全部课包</option>'+packages.map(p=>`<option value="${p.id}"${selected===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+  }
+}
+function getFilteredPurchases(){
   const q=(document.getElementById('purSearch')?.value||'').toLowerCase();
   const sf=document.getElementById('purStatusFilter')?.value||'';
-  const list=purchases.filter(p=>{if(!searchHit(q,p.studentName,p.packageName,p.amountPaid,p.payMethod,p.purchaseDate))return false;if(sf&&p.status!==sf)return false;return true;}).sort((a,b)=>String(b.purchaseDate||b.createdAt||'').localeCompare(String(a.purchaseDate||a.createdAt||'')));
+  const studentId=document.getElementById('purStudentFilter')?.value||'';
+  const packageId=document.getElementById('purPackageFilter')?.value||'';
+  const dateFrom=document.getElementById('purDateFrom')?.value||'';
+  const dateTo=document.getElementById('purDateTo')?.value||'';
+  return purchases.filter(p=>{
+    const pkg=packages.find(x=>x.id===p.packageId);
+    if(!searchHit(q,p.studentName,p.packageName,p.amountPaid,p.payMethod,p.purchaseDate,pkg?.productName,pkg?.courseType))return false;
+    if(sf&&p.status!==sf)return false;
+    if(studentId&&p.studentId!==studentId)return false;
+    if(packageId&&p.packageId!==packageId)return false;
+    if(dateFrom&&String(p.purchaseDate||'')<dateFrom)return false;
+    if(dateTo&&String(p.purchaseDate||'')>dateTo)return false;
+    return true;
+  }).sort((a,b)=>String(b.purchaseDate||b.createdAt||'').localeCompare(String(a.purchaseDate||a.createdAt||'')));
+}
+function renderPurchases(){
+  refreshPurchaseFilters();
+  const list=getFilteredPurchases();
+  const effectiveEntitlements=entitlements.filter(e=>String(e.status||'active')==='active');
+  const nearExpiry=effectiveEntitlements.filter(e=>e.validUntil&&Math.ceil((dateMs(e.validUntil)-dateMs(today()))/86400000)<=7).length;
+  const received=list.filter(p=>p.status!=='voided').reduce((sum,p)=>sum+(parseFloat(p.amountPaid)||0),0);
+  document.getElementById('purchaseStatsRow').innerHTML=`<div class="scard"><div><div class="sc-label">当前筛选购买单</div><div class="sc-val">${list.length}<span class="u">笔</span></div></div></div><div class="scard"><div><div class="sc-label">当前筛选实收</div><div class="sc-val">¥${fmt(received)}</div></div></div><div class="scard"><div><div class="sc-label">有效权益账户</div><div class="sc-val">${effectiveEntitlements.length}<span class="u">个</span></div></div></div><div class="scard"><div><div class="sc-label">7天内到期</div><div class="sc-val">${nearExpiry}<span class="u">个</span></div></div></div>`;
   document.getElementById('purchaseTbody').innerHTML=list.length?list.map(p=>{
     const ent=entitlements.find(e=>e.purchaseId===p.id);
+    const pkg=packages.find(x=>x.id===p.packageId)||{};
     const remain=ent?`${parseInt(ent.remainingLessons)||0}/${parseInt(ent.totalLessons)||0} 节`:'—';
-    return `<tr><td>${esc(p.purchaseDate)||'—'}</td><td><div class="uname">${esc(p.studentName)||'—'}</div></td><td><div class="uname">${esc(p.packageName)||'—'}</div><div class="udesc">${esc(ent?.courseType)||'—'}</div></td><td>¥${fmt(p.amountPaid)}</td><td>${remain}</td><td><span class="badge ${p.status==='voided'?'b-gray':'b-green'}">${purchaseStatusText(p)}</span></td><td style="text-align:right">${p.status==='voided'?'<span style="color:var(--td);font-size:12px">已作废</span>':`<button class="abtn" style="background:rgba(220,38,38,0.08);color:#dc2626" onclick="confirmDel('${p.id}','${esc(p.studentName||'该学员')}的${esc(p.packageName||'课包购买')}','purchase')">作废</button>`}</td></tr>`;
-  }).join(''):'<tr><td colspan="7"><div class="empty"><p>暂无购买记录</p></div></td></tr>';
+    const validRange=ent?`${ent.validFrom||'—'} - ${ent.validUntil||'—'}`:'—';
+    return `<tr><td>${esc(p.purchaseDate)||'—'}</td><td><div class="uname">${esc(p.studentName)||'—'}</div><div class="table-meta">${esc(p.payMethod)||'—'}</div></td><td><div class="uname">${esc(p.packageName)||'—'}</div><div class="table-meta">${esc(pkg.courseType)||'—'} · ${pkg.lessons||0} 节</div></td><td><div class="uname">${esc(pkg.productName)||'—'}</div><div class="table-meta">${esc(pkg.timeBand)||'全天'}</div></td><td>¥${fmt(p.amountPaid)}</td><td>${remain}</td><td>${esc(validRange)}</td><td><span class="badge ${p.status==='voided'?'b-gray':'b-green'}">${purchaseStatusText(p)}</span></td><td style="text-align:right">${p.status==='voided'?'<span style="color:var(--td);font-size:12px">已作废</span>':`<button class="btn-sec" style="padding:7px 12px;color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="confirmDel('${p.id}','${esc(p.studentName||'该学员')}的${esc(p.packageName||'课包购买')}','purchase')">作废</button>`}</td></tr>`;
+  }).join(''):'<tr><td colspan="9"><div class="empty"><p>暂无购买记录</p></div></td></tr>';
 }
 function renderEntitlements(){
   const q=(document.getElementById('entSearch')?.value||'').toLowerCase();
@@ -1947,17 +2224,20 @@ function packageOpts(sel){
 }
 function packageCoachChecks(ids){
   ids=parseArr(ids);
-  return activeCoachNames().map(name=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${esc(name)}" class="pkg-coach-cb" ${ids.includes(name)?'checked':''}>${esc(name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无教练</span>';
+  return activeCoachNames().map(name=>`<label class="choice-tag"><input type="checkbox" value="${esc(name)}" class="pkg-coach-cb" ${ids.includes(name)?'checked':''}>${esc(name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无教练</span>';
 }
 function packageCampusChecks(ids){
   ids=parseArr(ids);
-  return campuses.map(c=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${c.code||c.id}" class="pkg-campus-cb" ${ids.includes(c.code||c.id)?'checked':''}>${esc(c.name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无校区</span>';
+  return campuses.map(c=>`<label class="choice-tag"><input type="checkbox" value="${c.code||c.id}" class="pkg-campus-cb" ${ids.includes(c.code||c.id)?'checked':''}>${esc(c.name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无校区</span>';
 }
 function openPackageModal(id,presetProductId=''){
   editId=id;const p=id?packages.find(x=>x.id===id):null;
   const productId=rv(p,'productId',presetProductId);
-  document.getElementById('mTitle').textContent=id?'✏️ 编辑售卖课包':'➕ 新增售卖课包';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">课包信息</div><div class="fgrid"><div class="fg full"><div class="flabel">课包名称 *</div><input class="finput" id="pkg_name" value="${rv(p,'name')}"></div><div class="fg"><div class="flabel">课程产品</div><select class="fselect" id="pkg_productId">${productOpts(productId)}</select></div><div class="fg"><div class="flabel">课程类型</div><select class="fselect" id="pkg_type">${PRODUCT_TYPES.map(t=>`<option value="${t}"${rv(p,'courseType')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">价格</div><input class="finput" id="pkg_price" type="number" value="${rv(p,'price',0)}"></div><div class="fg"><div class="flabel">课时</div><input class="finput" id="pkg_lessons" type="number" value="${rv(p,'lessons',0)}"></div><div class="fg"><div class="flabel">有效天数</div><input class="finput" id="pkg_validDays" type="number" value="${rv(p,'validDays',30)}"></div><div class="fg"><div class="flabel">活动开始</div><input class="finput" id="pkg_saleStartDate" type="date" value="${rv(p,'saleStartDate')}"></div><div class="fg"><div class="flabel">活动结束</div><input class="finput" id="pkg_saleEndDate" type="date" value="${rv(p,'saleEndDate')}"></div><div class="fg"><div class="flabel">使用开始</div><input class="finput" id="pkg_usageStartDate" type="date" value="${rv(p,'usageStartDate')}"></div><div class="fg"><div class="flabel">使用结束</div><input class="finput" id="pkg_usageEndDate" type="date" value="${rv(p,'usageEndDate')}"></div><div class="fg"><div class="flabel">时段类型</div><input class="finput" id="pkg_timeBand" value="${rv(p,'timeBand','全天')}" placeholder="黄金时段/非黄金时段/全天"></div><div class="fg"><div class="flabel">开始时间</div><input class="finput" id="pkg_timeStart" type="time" value="${rv(parseArr(p?.dailyTimeWindows)[0],'startTime','07:00')}"></div><div class="fg"><div class="flabel">结束时间</div><input class="finput" id="pkg_timeEnd" type="time" value="${rv(parseArr(p?.dailyTimeWindows)[0],'endTime','22:00')}"></div><div class="fg"><div class="flabel">人数限制</div><input class="finput" id="pkg_maxStudents" type="number" value="${rv(p,'maxStudents',1)}"></div><div class="fg"><div class="flabel">状态</div><select class="fselect" id="pkg_status"><option value="active"${rv(p,'status','active')==='active'?' selected':''}>启用</option><option value="inactive"${rv(p,'status')==='inactive'?' selected':''}>停用</option></select></div><div class="fg full"><div class="flabel">可用教练</div><div style="max-height:96px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${packageCoachChecks(rv(p,'coachNames',[]))}</div></div><div class="fg full"><div class="flabel">可用校区</div><div style="max-height:96px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${packageCampusChecks(rv(p,'campusIds',[]))}</div></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="pkg_notes">${esc(rv(p,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${p.id}','${esc(p.name)}','package')">删除</button>`:''}<button class="btn-save" onclick="savePackage()">保存</button></div>`;
+  const windowRow=parseArr(p?.dailyTimeWindows)[0]||{};
+  const modal=document.querySelector('#overlay .modal');
+  if(modal)modal.className='modal modal-wide';
+  document.getElementById('mTitle').textContent=id?'编辑售卖课包':'新增售卖课包';
+  document.getElementById('mBody').innerHTML=`<div class="form-section"><div class="form-section-title">基础信息</div><div class="fgrid"><div class="fg full"><div class="flabel">课包名称 *</div><input class="finput" id="pkg_name" value="${rv(p,'name')}" placeholder="例如：五一私教 5 节"></div><div class="fg"><div class="flabel">课程产品 *</div><select class="fselect modern-select" id="pkg_productId">${productOpts(productId)}</select></div><div class="fg"><div class="flabel">课程类型</div><select class="fselect modern-select" id="pkg_type">${PRODUCT_TYPES.map(t=>`<option value="${t}"${rv(p,'courseType')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">人数限制</div><input class="finput" id="pkg_maxStudents" type="number" value="${rv(p,'maxStudents',1)}"></div><div class="fg"><div class="flabel">状态</div><select class="fselect modern-select" id="pkg_status"><option value="active"${rv(p,'status','active')==='active'?' selected':''}>启用</option><option value="inactive"${rv(p,'status')==='inactive'?' selected':''}>停用</option></select></div></div></div><div class="form-section"><div class="form-section-title">售卖规则</div><div class="fgrid"><div class="fg"><div class="flabel">价格</div><input class="finput" id="pkg_price" type="number" value="${rv(p,'price',0)}"></div><div class="fg"><div class="flabel">课时</div><input class="finput" id="pkg_lessons" type="number" value="${rv(p,'lessons',0)}"></div><div class="fg"><div class="flabel">有效天数</div><input class="finput" id="pkg_validDays" type="number" value="${rv(p,'validDays',30)}"></div><div class="fg"><div class="flabel">备注</div><input class="finput" id="pkg_notes_inline" value="${esc(rv(p,'notes'))}" placeholder="可选"></div></div></div><div class="form-section"><div class="form-section-title">时间规则</div><div class="fgrid"><div class="fg"><div class="flabel">活动开始</div><button class="coach-date-btn" id="pkg_saleStartDate_btn" onclick="toggleGlobalDatePicker(event,'pkg_saleStartDate','pkg_saleStartDate_btn','活动开始')">${rv(p,'saleStartDate')||'活动开始'}</button><input class="filter-hidden-date" id="pkg_saleStartDate" type="date" value="${rv(p,'saleStartDate')}" onchange="syncDateButton('pkg_saleStartDate','pkg_saleStartDate_btn','活动开始')"></div><div class="fg"><div class="flabel">活动结束</div><button class="coach-date-btn" id="pkg_saleEndDate_btn" onclick="toggleGlobalDatePicker(event,'pkg_saleEndDate','pkg_saleEndDate_btn','活动结束')">${rv(p,'saleEndDate')||'活动结束'}</button><input class="filter-hidden-date" id="pkg_saleEndDate" type="date" value="${rv(p,'saleEndDate')}" onchange="syncDateButton('pkg_saleEndDate','pkg_saleEndDate_btn','活动结束')"></div><div class="fg"><div class="flabel">使用开始</div><button class="coach-date-btn" id="pkg_usageStartDate_btn" onclick="toggleGlobalDatePicker(event,'pkg_usageStartDate','pkg_usageStartDate_btn','使用开始')">${rv(p,'usageStartDate')||'使用开始'}</button><input class="filter-hidden-date" id="pkg_usageStartDate" type="date" value="${rv(p,'usageStartDate')}" onchange="syncDateButton('pkg_usageStartDate','pkg_usageStartDate_btn','使用开始')"></div><div class="fg"><div class="flabel">使用结束</div><button class="coach-date-btn" id="pkg_usageEndDate_btn" onclick="toggleGlobalDatePicker(event,'pkg_usageEndDate','pkg_usageEndDate_btn','使用结束')">${rv(p,'usageEndDate')||'使用结束'}</button><input class="filter-hidden-date" id="pkg_usageEndDate" type="date" value="${rv(p,'usageEndDate')}" onchange="syncDateButton('pkg_usageEndDate','pkg_usageEndDate_btn','使用结束')"></div><div class="fg"><div class="flabel">时段类型</div><select class="fselect modern-select" id="pkg_timeBand"><option value="全天"${rv(p,'timeBand','全天')==='全天'?' selected':''}>全天</option><option value="黄金时段"${rv(p,'timeBand')==='黄金时段'?' selected':''}>黄金时段</option><option value="非黄金时段"${rv(p,'timeBand')==='非黄金时段'?' selected':''}>非黄金时段</option></select></div><div class="fg"><div class="flabel">开始时间</div><input class="finput" id="pkg_timeStart" type="time" value="${rv(windowRow,'startTime','07:00')}"></div><div class="fg"><div class="flabel">结束时间</div><input class="finput" id="pkg_timeEnd" type="time" value="${rv(windowRow,'endTime','22:00')}"></div><div class="fg"><div class="flabel">说明</div><div class="inline-help">购买时间和上课时间分开控制。过期或超时段不能消耗。</div></div></div></div><div class="form-section"><div class="form-section-title">适用范围</div><div class="fg full"><div class="flabel">可用教练</div><div class="choice-grid">${packageCoachChecks(rv(p,'coachNames',[]))}</div></div><div class="fg full" style="margin-top:12px"><div class="flabel">可用校区</div><div class="choice-grid">${packageCampusChecks(rv(p,'campusIds',[]))}</div></div></div><textarea class="filter-hidden-date" id="pkg_notes" style="display:none">${esc(rv(p,'notes'))}</textarea><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${p.id}','${esc(p.name)}','package')">删除</button>`:''}<button class="btn-save" onclick="savePackage()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
 async function savePackage(){
@@ -1967,13 +2247,16 @@ async function savePackage(){
   const coachNames=[...document.querySelectorAll('.pkg-coach-cb:checked')].map(cb=>cb.value);
   const campusIds=[...document.querySelectorAll('.pkg-campus-cb:checked')].map(cb=>cb.value);
   const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  document.getElementById('pkg_notes').value=document.getElementById('pkg_notes_inline').value.trim();
   const data={name,productId,productName:product?.name||'',courseType:document.getElementById('pkg_type').value,price:parseFloat(document.getElementById('pkg_price').value)||0,lessons:parseInt(document.getElementById('pkg_lessons').value)||0,validDays:parseInt(document.getElementById('pkg_validDays').value)||0,saleStartDate:document.getElementById('pkg_saleStartDate').value,saleEndDate:document.getElementById('pkg_saleEndDate').value,usageStartDate:document.getElementById('pkg_usageStartDate').value,usageEndDate:document.getElementById('pkg_usageEndDate').value,timeBand:document.getElementById('pkg_timeBand').value.trim(),dailyTimeWindows:[{label:document.getElementById('pkg_timeBand').value.trim()||'全天',startTime:document.getElementById('pkg_timeStart').value,endTime:document.getElementById('pkg_timeEnd').value,daysOfWeek:[]}],coachNames,coachIds:coachNames,campusIds,maxStudents:parseInt(document.getElementById('pkg_maxStudents').value)||1,status:document.getElementById('pkg_status').value,notes:document.getElementById('pkg_notes').value.trim()};
   try{if(editId){const r=await apiCall('PUT','/packages/'+editId,data);const i=packages.findIndex(x=>x.id===editId);packages[i]=r;}else{const r=await apiCall('POST','/packages',data);packages.unshift(r);}closeModal();toast(editId?'课包修改成功 ✓':'课包创建成功 ✓','success');renderPackages();renderProducts();}catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
 }
 function openPurchaseEntryModal(){
   editId=null;
-  document.getElementById('mTitle').textContent='➕ 新增购买记录';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">选择学员</div><div class="fgrid"><div class="fg full"><div class="flabel">学员 *</div><select class="fselect" id="pur_entry_student"><option value="">— 选择学员 —</option>${students.map(s=>`<option value="${s.id}">${esc(s.name)}${s.phone?' · '+esc(s.phone):''}</option>`).join('')}</select></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="openPurchaseFromEntry()">下一步</button></div>`;
+  const modal=document.querySelector('#overlay .modal');
+  if(modal)modal.className='modal modal-tight';
+  document.getElementById('mTitle').textContent='新增购买记录';
+  document.getElementById('mBody').innerHTML=`<div class="form-section"><div class="form-section-title">先选择学员</div><div class="fgrid"><div class="fg full"><div class="flabel">学员 *</div><select class="fselect modern-select" id="pur_entry_student"><option value="">选择学员</option>${students.map(s=>`<option value="${s.id}">${esc(s.name)}${s.phone?' · '+esc(s.phone):''}</option>`).join('')}</select></div></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="openPurchaseFromEntry()">下一步</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
 function openPurchaseFromEntry(){
@@ -1984,8 +2267,10 @@ function openPurchaseFromEntry(){
 function openPurchaseModal(studentId){
   const stu=students.find(x=>x.id===studentId);if(!stu){toast('学员不存在','error');return;}
   editId=null;
-  document.getElementById('mTitle').textContent='➕ 购买课包';
-  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">学员：${esc(stu.name)}${stu.phone?' · '+esc(stu.phone):''}</div><div class="fgrid"><div class="fg full"><div class="flabel">选择课包 *</div><select class="fselect" id="pur_packageId" onchange="fillPurchasePackageMeta()">${packageOpts('')}</select></div><div class="fg"><div class="flabel">购买日期</div><input class="finput" id="pur_purchaseDate" type="date" value="${today()}"></div><div class="fg"><div class="flabel">实收金额</div><input class="finput" id="pur_amountPaid" type="number" value="0"></div><div class="fg"><div class="flabel">支付方式</div><select class="fselect" id="pur_payMethod"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="其他">其他</option></select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="pur_notes"></textarea></div></div><input type="hidden" id="pur_studentId" value="${stu.id}"><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="savePurchase()">保存</button></div>`;
+  const modal=document.querySelector('#overlay .modal');
+  if(modal)modal.className='modal modal-tight';
+  document.getElementById('mTitle').textContent='购买课包';
+  document.getElementById('mBody').innerHTML=`<div class="form-section"><div class="form-section-title">学员信息</div><div class="inline-help">${esc(stu.name)}${stu.phone?' · '+esc(stu.phone):''}</div></div><div class="form-section"><div class="form-section-title">购买信息</div><div class="fgrid"><div class="fg full"><div class="flabel">选择课包 *</div><select class="fselect modern-select" id="pur_packageId" onchange="fillPurchasePackageMeta()">${packageOpts('')}</select></div><div class="fg"><div class="flabel">购买日期</div><button class="coach-date-btn" id="pur_purchaseDate_btn" onclick="toggleGlobalDatePicker(event,'pur_purchaseDate','pur_purchaseDate_btn','购买日期')">${today()}</button><input class="filter-hidden-date" id="pur_purchaseDate" type="date" value="${today()}" onchange="syncDateButton('pur_purchaseDate','pur_purchaseDate_btn','购买日期')"></div><div class="fg"><div class="flabel">实收金额</div><input class="finput" id="pur_amountPaid" type="number" value="0"></div><div class="fg"><div class="flabel">支付方式</div><select class="fselect modern-select" id="pur_payMethod"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="其他">其他</option></select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="pur_notes"></textarea></div></div></div><input type="hidden" id="pur_studentId" value="${stu.id}"><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="savePurchase()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
   fillPurchasePackageMeta();
 }
@@ -2003,12 +2288,29 @@ async function savePurchase(){
     const res=await apiCall('POST','/purchases',data);
     if(res.purchase)purchases.unshift(res.purchase);
     if(res.entitlement)entitlements.unshift(res.entitlement);
-    closeModal();toast('购买成功 ✓','success');renderStudents();renderPurchases();renderEntitlements();
+    closeModal();toast('购买成功','success');renderStudents();renderPurchases();renderEntitlements();
   }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
+}
+function focusPurchaseByPackage(packageId){
+  goPage('purchases');
+  const pkgEl=document.getElementById('purPackageFilter');
+  if(pkgEl)pkgEl.value=packageId;
+  renderPurchases();
+}
+function exportPurchaseCSV(){
+  const list=getFilteredPurchases();
+  let csv='购买日期,学员,售卖课包,课程产品,实收,剩余课时,总课时,有效开始,有效结束,支付方式,状态,备注\n';
+  csv+=list.map(p=>{
+    const ent=entitlements.find(e=>e.purchaseId===p.id)||{};
+    const pkg=packages.find(x=>x.id===p.packageId)||{};
+    return [p.purchaseDate||'',p.studentName||'',p.packageName||'',pkg.productName||'',parseFloat(p.amountPaid)||0,parseInt(ent.remainingLessons)||0,parseInt(ent.totalLessons)||0,ent.validFrom||'',ent.validUntil||'',p.payMethod||'',purchaseStatusText(p),'"'+String(p.notes||'').replace(/"/g,'""')+'"'].join(',');
+  }).join('\n');
+  const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FlowTennis_购买记录_'+today()+'.csv';a.click();toast('导出成功','success');
 }
 function openProductModal(id){
   editId=id;const p=id?products.find(x=>x.id===id):null;
-  document.getElementById('mTitle').textContent=id?'✏️ 编辑课程产品':'➕ 新增课程产品';
+  document.getElementById('mTitle').textContent=id?'编辑课程产品':'新增课程产品';
   document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg full"><div class="flabel">课程名称 *</div><input class="finput" id="p_name" value="${rv(p,'name')}"></div><div class="fg"><div class="flabel">类型</div><select class="fselect" id="p_type">${PRODUCT_TYPES.map(t=>`<option value="${t}"${rv(p,'type')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">人数</div><input class="finput" id="p_max" type="number" value="${rv(p,'maxStudents',1)}"></div><div class="fg"><div class="flabel">定价</div><input class="finput" id="p_price" type="number" value="${rv(p,'price',0)}"></div><div class="fg"><div class="flabel">课时</div><input class="finput" id="p_lessons" type="number" value="${rv(p,'lessons',0)}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="p_notes">${esc(rv(p,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${p.id}','${esc(p.name)}','product')">删除</button>`:''}<button class="btn-save" onclick="saveProduct()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
@@ -2027,7 +2329,7 @@ function renderCoaches(){
 }
 function openCoachModal(id){
   editId=id||null;const c=id?coaches.find(x=>x.id===id):null;
-  document.getElementById('mTitle').textContent=id?'✏️ 编辑教练':'➕ 新增教练';
+  document.getElementById('mTitle').textContent=id?'编辑教练':'新增教练';
   document.getElementById('mBody').innerHTML=`<div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="co_name" value="${rv(c,'name')}"></div><div class="fg"><div class="flabel">电话</div><input class="finput" id="co_phone" value="${rv(c,'phone')}"></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="co_campus">${campusOpts(rv(c,'campus'))}</select></div><div class="fg"><div class="flabel">状态</div><select class="fselect" id="co_status"><option value="active"${rv(c,'status','active')==='active'?' selected':''}>在职</option><option value="inactive"${rv(c,'status')==='inactive'?' selected':''}>离职</option></select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="co_notes">${esc(rv(c,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${c.id}','${esc(c.name)}','coach')">删除</button>`:''}<button class="btn-save" onclick="saveCoach()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
@@ -2077,8 +2379,8 @@ async function doDelete(){
     closeConf();closeModal();toast('已删除','error');renderAll();
   }catch(e){toast('删除失败：'+e.message,'error');closeConf();}
 }
-function closeModal(){const ov=document.getElementById('overlay');ov.classList.remove('open');const modal=ov.querySelector('.modal');if(modal)modal.classList.remove('modal-court');editId=null;_pending=[];}
-function toast(msg,type=''){const c=document.getElementById('toasts'),t=document.createElement('div');t.className='toast '+(type||'');t.innerHTML='<span>'+(type==='success'?'✅':type==='error'?'🗑️':type==='warn'?'⚠️':'ℹ️')+'</span><span>'+msg+'</span>';c.appendChild(t);setTimeout(()=>{t.style.cssText='opacity:0;transform:translateX(18px);transition:all .28s';setTimeout(()=>t.remove(),300);},3000);}
+function closeModal(){const ov=document.getElementById('overlay');ov.classList.remove('open');const modal=ov.querySelector('.modal');if(modal)modal.className='modal';editId=null;_pending=[];closeGlobalDatePicker();}
+function toast(msg,type=''){const c=document.getElementById('toasts'),t=document.createElement('div');t.className='toast '+(type||'');t.innerHTML='<span>'+msg+'</span>';c.appendChild(t);setTimeout(()=>{t.style.cssText='opacity:0;transform:translateX(18px);transition:all .28s';setTimeout(()=>t.remove(),300);},3000);}
 async function backupToObsidian(){
   try{toast('生成备份…','');const d=new Date(),ds=d.toISOString().slice(0,10),ts=d.toTimeString().slice(0,5);
   let md='# FlowTennis 备份\n\n时间：'+ds+' '+ts+'\n\n---\n\n## 学员（'+students.length+'人）\n\n| 姓名 | 类型 | 手机 | 来源 | 校区 |\n|------|------|------|------|------|\n';
@@ -2098,7 +2400,7 @@ function renderCampuses(){
 }
 function openCampusModal(id){
   editId=id;const c=id?campuses.find(x=>x.id===id):null;
-  document.getElementById('mTitle').textContent=id?'✏️ 编辑校区':'➕ 新增校区';
+  document.getElementById('mTitle').textContent=id?'编辑校区':'新增校区';
   document.getElementById('mBody').innerHTML=`<div class="fgrid"><div class="fg"><div class="flabel">校区名称 *</div><input class="finput" id="ca_name" value="${rv(c,'name')}" placeholder="例：朝阳十里堡"></div><div class="fg"><div class="flabel">校区代码 *</div><input class="finput" id="ca_code" value="${rv(c,'code')}" placeholder="例：shilipu"${id?' disabled':''}></div></div><div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-top:10px">💡 校区代码创建后不可修改，用于关联学员/排课等数据</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${c.id}','${esc(c.name)}','campus')">删除</button>`:''}<button class="btn-save" onclick="saveCampus()">保存</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
