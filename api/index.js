@@ -662,7 +662,9 @@ function buildStudentIdentityUpdates(oldStudent,nextStudent,data,now=new Date().
   const id=oldStudent?.id||nextStudent?.id;
   const name=String(nextStudent?.name||'').trim();
   const phone=normalizePhone(nextStudent?.phone);
-  const empty={plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};
+  const oldName=String(oldStudent?.name||'').trim();
+  const oldPhone=normalizePhone(oldStudent?.phone);
+  const empty={plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[],courts:[]};
   if(!id||(!name&&!phone))return empty;
   const changedName=String(oldStudent?.name||'')!==String(nextStudent?.name||'');
   const changedPhone=normalizePhone(oldStudent?.phone)!==phone;
@@ -673,18 +675,26 @@ function buildStudentIdentityUpdates(oldStudent,nextStudent,data,now=new Date().
     schedule:(data.schedule||[]).filter(r=>parseArr(r.studentIds).includes(id)||r.studentId===id).map(r=>touch({...r,studentName:name||r.studentName})),
     purchases:(data.purchases||[]).filter(r=>r.studentId===id).map(r=>touch({...r,studentName:name||r.studentName,studentPhone:phone})),
     entitlements:(data.entitlements||[]).filter(r=>r.studentId===id).map(r=>touch({...r,studentName:name||r.studentName})),
-    feedbacks:(data.feedbacks||[]).filter(r=>r.studentId===id||parseArr(r.studentIds).includes(id)).map(r=>touch({...r,studentName:name||r.studentName}))
+    feedbacks:(data.feedbacks||[]).filter(r=>r.studentId===id||parseArr(r.studentIds).includes(id)).map(r=>touch({...r,studentName:name||r.studentName})),
+    courts:(data.courts||[]).filter(r=>{
+      const ids=parseArr(r.studentIds);
+      if(ids.includes(id)||r.studentId===id)return false;
+      const exactName=oldName&&String(r.name||'').trim()===oldName;
+      const exactPhone=oldPhone&&normalizePhone(r.phone)===oldPhone;
+      return exactName||exactPhone;
+    }).map(r=>touch({...r,studentId:id,studentIds:[id]}))
   };
 }
 async function loadStudentReferenceData(){
-  const [plans,schedule,purchases,entitlements,feedbacks]=await Promise.all([
+  const [plans,schedule,purchases,entitlements,feedbacks,courts]=await Promise.all([
     scan(T_PLANS).catch(()=>[]),
     scan(T_SCHEDULE).catch(()=>[]),
     scan(T_PURCHASES).catch(()=>[]),
     scan(T_ENTITLEMENTS).catch(()=>[]),
-    withTimeout(scanFeedbacks().catch(()=>[]),3000,[])
+    withTimeout(scanFeedbacks().catch(()=>[]),3000,[]),
+    scan(T_COURTS).catch(()=>[])
   ]);
-  return {plans,schedule,purchases,entitlements,feedbacks};
+  return {plans,schedule,purchases,entitlements,feedbacks,courts};
 }
 async function applyStudentIdentityUpdate(oldStudent,nextStudent){
   const updates=buildStudentIdentityUpdates(oldStudent,nextStudent,await loadStudentReferenceData());
@@ -693,7 +703,8 @@ async function applyStudentIdentityUpdate(oldStudent,nextStudent){
     ...updates.schedule.map(r=>put(T_SCHEDULE,r.id,r)),
     ...updates.purchases.map(r=>put(T_PURCHASES,r.id,r)),
     ...updates.entitlements.map(r=>put(T_ENTITLEMENTS,r.id,r)),
-    ...updates.feedbacks.map(r=>putFeedback(r.id,r))
+    ...updates.feedbacks.map(r=>putFeedback(r.id,r)),
+    ...updates.courts.map(r=>put(T_COURTS,r.id,r))
   ]);
   return updates;
 }
@@ -983,6 +994,9 @@ function assertCanDeleteStudent(studentId,data){
     (data.courts||[]).some(c=>c.studentId===studentId||parseArr(c.studentIds).includes(studentId)||normalizeCourtHistory(c.history).some(h=>h.studentId===studentId))||
     (data.feedbacks||[]).some(f=>f.studentId===studentId||parseArr(f.studentIds).includes(studentId));
   if(used)throw new Error('该学员已有班次、排课、学习计划、订场账户或反馈关联，不能直接删除');
+}
+function assertStudentWriteAccess(user){
+  if(user?.role!=='admin')throw new Error('无权限');
 }
 function assertCanDeleteCourt(court){
   if(parseArr(court?.history).length)throw new Error('该客户已有财务流水，不能直接删除');
@@ -1669,8 +1683,8 @@ module.exports = async (req, res) => {
       return sendJson(res,{dryRun,total:rows.length,candidates,migrated,skipped,preview});
     }
     const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const r={...normalizeCourtRecord(body),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await get(T_COURTS,id).catch(()=>null);assertCanDeleteCourt(court);await del(T_COURTS,id);return sendJson(res,{success:true});}}
-    if(path==='/students'){await init();if(method==='GET')return sendJson(res,await scan(T_STUDENTS));if(method==='POST'){const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
-    const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){const old=await get(T_STUDENTS,id).catch(()=>null);const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);const studentUpdates=old?await applyStudentIdentityUpdate(old,r):{plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};return sendJson(res,{...r,studentUpdates});}if(method==='DELETE'){const [classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_PLANS).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scanFeedbacks().catch(()=>[]),scan(T_PURCHASES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanDeleteStudent(id,{classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger});await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
+    if(path==='/students'){await init();if(method==='GET')return sendJson(res,await scan(T_STUDENTS));if(method==='POST'){assertStudentWriteAccess(user);const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
+    const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){assertStudentWriteAccess(user);const old=await get(T_STUDENTS,id).catch(()=>null);const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);const studentUpdates=old?await applyStudentIdentityUpdate(old,r):{plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};return sendJson(res,{...r,studentUpdates});}if(method==='DELETE'){assertStudentWriteAccess(user);const [classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_PLANS).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scanFeedbacks().catch(()=>[]),scan(T_PURCHASES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanDeleteStudent(id,{classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger});await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
     if(path==='/init-data'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const ss=body.students||[];for(const s of ss)await put(T_STUDENTS,s.id||uuidv4(),{...s,updatedAt:new Date().toISOString()});return sendJson(res,{success:true,count:ss.length});}
     if(path==='/products'){await init();if(method==='GET')return sendJson(res,await scan(T_PRODUCTS));if(method==='POST'){const id=uuidv4();const r={...body,id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_PRODUCTS,id,r);return sendJson(res,r);}}
     const pM=path.match(/^\/products\/(.+)$/);if(pM){const id=pM[1];if(method==='GET')return sendJson(res,await get(T_PRODUCTS,id));if(method==='PUT'){const old=await get(T_PRODUCTS,id).catch(()=>null);if(!old)return sendJson(res,{error:'课程产品不存在'},404);const r={...body,id,updatedAt:new Date().toISOString()};const [classes,packages]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_PACKAGES).catch(()=>[])]);assertCanEditProductWithReferences(old,r,{classes,packages});await put(T_PRODUCTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const [classes,packages]=await Promise.all([scan(T_CLASSES),scan(T_PACKAGES).catch(()=>[])]);assertCanDeleteProduct(id,classes,packages);await del(T_PRODUCTS,id);return sendJson(res,{success:true});}}
@@ -2015,6 +2029,7 @@ module.exports._test={
   assertCanDeletePackage,
   assertCanVoidPurchase,
   assertCanDeleteEntitlement,
+  assertStudentWriteAccess,
   assertCanEditClassWithSchedules,
   assertCanDeleteSchedule,
   assertCanDeleteStudent,
