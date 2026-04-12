@@ -62,6 +62,117 @@ assert.strictEqual(
   'finished class should create finished student plan'
 );
 
+const productRenameUpdates = rules.buildProductRenameDisplayUpdates(
+  { id: 'prod-a', name: '旧产品名', type: '私教课', maxStudents: 1, lessons: 10, price: 2000 },
+  { id: 'prod-a', name: '新产品名', type: '私教课', maxStudents: 1, lessons: 10, price: 2000, notes: '只改展示名' },
+  {
+    classes: [
+      {
+        id: 'class-a',
+        productId: 'prod-a',
+        classNo: 'CLS0001',
+        className: 'CLS0001-旧产品名',
+        productName: '旧产品名',
+        coach: '朝珺',
+        campus: 'mabao',
+        totalLessons: 10,
+        usedLessons: 2,
+        studentIds: ['stu-1'],
+        status: '已排班'
+      },
+      {
+        id: 'class-b',
+        productId: 'prod-b',
+        classNo: 'CLS0002',
+        className: 'CLS0002-其他产品',
+        productName: '其他产品',
+        coach: '白杨静',
+        campus: 'shunyi',
+        totalLessons: 8,
+        usedLessons: 1,
+        studentIds: ['stu-2'],
+        status: '已排班'
+      }
+    ],
+    plans: [
+      {
+        id: 'plan-1',
+        classId: 'class-a',
+        className: 'CLS0001-旧产品名',
+        productName: '旧产品名',
+        studentId: 'stu-1',
+        studentName: '大宝',
+        studentPhone: '13800000001',
+        coach: '朝珺',
+        campus: 'mabao',
+        totalLessons: 10,
+        usedLessons: 2,
+        status: 'active',
+        history: ['keep-me']
+      },
+      {
+        id: 'plan-2',
+        classId: 'class-b',
+        className: 'CLS0002-其他产品',
+        productName: '其他产品',
+        studentId: 'stu-2',
+        studentName: '二宝',
+        studentPhone: '13800000002',
+        coach: '白杨静',
+        campus: 'shunyi',
+        totalLessons: 8,
+        usedLessons: 1,
+        status: 'active'
+      }
+    ]
+  },
+  '2026-04-12T00:00:00.000Z'
+);
+
+assert.deepStrictEqual(
+  productRenameUpdates.classes.map(x => [x.id, x.productName, x.className, x.usedLessons, x.coach, x.campus]),
+  [['class-a', '新产品名', 'CLS0001-新产品名', 2, '朝珺', 'mabao']],
+  'product rename should sync only referenced classes'
+);
+
+assert.deepStrictEqual(
+  productRenameUpdates.plans.map(x => [x.id, x.productName, x.className, x.usedLessons, x.coach, x.campus, x.history[0]]),
+  [['plan-1', '新产品名', 'CLS0001-新产品名', 2, '朝珺', 'mabao', 'keep-me']],
+  'product rename should sync only plans under referenced classes'
+);
+
+assert.strictEqual(
+  productRenameUpdates.classes[0].updatedAt,
+  '2026-04-12T00:00:00.000Z',
+  'synced class rows should carry the provided timestamp'
+);
+
+assert.strictEqual(
+  productRenameUpdates.plans[0].updatedAt,
+  '2026-04-12T00:00:00.000Z',
+  'synced plan rows should carry the provided timestamp'
+);
+
+assert.deepStrictEqual(
+  rules.buildProductRenameDisplayUpdates(
+    { id: 'prod-a', name: '旧产品名', type: '私教课', maxStudents: 1, lessons: 10, price: 2000 },
+    { id: 'prod-a', name: '旧产品名', type: '私教课', maxStudents: 1, lessons: 10, price: 2000 },
+    { classes: [{ id: 'class-a', productId: 'prod-a' }], plans: [{ id: 'plan-1', classId: 'class-a' }] }
+  ),
+  { classes: [], plans: [] },
+  'same product name should not trigger display sync'
+);
+
+assert.deepStrictEqual(
+  rules.buildProductRenameDisplayUpdates(
+    { id: 'prod-a', name: '旧产品名', type: '私教课', maxStudents: 1, lessons: 10, price: 2000 },
+    { id: 'prod-a', name: '新产品名', type: '团课', maxStudents: 1, lessons: 10, price: 2000 },
+    { classes: [{ id: 'class-a', productId: 'prod-a' }], plans: [{ id: 'plan-1', classId: 'class-a' }] }
+  ),
+  { classes: [], plans: [] },
+  'core field changes should block display-only sync'
+);
+
 assert.throws(
   () => rules.assertCanDeleteProduct('prod-a', [{ productId: 'prod-a', className: 'CLS0001' }]),
   /已有班次使用/,
