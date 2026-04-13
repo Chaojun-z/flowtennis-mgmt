@@ -191,6 +191,45 @@ assert.deepStrictEqual(
   'one-off purchase benefit adjustments should only affect the current order snapshot'
 );
 
+const swappedBenefitPurchase = rules.buildMembershipPurchase({
+  court,
+  plan,
+  body: {
+    purchaseDate: '2026-04-07',
+    publicLessonCount: 0,
+    stringingLaborCount: 6,
+    ballMachineCount: 0,
+    level2PartnerCount: 0,
+    designatedCoachPartnerCount: 0,
+    notes: '不要大师公开课和发球机，都换成穿线服务'
+  },
+  now: '2026-04-12T00:00:00.000Z',
+  accountId: 'macc-3',
+  orderId: 'mord-5',
+  historyId: 'his-5'
+});
+
+assert.strictEqual(
+  swappedBenefitPurchase.order.benefitSnapshot.stringingLabor.count,
+  6,
+  'deal benefit snapshot should keep the manually adjusted right count'
+);
+assert.strictEqual(
+  swappedBenefitPurchase.order.benefitSnapshot.publicLesson,
+  undefined,
+  'deal benefit snapshot should not fall back to plan public lessons when the current order adjusts them to 0'
+);
+assert.strictEqual(
+  swappedBenefitPurchase.order.benefitSnapshot.ballMachine,
+  undefined,
+  'deal benefit snapshot should not fall back to plan ball-machine rights when the current order adjusts them to 0'
+);
+assert.strictEqual(
+  swappedBenefitPurchase.order.notes,
+  '不要大师公开课和发球机，都换成穿线服务',
+  'membership purchase should keep the operator remark on the order snapshot'
+);
+
 const emptySnapshotOrder = rules.normalizeMembershipOrderViewRecord(
   {
     id: 'mord-empty',

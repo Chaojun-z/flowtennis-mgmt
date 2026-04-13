@@ -12,6 +12,7 @@ assert.match(html, /id="page-membership-plans"[\s\S]*class="tms-toolbar"/, 'memb
 assert.match(html, /id="page-membership-plans"[\s\S]*class="tms-table-card"[\s\S]*class="tms-table-wrapper"[\s\S]*class="tms-table"/, 'membership plan page should use the court-style table shell');
 assert.doesNotMatch(html, /membershipTabOrders|membershipTabAccounts|membershipTabBenefits/, 'membership page should no longer use tabs');
 assert.match(html, /查看购买记录[\s\S]*查看权益总流水/, 'membership page should expose audit links near the main actions');
+assert.doesNotMatch(html, /page-memberships[\s\S]*方案配置/, 'membership management page should not keep scheme config entry');
 assert.doesNotMatch(html, /会员数[\s\S]*订购次数[\s\S]*总金额[\s\S]*30天内到期/, 'membership page should remove top summary cards');
 
 assert.match(html, /let courts=\[\],students=\[\],products=\[\],packages=\[\],purchases=\[\],entitlements=\[\],entitlementLedger=\[\],membershipPlans=\[\],membershipAccounts=\[\],membershipOrders=\[\],membershipBenefitLedger=\[\],membershipAccountEvents=\[\]/, 'frontend state should load membership data separately');
@@ -26,8 +27,9 @@ assert.match(html, /查看账户/, 'courts table should expose dedicated members
 assert.match(html, /编辑资料/, 'courts table should keep profile editing entry');
 assert.match(html, /function openCourtMembershipPanel/, 'membership actions should move into dedicated account panel');
 assert.match(html, /function courtMembershipPanelHtml/, 'membership account should render through dedicated panel html');
-assert.match(html, /当前状态[\s\S]*权益批次[\s\S]*最近购买记录[\s\S]*操作/, 'membership account panel should keep four sections');
+assert.match(html, /当前状态[\s\S]*当前可用权益[\s\S]*权益批次[\s\S]*最近购买记录[\s\S]*最近开卡备注[\s\S]*操作/, 'membership account panel should expose status, available rights, batches, recent orders and remarks');
 assert.match(html, /会员账户[\s\S]*余额来自 courts\.history，仅展示不可直接修改/, 'membership account panel should explain balance source');
+assert.match(html, /本次成交权益/, 'membership account panel should show granted rights by purchase batch');
 assert.match(html, /消耗权益[\s\S]*补发权益[\s\S]*查看流水/, 'membership account panel should expose structured benefit actions');
 assert.match(html, /function courtMembershipBenefitRowsHtml/, 'membership account panel should render benefit rows');
 assert.match(html, /function membershipBenefitBatchCardsHtml/, 'membership account panel should render benefit batches by order');
@@ -45,6 +47,8 @@ assert.match(html, /function openMembershipBenefitHistoryModal/, 'benefit histor
 assert.match(html, /查看明细/, 'benefit card should use shorter history label');
 assert.match(html, /查看全部权益流水/, 'court detail should provide all-benefit history entry for the current user');
 assert.match(html, /function openCourtMembershipLedgerModal/, 'court detail should support all-benefit history modal');
+assert.match(html, /membershipBenefitLedger\.filter\(l=>l\.membershipAccountId===account\.id&&l\.benefitCode===benefitCode&&l\.action!=='grant'\)/, 'benefit history should hide grant rows because purchase records already carry the issuance source');
+assert.match(html, /membershipBenefitLedger\.filter\(l=>l\.membershipAccountId===account\.id&&l\.action!=='grant'\)/, 'all-benefit history should hide grant rows and focus on actual changes');
 assert.doesNotMatch(html, /openMembershipBenefitActionModal\('\$\{court\.id\}','ballMachine','consume'\)/, 'court detail shortcut actions should not hardcode ballMachine consume');
 assert.doesNotMatch(html, /openMembershipBenefitActionModal\('\$\{court\.id\}','ballMachine','supplement'\)/, 'court detail shortcut actions should not hardcode ballMachine supplement');
 assert.doesNotMatch(html, /openMembershipBenefitHistoryModal\('\$\{court\.id\}','ballMachine'\)/, 'court detail shortcut actions should not hardcode ballMachine history');
@@ -85,10 +89,10 @@ assert.match(html, /function membershipOrderBenefitSummaryHtml/, 'membership pur
 assert.match(html, /额外赠送/, 'membership purchase list should show one-off extra benefit adjustments');
 assert.match(html, /function openMembershipOrdersAuditModal/, 'membership page should provide a dedicated purchase audit modal');
 assert.match(html, /function openMembershipLedgerAuditModal/, 'membership page should provide a dedicated global ledger audit modal');
+assert.match(html, /membershipBenefitLedger\.filter\(l=>l\.action!=='grant'&&searchHit/, 'global benefit audit should hide grant rows');
 assert.match(html, /购买日期[\s\S]*订场用户[\s\S]*会员方案[\s\S]*充值[\s\S]*赠送金额[\s\S]*折扣[\s\S]*是否重置有效期[\s\S]*当次权益摘要[\s\S]*状态/, 'membership purchase audit should keep reduced audit fields');
 assert.match(html, /时间[\s\S]*订场用户[\s\S]*购买批次[\s\S]*权益[\s\S]*变动[\s\S]*动作[\s\S]*原因/, 'membership ledger audit should keep audit columns only');
 assert.match(html, /此页面仅用于审计与追溯，不用于日常操作/, 'audit modal should explain read-only positioning');
-assert.match(html, /goPage\('membership-plans'[\s\S]*查看购买记录[\s\S]*查看权益总流水/, 'membership page should expose scheme config and audit links as secondary actions');
 assert.match(html, /权益有效期固定 12 个月[\s\S]*余额最长按当前系统规则至 24 个月/, 'membership plan form should explain fixed validity rules');
 assert.match(html, /可用权益/, 'membership account list should expose benefit summary');
 assert.match(html, /查看账户/, 'membership account list should expose account detail entry');
@@ -110,6 +114,10 @@ assert.match(html, /function effectiveMembershipBenefitSource/, 'membership summ
 assert.match(html, /effectiveMembershipBenefitSource\(order\?\.benefitSnapshot,order,order\?\.planBenefitTemplateSnapshot,plan\)/, 'membership order summary should fall back when the stored snapshot is an empty object');
 assert.match(html, /const planCount=parseInt\(planSnap\?\.\[item\.code\]\?\.count\)\|\|0;/, 'membership purchase list should compare current order total against plan base count');
 assert.match(html, /const benefits=benefitRows\.length\?benefitRows\.map\(b=>`\$\{b\.label\} \$\{b\.remaining\}\/\$\{b\.total\}`\)\.join\('；'\):'—';/, 'membership account list should show remaining\/total benefit counts');
+assert.match(html, /function resetModalActions\(\)/, 'membership modals should clear stale footer actions before using body-level action areas');
+assert.match(html, /resetModalActions\(\);[\s\S]*function openMembershipOrderModal/, 'membership order modal should clear outer footer before rendering');
+assert.match(html, /resetModalActions\(\);[\s\S]*function openMembershipBenefitActionModal/, 'benefit action modal should clear outer footer before rendering');
+assert.match(html, /setCourtModalFrame\(`\$\{court\.name\} · 会员账户`,courtMembershipPanelHtml\(court\),'',/, 'membership account panel should not append an extra close footer');
 assert.match(html, /<thead style="font-size:10px"/, 'membership tables should use 10px table header size');
 assert.match(html, /<tbody style="font-size:12px"/, 'membership tables should use 12px body size');
 assert.match(html, /售卖时间[\s\S]*方案状态[\s\S]*操作/, 'membership plan list should show sale window and plan status columns');
