@@ -13,7 +13,7 @@
 <title>FlowTennis · 网球兄弟管理系统</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-:root{--amber-deep:#78350F;--amber-mid:#92400E;--amber-base:#B45309;--amber-warm:#D97706;--amber-light:#F59E0B;--cream-soft:#FDE68A;--cream-pale:#FEF3C7;--bg-grad:linear-gradient(135deg,#92400E 0%,#B45309 45%,#D97706 100%);--card-f:rgba(255,255,255,0.82);--bf:blur(20px);--borf:0.5px solid rgba(255,255,255,0.50);--shf:0 12px 48px rgba(0,0,0,0.13);--shm:0 8px 32px rgba(0,0,0,0.10);--shb:0 4px 24px rgba(0,0,0,0.07);--th:#1c1917;--tb:#3f3f46;--ts:#71717a;--td:rgba(0,0,0,0.32);--sw:220px;--topH:62px;}
+:root{--amber-deep:#78350F;--amber-mid:#92400E;--amber-base:#B45309;--amber-warm:#D97706;--amber-light:#F59E0B;--cream-soft:#FDE68A;--cream-pale:#FEF3C7;--bg-grad:#BA6F43;--card-f:rgba(255,255,255,0.82);--bf:blur(20px);--borf:0.5px solid rgba(255,255,255,0.50);--shf:0 12px 48px rgba(0,0,0,0.13);--shm:0 8px 32px rgba(0,0,0,0.10);--shb:0 4px 24px rgba(0,0,0,0.07);--th:#1c1917;--tb:#3f3f46;--ts:#71717a;--td:rgba(0,0,0,0.32);--sw:220px;--topH:62px;}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:14px}
 body{font-family:'DM Sans','Noto Sans SC',sans-serif;background:var(--bg-grad);min-height:100vh;display:flex;overflow:hidden;color:var(--cream-pale)}
@@ -32,7 +32,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .login-btn:hover{transform:translateY(-1px)}.login-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
 .login-err{background:rgba(220,38,38,0.08);border:1px solid rgba(220,38,38,0.2);border-radius:9px;padding:10px 14px;font-size:13px;color:#b91c1c;margin-bottom:14px;display:none}.login-err.show{display:block}
 .login-footer{text-align:center;margin-top:20px;font-size:12px;color:var(--ts)}
-.sidebar{width:var(--sw);background:rgba(0,0,0,0.16);backdrop-filter:blur(24px);border-right:0.5px solid rgba(255,255,255,0.18);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:50;overflow-y:auto}
+.sidebar{width:var(--sw);background:linear-gradient(180deg,#8d4b22 0%,#9c6239 100%);border-right:1px solid rgba(255,255,255,0.10);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:50;overflow-y:auto}
 .sb-logo{padding:22px 18px 18px;border-bottom:0.5px solid rgba(255,255,255,0.1);flex-shrink:0}.sb-brand{font-size:17px;font-weight:700;letter-spacing:1px;color:var(--cream-pale)}.sb-tagline{font-size:10px;color:var(--cream-soft);letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-top:2px}
 .sb-sec{padding:14px 14px 4px;font-size:9.5px;color:rgba(254,243,199,0.3);letter-spacing:1.8px;text-transform:uppercase}
 .sb-item{display:flex;align-items:center;gap:9px;padding:9px 14px;margin:1px 8px;border-radius:10px;cursor:pointer;color:rgba(254,243,199,0.5);font-size:13px;transition:all .15s;position:relative}
@@ -43,7 +43,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .user-pill{background:rgba(217,119,6,0.18);border:0.5px solid rgba(217,119,6,0.35);border-radius:9px;padding:9px 13px;font-size:12px;color:var(--cream-soft);display:flex;align-items:center;gap:8px;justify-content:space-between}
 .logout-btn{background:none;border:none;color:rgba(254,243,199,0.45);cursor:pointer;font-size:11px;font-family:inherit;transition:color .13s;padding:2px 6px;border-radius:5px}.logout-btn:hover{color:var(--cream-pale);background:rgba(255,255,255,0.1)}
 .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden;position:relative;z-index:1}
-.topbar{height:var(--topH);background:rgba(0,0,0,0.12);backdrop-filter:blur(20px);border-bottom:0.5px solid rgba(255,255,255,0.12);display:flex;align-items:center;padding:0 24px;gap:14px;flex-shrink:0}
+.topbar{height:var(--topH);background:linear-gradient(180deg,#8d4b22 0%,#96552b 100%);border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 24px;gap:14px;flex-shrink:0}
 .tb-title{font-size:16px;font-weight:600;color:var(--cream-pale);flex:1}
 .coach-top-logout{display:none;background:rgba(255,255,255,0.12);border:0.5px solid rgba(255,255,255,0.18);border-radius:10px;padding:7px 12px;color:var(--cream-pale);font-size:12px;cursor:pointer;font-family:inherit}
 .ctab{padding:6px 14px;border-radius:18px;border:0.5px solid rgba(254,243,199,0.2);background:transparent;color:rgba(254,243,199,0.55);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit}
@@ -69,12 +69,78 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .tcard{background:var(--card-f);backdrop-filter:var(--bf);border:var(--borf);box-shadow:var(--shf);border-radius:16px;overflow:hidden}
 #page-courts .tcard{overflow:visible}
 #page-courts thead th{position:sticky;top:0;z-index:5;background:rgba(253,248,241,.96);backdrop-filter:blur(12px)}
+.tms-stats-row{display:flex;gap:16px;margin-bottom:16px;flex-wrap:nowrap;overflow-x:auto;flex-shrink:0;scrollbar-width:none;-ms-overflow-style:none}
+.tms-stats-row::-webkit-scrollbar{display:none}
+.tms-stat-card{flex:1;min-width:0;background-color:#FDF7F2;border-radius:8px;padding:14px 18px 16px 18px;box-shadow:0 2px 4px rgba(0,0,0,.05);display:flex;flex-direction:column;justify-content:flex-start;position:relative;min-height:88px}
+.tms-stat-label{font-size:10px;color:#8C7B6E;margin-bottom:8px;white-space:nowrap;font-weight:400}
+.tms-stat-value{font-size:20px;font-weight:400;color:#332A24;display:flex;align-items:baseline;white-space:nowrap;line-height:1.1}
+.tms-stat-value span{font-size:14px;font-weight:400;margin-left:4px}
+.tms-stat-sub{font-size:10px;color:#A3968F;position:absolute;bottom:12px;left:18px;white-space:nowrap;font-weight:400}
+.tms-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;flex-shrink:0}
+.tms-filters,.tms-toolbar-left{display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex:1;min-width:0}
+.tms-toolbar-right{display:flex;gap:10px;align-items:center;margin-left:auto}
+.tms-search-wrapper{position:relative;display:inline-block;width:330px;max-width:100%}
+.tms-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#A3968F;pointer-events:none}
+.tms-search-input{height:34px;padding:0 12px 0 34px;border:1px solid transparent;border-radius:6px;background-color:#fff;color:#5C4D43;font-size:13px;outline:none;box-shadow:inset 0 1px 2px rgba(0,0,0,.02);width:100%;box-sizing:border-box;transition:border-color .2s;font-family:inherit}
+.tms-search-input:focus{border-color:#EAE0D6}
+.tms-btn{height:34px;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;padding:0 16px;border-radius:6px;cursor:pointer;font-size:13px;border:none;transition:all .2s;white-space:nowrap;font-weight:400;font-family:inherit}
+.tms-btn:hover{opacity:.9}
+.tms-btn-ghost{background-color:#fff;color:#C06031;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+.tms-btn-primary{background-color:#e57c42;color:#fff;box-shadow:0 4px 16px rgba(180,83,9,.22)}
+.tms-btn-danger{background-color:#FFF2F0;color:#D32F2F;border:1px solid #FFCCC7;box-shadow:0 2px 4px rgba(0,0,0,.05)}
+.tms-btn-default{background-color:transparent;border:1px solid #D9D0C7;color:#5C4D43}
+.tms-btn-default:hover{background-color:#D9D0C7}
+.tms-dropdown{position:relative;display:inline-block}
+.tms-dropdown.tms-dropdown-form{display:block;width:100%}
+.tms-dropdown-display{height:34px;box-sizing:border-box;padding:0 12px;border-radius:6px;background-color:#fff;color:#5C4D43;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-width:100px;box-shadow:inset 0 1px 2px rgba(0,0,0,.02);user-select:none;border:1px solid transparent}
+.tms-dropdown.tms-dropdown-form .tms-dropdown-display{padding:0 12px;font-size:14px;width:100%;background-color:#FDF7F2;border-radius:8px;height:48px}
+.tms-dropdown-display:hover{border-color:#EAE0D6}
+.tms-dropdown-display::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #8C7B6E;margin-left:8px;flex:0 0 auto}
+.tms-dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;background-color:#FAF6F2;border:1px solid #EAE0D6;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.08);z-index:100;display:none;min-width:100%;padding:4px;box-sizing:border-box;max-height:250px;overflow-y:auto}
+.tms-dropdown.open .tms-dropdown-menu{display:block}
+.tms-dropdown-item{padding:8px 12px;font-size:13px;color:#5C4D43;cursor:pointer;border-radius:4px;display:flex;align-items:center;white-space:nowrap}
+.tms-dropdown-item:hover{background-color:#F1EAE2}
+.tms-dropdown-item.active{background-color:#FCECE3;color:#C06031;font-weight:400}
+.tms-dropdown-item.active::before{content:"✓";margin-right:6px;font-weight:400;color:#C06031}
+.tms-table-card{background-color:#FDF7F2;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,.05);display:flex;flex-direction:column;overflow:hidden;margin-bottom:20px}
+.tms-table-wrapper{overflow:auto;max-height:calc(100vh - 292px);scrollbar-width:thin;scrollbar-color:#D9D0C7 transparent;position:relative;isolation:isolate}
+.tms-table-wrapper::-webkit-scrollbar{height:8px;width:8px;display:none}
+.tms-table{width:100%;min-width:1600px;border-collapse:separate;border-spacing:0;text-align:left;font-size:12px}
+.tms-table th,.tms-table td{white-space:nowrap;padding:8px 16px;border-bottom:1px solid #EAE0D6;vertical-align:middle;line-height:1.2}
+.tms-table th{color:#8C7B6E;font-size:10px;font-weight:400;padding-top:12px;padding-bottom:12px;position:sticky;top:0;background-color:#FDF7F2;z-index:50;box-shadow:inset 0 -1px 0 #EAE0D6;border-bottom:none;letter-spacing:0;text-transform:none}
+.tms-table td{overflow:hidden}
+.tms-table tbody tr:hover td{background-color:#F4EBE3}
+.tms-sticky-l{position:sticky;left:0;background-color:#FDF7F2;z-index:20}
+.tms-sticky-r{position:sticky;right:0;background-color:#FDF7F2;z-index:20;text-align:right}
+.tms-table th.tms-sticky-l,.tms-table th.tms-sticky-r{z-index:120}
+.tms-table thead .tms-sticky-l{left:0}
+.tms-table thead .tms-sticky-r{right:0}
+.tms-sticky-l::after{content:"";position:absolute;top:0;right:0;bottom:0;width:6px;background:linear-gradient(to right,rgba(0,0,0,.04),transparent);pointer-events:none;transform:translateX(100%)}
+.tms-sticky-r::before{content:"";position:absolute;top:0;left:0;bottom:0;width:6px;background:linear-gradient(to left,rgba(0,0,0,.04),transparent);pointer-events:none;transform:translateX(-100%)}
+.tms-table tbody tr:hover td.tms-sticky-l,.tms-table tbody tr:hover td.tms-sticky-r{background-color:#F4EBE3}
+.tms-th-checkbox{display:flex;align-items:center;gap:8px;font-size:10px;color:#8C7B6E;font-weight:400;line-height:1;width:100%}
+.tms-th-checkbox span{font-size:10px;color:#8C7B6E;font-weight:400}
+.court-name-cell,[data-court-name-cell]{min-width:156px;max-width:156px;width:156px;white-space:normal}
+.tms-pagination{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#FDF7F2;border-top:1px solid #EAE0D6;color:#8C7B6E;font-size:13px;gap:12px;flex-wrap:wrap}
+.tms-pagination-left,.tms-pagination-right{display:flex;align-items:center;gap:12px}
+.tms-page-numbers{display:flex;gap:4px;align-items:center}
+.tms-page-btn{min-width:28px;height:28px;padding:0 4px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;color:#5C4D43;transition:all .2s;user-select:none;font-weight:400}
+.tms-page-btn:hover{background-color:#EAE0D6}
+.tms-page-btn.active{background-color:#C06031;color:#fff;font-weight:400}
 table{width:100%;border-collapse:collapse}thead tr{background:rgba(180,83,9,0.06)}
 th{padding:11px 15px;text-align:left;font-size:11px;font-weight:600;color:var(--ts);letter-spacing:.9px;text-transform:uppercase;border-bottom:0.5px solid rgba(180,83,9,0.15);white-space:nowrap}
 td{padding:12px 15px;font-size:13px;color:var(--tb);border-bottom:0.5px solid rgba(180,83,9,0.08);vertical-align:middle}
 tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbody tr:hover{background:rgba(180,83,9,0.04)}tbody tr.warn-row{background:rgba(220,38,38,0.04)}
 .uname{font-weight:600;font-size:13.5px;color:var(--th)}.udesc{font-size:11px;color:var(--td);margin-top:1px}
 #page-courts .uname{font-size:13px;font-weight:500}
+.tms-text-primary{font-size:12px;font-weight:400;color:#332A24}
+.tms-text-secondary{font-size:12px;color:#8C7B6E;margin-top:0;font-weight:400}
+.tms-text-remark{font-size:12px;color:#A3968F;line-height:1.5;white-space:normal;min-width:140px;max-width:200px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;text-overflow:ellipsis}
+.tms-cell-text{font-size:12px;color:#332A24;font-weight:400}
+.tms-cell-text.is-muted{color:#A3968F}
+.tms-tag{display:inline-block;background-color:#F1EAE2;color:#8C7B6E;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:400}
+.tms-tag-green{background-color:#EAF4EA;color:#5BAE65}
+.tms-tag-red{background-color:#FCECE3;color:#C06031}
 .badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:18px;font-size:11px;font-weight:600;white-space:nowrap}
 .b-amber{background:rgba(217,119,6,0.15);color:var(--amber-base);border:0.5px solid rgba(217,119,6,0.25)}.b-cream{background:var(--cream-soft);color:#92400E;border:0.5px solid rgba(146,64,14,0.2)}.b-green{background:rgba(5,150,105,0.1);color:#065f46;border:0.5px solid rgba(5,150,105,0.2)}.b-red{background:rgba(220,38,38,0.1);color:#991b1b;border:0.5px solid rgba(220,38,38,0.18)}.b-gray{background:rgba(107,114,128,0.1);color:#4b5563;border:0.5px solid rgba(107,114,128,0.15)}.b-blue{background:rgba(59,130,246,0.1);color:#1d4ed8;border:0.5px solid rgba(59,130,246,0.2)}.b-purple{background:rgba(139,92,246,0.1);color:#6d28d9;border:0.5px solid rgba(139,92,246,0.2)}
 .campus-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(217,119,6,0.12);color:var(--amber-base);border:0.5px solid rgba(217,119,6,0.22);border-radius:7px;padding:3px 7px;font-size:11.5px;font-weight:500;white-space:nowrap}
@@ -86,10 +152,25 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .th-filter-menu button{display:block;width:100%;border:none;background:transparent;text-align:left;padding:6px 8px;border-radius:6px;font-size:11px;color:var(--tb);cursor:pointer;white-space:nowrap}
 .th-filter-menu button:hover,.th-filter-menu button.active{background:rgba(180,83,9,.10);color:var(--amber-base)}
 .th-sort{margin-left:5px;border:none;background:rgba(180,83,9,.08);color:var(--amber-base);border-radius:6px;padding:2px 5px;font-size:10px;cursor:pointer}
+.tms-sortable{cursor:pointer;user-select:none;transition:color .2s}
+.tms-sortable:hover{color:#C06031}
+.tms-sort-icon{display:inline-block;margin-left:4px;font-size:10px;color:#D9D0C7;font-family:monospace;font-weight:400;transition:color .2s}
+.tms-sortable:hover .tms-sort-icon,.tms-sortable.asc .tms-sort-icon,.tms-sortable.desc .tms-sort-icon{color:#C06031}
+.tms-mini-bar{position:relative;display:inline-block;min-width:80px;padding:2px 0}
+.tms-mini-bar-bg{position:absolute;left:0;top:0;bottom:0;background-color:#F1EAE2;border-radius:3px;z-index:1}
+.tms-mini-bar-fill{position:absolute;left:0;top:0;bottom:0;background-color:#DCA58B;border-radius:3px;z-index:2;opacity:.6}
+.tms-mini-bar-text{position:relative;z-index:3;font-weight:400;color:#5C4D43;padding:0 4px;font-size:12px}
 .prog-wrap{display:flex;align-items:center;gap:7px}.prog-track{width:68px;height:5px;background:rgba(180,83,9,0.1);border-radius:3px;overflow:hidden;flex-shrink:0}.prog-fill{height:100%;border-radius:3px}
 .pf-gold{background:linear-gradient(90deg,var(--amber-base),var(--amber-warm))}.pf-warn{background:linear-gradient(90deg,#d97706,#f59e0b)}.pf-red{background:linear-gradient(90deg,#dc2626,#ef4444)}
 .prog-txt{font-size:12px;color:var(--ts);white-space:nowrap;font-weight:500}.warn-txt{color:#dc2626;font-weight:700}
 .hist-link{font-size:11.5px;color:#b45309;cursor:pointer;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}.hist-link:hover{color:#92400e}
+.tms-action-link{color:#C06031;cursor:pointer;font-weight:400;text-decoration:none;display:inline-block;padding:6px 8px;border-radius:6px;transition:background .2s;font-size:12px}
+.tms-action-link:hover{background-color:#F1EAE2}
+.tms-checkbox-wrap{display:inline-flex;align-items:center;cursor:pointer;gap:8px;font-size:13px;color:#5C4D43;user-select:none}
+.tms-checkbox{width:16px;height:16px;border:1px solid #A3968F;border-radius:4px;appearance:none;outline:none;cursor:pointer;position:relative;background-color:#FDF7F2;margin:0;transition:all .2s;flex-shrink:0}
+.tms-checkbox:checked{background-color:#C06031;border-color:#C06031}
+.tms-checkbox:checked::after{content:'';position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.tms-checkbox-matrix{background-color:#F1EAE2;border-radius:8px;padding:16px;display:flex;flex-wrap:wrap;gap:12px 16px;border:1px solid #EAE0D6;max-height:150px;overflow-y:auto}
 .abtn{width:29px;height:29px;border-radius:8px;border:none;background:rgba(180,83,9,0.08);color:var(--amber-base);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;transition:all .13s}.abtn:hover{background:var(--amber-base);color:#fff}
 .pager{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:0.5px solid rgba(180,83,9,0.1)}.pager-info{font-size:12px;color:var(--td)}
 .pbtn{width:28px;height:28px;border-radius:7px;border:none;background:transparent;cursor:pointer;font-size:12.5px;color:var(--ts);font-family:inherit;transition:all .13s}.pbtn:hover{background:rgba(180,83,9,0.1);color:var(--amber-base)}.pbtn.active{background:var(--amber-base);color:#fff;font-weight:600}
@@ -99,8 +180,23 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .modal.modal-court{display:flex;flex-direction:column;overflow:hidden}
 .modal.modal-wide{width:min(900px,95vw)}
 .modal.modal-tight{width:min(640px,95vw)}
-.modal.modal-court .mbody{overflow:auto;padding-bottom:16px}
-.modal.modal-court .mactions{position:sticky;bottom:0;z-index:2;margin-top:0;padding-top:12px;background:rgba(253,248,241,.72);backdrop-filter:blur(12px)}
+.modal.modal-court .mbody{overflow:auto;padding-bottom:20px}
+.modal.modal-court .mactions{padding:16px 24px;display:flex;justify-content:space-between;border-radius:0 0 16px 16px;background:#E6E1DC;position:relative;bottom:auto;z-index:5;backdrop-filter:none;flex-shrink:0;border-top:1px solid #D9D0C7}
+.overlay.open .modal.modal-court{background-color:#E6E1DC;border:none;border-radius:16px;width:680px;max-height:90vh;box-shadow:0 10px 40px rgba(0,0,0,.2)}
+.overlay.open .modal.modal-court.modal-wide{width:780px}
+.overlay.open .modal.modal-court.modal-tight{width:500px}
+.modal.modal-court .mhead{padding:24px 24px 16px;display:flex;justify-content:space-between;align-items:center}
+.modal.modal-court .mtitle{font-size:18px;font-weight:700;color:#332A24}
+.modal.modal-court .mclose{cursor:pointer;width:28px;height:28px;background-color:#D9D0C7;border-radius:50%;display:flex;justify-content:center;align-items:center;color:#5C4D43;font-size:14px;font-weight:400;transition:background-color .2s}
+.modal.modal-court .mclose:hover{background-color:#C0B5AB;color:#5C4D43}
+.modal.modal-court .mbody{padding:0 24px 20px;overflow-y:auto;flex:1;scrollbar-width:none;-ms-overflow-style:none;min-height:0}
+.modal.modal-court .mbody::-webkit-scrollbar{display:none}
+.modal.modal-court .mactions{padding:16px 24px;display:flex;justify-content:space-between;border-radius:0 0 16px 16px;background:#E6E1DC;position:relative;bottom:auto;z-index:5;backdrop-filter:none;flex-shrink:0;border-top:1px solid #D9D0C7}
+.modal.modal-court .mactions.right-align{justify-content:flex-end}
+.tms-pagination .tms-dropdown-display{height:40px;padding:0 14px;font-size:12px;background-color:#FDF7F2;border:1px solid #EAE0D6;box-shadow:none;min-width:120px;border-radius:12px}
+.tms-pagination .tms-dropdown-display:hover{background-color:#fff}
+.tms-pagination .tms-dropdown-menu{top:auto;bottom:calc(100% + 4px)}
+.tms-pagination .tms-dropdown-item{padding:8px 12px;font-size:12px}
 .mhead{padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between}.mtitle{font-size:16px;font-weight:600;color:var(--th)}.mclose{width:30px;height:30px;border-radius:10px;border:none;background:rgba(180,83,9,0.08);color:var(--ts);cursor:pointer;font-size:18px;font-weight:500;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .13s;flex:0 0 auto;overflow:hidden}.mclose::before{content:none}.mclose:hover{background:#dc2626;color:#fff}
 .mbody{padding:14px 20px 20px;overflow:auto}
 .sec-ttl{font-size:10px;font-weight:700;color:var(--amber-base);letter-spacing:1.3px;text-transform:uppercase;margin:14px 0 9px;display:flex;align-items:center;gap:7px}.sec-ttl::after{content:'';flex:1;height:0.5px;background:rgba(180,83,9,0.2)}
@@ -175,6 +271,23 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .global-date-pop.open{display:block}
 .form-section{background:rgba(255,252,248,.66);border:0.5px solid rgba(180,83,9,.10);border-radius:16px;padding:14px;margin-bottom:12px}
 .form-section-title{font-size:12px;font-weight:650;color:var(--amber-base);margin-bottom:10px}
+.tms-section-header{font-size:12px;color:#C06031;font-weight:400;margin:24px 0 16px;display:flex;align-items:center}
+.tms-section-header::after{content:"";flex:1;height:1px;background-color:#D9D0C7;margin-left:12px}
+.tms-form-row{display:flex;gap:20px;margin-bottom:16px}
+.tms-form-item{flex:1;display:flex;flex-direction:column;position:relative;min-width:0}
+.tms-form-item.full-width{flex:none;width:100%}
+.tms-form-label{font-size:12px;color:#5C4D43;margin-bottom:8px}
+.tms-form-control{background-color:#FDF7F2;border:1px solid transparent;border-radius:8px;padding:12px;font-size:14px;color:#332A24;outline:none;box-sizing:border-box;width:100%}
+.tms-form-readonly{background-color:#FDF7F2;border-radius:8px;padding:12px;font-size:14px;color:#332A24;min-height:20px;word-break:break-all;box-sizing:border-box;width:100%}
+.tms-panel-tip{font-size:13px;color:#5C4D43;margin-bottom:16px;display:block}
+.tms-readonly-panel{background-color:#E6E1DC;border:1px solid #D9D0C7;border-radius:8px;padding:20px;margin-bottom:16px}
+.tms-record-add-box{background-color:#FFF;border-radius:12px;padding:24px;margin-bottom:24px;border:1px solid #EAE0D6;box-shadow:0 4px 12px rgba(0,0,0,.03)}
+.tms-history-list{display:flex;flex-direction:column;gap:12px}
+.tms-history-item{background-color:#F1EAE2;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;font-size:13px;color:#5C4D43}
+.tms-history-item .amount{font-weight:400;font-size:14px}
+.tms-history-item .amount.neg{color:#C06031}
+.tms-history-item .amount.pos{color:#4CAF50}
+.tms-history-item .desc{flex:1;color:#8C7B6E}
 .choice-grid{display:flex;flex-wrap:wrap;gap:8px}
 .choice-tag{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border-radius:12px;background:rgba(255,251,245,.72);border:0.5px solid rgba(180,83,9,.12);font-size:12.5px;font-weight:400;color:var(--tb)}
 .choice-tag input{appearance:none;-webkit-appearance:none;margin:0;width:14px;height:14px;border-radius:4px;border:0.5px solid rgba(120,53,15,.24);background:#fff;box-shadow:inset 0 1px 2px rgba(60,20,0,.06)}
@@ -464,18 +577,27 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     </div>
     <!-- 订场用户 -->
     <div class="page-section" id="page-courts">
-      <div class="stats-row" id="courtStatsRow"></div>
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="courtSearch" placeholder="搜索姓名、手机号、跟进日期" oninput="renderCourts()"></div>
-        <button class="btn-sec" onclick="exportCourtCSV()">导出CSV</button>
-        <button class="btn-sec" onclick="openCourtImport()">导入CSV</button>
-        <button class="btn-sec" onclick="openCourtFinanceMigrationPreview()">财务迁移预览</button>
-        <button class="btn-sec" id="courtBatchDelBtn" onclick="batchDeleteCourts()" disabled>批量删除</button>
-        <button class="btn-sec btn-green" onclick="backupToObsidian()">备份</button>
-        <button class="btn-add" onclick="openCourtModal(null)">＋ 添加订场用户</button>
+      <div class="tms-stats-row" id="courtStatsRow"></div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="courtSearch" placeholder="搜索姓名或手机号" oninput="renderCourts()">
+          </div>
+          <div id="courtAccountTypeFilter"></div>
+          <div id="courtOwnerFilter"></div>
+          <button class="tms-btn tms-btn-ghost" onclick="exportCourtCSV()">导出</button>
+          <div id="courtMoreActions"></div>
+          <button class="tms-btn tms-btn-danger" id="courtBatchDelBtn" onclick="batchDeleteCourts()" disabled style="display:none">批量删除</button>
+        </div>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-primary" onclick="openCourtModal(null)">＋ 添加订场用户</button>
+        </div>
       </div>
-      <div class="tcard"><table><thead><tr><th style="width:36px"><input type="checkbox" id="courtSelectAll" onchange="toggleCourtPageSelection(this.checked)"></th><th style="width:120px">姓名</th><th>手机号</th><th>校区<span class="th-filter-wrap"><button class="th-filter-btn" id="courtCampusFilterBtn" onclick="toggleCourtFilterMenu('campus')">⌛</button><span class="th-filter-menu" id="courtCampusFilterMenu"></span></span></th><th>账户类型</th><th>当前会员</th><th>会员状态</th><th>当前折扣</th><th>会员到期</th><th>对接人<span class="th-filter-wrap"><button class="th-filter-btn" id="courtOwnerFilterBtn" onclick="toggleCourtFilterMenu('owner')">⌛</button><span class="th-filter-menu" id="courtOwnerFilterMenu"></span></span></th><th>熟悉程度</th><th>对储值态度</th><th>下次跟进日期</th><th>当前余额<button class="th-sort" onclick="setCourtSort('balance')">排序</button></th><th>消费金额<button class="th-sort" onclick="setCourtSort('spentAmount')">排序</button></th><th>充值/消费记录</th><th>备注</th><th style="text-align:right">操作</th></tr></thead><tbody id="courtTbody"></tbody></table>
-        <div class="pager"><span class="pager-info" id="courtPagerInfo">共 0 条</span><div style="display:flex;gap:3px" id="courtPagerBtns"></div></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th class="tms-sticky-l" data-court-name-cell="1" style="width:156px;padding-left:20px"><label class="tms-th-checkbox"><input type="checkbox" class="tms-checkbox" id="courtSelectAll" onchange="toggleCourtPageSelection(this.checked)"><span>姓名</span></label></th><th style="width:140px">手机号</th><th style="width:110px">校区</th><th style="width:90px">账户类型</th><th style="width:140px">当前会员</th><th style="width:110px">会员状态</th><th style="width:90px">当前折扣</th><th class="tms-sortable" onclick="setCourtSort('validUntil')" style="width:120px">会员到期 <span class="tms-sort-icon">↕</span></th><th style="width:90px">对接人</th><th style="width:90px">熟悉程度</th><th style="width:160px">对储值态度</th><th style="width:120px">下次跟进日期</th><th class="tms-sortable" onclick="setCourtSort('balance')" style="width:120px">当前余额 <span class="tms-sort-icon">↕</span></th><th class="tms-sortable" onclick="setCourtSort('spentAmount')" style="width:120px">消费金额 <span class="tms-sort-icon">↕</span></th><th style="width:120px">充值/消费记录</th><th style="width:220px">备注</th><th class="tms-sticky-r" style="width:210px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="courtTbody"></tbody></table></div>
+        <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="courtPagerInfo">共 0 条</span><div id="courtPageSize"></div></div><div class="tms-page-numbers" id="courtPagerBtns"></div></div>
       </div>
     </div>
     <!-- 会员管理 -->
@@ -603,7 +725,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 <div class="page-loading" id="pageLoading"><div class="page-loading-card">数据加载中…</div></div>
 
 <div class="overlay" id="overlay">
-  <div class="modal"><div class="mhead"><div class="mtitle" id="mTitle">操作</div><button class="mclose close-x" type="button" aria-label="关闭" title="关闭" onclick="closeModal()">×</button></div><div class="mbody" id="mBody"></div></div>
+  <div class="modal"><div class="mhead"><div class="mtitle" id="mTitle">操作</div><button class="mclose close-x" type="button" aria-label="关闭" title="关闭" onclick="closeModal()">×</button></div><div class="mbody" id="mBody"></div><div class="mactions" id="mActions" style="display:none"></div></div>
 </div>
 <div class="overlay" id="importOv">
   <div class="modal">
@@ -1315,7 +1437,7 @@ function studentOpts(sel){
 }
 function studentChecks(ids){
   ids=parseArr(ids);
-  return students.map(s=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${s.id}" class="court-stu-cb" ${ids.includes(s.id)?'checked':''}>${esc(s.name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无学员</span>';
+  return students.map(s=>`<label class="tms-checkbox-wrap"><input type="checkbox" value="${s.id}" class="tms-checkbox court-stu-cb" ${ids.includes(s.id)?'checked':''}><span>${esc(s.name)}</span></label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无学员</span>';
 }
 function courtStudentSelect(sel){
   return '<option value="">— 不关联 —</option>'+students.map(s=>`<option value="${s.id}"${sel===s.id?' selected':''}>${esc(s.name)}</option>`).join('');
@@ -1648,9 +1770,10 @@ function renderAll(){
 }
 
 let currentPage=localStorage.getItem(PAGE_KEY)||'students',campus=localStorage.getItem(CAMPUS_KEY)||'all',editId=null,delId=null,delType=null,_pending=[];
+let batchDeleteCourtIds=[];
 let stuPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1;
 let membershipTab='accounts';
-let courtSortKey='',courtSortDir='desc',courtCampusFilterValue='',courtOwnerFilterValue='',selectedCourtIds=new Set();
+let courtSortKey='',courtSortDir='desc',courtOwnerFilterValue='',courtAccountTypeFilterValue='',courtPageSize=20,selectedCourtIds=new Set();
 let coachOpsMode='day',coachOpsPanel='schedule',coachOpsPickerMonth=null;
 
 function goPage(pg,el){
@@ -1814,13 +1937,13 @@ function openStudentModal(id){
 async function saveStudent(){
   const name=document.getElementById('s_name').value.trim();if(!name){toast('请输入姓名','warn');return;}
   const phone=document.getElementById('s_phone').value.trim();if(!validateCnPhone(phone)){toast('手机号格式不正确','warn');return;}
-  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  const btn=document.getElementById('courtSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const data={name,phone,type:document.getElementById('s_type').value,source:document.getElementById('s_source').value,activityRange:document.getElementById('s_range').value.trim(),campus:document.getElementById('s_campus').value,notes:document.getElementById('s_notes').value.trim(),updatedBy:currentUser?.name||''};
   const duplicates=getStudentDuplicateCandidates(data,editId);
   if(duplicates.length){
     const summary=duplicates.map(s=>`${s.name}${s.phone?`（${s.phone}）`:''}`).join('、');
     if(!confirm(`发现可能重复的学员：${summary}。是否继续保存？`)){
-      btn.disabled=false;btn.textContent='保存';
+      if(btn){btn.disabled=false;btn.textContent='保存';}
       return;
     }
   }
@@ -1828,7 +1951,7 @@ async function saveStudent(){
     if(editId){const res=await apiCall('PUT','/students/'+editId,data);const i=students.findIndex(x=>x.id===editId);students[i]={...students[i],...data,id:editId};mergeLinkedUpdates(res.studentUpdates||{});}
     else{const r=await apiCall('POST','/students',data);students.unshift(r);}
     closeModal();toast(editId?'修改成功 ✓':'添加成功 ✓','success');renderStudents();renderPlans();renderSchedule();renderPurchases();renderEntitlements();renderMySchedule();
-  }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
+  }catch(e){toast('保存失败：'+e.message,'error');if(btn){btn.disabled=false;btn.textContent='保存';}}
 }
 function mergeLinkedUpdates(updates){
   (updates.plans||[]).forEach(r=>{const i=plans.findIndex(x=>x.id===r.id);if(i>=0)plans[i]=r;});
@@ -1983,7 +2106,7 @@ function updateClsNamePreview(){
 async function saveClass(){
   const productId=document.getElementById('cls_prodId').value;
   if(!productId){toast('请选择课程产品','warn');return;}
-  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  const btn=document.getElementById('courtSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const studentIds=[...document.querySelectorAll('.cls-stu-cb:checked')].map(cb=>cb.value);
   const scheduleDays=[...document.querySelectorAll('.cls-day-cb:checked')].map(cb=>cb.value);
   const prod=products.find(p=>p.id===productId);
@@ -2285,7 +2408,7 @@ async function saveSchedule(){
   if(status==='已取消'&&!cancelReason){toast('请选择取消原因','warn');return;}
   const data={startTime,endTime,classId,studentIds,studentName:scheduleStudentTextByIds(studentIds).replace(/（[^）]*）/g,''),courseType:document.getElementById('sch_courseType').value,isTrial:document.getElementById('sch_isTrial').value==='true',coach:document.getElementById('sch_coach').value,coachId:document.getElementById('sch_coach').value,venue:document.getElementById('sch_venue').value.trim(),campus:document.getElementById('sch_campus').value,lessonCount:lc,status,entitlementId:selectedEntitlementId,packageName:selectedEntitlement?.packageName||'',purchaseId:selectedEntitlement?.purchaseId||'',timeBand:selectedEntitlement?.timeBand||'',cancelReason,notifyStatus:document.getElementById('sch_notifyStatus')?.value||'未通知',confirmStatus:document.getElementById('sch_confirmStatus')?.value||'待确认',scheduleSource:document.getElementById('sch_scheduleSource')?.value||'排课表',notes:document.getElementById('sch_notes').value.trim()};
   if(!window.confirm(scheduleSaveConfirmText(data,selectedEntitlement)))return;
-  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  const btn=document.getElementById('courtSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   try{
     let result;
     if(editId){
@@ -2560,31 +2683,41 @@ function renderCoachOps(){
 }
 // ===== 订场用户 =====
 function renderCourtHeaderFilters(base){
-  const campusMenu=document.getElementById('courtCampusFilterMenu');
-  const ownerMenu=document.getElementById('courtOwnerFilterMenu');
-  const campusBtn=document.getElementById('courtCampusFilterBtn');
-  const ownerBtn=document.getElementById('courtOwnerFilterBtn');
-  if(campusMenu){
-    const opts=[...new Set(base.map(c=>c.campus).filter(Boolean))];
-    campusMenu.innerHTML=[`<button class="${courtCampusFilterValue?'':'active'}" onclick="setCourtHeaderFilter('campus','')">全部</button>`,...opts.map(v=>`<button class="${courtCampusFilterValue===v?'active':''}" onclick="setCourtHeaderFilter('campus',${jsArg(v)})">${cn(v)}</button>`)].join('');
-  }
-  if(ownerMenu){
-    const opts=[...new Set(base.map(c=>String(c.owner||'').trim()).filter(Boolean))];
-    ownerMenu.innerHTML=[`<button class="${courtOwnerFilterValue?'':'active'}" onclick="setCourtHeaderFilter('owner','')">全部</button>`,...opts.map(v=>`<button class="${courtOwnerFilterValue===v?'active':''}" onclick="setCourtHeaderFilter('owner',${jsArg(v)})">${esc(v)}</button>`)].join('');
-  }
-  if(campusBtn)campusBtn.classList.toggle('active',!!courtCampusFilterValue);
-  if(ownerBtn)ownerBtn.classList.toggle('active',!!courtOwnerFilterValue);
+  const ownerHost=document.getElementById('courtOwnerFilter');
+  const accountHost=document.getElementById('courtAccountTypeFilter');
+  const moreHost=document.getElementById('courtMoreActions');
+  const pageSizeHost=document.getElementById('courtPageSize');
+  const ownerOpts=[{value:'',label:'全部对接人'},...[...new Set(base.map(c=>String(c.owner||'').trim()).filter(Boolean))].map(v=>({value:v,label:v}))];
+  if(ownerHost)ownerHost.innerHTML=renderCourtDropdownHtml('courtOwnerValue','全部对接人',ownerOpts,courtOwnerFilterValue,false,'onCourtToolbarFilterChange');
+  if(accountHost)accountHost.innerHTML=renderCourtDropdownHtml('courtAccountTypeValue','全部账户',[{value:'',label:'全部账户'},{value:'普通',label:'普通'},{value:'会员',label:'会员'},{value:'储值',label:'储值'}],courtAccountTypeFilterValue,false,'onCourtToolbarFilterChange');
+  if(moreHost)moreHost.innerHTML=renderCourtDropdownHtml('courtMoreActionValue','更多操作',[{value:'import',label:'导入CSV'},{value:'migration',label:'财务迁移预览'},{value:'backup',label:'备份'}],'',false,'handleCourtMoreAction');
+  if(pageSizeHost)pageSizeHost.innerHTML=renderCourtDropdownHtml('courtPageSizeValue',`${courtPageSize}条/页`,[{value:'20',label:'20条/页'},{value:'50',label:'50条/页'},{value:'100',label:'100条/页'}],String(courtPageSize),false,'setCourtPageSize');
 }
-function toggleCourtFilterMenu(type){
-  const menu=document.getElementById(type==='campus'?'courtCampusFilterMenu':'courtOwnerFilterMenu');
-  document.querySelectorAll('.th-filter-menu').forEach(x=>{if(x!==menu)x.classList.remove('open');});
-  if(menu)menu.classList.toggle('open');
+function onCourtToolbarFilterChange(){
+  courtOwnerFilterValue=document.getElementById('courtOwnerValue')?.value||'';
+  courtAccountTypeFilterValue=document.getElementById('courtAccountTypeValue')?.value||'';
+  courtPage=1;
+  renderCourts();
 }
-function setCourtHeaderFilter(type,value){
-  if(type==='campus')courtCampusFilterValue=value;
-  if(type==='owner')courtOwnerFilterValue=value;
-  document.querySelectorAll('.th-filter-menu').forEach(x=>x.classList.remove('open'));
-  courtPage=1;renderCourts();
+function setCourtPageSize(value){
+  const next=parseInt(value,10)||20;
+  courtPageSize=next;
+  courtPage=1;
+  renderCourts();
+}
+function handleCourtMoreAction(value){
+  const action=value||document.getElementById('courtMoreActionValue')?.value||'';
+  if(action==='import')openCourtImport();
+  if(action==='migration')openCourtFinanceMigrationPreview();
+  if(action==='backup')backupToObsidian();
+  const holder=document.getElementById('courtMoreActionValue');
+  if(holder)holder.value='';
+  const dropdown=document.getElementById('courtMoreActionValue_dropdown');
+  if(dropdown){
+    const display=dropdown.querySelector('.tms-dropdown-display');
+    if(display)display.textContent='更多操作';
+    dropdown.querySelectorAll('.tms-dropdown-item').forEach(el=>el.classList.remove('active'));
+  }
 }
 function setCourtSort(key){
   if(courtSortKey===key)courtSortDir=courtSortDir==='desc'?'asc':'desc';
@@ -2778,6 +2911,7 @@ async function voidMembership(courtId){
 function updateCourtBatchButton(){
   const btn=document.getElementById('courtBatchDelBtn');
   if(!btn)return;
+  btn.style.display=selectedCourtIds.size?'inline-flex':'none';
   btn.disabled=selectedCourtIds.size===0;
   btn.textContent=selectedCourtIds.size?`批量删除（${selectedCourtIds.size}）`:'批量删除';
 }
@@ -2789,42 +2923,157 @@ function toggleCourtPageSelection(checked){
   document.querySelectorAll('.court-row-cb').forEach(cb=>{cb.checked=checked;if(checked)selectedCourtIds.add(cb.value);else selectedCourtIds.delete(cb.value);});
   updateCourtBatchButton();
 }
+function renderCourtDropdownHtml(id,label,options,value,isForm=false,onchange=''){
+  const list=(options||[]).map(opt=>typeof opt==='string'?{value:opt,label:opt}:opt);
+  const active=list.find(opt=>String(opt.value)===String(value))||list.find(opt=>opt.active)||null;
+  const displayLabel=active?(active.label||active.value):label;
+  return `<div class="tms-dropdown ${isForm?'tms-dropdown-form':''}" id="${id}_dropdown" data-target="${id}" data-onchange="${onchange}" onclick="toggleCourtDropdown('${id}',event)"><input type="hidden" id="${id}" value="${esc(active?.value||value||'')}"><div class="tms-dropdown-display">${esc(displayLabel)}</div><div class="tms-dropdown-menu">${list.map(opt=>`<div class="tms-dropdown-item ${active&&String(opt.value)===String(active.value)?'active':''}" onclick="selectCourtDropdownItem('${id}',${jsArg(opt.value)},${jsArg(opt.label||opt.value)},event)">${esc(opt.label||opt.value)}</div>`).join('')}</div></div>`;
+}
+function closeCourtDropdowns(){
+  document.querySelectorAll('#page-courts .tms-dropdown.open,#overlay .modal-court .tms-dropdown.open').forEach(el=>{
+    el.classList.remove('open');
+    const formItem=el.closest('.tms-form-item');
+    if(formItem)formItem.style.zIndex='1';
+  });
+}
+function toggleCourtDropdown(id,event){
+  if(event)event.stopPropagation();
+  const dropdown=document.getElementById(id+'_dropdown');
+  if(!dropdown)return;
+  document.querySelectorAll('.tms-dropdown.open').forEach(el=>{
+    if(el!==dropdown){
+      el.classList.remove('open');
+      const formItem=el.closest('.tms-form-item');
+      if(formItem)formItem.style.zIndex='1';
+    }
+  });
+  dropdown.classList.toggle('open');
+  const formItem=dropdown.closest('.tms-form-item');
+  if(formItem)formItem.style.zIndex=dropdown.classList.contains('open')?'10':'1';
+}
+function selectCourtDropdownItem(id,value,label,event){
+  if(event)event.stopPropagation();
+  const dropdown=document.getElementById(id+'_dropdown');
+  const input=document.getElementById(id);
+  if(input)input.value=value;
+  if(dropdown){
+    const display=dropdown.querySelector('.tms-dropdown-display');
+    if(display)display.textContent=label;
+    dropdown.querySelectorAll('.tms-dropdown-item').forEach(el=>el.classList.remove('active'));
+    const current=[...dropdown.querySelectorAll('.tms-dropdown-item')].find(el=>el.textContent===label);
+    if(current)current.classList.add('active');
+    dropdown.classList.remove('open');
+    const formItem=dropdown.closest('.tms-form-item');
+    if(formItem)formItem.style.zIndex='1';
+    const cb=dropdown.dataset.onchange;
+    if(cb&&typeof window[cb]==='function')window[cb](value,label);
+  }
+}
+function setCourtDropdownValue(id,value,label=''){
+  const input=document.getElementById(id);
+  const dropdown=document.getElementById(id+'_dropdown');
+  if(input)input.value=value;
+  if(!dropdown)return;
+  const items=[...dropdown.querySelectorAll('.tms-dropdown-item')];
+  items.forEach(el=>el.classList.remove('active'));
+  const hit=items.find(el=>el.textContent===String(label||'')||el.textContent===String(value||''));
+  if(hit)hit.classList.add('active');
+  const display=dropdown.querySelector('.tms-dropdown-display');
+  if(display)display.textContent=label||hit?.textContent||dropdown.dataset.label||'';
+}
+document.addEventListener('click',closeCourtDropdowns);
+function renderCourtMiniBar(amount,total=0,low=false){
+  const safeAmount=Math.max(0,parseFloat(amount)||0);
+  const safeTotal=Math.max(safeAmount,parseFloat(total)||0);
+  const pct=safeTotal>0?Math.min(100,Math.round(safeAmount/safeTotal*100)):0;
+  return `<div class="tms-mini-bar"><div class="tms-mini-bar-bg" style="width:100%"></div><div class="tms-mini-bar-fill" style="width:${pct}%"></div><div class="tms-mini-bar-text">¥${fmt(safeAmount)}${low?' · 低余额':''}</div></div>`;
+}
+function renderCourtCellText(value,mutedWhenEmpty=true){
+  const raw=String(value??'').trim();
+  const text=raw||'—';
+  const muted=mutedWhenEmpty&&(!raw||raw==='—'||raw==='未开卡');
+  return `<div class="tms-cell-text${muted?' is-muted':''}">${esc(text)}</div>`;
+}
+function courtDateButtonHtml(id,value,label='年 / 月 / 日'){
+  const show=value||label;
+  return `<div class="filter-date-wrap"><button class="coach-date-btn" id="${id}_btn" onclick="toggleGlobalDatePicker(event,'${id}','${id}_btn','${label}')" type="button">${esc(show)}</button><input class="filter-hidden-date" id="${id}" type="date" value="${esc(value||'')}" onchange="syncDateButton('${id}','${id}_btn','${label}')"></div>`;
+}
+function setCourtModalFrame(title,bodyHtml,actionsHtml='',extraClass='modal-tight'){
+  const ov=document.getElementById('overlay');
+  const modal=ov.querySelector('.modal');
+  const actions=document.getElementById('mActions');
+  if(modal)modal.className=`modal modal-court ${extraClass}`.trim();
+  document.getElementById('mTitle').textContent=title;
+  document.getElementById('mBody').innerHTML=bodyHtml;
+  if(actions){
+    actions.innerHTML=actionsHtml||'';
+    actions.style.display=actionsHtml?'flex':'none';
+    actions.className='mactions';
+  }
+  ov.classList.add('open');
+}
+function renderCourtHistoryItems(hist){
+  return hist.length?hist.map(h=>{
+    const type=h.type||'消费';
+    const amount=Math.abs(parseFloat(h.amount)||0);
+    const cls=type==='充值'?'tms-tag-green':'tms-tag-red';
+    const amountCls=type==='充值'?'pos':'neg';
+    const sign=type==='充值'?'+':'-';
+    const meta=[h.payMethod,h.category,h.note].filter(Boolean).join(' · ')||'—';
+    return `<div class="tms-history-item"><div style="width:110px;">${esc(h.date)||'—'}</div><span class="tms-tag ${cls}">${esc(type)}</span><div class="amount ${amountCls}">${sign}¥${fmt(amount)}</div><div class="desc">${esc(meta)}</div></div>`;
+  }).join(''):'<div class="empty"><p>暂无记录</p></div>';
+}
+function getCourtTimeOptions(selected='08:00'){
+  const opts=[];
+  for(let h=8;h<=22;h++){
+    const hh=String(h).padStart(2,'0');
+    opts.push({value:`${hh}:00`,label:`${hh}:00`});
+    if(h!==22)opts.push({value:`${hh}:30`,label:`${hh}:30`});
+  }
+  return opts.map(opt=>({...opt,active:opt.value===selected}));
+}
 function renderCourts(){
   const q=(document.getElementById('courtSearch')?.value||'').toLowerCase();
-  const tableCampus=courtCampusFilterValue;
-  const tableOwner=courtOwnerFilterValue;
   const base=courts.filter(c=>campus==='all'||c.campus===campus);
   renderCourtHeaderFilters(base);
   let list=courts.filter(c=>{
     if(campus!=='all'&&c.campus!==campus)return false;
-    if(tableCampus&&c.campus!==tableCampus)return false;
-    if(tableOwner&&String(c.owner||'').trim()!==tableOwner)return false;
+    if(courtOwnerFilterValue&&String(c.owner||'').trim()!==courtOwnerFilterValue)return false;
     const linked=findStudentForCourt(c);
+    const membershipSummary=courtMembershipSummary(c);
+    if(courtAccountTypeFilterValue&&membershipSummary.accountType!==courtAccountTypeFilterValue)return false;
     return searchHit(q,c.name,c.phone,cn(c.campus),c.owner,c.depositAttitude,c.familiarity,c.recentFollowUpDate,c.nextFollowUpDate,c.notes,c.balance,c.totalDeposit,c.spentAmount,c.receivedAmount,courtStudentNames(c),linked?.name,linked?.phone);
   });
   if(courtSortKey){
     list.sort((a,b)=>{
-      const av=parseFloat(a[courtSortKey])||0,bv=parseFloat(b[courtSortKey])||0;
+      const af=courtFinanceLocal(a),bf=courtFinanceLocal(b);
+      const av=courtSortKey==='balance'?af.balance:courtSortKey==='spentAmount'?af.spentAmount:courtSortKey==='validUntil'?dateMs(courtMembershipSummary(a).validUntil||''):parseFloat(a[courtSortKey])||0;
+      const bv=courtSortKey==='balance'?bf.balance:courtSortKey==='spentAmount'?bf.spentAmount:courtSortKey==='validUntil'?dateMs(courtMembershipSummary(b).validUntil||''):parseFloat(b[courtSortKey])||0;
       return courtSortDir==='desc'?bv-av:av-bv;
     });
   }
   const finBase=base.map(courtFinanceLocal);
   const totBal=finBase.reduce((s,u)=>s+u.balance,0),totDep=finBase.reduce((s,u)=>s+u.totalDeposit,0),totSpent=finBase.reduce((s,u)=>s+u.spentAmount,0),totReceived=finBase.reduce((s,u)=>s+u.receivedAmount,0);
   const low=finBase.filter(u=>u.balance>0&&u.balance<=500).length;
-  document.getElementById('courtStatsRow').innerHTML=`<div class="scard"><div class="sc-icon si-a">🏟️</div><div><div class="sc-label">订场用户</div><div class="sc-val">${base.length}<span class="u">人</span></div></div></div><div class="scard"><div class="sc-icon si-c">💳</div><div><div class="sc-label">余额合计</div><div class="sc-val">¥${fmt(totBal)}</div><div class="sc-sub" style="color:${low?'#b45309':''}">低余额 ${low}</div></div></div><div class="scard"><div class="sc-icon si-d">💰</div><div><div class="sc-label">累计充值</div><div class="sc-val">¥${fmt(totDep)}</div></div></div><div class="scard"><div class="sc-icon si-e">¥</div><div><div class="sc-label">累计消费</div><div class="sc-val">¥${fmt(totSpent)}</div></div></div><div class="scard"><div class="sc-icon si-b">✅</div><div><div class="sc-label">累计实收</div><div class="sc-val">¥${fmt(totReceived)}</div></div></div>`;
-  const total=list.length,pages=Math.ceil(total/PAGE_SIZE),slice=list.slice((courtPage-1)*PAGE_SIZE,courtPage*PAGE_SIZE);
+  document.getElementById('courtStatsRow').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">订场用户</div><div class="tms-stat-value">${base.length}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">余额合计</div><div class="tms-stat-value">¥${fmt(totBal)}</div><div class="tms-stat-sub" style="color:${low?'#b45309':''}">低余额 ${low}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计充值</div><div class="tms-stat-value">¥${fmt(totDep)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计消费</div><div class="tms-stat-value">¥${fmt(totSpent)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计实收</div><div class="tms-stat-value">¥${fmt(totReceived)}</div></div>`;
+  const total=list.length,pages=Math.ceil(total/courtPageSize),slice=list.slice((courtPage-1)*courtPageSize,courtPage*courtPageSize);
   document.getElementById('courtPagerInfo').textContent=`共 ${total} 条`;
-  document.getElementById('courtPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<button class="pbtn${i+1===courtPage?' active':''}" onclick="courtPage=${i+1};renderCourts()">${i+1}</button>`).join('');
+  document.getElementById('courtPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<div class="tms-page-btn${i+1===courtPage?' active':''}" onclick="courtPage=${i+1};renderCourts()">${i+1}</div>`).join('');
   const selectAll=document.getElementById('courtSelectAll');
   if(selectAll){selectAll.checked=!!slice.length&&slice.every(u=>selectedCourtIds.has(u.id));}
   document.getElementById('courtTbody').innerHTML=slice.length?slice.map(u=>{
     const f=courtFinanceLocal(u);
     const m=courtMembershipSummary(u);
-    const pct=f.totalDeposit>0?Math.min(100,Math.round(f.balance/f.totalDeposit*100)):0;
-    const pc=pct>50?'pf-gold':pct>20?'pf-warn':'pf-red';const w=f.balance>0&&f.balance<=500;
-    return `<tr class="${w?'warn-row':''}"><td><input type="checkbox" class="court-row-cb" value="${u.id}" ${selectedCourtIds.has(u.id)?'checked':''} onchange="toggleCourtSelection('${u.id}',this.checked)"></td><td style="max-width:120px"><div class="uname">${esc(u.name)}</div></td><td style="color:var(--ts)">${esc(u.phone)||'—'}</td><td><span class="campus-tag">${cn(u.campus)}</span></td><td><span class="badge ${m.accountType==='会员'?'b-green':m.accountType==='储值'?'b-amber':'b-gray'}">${m.accountType}</span></td><td>${esc(m.memberLabel)}</td><td>${esc(m.status)}</td><td>${esc(m.discount)}</td><td>${esc(m.validUntil)}</td><td>${esc(u.owner)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(u.familiarity)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(u.depositAttitude)||'—'}</td><td>${esc(u.nextFollowUpDate)||'—'}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${pct}%"></div></div><span class="prog-txt">¥${fmt(f.balance)} ${w?'<span class="warn-txt">低余额</span>':''}</span></div></td><td>¥${fmt(f.spentAmount)}</td><td><span class="hist-link" onclick="openCourtHist('${u.id}')">${parseArr(u.history).length} 条</span></td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(u.notes)||'—'}</td><td style="text-align:right;white-space:nowrap"><button class="abtn" onclick="openCourtMembershipPanel('${u.id}')">查看账户</button><button class="abtn" onclick="openCourtModal('${u.id}')">编辑资料</button><button class="abtn" onclick="openCourtFinanceModal('${u.id}')">记一笔流水</button></td></tr>`;
+    const w=f.balance>0&&f.balance<=500;
+    const accountTagClass=m.accountType==='会员'?'tms-tag-green':m.accountType==='普通'?'':'tms-tag-red';
+    return `<tr class="${w?'warn-row':''}"><td class="tms-sticky-l" data-court-name-cell="1" style="padding-left:20px"><label class="tms-checkbox-wrap" style="align-items:flex-start;width:100%"><input type="checkbox" class="tms-checkbox court-row-cb" value="${u.id}" ${selectedCourtIds.has(u.id)?'checked':''} onchange="toggleCourtSelection('${u.id}',this.checked)"><span class="tms-text-primary" style="margin-left:4px;white-space:normal;display:block;line-height:1.35;max-width:88px">${esc(u.name)}</span></label></td><td>${renderCourtCellText(u.phone)}</td><td>${renderCourtCellText(cn(u.campus))}</td><td><span class="tms-tag ${accountTagClass}">${esc(m.accountType)}</span></td><td><div class="tms-cell-text${!m.memberLabel||m.memberLabel==='—'?' is-muted':''}" style="max-width:130px;overflow:hidden;text-overflow:ellipsis">${esc(m.memberLabel||'—')}</div></td><td>${renderCourtCellText(m.status)}</td><td>${renderCourtCellText(m.discount)}</td><td>${renderCourtCellText(m.validUntil)}</td><td>${renderCourtCellText(u.owner)}</td><td>${renderCourtCellText(u.familiarity)}</td><td>${renderCourtCellText(u.depositAttitude)}</td><td>${renderCourtCellText(u.nextFollowUpDate)}</td><td>${renderCourtMiniBar(f.balance,f.totalDeposit,w)}</td><td><div class="tms-cell-text">¥${fmt(f.spentAmount)}</div></td><td><span class="tms-action-link" onclick="openCourtHist('${u.id}')">${parseArr(u.history).length}条</span></td><td><div class="tms-text-remark" title="${esc(u.notes||'')}">${esc(u.notes)||'—'}</div></td><td class="tms-sticky-r" style="width:210px;padding-right:20px;text-align:right;white-space:nowrap"><span class="tms-action-link" onclick="openCourtMembershipPanel('${u.id}')">查看</span><span class="tms-action-link" onclick="openCourtModal('${u.id}')">编辑</span><span class="tms-action-link" onclick="openCourtFinanceModal('${u.id}')">订场</span></td></tr>`;
   }).join(''):'<tr><td colspan="18"><div class="empty"><div class="empty-ico">🏟️</div><p>暂无订场用户</p></div></td></tr>';
   updateCourtBatchButton();
+  document.querySelectorAll('#page-courts .tms-sortable').forEach(el=>el.classList.remove('asc','desc'));
+  if(courtSortKey){
+    const active=document.querySelector(`#page-courts .tms-sortable[onclick="setCourtSort('${courtSortKey}')"]`);
+    if(active)active.classList.add(courtSortDir);
+  }
 }
 function courtRecRow(h){
   const type=h.type||'消费',amount=Math.abs(parseFloat(h.amount)||0);
@@ -2843,34 +3092,28 @@ function courtMembershipPanelHtml(court){
   const finance=courtFinanceLocal(court||{history:[]});
   const visible=membershipActionVisibility(account);
   const recentOrders=orders.slice(0,3);
-  const disabledHint=account?.status==='voided'?'<div style="margin-bottom:10px;background:rgba(220,38,38,0.08);border:0.5px solid rgba(220,38,38,0.2);border-radius:8px;padding:8px 10px;color:#b91c1c;font-size:12px">已作废：折扣失效，权益不可再使用</div>':'';
   const discountText=account?.status==='voided'?'折扣失效':summary.discount;
-  return `<div class="sec-ttl">会员账户</div><div style="background:rgba(217,119,6,0.06);border:0.5px solid rgba(217,119,6,0.16);border-radius:8px;padding:10px 12px;margin-bottom:12px"><div style="font-size:12px;color:var(--tb);margin-bottom:10px">余额来自 courts.history，仅展示不可直接修改</div>${disabledHint}<div class="flabel">当前状态</div><div class="fgrid" style="margin-bottom:12px"><div class="fg"><div class="flabel">当前方案</div><div class="finput">${esc(summary.memberLabel)}</div></div><div class="fg"><div class="flabel">会员状态</div><div class="finput">${esc(summary.status)}</div></div><div class="fg"><div class="flabel">当前折扣</div><div class="finput">${esc(discountText)}</div></div><div class="fg"><div class="flabel">当前余额</div><div class="finput">¥${fmt(finance.balance)}</div></div><div class="fg"><div class="flabel">余额有效期</div><div class="finput">${esc(summary.validUntil)}</div></div><div class="fg"><div class="flabel">最晚清零日</div><div class="finput">${esc(account?.hardExpireAt)||'—'}</div></div></div><div class="flabel">权益批次</div><div style="margin-bottom:12px">${membershipBenefitBatchCardsHtml(account)}</div><div class="flabel">最近购买记录</div><div style="font-size:12px;color:var(--tb);margin-bottom:12px">${recentOrders.map(o=>`${esc(o.purchaseDate)} · ${esc(o.membershipPlanName)} · 实收 ¥${fmt(o.rechargeAmount)} · 赠送 ¥${fmt(o.bonusAmount)} · ${o.qualifiesRenewalReset===false?'不重置有效期':'重置有效期'}${o.notes?` · ${esc(o.notes)}`:''}`).join('<br>')||'—'}</div><div class="flabel">操作</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">${visible.firstOpen?`<button class="btn-sec" onclick="openMembershipOrderModal('${court.id}','first_open')">首次开卡</button>`:''}${visible.reopen?`<button class="btn-sec" onclick="openMembershipOrderModal('${court.id}','reopen')">重新开卡</button>`:''}${visible.renew?`<button class="btn-sec" onclick="openMembershipOrderModal('${court.id}','renew')">续充会员</button>`:''}${visible.consume?`<button class="btn-sec" onclick="openMembershipBenefitModal('${court.id}','consume')">消耗权益</button>`:''}${visible.supplement?`<button class="btn-sec" onclick="openMembershipBenefitModal('${court.id}','supplement')">补发权益</button>`:''}${visible.ledger?`<button class="btn-sec" onclick="openCourtMembershipLedgerModal('${court.id}')">查看流水</button>`:''}${visible.void?`<button class="btn-sec" onclick="voidMembership('${court.id}')">作废会员</button>`:''}</div></div>`;
+  return `<div class="tms-section-header" style="margin-top:0;">会员账户</div><div class="tms-readonly-panel"><span class="tms-panel-tip">余额来自 courts.history，仅展示不可直接修改</span><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前方案</label><div class="tms-form-readonly">${esc(summary.memberLabel)||'—'}</div></div><div class="tms-form-item"><label class="tms-form-label">会员状态</label><div class="tms-form-readonly">${esc(summary.status)||'—'}</div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前折扣</label><div class="tms-form-readonly">${esc(discountText)||'—'}</div></div><div class="tms-form-item"><label class="tms-form-label">当前余额</label><div class="tms-form-readonly">¥${fmt(finance.balance)}</div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">余额有效期</label><div class="tms-form-readonly">${esc(summary.validUntil)||'—'}</div></div><div class="tms-form-item"><label class="tms-form-label">最晚清零日</label><div class="tms-form-readonly">${esc(account?.hardExpireAt)||'—'}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">权益批次</label><div style="font-size:13px;color:#8C7B6E;margin-bottom:12px">${membershipBenefitBatchCardsHtml(account)||'暂无权益批次'}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">最近购买记录</label><div style="font-size:13px;color:#8C7B6E;margin-bottom:16px">${recentOrders.map(o=>`${esc(o.purchaseDate)} · ${esc(o.membershipPlanName)} · 实收 ¥${fmt(o.rechargeAmount)} · 赠送 ¥${fmt(o.bonusAmount)}`).join('<br>')||'—'}</div></div></div><div class="tms-form-row" style="margin-bottom:0;"><div class="tms-form-item full-width"><label class="tms-form-label">操作</label><div style="display:flex;gap:10px;flex-wrap:wrap">${visible.firstOpen?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipOrderModal('${court.id}','first_open')">首次开卡</button>`:''}${visible.reopen?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipOrderModal('${court.id}','reopen')">重新开卡</button>`:''}${visible.renew?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipOrderModal('${court.id}','renew')">续充会员</button>`:''}${visible.consume?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipBenefitModal('${court.id}','consume')">消耗权益</button>`:''}${visible.supplement?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipBenefitModal('${court.id}','supplement')">补发权益</button>`:''}${visible.ledger?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openCourtMembershipLedgerModal('${court.id}')">查看流水</button>`:''}${visible.void?`<button class="tms-btn tms-btn-danger" onclick="voidMembership('${court.id}')">作废会员</button>`:''}</div></div></div></div>`;
 }
 function openCourtMembershipPanel(courtId){
   const court=courts.find(c=>c.id===courtId);if(!court){toast('当前订场用户数据未加载，请刷新后重试','warn');return;}
   editId=null;
-  const modal=document.querySelector('#overlay .modal');
-  if(modal)modal.classList.add('modal-court');
-  document.getElementById('mTitle').textContent=`${court.name} · 会员账户`;
-  document.getElementById('mBody').innerHTML=`${courtMembershipPanelHtml(court)}<div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  setCourtModalFrame(`${court.name} · 会员账户`,courtMembershipPanelHtml(court),`<button class="tms-btn tms-btn-default" style="width:100%;text-align:center" onclick="closeModal()">关闭</button>`,'modal-tight');
 }
 function openCourtModal(id){
   editId=id;_pending=[];const r=id?courts.find(x=>x.id===id):null;
   const fin=courtFinanceLocal(r||{history:[]});
-  const modal=document.querySelector('#overlay .modal');
-  if(modal)modal.classList.add('modal-court');
-  document.getElementById('mTitle').textContent=id?'编辑订场用户':'添加订场用户';
   const linked=findStudentForCourt(r);
   const selectedIds=parseArr(r?.studentIds);if(!selectedIds.length&&linked)selectedIds.push(linked.id);
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="f_name" value="${rv(r,'name')}"></div><div class="fg"><div class="flabel">手机号</div><input class="finput" id="f_phone" value="${rv(r,'phone')}" placeholder="13800138000"></div><div class="fg full"><div class="flabel">关联学员（可多选）</div><div style="max-height:110px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${studentChecks(selectedIds)}</div></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="f_campus">${campusOpts(rv(r,'campus'))}</select></div><div class="fg"><div class="flabel">加入日期</div><input class="finput" id="f_joinDate" type="date" value="${rv(r,'joinDate',today())}"></div><div class="fg"><div class="flabel">最近跟进日期</div><input class="finput" id="f_recentFollowUpDate" type="date" value="${rv(r,'recentFollowUpDate')}"></div><div class="fg"><div class="flabel">下次跟进日期</div><input class="finput" id="f_nextFollowUpDate" type="date" value="${rv(r,'nextFollowUpDate')}"></div><div class="fg"><div class="flabel">对接人</div><input class="finput" id="f_owner" value="${rv(r,'owner')}"></div><div class="fg"><div class="flabel">对储值态度</div><input class="finput" id="f_attitude" value="${rv(r,'depositAttitude')}"></div><div class="fg"><div class="flabel">熟悉程度</div><input class="finput" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div><div class="sec-ttl">财务摘要</div><div class="fgrid"><div class="fg"><div class="flabel">累计充值</div><input class="finput" id="f_dep" type="number" value="${fin.totalDeposit}" readonly></div><div class="fg"><div class="flabel">当前余额</div><input class="finput" id="f_bal" type="number" value="${fin.balance}" readonly></div><div class="fg"><div class="flabel">累计消费</div><input class="finput" id="f_spent" type="number" value="${fin.spentAmount}" readonly></div><div class="fg"><div class="flabel">累计实收</div><input class="finput" id="f_received" type="number" value="${fin.receivedAmount}" readonly></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button>`:''}<button class="btn-save" onclick="saveCourt()">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const campusList=campuses.map(c=>({value:c.code||c.id,label:esc(c.name)}));
+  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input type="text" class="finput tms-form-control" id="f_name" placeholder="请输入" value="${rv(r,'name')}"></div><div class="tms-form-item"><label class="tms-form-label">手机号</label><input type="text" class="finput tms-form-control" id="f_phone" placeholder="13800138000" value="${rv(r,'phone')}"></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">关联学员（可多选）</label><div class="tms-checkbox-matrix">${studentChecks(selectedIds)}</div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">校区</label>${renderCourtDropdownHtml('f_campus','校区',campusList,rv(r,'campus')||campuses[0]?.code||campuses[0]?.id,true)}</div><div class="tms-form-item"><label class="tms-form-label">加入日期</label>${courtDateButtonHtml('f_joinDate',rv(r,'joinDate',today()))}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">最近跟进日期</label>${courtDateButtonHtml('f_recentFollowUpDate',rv(r,'recentFollowUpDate'))}</div><div class="tms-form-item"><label class="tms-form-label">下次跟进日期</label>${courtDateButtonHtml('f_nextFollowUpDate',rv(r,'nextFollowUpDate'))}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计充值</label><input type="number" class="finput tms-form-control" id="f_dep" value="${fin.totalDeposit}" readonly></div><div class="tms-form-item"><label class="tms-form-label">当前余额</label><input type="number" class="finput tms-form-control" id="f_bal" value="${fin.balance}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计消费</label><input type="number" class="finput tms-form-control" id="f_spent" value="${fin.spentAmount}" readonly></div><div class="tms-form-item"><label class="tms-form-label">累计实收</label><input type="number" class="finput tms-form-control" id="f_received" value="${fin.receivedAmount}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">对接人</label><input type="text" class="finput tms-form-control" id="f_owner" value="${rv(r,'owner')}"></div><div class="tms-form-item"><label class="tms-form-label">对储值态度</label><input type="text" class="finput tms-form-control" id="f_attitude" value="${rv(r,'depositAttitude')}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">熟悉程度</label><input type="text" class="finput tms-form-control" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="tms-form-item"></div></div><div class="tms-form-row" style="margin-bottom:0;"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div>`;
+  const footer=id?`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><div style="display:flex;gap:12px;"><button class="tms-btn tms-btn-danger" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button><button class="tms-btn tms-btn-primary" id="courtSaveBtn" onclick="saveCourt()">保存</button></div>`:`<div style="display:flex;gap:12px;margin-left:auto;"><button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="courtSaveBtn" onclick="saveCourt()">保存</button></div>`;
+  setCourtModalFrame(id?'编辑订场用户':'添加订场用户',body,footer,'modal-wide');
 }
 async function saveCourt(){
   const name=document.getElementById('f_name').value.trim();if(!name){toast('请输入姓名','warn');return;}
   const phone=document.getElementById('f_phone').value.trim();if(!validateCnPhone(phone)){toast('手机号格式不正确','warn');return;}
-  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  const btn=document.getElementById('courtSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const rawH=editId?courtBaseHistoryForSave(courts.find(u=>u.id===editId)):[];
   const studentIds=[...document.querySelectorAll('.court-stu-cb:checked')].map(cb=>cb.value);
   const campusValue=document.getElementById('f_campus').value;
@@ -2879,7 +3122,7 @@ async function saveCourt(){
   if(duplicates.length){
     const summary=duplicates.map(c=>`${c.name}${c.phone?`（${c.phone}）`:''}${c.campus?` · ${cn(c.campus)}`:''}`).join('、');
     if(!confirm(`发现可能重复的订场用户：${summary}。手机号优先，若无手机号则按姓名+校区去重。是否继续保存？`)){
-      btn.disabled=false;btn.textContent='保存';
+      if(btn){btn.disabled=false;btn.textContent='保存';}
       return;
     }
   }
@@ -2887,7 +3130,7 @@ async function saveCourt(){
     if(editId){const saved=await apiCall('PUT','/courts/'+editId,rec);const i=courts.findIndex(u=>u.id===editId);courts[i]=saved;}
     else{const r=await apiCall('POST','/courts',rec);courts.unshift(r);}
     closeModal();toast(editId?'修改成功 ✓':'添加成功 ✓','success');renderCourts();renderStudents();
-  }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
+  }catch(e){toast('保存失败：'+e.message,'error');if(btn){btn.disabled=false;btn.textContent='保存';}}
 }
 function updateCourtFinancePreview(){
   const type=document.getElementById('nrType')?.value;
@@ -2895,12 +3138,12 @@ function updateCourtFinancePreview(){
   const cat=document.getElementById('nrCategory');
   const hint=document.getElementById('financeHint');
   if(!pay||!hint)return;
-  if(type==='充值'&&pay.value==='储值扣款')pay.value='微信';
-  if(type==='消费'&&pay.value==='储值退款')pay.value='储值扣款';
-  if(type==='退款'&&pay.value==='储值扣款')pay.value='储值退款';
-  if(type==='冲正'&&pay.value==='储值退款')pay.value='储值扣款';
-  if(type==='退款'&&cat)cat.value='退款';
-  if(type==='冲正'&&cat)cat.value='冲正';
+  if(type==='充值'&&pay.value==='储值扣款')setCourtDropdownValue('nrPayMethod','微信','微信');
+  if(type==='消费'&&pay.value==='储值退款')setCourtDropdownValue('nrPayMethod','储值扣款','储值扣款');
+  if(type==='退款'&&pay.value==='储值扣款')setCourtDropdownValue('nrPayMethod','储值退款','储值退款');
+  if(type==='冲正'&&pay.value==='储值退款')setCourtDropdownValue('nrPayMethod','储值扣款','储值扣款');
+  if(type==='退款'&&cat)setCourtDropdownValue('nrCategory','退款','退款');
+  if(type==='冲正'&&cat)setCourtDropdownValue('nrCategory','冲正','冲正');
   hint.textContent=type==='充值'?'充值会增加余额和累计实收。':type==='退款'?(pay.value==='储值退款'?'储值退款会减少余额和累计实收。':'退款会减少累计实收，不影响余额。'):type==='冲正'?(pay.value==='储值扣款'?'冲正用于抵消误操作的储值扣款消费，会把余额加回。':'冲正用于抵消误操作的单次支付消费，会减少累计消费和累计实收。'):pay.value==='储值扣款'?'储值扣款会减少余额，只增加累计消费，不重复增加实收。':'单次支付消费不减少余额，会增加累计消费和累计实收。';
 }
 let courtFinanceModalId='';
@@ -2911,19 +3154,20 @@ function openCourtFinanceModal(courtId){
   editId=null;
   _pending=[];
   const finance=courtFinanceLocal(court||{history:[]});
-  const modal=document.querySelector('#overlay .modal');
-  if(modal)modal.classList.add('modal-court');
-  document.getElementById('mTitle').textContent=`${court.name} · 记一笔流水`;
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">财务摘要</div><div class="fgrid"><div class="fg"><div class="flabel">当前余额</div><input class="finput" value="${finance.balance}" readonly></div><div class="fg"><div class="flabel">累计充值</div><input class="finput" value="${finance.totalDeposit}" readonly></div><div class="fg"><div class="flabel">累计消费</div><input class="finput" value="${finance.spentAmount}" readonly></div><div class="fg"><div class="flabel">累计实收</div><input class="finput" value="${finance.receivedAmount}" readonly></div></div><div class="sec-ttl">流水录入</div><div class="add-rec-row"><select class="fselect" id="nrType" style="min-width:82px" onchange="updateCourtFinancePreview()"><option value="充值">充值</option><option value="消费">消费</option><option value="退款">退款</option><option value="冲正">冲正</option></select><select class="fselect" id="nrCategory" style="min-width:92px"><option value="订场">订场</option><option value="私教课">私教课</option><option value="班课">班课</option><option value="训练营">训练营</option><option value="退款">退款</option><option value="冲正">冲正</option><option value="其他">其他</option></select><select class="fselect" id="nrPayMethod" style="min-width:96px" onchange="updateCourtFinancePreview()"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="储值扣款">储值扣款</option><option value="储值退款">储值退款</option><option value="其他">其他</option></select><select class="fselect" id="nrStudentId" style="min-width:100px">${courtStudentSelect('')}</select><input class="finput" id="nrDate" type="date" value="${today()}" style="max-width:150px"><input class="finput" id="nrStartTime" type="time" style="max-width:110px"><input class="finput" id="nrEndTime" type="time" style="max-width:110px"><select class="fselect" id="nrVenue" style="min-width:92px">${venueOpts('1号场')}</select><input class="finput" id="nrAmt" type="number" placeholder="金额" style="max-width:100px"><input class="finput" id="nrNote" placeholder="备注"></div><div style="font-size:12px;color:var(--ts);margin-top:8px" id="financeHint">储值扣款会减少余额；微信/支付宝/现金/转账消费不减少余额。</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button><button class="btn-save" onclick="saveCourtFinanceRecord()">记一笔流水</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const studentOptions=[{value:'',label:'不关联学员'},...students.map(s=>({value:s.id,label:s.name}))];
+  const campusOptions=campuses.map(c=>({value:c.code||c.id,label:esc(c.name)}));
+  const venueOptions=VENUES.map(v=>({value:v,label:esc(v)}));
+  const hist=[...parseArr(court.history)].reverse();
+  const body=`<div class="tms-section-header" style="margin-top:0;">财务摘要</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前余额</label><input type="number" class="finput tms-form-control" value="${finance.balance}" readonly></div><div class="tms-form-item"><label class="tms-form-label">累计充值</label><input type="number" class="finput tms-form-control" value="${finance.totalDeposit}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计消费</label><input type="number" class="finput tms-form-control" value="${finance.spentAmount}" readonly></div><div class="tms-form-item"><label class="tms-form-label">累计实收</label><input type="number" class="finput tms-form-control" value="${finance.receivedAmount}" readonly></div></div><div class="tms-section-header">流水录入</div><div class="tms-record-add-box"><div class="tms-form-row"><div class="tms-form-item" style="flex:1;">${renderCourtDropdownHtml('nrType','类型',[{value:'充值',label:'充值'},{value:'消费',label:'消费'},{value:'退款',label:'退款'},{value:'冲正',label:'冲正'}],'消费',true,'updateCourtFinancePreview')}</div><div class="tms-form-item" style="flex:1;">${renderCourtDropdownHtml('nrCategory','项目',[{value:'订场',label:'订场'},{value:'私教课',label:'私教课'},{value:'班课',label:'班课'},{value:'训练营',label:'训练营'},{value:'退款',label:'退款'},{value:'冲正',label:'冲正'},{value:'其他',label:'其他'}],'订场',true,'updateCourtFinancePreview')}</div><div class="tms-form-item" style="flex:1;">${renderCourtDropdownHtml('nrPayMethod','支付',[{value:'微信',label:'微信'},{value:'支付宝',label:'支付宝'},{value:'现金',label:'现金'},{value:'转账',label:'转账'},{value:'储值扣款',label:'储值扣款'},{value:'储值退款',label:'储值退款'},{value:'其他',label:'其他'}],'微信',true,'updateCourtFinancePreview')}</div><div class="tms-form-item" style="flex:1;">${renderCourtDropdownHtml('nrStudentId','不关联学员',studentOptions,'',true)}</div><div class="tms-form-item" style="flex:1;">${renderCourtDropdownHtml('nrCampus','校区',campusOptions,court.campus||campuses[0]?.code||campuses[0]?.id,true)}</div><div class="tms-form-item" style="flex:1;">${renderCourtDropdownHtml('nrVenue','场地',venueOptions,venueOptions[0]?.value||'',true)}</div></div><div class="tms-form-row"><div class="tms-form-item" style="flex:1;">${courtDateButtonHtml('nrDate',today())}</div><div class="tms-form-item" style="flex:1;min-width:0;">${renderCourtDropdownHtml('nrStartTime','08:00',getCourtTimeOptions('08:00'),'08:00',true)}</div><div style="color:#8C7B6E;align-self:center;">至</div><div class="tms-form-item" style="flex:1;min-width:0;">${renderCourtDropdownHtml('nrEndTime','10:00',getCourtTimeOptions('10:00'),'10:00',true)}</div><div class="tms-form-item" style="flex:1;"><input type="number" class="finput tms-form-control" id="nrAmt" placeholder="¥ 发生金额"></div></div><div class="tms-form-row" style="margin-bottom:0;"><div class="tms-form-item" style="flex:1;"><input type="text" class="finput tms-form-control" id="nrNote" placeholder="备注信息 (非必填)"></div><div class="tms-form-item" style="flex:none;width:160px;"><button class="tms-btn tms-btn-primary" id="courtFinanceAddBtn" style="width:100%;height:100%;padding:0;" onclick="saveCourtFinanceRecord()">添加</button></div></div></div><div style="font-size:12px;color:var(--ts);margin:0 0 16px" id="financeHint">储值扣款会减少余额；微信/支付宝/现金/转账消费不减少余额。</div><div class="tms-section-header">历史记录</div><div class="tms-history-list">${renderCourtHistoryItems(hist)}</div>`;
+  setCourtModalFrame(`${court.name} · 记一笔流水`,body,`<button class="tms-btn tms-btn-default" style="width:100%;text-align:center" onclick="closeModal()">关闭</button>`,'modal-wide');
   updateCourtFinancePreview();
 }
 async function saveCourtFinanceRecord(){
   const court=courts.find(c=>c.id===courtFinanceModalId);
   if(!court){toast('当前订场用户数据未加载，请刷新后重试','warn');return;}
   const type=document.getElementById('nrType').value,date=document.getElementById('nrDate').value,amt=parseFloat(document.getElementById('nrAmt').value),note=document.getElementById('nrNote').value.trim();
-  const category=document.getElementById('nrCategory').value,payMethod=document.getElementById('nrPayMethod').value,studentId=document.getElementById('nrStudentId').value;
-  const startTime=document.getElementById('nrStartTime')?.value||'',endTime=document.getElementById('nrEndTime')?.value||'',venue=document.getElementById('nrVenue')?.value||'',recCampus=document.getElementById('f_campus')?.value||court.campus||'';
+  const category=document.getElementById('nrCategory').value,payMethod=document.getElementById('nrPayMethod').value,studentId=document.getElementById('nrStudentId')?.value||'';
+  const startTime=document.getElementById('nrStartTime')?.value||'',endTime=document.getElementById('nrEndTime')?.value||'',venue=document.getElementById('nrVenue')?.value||'',recCampus=document.getElementById('nrCampus')?.value||court.campus||'';
   if(!date){toast('请选择日期','warn');return;}
   if(!amt||isNaN(amt)){toast('请输入金额','warn');return;}
   if(type==='消费'&&category==='订场'){
@@ -2937,7 +3181,7 @@ async function saveCourtFinanceRecord(){
   if(preview.receivedAmount<0){toast('退款金额超过累计实收','warn');return;}
   if(preview.spentAmount<0||preview.storedValueSpent<0||preview.directPaidSpent<0){toast('冲正金额超过已有消费','warn');return;}
   if(!confirm(courtFinanceConfirmText(h,studentId)))return;
-  const btn=document.querySelector('#overlay .btn-save');
+  const btn=document.getElementById('courtFinanceAddBtn');
   if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const rec={...court,history:hist};
   try{
@@ -2950,15 +3194,13 @@ async function saveCourtFinanceRecord(){
     renderStudents();
   }catch(e){
     toast('保存失败：'+e.message,'error');
-    if(btn){btn.disabled=false;btn.textContent='记一笔流水';}
+    if(btn){btn.disabled=false;btn.textContent='添加';}
   }
 }
 function openCourtHist(id){
   const u=courts.find(x=>x.id===id);if(!u)return;editId=null;
-  document.getElementById('mTitle').textContent=`${esc(u.name)} · 充值/消费记录`;
   const hist=[...parseArr(u.history)].reverse();
-  document.getElementById('mBody').innerHTML=`<div class="rec-list" style="max-height:320px">${hist.length?hist.map(h=>courtRecRow(h)).join(''):'<div class="empty"><p>暂无记录</p></div>'}</div><div class="mactions"><button class="btn-save" style="flex:1" onclick="closeModal()">关闭</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  setCourtModalFrame(`${esc(u.name)} · 充值/消费记录`,`<div class="tms-history-list">${renderCourtHistoryItems(hist)}</div>`,`<button class="tms-btn tms-btn-primary" style="width:100%;text-align:center" onclick="closeModal()">关闭</button>`,'modal-tight');
 }
 function exportCourtCSV(){
   const d=campus==='all'?courts:courts.filter(u=>u.campus===campus);
@@ -3682,16 +3924,29 @@ async function saveCoach(){
   try{if(editId){await apiCall('PUT','/coaches/'+editId,data);await loadAll();}else{const r=await apiCall('POST','/coaches',data);coaches.unshift(r);renderCoaches();}closeModal();toast(editId?'更新成功 ✓':'添加成功 ✓','success');}catch(e){toast('保存失败：'+e.message,'error');}
 }
 // ===== 删除 & 通用 =====
-function confirmDel(id,name,type){delId=id;delType=type;document.getElementById('confDesc').textContent='即将删除「'+name+'」，请输入「确认删除」。';document.getElementById('confOv').classList.add('open');var ci=document.getElementById('confInput');ci.value='';var cb=document.getElementById('confYesBtn');cb.disabled=true;cb.style.opacity='0.4';cb.style.cursor='not-allowed';ci.oninput=function(){if(ci.value.trim()==='确认删除'){cb.disabled=false;cb.style.opacity='1';cb.style.cursor='pointer';}else{cb.disabled=true;cb.style.opacity='0.4';cb.style.cursor='not-allowed';}};}
-function closeConf(){document.getElementById('confOv').classList.remove('open');delId=null;delType=null;document.getElementById('confInput').value='';}
+function confirmDel(id,name,type){delId=id;delType=type;document.getElementById('confDesc').textContent='即将删除「'+name+'」，请输入「确认删除」。';document.getElementById('confOv').classList.add('open');var ci=document.getElementById('confInput');ci.style.display='block';ci.value='';var cb=document.getElementById('confYesBtn');cb.textContent='确认删除';cb.disabled=true;cb.style.opacity='0.4';cb.style.cursor='not-allowed';ci.oninput=function(){if(ci.value.trim()==='确认删除'){cb.disabled=false;cb.style.opacity='1';cb.style.cursor='pointer';}else{cb.disabled=true;cb.style.opacity='0.4';cb.style.cursor='not-allowed';}};}
+function openBatchCourtDeleteConfirm(ids){
+  batchDeleteCourtIds=[...ids];
+  delId='__batch__';
+  delType='court-batch';
+  document.getElementById('confDesc').textContent=`确定删除选中的 ${ids.length} 个订场用户？已有财务数据的用户会自动跳过。`;
+  document.getElementById('confOv').classList.add('open');
+  const ci=document.getElementById('confInput');
+  const cb=document.getElementById('confYesBtn');
+  if(ci){ci.value='';ci.style.display='none';ci.oninput=null;}
+  if(cb){cb.disabled=false;cb.style.opacity='1';cb.style.cursor='pointer';cb.textContent='确认删除';}
+}
+function closeConf(){document.getElementById('confOv').classList.remove('open');delId=null;delType=null;batchDeleteCourtIds=[];const ci=document.getElementById('confInput');if(ci){ci.value='';ci.style.display='block';}const cb=document.getElementById('confYesBtn');if(cb)cb.textContent='确认删除';}
 async function batchDeleteCourts(){
   const ids=[...selectedCourtIds];
   if(!ids.length){toast('请选择要删除的订场用户','warn');return;}
-  if(!confirm(`确定删除选中的 ${ids.length} 个订场用户？已有财务数据的用户会自动跳过。`))return;
+  openBatchCourtDeleteConfirm(ids);
+}
+async function runBatchDeleteCourts(ids){
   const btn=document.getElementById('courtBatchDelBtn');
   if(btn){btn.disabled=true;btn.textContent=`删除中 0/${ids.length}`;}
   try{
-    const result=await apiCall('POST','/courts/batch-delete',{ids});
+    const result=await apiCall('POST','/courts/batch-delete',{ids},120000);
     if(btn)btn.textContent=`删除中 ${result.success||0}/${ids.length}`;
     const deleted=new Set(result.deleted||[]);
     courts=courts.filter(u=>!deleted.has(u.id));
@@ -3706,6 +3961,12 @@ async function batchDeleteCourts(){
 async function doDelete(){
   if(!delId)return;
   try{
+    if(delType==='court-batch'){
+      const ids=[...batchDeleteCourtIds];
+      closeConf();
+      await runBatchDeleteCourts(ids);
+      return;
+    }
     const m={court:'/courts/',student:'/students/',product:'/products/',package:'/packages/',purchase:'/purchases/',plan:'/plans/',schedule:'/schedule/',class:'/classes/',coach:'/coaches/',campus:'/campuses/'};
     const result=await apiCall('DELETE',m[delType]+delId);
     if(delType==='court')courts=courts.filter(u=>u.id!==delId);
@@ -3721,7 +3982,7 @@ async function doDelete(){
     closeConf();closeModal();toast('已删除','error');renderAll();
   }catch(e){toast('删除失败：'+e.message,'error');closeConf();}
 }
-function closeModal(){const ov=document.getElementById('overlay');ov.classList.remove('open');const modal=ov.querySelector('.modal');if(modal)modal.className='modal';editId=null;courtFinanceModalId='';_pending=[];closeGlobalDatePicker();}
+function closeModal(){const ov=document.getElementById('overlay');ov.classList.remove('open');const modal=ov.querySelector('.modal');if(modal)modal.className='modal';const actions=document.getElementById('mActions');if(actions){actions.innerHTML='';actions.style.display='none';actions.className='mactions';}document.getElementById('mBody').innerHTML='';editId=null;courtFinanceModalId='';_pending=[];closeGlobalDatePicker();}
 function toast(msg,type=''){const c=document.getElementById('toasts'),t=document.createElement('div');t.className='toast '+(type||'');t.innerHTML='<span>'+msg+'</span>';c.appendChild(t);setTimeout(()=>{t.style.cssText='opacity:0;transform:translateX(18px);transition:all .28s';setTimeout(()=>t.remove(),300);},3000);}
 async function backupToObsidian(){
   try{toast('生成备份…','');const d=new Date(),ds=d.toISOString().slice(0,10),ts=d.toTimeString().slice(0,5);
