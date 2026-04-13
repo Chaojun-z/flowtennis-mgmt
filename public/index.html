@@ -97,6 +97,7 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 .tms-dropdown-display:hover{border-color:#EAE0D6}
 .tms-dropdown-display::after{content:"";border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid #8C7B6E;margin-left:8px;flex:0 0 auto}
 .tms-dropdown-menu{position:absolute;top:calc(100% + 4px);left:0;background-color:#FAF6F2;border:1px solid #EAE0D6;border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.08);z-index:100;display:none;min-width:100%;padding:4px;box-sizing:border-box;max-height:250px;overflow-y:auto;overscroll-behavior:contain}
+.tms-dropdown.open-upward .tms-dropdown-menu{top:auto;bottom:calc(100% + 4px)}
 .tms-dropdown.open .tms-dropdown-menu{display:block}
 .tms-dropdown-item{padding:8px 12px;font-size:13px;color:#5C4D43;cursor:pointer;border-radius:4px;display:flex;align-items:center;white-space:nowrap}
 .tms-dropdown-item:hover{background-color:#F1EAE2}
@@ -148,6 +149,14 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 #page-coaches .tms-table th.tms-sticky-r{position:sticky;top:0;right:0;z-index:140;background-color:#FDF7F2}
 #page-coaches .tms-table td.tms-sticky-r{position:sticky;right:0;z-index:40;background-color:#FDF7F2}
 #page-coaches .tms-table tbody tr:hover td.tms-sticky-r{background-color:#F4EBE3}
+#page-students .tms-table th.tms-sticky-l{position:sticky;top:0;left:0;z-index:140;background-color:#FDF7F2}
+#page-students .tms-table td.tms-sticky-l{position:sticky;left:0;z-index:40;background-color:#FDF7F2}
+#page-students .tms-table th.tms-sticky-r{position:sticky;top:0;right:0;z-index:140;background-color:#FDF7F2}
+#page-students .tms-table td.tms-sticky-r{position:sticky;right:0;z-index:40;background-color:#FDF7F2}
+#page-students .tms-table tbody tr:hover td.tms-sticky-l,#page-students .tms-table tbody tr:hover td.tms-sticky-r{background-color:#F4EBE3}
+#page-purchases .tms-table th.tms-sticky-r,#page-entitlements .tms-table th.tms-sticky-r{position:sticky;top:0;right:0;z-index:140;background-color:#FDF7F2}
+#page-purchases .tms-table td.tms-sticky-r,#page-entitlements .tms-table td.tms-sticky-r{position:sticky;right:0;z-index:40;background-color:#FDF7F2}
+#page-purchases .tms-table tbody tr:hover td.tms-sticky-r,#page-entitlements .tms-table tbody tr:hover td.tms-sticky-r{background-color:#F4EBE3}
 .tms-th-checkbox{display:flex;align-items:center;gap:8px;font-size:11px;color:#8C7B6E;font-weight:400;line-height:1;width:100%}
 .tms-th-checkbox span{font-size:11px;color:#8C7B6E;font-weight:400}
 .court-name-cell,[data-court-name-cell]{min-width:156px;max-width:156px;width:156px;white-space:normal}
@@ -224,7 +233,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .overlay{position:fixed;inset:0;background:rgba(60,20,0,0.55);backdrop-filter:blur(10px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}.overlay.open{opacity:1;pointer-events:all}
 .modal{background:var(--card-f);backdrop-filter:var(--bf);border:var(--borf);border-radius:20px;width:580px;max-width:95vw;box-shadow:0 30px 90px rgba(60,20,0,0.35);transform:translateY(16px) scale(.97);transition:transform .22s cubic-bezier(.34,1.56,.64,1);max-height:90vh;overflow:hidden;color:var(--tb);display:flex;flex-direction:column}.overlay.open .modal{transform:translateY(0) scale(1)}
 .modal::-webkit-scrollbar{width:4px}.modal::-webkit-scrollbar-thumb{background:rgba(180,83,9,0.2);border-radius:2px}
-.modal.modal-court{display:flex;flex-direction:column;overflow:hidden}
+.modal.modal-court{display:flex;flex-direction:column;overflow:visible}
 .modal.modal-wide{width:min(900px,95vw)}
 .modal.modal-tight{width:min(640px,95vw)}
 .modal.modal-court .mbody{overflow:auto;padding-bottom:20px}
@@ -237,7 +246,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .modal.modal-court .mtitle{font-size:18px;font-weight:700;color:#332A24}
 .modal.modal-court .mclose{cursor:pointer;width:28px;height:28px;background-color:#D9D0C7;border-radius:50%;display:flex;justify-content:center;align-items:center;color:#5C4D43;font-size:14px;font-weight:400;transition:background-color .2s}
 .modal.modal-court .mclose:hover{background-color:#C0B5AB;color:#5C4D43}
-.modal.modal-court .mbody{padding:0 24px 20px;overflow-y:auto;flex:1;scrollbar-width:none;-ms-overflow-style:none;min-height:0}
+.modal.modal-court .mbody{padding:0 24px 20px;overflow-y:auto;overflow-x:visible;flex:1;scrollbar-width:none;-ms-overflow-style:none;min-height:0}
 .modal.modal-court .mbody::-webkit-scrollbar{display:none}
 .modal.modal-court .mactions{padding:16px 24px;display:flex;justify-content:space-between;border-radius:0 0 16px 16px;background:#E6E1DC;position:relative;bottom:auto;z-index:5;backdrop-filter:none;flex-shrink:0;border-top:1px solid #D9D0C7}
 .modal.modal-court .mactions.right-align{justify-content:flex-end}
@@ -308,7 +317,24 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .page-stat-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
 .page-stat-row .scard{border-radius:14px;padding:14px 16px;background:rgba(255,255,255,.84)}
 .page-stat-row .sc-icon{display:none}
-.package-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+.package-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.package-card{background:#FFF9F4;border:1px solid rgba(192,96,49,.12);border-radius:18px;padding:16px;box-shadow:0 12px 30px rgba(60,20,0,.08);display:flex;flex-direction:column;gap:10px}
+.package-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(60,20,0,.1)}
+.package-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.package-card-title{font-size:18px;font-weight:800;line-height:1.35;color:var(--th)}
+.package-card-sub{font-size:12px;color:var(--ts);line-height:1.6}
+.package-card-badges{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.package-card-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.package-card-metric{background:rgba(255,255,255,.9);border:1px solid rgba(192,96,49,.1);border-radius:12px;padding:10px 12px}
+.package-card-metric-label{font-size:11px;color:var(--ts);margin-bottom:6px}
+.package-card-metric-value{font-size:18px;font-weight:800;color:var(--th);line-height:1}
+.package-card-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:0.5px solid rgba(180,83,9,0.1);font-size:12px;color:var(--ts)}
+.package-card-row strong{font-size:13px;color:var(--tb);text-align:right}
+.package-card-actions{display:flex;gap:8px;padding-top:12px;border-top:0.5px solid rgba(180,83,9,0.1);margin-top:auto}
+.package-card-actions .tms-btn{flex:1}
+#page-purchases .tms-filters{flex-wrap:nowrap;align-items:center}
+#page-purchases .tms-filters .filter-date-wrap{flex:0 0 auto}
+#page-purchases .tms-filters .coach-date-btn{min-width:128px;width:128px;height:42px;border:1px solid rgba(220,214,207,.95);border-radius:14px;background:#fff;color:#332A24;box-shadow:none;font-size:13px;font-weight:600}
 .package-hero-empty{padding:56px 18px;text-align:center;color:rgba(255,247,237,.76);background:rgba(255,248,238,.08);border:0.5px dashed rgba(255,247,237,.18);border-radius:16px}
 .purchase-table td{vertical-align:top}
 .purchase-toolbar-spacer{flex:1}
@@ -368,11 +394,24 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .empty{text-align:center;padding:52px 20px;color:rgba(120,53,15,0.4)}.empty-ico{display:none}
 .sc-icon{display:none}
 .loading{text-align:center;padding:40px;color:var(--ts);font-size:13px}
-.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:4px}
-.product-card{background:var(--card-f);backdrop-filter:var(--bf);border:var(--borf);border-radius:14px;padding:18px;box-shadow:var(--shm);transition:transform .14s,box-shadow .14s;cursor:pointer}.product-card:hover{transform:translateY(-2px);box-shadow:var(--shf)}
-.pc-type{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px}.pc-name{font-size:15px;font-weight:600;color:var(--th);margin-bottom:10px}
-.pc-row{display:flex;justify-content:space-between;font-size:12px;color:var(--ts);margin-top:6px}.pc-val{font-weight:500;color:var(--tb)}
-.pc-actions{display:flex;gap:6px;margin-top:12px;padding-top:10px;border-top:0.5px solid rgba(180,83,9,0.1)}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:4px}
+.product-card{background:#FFF9F4;border:1px solid rgba(192,96,49,.12);border-radius:18px;padding:18px;box-shadow:0 12px 30px rgba(60,20,0,.08);display:flex;flex-direction:column;gap:12px;min-height:0}
+.product-card:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(60,20,0,.1)}
+.pc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.pc-type{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pc-name{font-size:20px;font-weight:800;color:var(--th);line-height:1.3}
+.pc-note{font-size:12px;line-height:1.6;color:var(--ts);min-height:0}
+.pc-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pc-metric{background:rgba(255,255,255,.9);border:1px solid rgba(192,96,49,.1);border-radius:12px;padding:10px 12px}
+.pc-metric-label{font-size:12px;color:var(--ts);margin-bottom:8px}
+.pc-metric-value{font-size:18px;font-weight:800;color:var(--th);line-height:1.1}
+.pc-metric-value span{font-size:14px;font-weight:600;color:var(--ts);margin-left:4px}
+.pc-row{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--ts);padding:8px 0;border-top:0.5px solid rgba(180,83,9,0.1)}
+.pc-row:first-of-type{border-top:none;padding-top:0}
+.pc-row strong,.pc-val{font-weight:700;color:var(--tb)}
+.pc-actions{display:flex;gap:10px;margin-top:auto;padding-top:14px;border-top:0.5px solid rgba(180,83,9,0.1)}
+.pc-actions .tms-btn{flex:1}
+.pc-actions .tms-btn-danger{flex:0 0 auto}
 @media(max-width:900px){.stats-row{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:1200px){#courtStatsRow{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){#courtStatsRow{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -538,62 +577,94 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
   <div class="content">
     <!-- 学员信息 -->
     <div class="page-section active" id="page-students">
-      <div class="stats-row" id="studentStatsRow"></div>
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="stuSearch" placeholder="搜索姓名/手机号/关联账户…" oninput="onStudentFilterChange()"></div>
-        <select class="fsel" id="stuTypeFilter" onchange="onStudentFilterChange()"><option value="">全部类型</option><option value="成人">成人</option><option value="青少年">青少年</option></select>
-        <select class="fsel" id="stuSourceFilter" onchange="onStudentFilterChange()"><option value="">全部来源</option><option value="大众点评">大众点评</option><option value="抖音">抖音</option><option value="视频号">视频号</option><option value="小红书">小红书</option><option value="转介绍">转介绍</option><option value="播客">播客</option><option value="其他">其他</option></select>
-        <select class="fsel" id="stuStatusFilter" onchange="onStudentFilterChange()"><option value="">全部状态</option><option value="上课中">上课中</option><option value="待转化">待转化</option><option value="沉默30天">沉默30天</option><option value="仅订场">仅订场</option><option value="无班次">无班次</option></select>
-        <select class="fsel" id="stuLinkFilter" onchange="onStudentFilterChange()"><option value="">全部关联</option><option value="hasClass">有班次</option><option value="noClass">无班次</option><option value="hasCourt">有订场</option><option value="noCourt">无订场</option><option value="hasMember">有会员</option><option value="noMember">无会员</option></select>
-        <button class="btn-sec" onclick="exportStudentCSV()">导出CSV</button>
-        <button class="btn-add" onclick="openStudentModal(null)">＋ 添加学员</button>
+      <div class="tms-stats-row" id="studentStatsRow"></div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="stuSearch" placeholder="搜索姓名、手机号、订场账户" oninput="onStudentFilterChange()">
+          </div>
+          <div id="stuTypeFilterHost"></div>
+          <div id="stuSourceFilterHost"></div>
+          <div id="stuLinkFilterHost"></div>
+          <button class="tms-btn tms-btn-ghost" onclick="exportStudentCSV()">导出</button>
+        </div>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-primary" onclick="openStudentModal(null)">＋ 添加学员</button>
+        </div>
       </div>
-      <div class="tcard"><table><thead><tr><th>学员</th><th>当前状态</th><th>当前班次</th><th>最近上课</th><th>负责教练</th><th>课包/课时</th><th>订场/会员</th><th>来源</th><th>备注摘要</th><th style="text-align:right">操作</th></tr></thead><tbody id="stuTbody"></tbody></table>
-        <div class="pager"><span class="pager-info" id="stuPagerInfo">共 0 条</span><div style="display:flex;gap:3px" id="stuPagerBtns"></div></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th class="tms-sticky-l" style="width:160px;padding-left:20px">学员</th><th style="width:150px">电话</th><th style="width:110px">类型</th><th style="width:120px">校区</th><th style="width:150px">当前班次</th><th style="width:120px">最近上课</th><th style="width:130px">负责教练</th><th style="width:160px">课包/课时</th><th style="width:160px">订场/会员</th><th style="width:110px">来源</th><th style="width:220px">备注</th><th class="tms-sticky-r" style="width:160px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="stuTbody"></tbody></table></div>
+        <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="stuPagerInfo">共 0 条</span></div><div class="tms-page-numbers" id="stuPagerBtns"></div></div>
       </div>
     </div>
     <!-- 班次管理 -->
     <div class="page-section" id="page-classes">
-      <div class="stats-row" id="classStatsRow"></div>
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="clsSearch" placeholder="搜索班次/学员/课程…" oninput="renderClasses()"></div>
-        <select class="fsel" id="clsStatusFilter" onchange="renderClasses()"><option value="">全部状态</option><option value="已排班">已排班</option><option value="已取消">已取消</option><option value="已结课">已结课</option></select>
-        <select class="fsel" id="clsCampusFilter" onchange="renderClasses()"><option value="">全部校区</option></select>
-        <select class="fsel" id="clsCoachFilter" onchange="renderClasses()"><option value="">全部教练</option></select>
-        <select class="fsel" id="clsTypeFilter" onchange="renderClasses()"><option value="">全部课程</option></select>
-        <select class="fsel" id="clsRiskFilter" onchange="renderClasses()"><option value="">全部风险</option><option value="即将结课">即将结课</option><option value="未安排下次课">未安排下次课</option><option value="长期未上课">长期未上课</option></select>
-        <button class="btn-add" onclick="openClassModal(null)">＋ 新建班次</button>
+      <div class="tms-stats-row" id="classStatsRow"></div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="clsSearch" placeholder="搜索班次、学员、课程" oninput="renderClasses()">
+          </div>
+          <div id="clsStatusFilterHost"></div>
+          <div id="clsCampusFilterHost"></div>
+          <div id="clsCoachFilterHost"></div>
+          <div id="clsTypeFilterHost"></div>
+        </div>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-primary" onclick="openClassModal(null)">＋ 新建班次</button>
+        </div>
       </div>
-      <div class="tcard"><table><thead><tr><th>班次名称</th><th>课程</th><th>校区</th><th>学员</th><th>教练</th><th>上课日</th><th>最近上课</th><th>下次课</th><th>课时进度</th><th>风险/运营</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody id="clsTbody"></tbody></table>
-        <div class="pager"><span class="pager-info" id="clsPagerInfo">共 0 条</span><div style="display:flex;gap:3px" id="clsPagerBtns"></div></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:220px;padding-left:20px">班次名称</th><th style="width:130px">班次编号</th><th style="width:150px">课程</th><th style="width:110px">类型</th><th style="width:120px">开始日期</th><th style="width:120px">结束日期</th><th style="width:100px">校区</th><th style="width:180px">学员</th><th style="width:100px">教练</th><th style="width:100px">上课日</th><th style="width:120px">最近上课</th><th style="width:120px">下次课</th><th style="width:130px">课时进度</th><th style="width:100px">状态</th><th class="tms-sticky-r" style="width:160px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="clsTbody"></tbody></table></div>
+        <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="clsPagerInfo">共 0 条</span></div><div class="tms-page-numbers" id="clsPagerBtns"></div></div>
       </div>
     </div>
     <!-- 学习计划 -->
     <div class="page-section" id="page-plans">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">学习计划由「班次管理」自动生成，每个学员 × 班次 = 一条记录；班次进度用于看学习推进，真实可约课以权益账户规则为准。</div>
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="planSearch" placeholder="搜索学员/班次/关联账户…" oninput="renderPlans()"></div>
-        <select class="fsel" id="planStatusFilter" onchange="renderPlans()"><option value="">全部状态</option><option value="active">上课中</option><option value="已取消">已取消</option><option value="已结课">已结课</option></select>
-        <select class="fsel" id="planCampusFilter" onchange="renderPlans()"><option value="">全部校区</option></select>
-        <select class="fsel" id="planCoachFilter" onchange="renderPlans()"><option value="">全部教练</option></select>
-        <select class="fsel" id="planTypeFilter" onchange="renderPlans()"><option value="">全部课程</option></select>
-        <select class="fsel" id="planStageFilter" onchange="renderPlans()"><option value="">全部阶段</option><option value="new">刚开课</option><option value="ongoing">进行中</option><option value="ending">临近结课</option></select>
+      <div class="tms-audit-note">学习计划由「班次管理」自动生成，每个学员 × 班次 = 一条记录；班次进度用于看学习推进，真实可约课以权益账户规则为准。</div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="planSearch" placeholder="搜索学员、班次、关联账户" oninput="renderPlans()">
+          </div>
+          <div id="planStatusFilterHost"></div>
+          <div id="planCampusFilterHost"></div>
+          <div id="planCoachFilterHost"></div>
+          <div id="planTypeFilterHost"></div>
+          <div id="planStageFilterHost"></div>
+        </div>
       </div>
-      <div class="tcard"><table><thead><tr><th>学员</th><th>手机号</th><th>班次</th><th>课程</th><th>教练</th><th>最近上课</th><th>班次进度</th><th>权益摘要</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody id="planTbody"></tbody></table>
-        <div class="pager"><span class="pager-info" id="planPagerInfo">共 0 条</span><div style="display:flex;gap:3px" id="planPagerBtns"></div></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:140px;padding-left:20px">学员</th><th style="width:140px">手机号</th><th style="width:180px">班次</th><th style="width:150px">课程</th><th style="width:110px">教练</th><th style="width:120px">最近上课</th><th style="width:140px">班次进度</th><th style="width:240px">权益摘要</th><th style="width:100px">状态</th><th class="tms-sticky-r" style="width:180px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="planTbody"></tbody></table></div>
+        <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="planPagerInfo">共 0 条</span></div><div class="tms-page-numbers" id="planPagerBtns"></div></div>
       </div>
     </div>
     <!-- 排课表 -->
     <div class="page-section" id="page-schedule">
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="schSearch" placeholder="搜索学员/教练/班次…" oninput="renderSchedule()"></div>
-        <select class="fsel" id="schStatusFilter" onchange="renderSchedule()"><option value="">全部状态</option><option value="已排课">已排课</option><option value="已结束">已结束</option><option value="已取消">已取消</option></select>
-        <select class="fsel" id="schCampusFilter" onchange="renderSchedule()"><option value="">全部校区</option></select>
-        <select class="fsel" id="schTrialFilter" onchange="renderSchedule()"><option value="">全部课程</option><option value="trial">仅体验课</option><option value="formal">仅正式课</option></select>
-        <button class="btn-add" onclick="openScheduleModal(null)">＋ 添加排课</button>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="schSearch" placeholder="搜索学员、教练、班次或场地" oninput="renderSchedule()">
+          </div>
+          <div id="schStatusFilterHost"></div>
+          <div id="schCampusFilterHost"></div>
+          <div id="schTrialFilterHost"></div>
+        </div>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-primary" onclick="openScheduleModal(null)">＋ 添加排课</button>
+        </div>
       </div>
-      <div class="tcard"><table><thead><tr><th>上课时间</th><th>下课时间</th><th>时长</th><th>学员</th><th>教练</th><th>班次</th><th>场地</th><th>通知/扣课</th><th>反馈</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody id="schTbody"></tbody></table>
-        <div class="pager"><span class="pager-info" id="schPagerInfo">共 0 条</span><div style="display:flex;gap:3px" id="schPagerBtns"></div></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:150px;padding-left:20px">上课时间</th><th style="width:150px">下课时间</th><th style="width:100px">时长</th><th style="width:170px">学员</th><th style="width:110px">教练</th><th style="width:180px">班次</th><th style="width:160px">校区/场地</th><th style="width:180px">通知/扣课</th><th style="width:100px">反馈</th><th style="width:110px">状态</th><th class="tms-sticky-r" style="width:220px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="schTbody"></tbody></table></div>
+        <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="schPagerInfo">共 0 条</span></div><div class="tms-page-numbers" id="schPagerBtns"></div></div>
       </div>
     </div>
     <!-- 教练运营 -->
@@ -727,66 +798,82 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     </div>
     <!-- 课程产品 -->
     <div class="page-section" id="page-products">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">课程产品只定义课程模板。后续创建班次、售卖课包，都是基于这里的课程产品。</div>
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="prodSearch" placeholder="搜索课程…" oninput="renderProducts()"></div>
-        <select class="fsel" id="prodTypeFilter" onchange="renderProducts()"><option value="">全部类型</option><option value="私教">私教</option><option value="训练营">训练营</option><option value="专项训练">专项训练</option></select>
-        <button class="btn-add" onclick="openProductModal(null)">＋ 新增课程产品</button>
+      <div class="tms-audit-note">课程产品只定义课程模板。后续创建班次、售卖课包，都是基于这里的课程产品。</div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="prodSearch" placeholder="搜索课程名称、类型或备注" oninput="renderProducts()">
+          </div>
+          <div id="prodTypeFilterHost"></div>
+        </div>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-primary" onclick="openProductModal(null)">＋ 新增课程产品</button>
+        </div>
       </div>
       <div class="product-grid" id="productGrid"></div>
     </div>
     <!-- 售卖课包 -->
     <div class="page-section" id="page-packages">
-      <div class="page-head-card">
-        <div class="page-head-main">
-          <div class="page-head-title">课程模板和售卖方案分开管理</div>
-          <div class="page-head-desc">课程产品定义上什么课；售卖课包定义怎么卖、什么时候能买、什么时候能用。创建售卖课包时会直接绑定一个课程产品。</div>
+      <div class="tms-audit-note">课程产品定义上什么课；售卖课包定义怎么卖、什么时候能买、什么时候能用。创建售卖课包时会直接绑定一个课程产品。</div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="pkgSearch" placeholder="搜索课包名称、课程产品、时段" oninput="renderPackages()">
+          </div>
+          <div id="pkgTypeFilterHost"></div>
+          <div id="pkgStatusFilterHost"></div>
         </div>
-        <div class="page-head-actions">
-          <button class="light-btn" onclick="goPage('products')">查看课程产品</button>
-          <button class="btn-add" style="margin-left:0" onclick="openPackageModal(null)">新增售卖课包</button>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-ghost" onclick="goPage('products')">查看课程产品</button>
+          <button class="tms-btn tms-btn-primary" onclick="openPackageModal(null)">＋ 新增售卖课包</button>
         </div>
-      </div>
-      <div class="course-filter-bar">
-        <div class="filter-search"><span class="filter-search-mark"></span><input type="text" id="pkgSearch" placeholder="搜索课包名称、课程产品、时段" oninput="renderPackages()"></div>
-        <select class="coach-ops-select" id="pkgTypeFilter" onchange="renderPackages()"><option value="">全部类型</option><option value="私教">私教</option><option value="训练营">训练营</option><option value="专项训练">专项训练</option></select>
-        <select class="coach-ops-select" id="pkgStatusFilter" onchange="renderPackages()"><option value="">全部状态</option><option value="active">启用</option><option value="inactive">停用</option></select>
       </div>
       <div class="package-list" id="packageGrid"></div>
     </div>
     <!-- 购买记录 -->
     <div class="page-section" id="page-purchases">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">购买记录用于查账和追溯；真正消课的是权益账户。购买记录作废不会物理删除历史，只会作废对应权益。</div>
-      <div class="page-stat-row" id="purchaseStatsRow"></div>
-      <div class="purchase-filter-bar">
-        <div class="filter-search tall"><span class="filter-search-mark"></span><input type="text" id="purSearch" placeholder="搜索学员、课包、课程产品" oninput="renderPurchases()"></div>
-        <select class="coach-ops-select" id="purStudentFilter" onchange="renderPurchases()"><option value="">全部学员</option></select>
-        <select class="coach-ops-select" id="purPackageFilter" onchange="renderPurchases()"><option value="">全部课包</option></select>
-        <select class="coach-ops-select" id="purStatusFilter" onchange="renderPurchases()"><option value="">全部状态</option><option value="active">正常</option><option value="voided">已作废</option></select>
-        <div class="filter-date-wrap">
-          <button class="coach-date-btn" id="purDateFromBtn" onclick="toggleGlobalDatePicker(event,'purDateFrom','purDateFromBtn')">开始日期</button>
-          <input class="filter-hidden-date" id="purDateFrom" type="date" onchange="syncDateButton('purDateFrom','purDateFromBtn','开始日期');renderPurchases()">
+      <div class="tms-audit-note">购买记录用于查账和追溯；真正消课的是权益账户。购买记录作废不会物理删除历史，只会作废对应权益。</div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="purSearch" placeholder="搜索学员、课包、课程产品" oninput="renderPurchases()">
+          </div>
+          <div id="purPackageFilterHost"></div>
+          <button class="tms-btn tms-btn-ghost" onclick="exportPurchaseCSV()">导出</button>
+          <button class="tms-btn tms-btn-ghost" onclick="openPurchaseImport()">导入</button>
+          <div class="filter-date-wrap"><button class="coach-date-btn" id="purDateFromBtn" onclick="toggleGlobalDatePicker(event,'purDateFrom','purDateFromBtn','开始日期')" type="button">开始日期</button><input class="filter-hidden-date" id="purDateFrom" type="date" onchange="syncDateButton('purDateFrom','purDateFromBtn','开始日期');renderPurchases()"></div>
+          <div class="filter-date-wrap"><button class="coach-date-btn" id="purDateToBtn" onclick="toggleGlobalDatePicker(event,'purDateTo','purDateToBtn','结束日期')" type="button">结束日期</button><input class="filter-hidden-date" id="purDateTo" type="date" onchange="syncDateButton('purDateTo','purDateToBtn','结束日期');renderPurchases()"></div>
         </div>
-        <div class="filter-date-wrap">
-          <button class="coach-date-btn" id="purDateToBtn" onclick="toggleGlobalDatePicker(event,'purDateTo','purDateToBtn')">结束日期</button>
-          <input class="filter-hidden-date" id="purDateTo" type="date" onchange="syncDateButton('purDateTo','purDateToBtn','结束日期');renderPurchases()">
-        </div>
-        <div class="purchase-actions">
-          <button class="btn-sec" onclick="exportPurchaseCSV()">导出</button>
-          <button class="btn-sec" onclick="openPurchaseImport()">导入</button>
-          <button class="btn-add" style="margin-left:0" onclick="openPurchaseEntryModal()">新增购买记录</button>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-primary" onclick="openPurchaseEntryModal()">＋ 新增购买记录</button>
         </div>
       </div>
-      <div class="tcard purchase-table"><table><thead><tr><th>购买日期</th><th>学员</th><th>售卖课包</th><th>课程产品</th><th>实收</th><th>权益进度</th><th>有效期</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody id="purchaseTbody"></tbody></table></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:120px;padding-left:20px">购买日期</th><th style="width:140px">学员</th><th style="width:170px">售卖课包</th><th style="width:150px">课程产品</th><th style="width:100px">实收</th><th style="width:140px">权益进度</th><th style="width:180px">有效期</th><th style="width:90px">状态</th><th class="tms-sticky-r" style="width:180px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="purchaseTbody"></tbody></table></div></div>
     </div>
     <!-- 权益账户 -->
     <div class="page-section" id="page-entitlements">
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--ts);margin-bottom:14px">权益账户是学员当前可用课时余额。排课时实际消耗的是这里，不是直接消耗课程产品。</div>
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="entSearch" placeholder="搜索学员/课包…" oninput="renderEntitlements()"></div>
-        <select class="fsel" id="entStatusFilter" onchange="renderEntitlements()"><option value="">全部状态</option><option value="active">正常</option><option value="depleted">已用完</option><option value="voided">已作废</option></select>
+      <div class="tms-audit-note">权益账户是学员当前可用课时余额。排课时实际消耗的是这里，不是直接消耗课程产品。</div>
+      <div class="tms-toolbar">
+        <div class="tms-filters">
+          <div class="tms-search-wrapper">
+            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="tms-search-input" id="entSearch" placeholder="搜索学员、课包或课程类型" oninput="renderEntitlements()">
+          </div>
+          <div id="entStatusFilterHost"></div>
+        </div>
       </div>
-      <div class="tcard"><table><thead><tr><th>学员</th><th>课包</th><th>课程类型</th><th>课时余额</th><th>有效期</th><th>时段</th><th>状态</th></tr></thead><tbody id="entitlementTbody"></tbody></table></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:150px;padding-left:20px">学员</th><th style="width:180px">课包</th><th style="width:120px">课程类型</th><th style="width:120px">课时余额</th><th style="width:190px">有效期</th><th style="width:120px">时段</th><th class="tms-sticky-r" style="width:110px;padding-right:20px;text-align:right">状态</th></tr></thead><tbody id="entitlementTbody"></tbody></table></div></div>
     </div>
     <!-- 工作台（教练视角） -->
     <div class="page-section" id="page-workbench">
@@ -866,7 +953,13 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 <script>
 const API='';
 let CAMPUS={};
-function cn(k){return CAMPUS[k]||k}
+function cn(k){
+  const raw=String(k??'').trim();
+  if(!raw||raw==='undefined'||raw==='null')return '';
+  if(CAMPUS[raw])return CAMPUS[raw];
+  const hit=campuses.find(c=>[c.code,c.id,c.name].map(v=>String(v||'').trim()).includes(raw));
+  return hit?.name||raw;
+}
 function campusOpts(sel){return Object.entries(CAMPUS).map(([k,v])=>`<option value="${k}"${sel===k?' selected':''}>${v}</option>`).join('');}
 const VENUES=['1号场','2号场','3号场','4号场'];
 function venueOpts(sel){
@@ -1111,18 +1204,14 @@ function findStudentForCourt(c){
   if(ids.length){
     const byIds=ids.map(id=>students.find(s=>s.id===id)).filter(Boolean);
     if(byIds.length)return byIds[0];
+    return null;
   }
   if(c.studentId){
     const byId=students.find(s=>s.id===c.studentId);
     if(byId)return byId;
+    return null;
   }
-  const phone=String(c.phone||'').trim();
-  if(phone){
-    const byPhone=students.find(s=>String(s.phone||'').trim()===phone);
-    if(byPhone)return byPhone;
-  }
-  const name=String(c.name||'').trim();
-  return name?students.find(s=>String(s.name||'').trim()===name):null;
+  return null;
 }
 function courtsForStudent(stu){
   if(!stu)return[];
@@ -1560,6 +1649,31 @@ function studentBookingMembershipSummary(stu){
   const hasMembership=linked.some(c=>!!courtMembershipAccount(c.id));
   return hasMembership?'已关联订场 · 有会员':'已关联订场';
 }
+function productTypeTagClass(type){
+  if(type==='私教')return 'tms-tag-tier-gold';
+  if(type==='训练营')return 'tms-tag-green';
+  if(type==='专项训练')return 'tms-tag-tier-blue';
+  return 'tms-tag-tier-slate';
+}
+function classDisplayName(cls){
+  if(!cls)return '—';
+  const classNo=String(cls.classNo||'').trim();
+  const rawName=String(cls.className||'').trim();
+  const productName=String(cls.productName||products.find(p=>p.id===cls.productId)?.name||'').trim();
+  if(rawName&&rawName!=='-')return rawName;
+  if(classNo&&productName)return `${classNo}-${productName}`;
+  if(classNo)return classNo;
+  if(productName)return productName;
+  return '—';
+}
+function classDisplayStatus(cls){
+  if(!cls)return '—';
+  const base=String(cls.status||'已排班');
+  if(base!=='已排班')return base;
+  const startDate=String(cls.startDate||'').trim();
+  if(startDate&&startDate>today())return '未开始';
+  return '已排班';
+}
 function studentStatusMeta(stu){
   const activeClasses=studentActiveClasses(stu);
   const recentSchedule=schedules.filter(x=>scheduleHasStudent(x,stu)&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0];
@@ -1632,6 +1746,20 @@ function classScheduleSummaryHtml(cls){
   const next=classNextLesson(cls);
   const tags=classRiskTags(cls);
   return `<div class="fgrid" style="margin-bottom:0"><div class="fg"><div class="flabel">最近上课</div><div class="finput">${recent?.startTime?fmtDt(recent.startTime):'—'}</div></div><div class="fg"><div class="flabel">下次课</div><div class="finput">${next?.startTime?fmtDt(next.startTime):'—'}</div></div><div class="fg"><div class="flabel">关联排课</div><div class="finput">${rows.length} 次</div></div><div class="fg"><div class="flabel">风险标签</div><div class="finput">${tags.length?tags.map(t=>`<span class="badge b-amber" style="font-size:10px;margin-right:4px">${esc(t)}</span>`).join(''):'—'}</div></div><div class="fg full"><button class="btn-sec" onclick="openClassScheduleList('${cls.id}')">去排课页查看</button><button class="btn-sec" style="margin-left:6px" onclick="openClassStudentList('${cls.id}')">去学员页查看</button></div></div>`;
+}
+function classSummaryPanelHtml(cls,readonly=false){
+  if(!cls)return '';
+  const rows=classSchedules(cls);
+  const recent=classLastLesson(cls);
+  const next=classNextLesson(cls);
+  const tags=classRiskTags(cls);
+  const total=parseInt(cls.totalLessons)||0;
+  const used=parseInt(cls.usedLessons)||0;
+  const remaining=Math.max(0,total-used);
+  const studentCount=parseArr(cls.studentIds).length;
+  const tagsHtml=tags.length?tags.map(t=>`<span class="tms-tag tms-tag-tier-slate">${esc(t)}</span>`).join(''):'<span style="color:var(--td);font-size:12px">当前无风险标签</span>';
+  const links=readonly?'':`<div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">快捷跳转</label><div class="finput tms-form-control" style="height:auto;min-height:54px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="tms-action-link" onclick="openClassScheduleList('${cls.id}')">查看关联排课</span><span class="tms-action-link" onclick="openClassStudentList('${cls.id}')">查看关联学员</span></div></div></div>`;
+  return `<div class="tms-section-header" style="margin-top:0;">班次摘要</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">最近上课</label><input class="finput tms-form-control" value="${recent?.startTime?fmtDt(recent.startTime):'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">下次课</label><input class="finput tms-form-control" value="${next?.startTime?fmtDt(next.startTime):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">关联排课</label><input class="finput tms-form-control" value="${rows.length} 次" readonly></div><div class="tms-form-item"><label class="tms-form-label">关联学员</label><input class="finput tms-form-control" value="${studentCount} 人" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">课时进度</label><input class="finput tms-form-control" value="已上 ${used} / 应上 ${total} / 剩余 ${remaining}" readonly></div><div class="tms-form-item"><label class="tms-form-label">风险标签</label><div class="finput tms-form-control" style="height:auto;min-height:54px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${tagsHtml}</div></div></div>${links}`;
 }
 function studentOpts(sel){
   return '<option value="">— 不关联 —</option>'+students.map(s=>`<option value="${s.id}"${sel===s.id?' selected':''}>${esc(s.name)}${s.phone?' · '+esc(s.phone):''}</option>`).join('');
@@ -2023,6 +2151,23 @@ function renderStudentsIfVisible(){
 function setCampus(el,c){document.querySelectorAll('.ctab').forEach(b=>b.classList.remove('active'));el.classList.add('active');campus=c;localStorage.setItem(CAMPUS_KEY,campus);stuPage=1;courtPage=1;if(currentPage==='students')renderStudents();if(currentPage==='courts')renderCourts();}
 // ===== 学员信息 =====
 function onStudentFilterChange(){stuPage=1;renderStudents();}
+function renderStudentToolbarFilters(){
+  const typeValue=document.getElementById('stuTypeFilter')?.value||'';
+  const sourceValue=document.getElementById('stuSourceFilter')?.value||'';
+  const linkValue=document.getElementById('stuLinkFilter')?.value||'';
+  const typeOptions=[{value:'',label:'全部类型'},{value:'成人',label:'成人'},{value:'青少年',label:'青少年'}];
+  const sourceOptions=[{value:'',label:'全部来源'},...SOURCES.map(t=>({value:t,label:t}))];
+  const linkOptions=[{value:'',label:'全部关联'},{value:'hasClass',label:'有班次'},{value:'noClass',label:'无班次'},{value:'hasCourt',label:'有订场'},{value:'noCourt',label:'无订场'},{value:'hasMember',label:'有会员'},{value:'noMember',label:'无会员'}];
+  const wrapMap=[
+    ['stuTypeFilterHost','stuTypeFilter','全部类型',typeOptions,typeValue],
+    ['stuSourceFilterHost','stuSourceFilter','全部来源',sourceOptions,sourceValue],
+    ['stuLinkFilterHost','stuLinkFilter','全部关联',linkOptions,linkValue]
+  ];
+  wrapMap.forEach(([hostId,id,label,options,value])=>{
+    const host=document.getElementById(hostId);
+    if(host)host.innerHTML=renderCourtDropdownHtml(id,label,options,value,false,'onStudentFilterChange');
+  });
+}
 function getStudentBaseList(){
   return students.filter(s=>campus==='all'||s.campus===campus);
 }
@@ -2030,14 +2175,12 @@ function getFilteredStudents(){
   const q=(document.getElementById('stuSearch')?.value||'').toLowerCase();
   const tf=document.getElementById('stuTypeFilter')?.value||'';
   const sf=document.getElementById('stuSourceFilter')?.value||'';
-  const statusFilter=document.getElementById('stuStatusFilter')?.value||'';
   const linkFilter=document.getElementById('stuLinkFilter')?.value||'';
   return getStudentBaseList().filter(s=>{
     const accountText=courtsForStudent(s).map(c=>`${c.name} ${c.phone||''}`).join(' ');
     if(!searchHit(q,s.name,s.phone,s.type,s.source,s.activityRange,s.notes,cn(s.campus),accountText))return false;
     if(tf&&s.type!==tf)return false;
     if(sf&&s.source!==sf)return false;
-    if(statusFilter&&studentStatusMeta(s).label!==statusFilter)return false;
     if(linkFilter){
       const hasClass=studentActiveClasses(s).length>0;
       const linkedCourts=courtsForStudent(s);
@@ -2064,30 +2207,32 @@ function getStudentDuplicateCandidates(input,editingId=''){
   });
 }
 function renderStudents(){
+  renderStudentToolbarFilters();
   let list=getFilteredStudents();
   const base=getStudentBaseList();
   const activeCount=base.filter(s=>studentStatusMeta(s).label==='上课中').length;
   const convertingCount=base.filter(s=>studentStatusMeta(s).label==='待转化').length;
   const silentCount=base.filter(s=>studentStatusMeta(s).label==='沉默30天').length;
   const relationCount=base.filter(s=>studentBookingMembershipSummary(s)!=='未关联').length;
-  document.getElementById('studentStatsRow').innerHTML=`<div class="scard"><div class="sc-icon si-a">👥</div><div><div class="sc-label">学员总数</div><div class="sc-val">${base.length}<span class="u">人</span></div><div class="sc-sub">当前校区口径</div></div></div><div class="scard"><div class="sc-icon si-b">🎾</div><div><div class="sc-label">上课中</div><div class="sc-val">${activeCount}<span class="u">人</span></div></div></div><div class="scard"><div class="sc-icon si-c">📌</div><div><div class="sc-label">待转化</div><div class="sc-val">${convertingCount}<span class="u">人</span></div></div></div><div class="scard"><div class="sc-icon si-d">🔗</div><div><div class="sc-label">订场/会员关联</div><div class="sc-val">${relationCount}<span class="u">人</span></div><div class="sc-sub">沉默30天 ${silentCount}</div></div></div>`;
+  document.getElementById('studentStatsRow').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">学员总数</div><div class="tms-stat-value">${base.length}<span>人</span></div><div class="tms-stat-sub">当前校区口径</div></div><div class="tms-stat-card"><div class="tms-stat-label">上课中</div><div class="tms-stat-value">${activeCount}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">待转化</div><div class="tms-stat-value">${convertingCount}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">订场/会员关联</div><div class="tms-stat-value">${relationCount}<span>人</span></div><div class="tms-stat-sub">沉默30天 ${silentCount}</div></div>`;
   const total=list.length,pages=Math.ceil(total/PAGE_SIZE);
   if(stuPage>Math.max(pages,1))stuPage=1;
   const slice=list.slice((stuPage-1)*PAGE_SIZE,stuPage*PAGE_SIZE);
+  const pager=document.querySelector('#page-students .tms-pagination');
+  if(pager)pager.style.display=pages>1?'flex':'none';
   document.getElementById('stuPagerInfo').textContent=`共 ${total} 条`;
-  document.getElementById('stuPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<button class="pbtn${i+1===stuPage?' active':''}" onclick="stuPage=${i+1};renderStudents()">${i+1}</button>`).join('');
+  document.getElementById('stuPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<div class="tms-page-btn${i+1===stuPage?' active':''}" onclick="stuPage=${i+1};renderStudents()">${i+1}</div>`).join('');
   document.getElementById('stuTbody').innerHTML=slice.length?slice.map(s=>{
     const stuScheds=schedules.filter(x=>scheduleHasStudent(x,s)&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
     const lastLesson=stuScheds.length?stuScheds[0].startTime.slice(0,10):'';
     const primaryClass=studentPrimaryClass(s);
     const activeClasses=studentActiveClasses(s);
-    const status=studentStatusMeta(s);
     const classText=primaryClass?`${primaryClass.className}${activeClasses.length>1?` · 另有${activeClasses.length-1}个`:''}`:'未入班';
     const coachText=studentCoachSummary(s);
     const packageText=studentPackageLessonSummary(s);
     const bookingText=studentBookingMembershipSummary(s);
-    return `<tr><td><div class="uname">${esc(s.name)}</div><div class="udesc">${esc(s.type||'—')} · ${cn(s.campus)}</div><div class="table-meta">${esc(s.phone)||'—'}</div></td><td><span class="badge ${status.badge}">${status.label}</span></td><td style="font-size:12px;color:var(--tb)">${esc(classText)}</td><td style="font-size:12px">${lastLesson?daysAgoText(lastLesson):'<span style="color:var(--td)">—</span>'}</td><td style="font-size:12px;color:var(--tb)">${esc(coachText)}</td><td style="font-size:12px;color:var(--tb)">${esc(packageText)}</td><td style="font-size:12px;color:var(--tb)">${esc(bookingText)}</td><td style="font-size:12px;color:var(--ts)">${esc(s.source)||'—'}</td><td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td);font-size:12px">${esc(studentNoteSummary(s))}</td><td style="text-align:right"><button class="abtn" onclick="openStudentDetail('${s.id}')">查看</button><button class="abtn" onclick="openStudentModal('${s.id}')">编辑</button></td></tr>`;
-  }).join(''):'<tr><td colspan="10"><div class="empty"><div class="empty-ico">👥</div><p>暂无学员</p></div></td></tr>';
+    return `<tr><td class="tms-sticky-l" style="padding-left:20px"><div class="tms-text-primary">${esc(s.name)}</div></td><td>${renderCourtCellText(s.phone)}</td><td>${renderCourtCellText(s.type)}</td><td>${renderCourtCellText(cn(s.campus))}</td><td>${renderCourtCellText(classText)}</td><td>${renderCourtCellText(lastLesson?daysAgoText(lastLesson):'-',false)}</td><td>${renderCourtCellText(coachText)}</td><td><div class="tms-text-remark" title="${esc(packageText)}">${esc(renderCourtEmptyText(packageText))}</div></td><td><div class="tms-text-remark" title="${esc(bookingText)}">${esc(renderCourtEmptyText(bookingText))}</div></td><td>${renderCourtCellText(s.source)}</td><td><div class="tms-text-remark" title="${esc(studentNoteSummary(s))}">${esc(renderCourtEmptyText(studentNoteSummary(s)))}</div></td><td class="tms-sticky-r tms-action-cell" style="width:160px;padding-right:20px"><span class="tms-action-link" onclick="openStudentDetail('${s.id}')">查看</span><span class="tms-action-link" onclick="openStudentModal('${s.id}')">编辑</span></td></tr>`;
+  }).join(''):'<tr><td colspan="12"><div class="empty"><div class="empty-ico">👥</div><p>暂无学员</p></div></td></tr>';
 }
 function studentFeedbackHistoryHtml(s){
   const rows=feedbacks.filter(f=>{
@@ -2122,7 +2267,7 @@ function studentTeachingInfoHtml(stu){
   const coachText=studentCoachSummary(stu);
   const recentSchedule=schedules.filter(x=>scheduleHasStudent(x,stu)&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0];
   const recentFeedbacks=studentRecentFeedbacks(stu,2);
-  return `<div class="sec-ttl">教学信息</div><div class="fgrid"><div class="fg"><div class="flabel">当前状态</div><div class="finput"><span class="badge ${status.badge}">${status.label}</span></div></div><div class="fg"><div class="flabel">当前班次</div><div class="finput">${esc(primaryClass?.className)||'未入班'}</div></div><div class="fg"><div class="flabel">负责教练</div><div class="finput">${esc(coachText)}</div></div><div class="fg"><div class="flabel">最近上课</div><div class="finput">${recentSchedule?.startTime?daysAgoText(recentSchedule.startTime.slice(0,10)):'—'}</div></div><div class="fg"><div class="flabel">最近排课备注</div><div class="finput">${esc(recentSchedule?.notes)||'—'}</div></div><div class="fg"><div class="flabel">课包 / 课时</div><div class="finput">${esc(studentPackageLessonSummary(stu))}</div></div><div class="fg full"><div class="flabel">班次进度</div><div class="finput" style="min-height:42px">${studentClassSummaryHtml(stu)}</div></div><div class="fg full"><div class="flabel">最近2条课后反馈</div><div class="finput" style="min-height:42px">${recentFeedbacks.length?recentFeedbacks.map(f=>`${String(f.startTime||f.createdAt||'').slice(0,10)}：${f.practicedToday||f.knowledgePoint||f.nextTraining||'已填写反馈'}`).map(esc).join('<br>'):'暂无课后反馈'}</div></div></div>`;
+  return `<div class="tms-section-header">教学信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前状态</label><div class="finput tms-form-control"><span class="tms-tag ${status.badge==='b-green'?'tms-tag-green':status.badge==='b-red'?'tms-tag-red':'tms-tag-tier-blue'}">${status.label}</span></div></div><div class="tms-form-item"><label class="tms-form-label">当前班次</label><input class="finput tms-form-control" value="${esc(primaryClass?.className)||'未入班'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">负责教练</label><input class="finput tms-form-control" value="${esc(coachText)}" readonly></div><div class="tms-form-item"><label class="tms-form-label">最近上课</label><input class="finput tms-form-control" value="${recentSchedule?.startTime?daysAgoText(recentSchedule.startTime.slice(0,10)):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">最近排课备注</label><input class="finput tms-form-control" value="${esc(recentSchedule?.notes)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">课包 / 课时</label><input class="finput tms-form-control" value="${esc(studentPackageLessonSummary(stu))}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">班次进度</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentClassSummaryHtml(stu)}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">最近2条课后反馈</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${recentFeedbacks.length?recentFeedbacks.map(f=>`${String(f.startTime||f.createdAt||'').slice(0,10)}：${f.practicedToday||f.knowledgePoint||f.nextTraining||'已填写反馈'}`).map(esc).join('<br>'):'暂无课后反馈'}</div></div></div>`;
 }
 function studentOpsInfoHtml(stu){
   const recentSchedule=schedules.filter(x=>scheduleHasStudent(x,stu)&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0];
@@ -2130,11 +2275,11 @@ function studentOpsInfoHtml(stu){
   const latestCourt=latestCourtUseDateForStudent(stu);
   const conversionSummary=recentFeedback?(recentFeedback.conversionIntent||recentFeedback.recommendedProductType||recentFeedback.needOpsFollowUp?'已形成转化判断':'未形成转化判断'):'暂无转化判断';
   const opsNeed=recentFeedback?.needOpsFollowUp?'需要运营跟进':'暂不需要运营跟进';
-  return `<div class="sec-ttl">运营信息</div><div class="fgrid"><div class="fg"><div class="flabel">来源</div><div class="finput">${esc(stu.source)||'—'}</div></div><div class="fg"><div class="flabel">活动范围</div><div class="finput">${esc(stu.activityRange)||'—'}</div></div><div class="fg"><div class="flabel">最近活跃</div><div class="finput">${recentSchedule?.startTime?daysAgoText(recentSchedule.startTime.slice(0,10)):latestCourt?daysAgoText(latestCourt):'—'}</div></div><div class="fg"><div class="flabel">最近订场</div><div class="finput">${latestCourt?daysAgoText(latestCourt):'—'}</div></div><div class="fg"><div class="flabel">转化判断</div><div class="finput">${esc(conversionSummary)}</div></div><div class="fg"><div class="flabel">运营跟进</div><div class="finput">${esc(opsNeed)}</div></div><div class="fg full"><div class="flabel">最近反馈里的运营结论</div><div class="finput" style="min-height:42px">${recentFeedback?esc([recentFeedback.mainIssues,recentFeedback.recommendedReason,recentFeedback.opsFollowUpSuggestion].filter(Boolean).join('；'))||'—':'—'}</div></div><div class="fg full"><div class="flabel">运营备注</div><div class="finput" style="min-height:42px">${esc(stu.notes)||'—'}</div></div></div>`;
+  return `<div class="tms-section-header">运营信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">来源</label><input class="finput tms-form-control" value="${esc(stu.source)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">活动范围</label><input class="finput tms-form-control" value="${esc(stu.activityRange)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">最近活跃</label><input class="finput tms-form-control" value="${recentSchedule?.startTime?daysAgoText(recentSchedule.startTime.slice(0,10)):latestCourt?daysAgoText(latestCourt):'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">最近订场</label><input class="finput tms-form-control" value="${latestCourt?daysAgoText(latestCourt):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">转化判断</label><input class="finput tms-form-control" value="${esc(conversionSummary)}" readonly></div><div class="tms-form-item"><label class="tms-form-label">运营跟进</label><input class="finput tms-form-control" value="${esc(opsNeed)}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">最近反馈里的运营结论</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${recentFeedback?esc([recentFeedback.mainIssues,recentFeedback.recommendedReason,recentFeedback.opsFollowUpSuggestion].filter(Boolean).join('；'))||'—':'—'}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">运营备注</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${esc(stu.notes)||'—'}</div></div></div>`;
 }
 function studentConsumptionInfoHtml(stu){
   const linkedCourts=courtsForStudent(stu);
-  return `<div class="sec-ttl">消费与关联信息</div><div class="fgrid"><div class="fg"><div class="flabel">订场 / 会员</div><div class="finput">${esc(studentBookingMembershipSummary(stu))}</div></div><div class="fg"><div class="flabel">最近订场</div><div class="finput">${latestCourtUseDateForStudent(stu)?daysAgoText(latestCourtUseDateForStudent(stu)):'—'}</div></div><div class="fg full"><div class="flabel">订场账户摘要</div><div class="finput" style="min-height:42px">${studentAccountSummaryHtml(stu)}</div></div><div class="fg full"><div class="flabel">会员摘要</div><div class="finput" style="min-height:42px">${studentMembershipSummaryHtml(stu)}</div></div><div class="fg full"><div class="flabel">课包权益</div><div class="finput" style="min-height:42px">${studentEntitlementSummaryHtml(stu)}</div></div>${linkedCourts.length?`<div class="fg full"><div class="flabel">关联说明</div><div class="finput" style="min-height:42px">${esc(linkedCourts.map(c=>c.name).join('、'))}</div></div>`:''}</div>`;
+  return `<div class="tms-section-header">消费与关联信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">订场 / 会员</label><input class="finput tms-form-control" value="${esc(studentBookingMembershipSummary(stu))}" readonly></div><div class="tms-form-item"><label class="tms-form-label">最近订场</label><input class="finput tms-form-control" value="${latestCourtUseDateForStudent(stu)?daysAgoText(latestCourtUseDateForStudent(stu)):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">订场账户摘要</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentAccountSummaryHtml(stu)}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">会员摘要</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentMembershipSummaryHtml(stu)}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">课包权益</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentEntitlementSummaryHtml(stu)}</div></div></div>${linkedCourts.length?`<div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">关联说明</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${esc(linkedCourts.map(c=>c.name).join('、'))}</div></div></div>`:''}`;
 }
 function studentLinkedDetailHtml(s,showAccount=true){
   const latest=schedules.filter(x=>scheduleHasStudent(x,s)).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0))[0];
@@ -2143,20 +2288,23 @@ function studentLinkedDetailHtml(s,showAccount=true){
 }
 function openStudentDetail(id){
   const s=students.find(x=>x.id===id);if(!s)return;
-  document.getElementById('mTitle').textContent='学员详情';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名</div><div class="finput">${esc(s.name)||'—'}</div></div><div class="fg"><div class="flabel">手机号码</div><div class="finput">${esc(s.phone)||'—'}</div></div><div class="fg"><div class="flabel">学员类型</div><div class="finput">${esc(s.type)||'—'}</div></div><div class="fg"><div class="flabel">所在校区</div><div class="finput">${cn(s.campus)||'—'}</div></div></div>${studentTeachingInfoHtml(s)}${studentOpsInfoHtml(s)}${studentConsumptionInfoHtml(s)}<div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button><button class="btn-save" onclick="openStudentModal('${s.id}')">编辑资料</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名</label><input class="finput tms-form-control" value="${esc(s.name)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">手机号</label><input class="finput tms-form-control" value="${esc(s.phone)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员类型</label><input class="finput tms-form-control" value="${esc(s.type)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">所在校区</label><input class="finput tms-form-control" value="${cn(s.campus)||'—'}" readonly></div></div>${studentTeachingInfoHtml(s)}${studentOpsInfoHtml(s)}${studentConsumptionInfoHtml(s)}`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">关闭</button><button class="tms-btn tms-btn-primary" onclick="openStudentModal('${s.id}')">编辑资料</button>`;
+  setCourtModalFrame('学员详情',body,footer,'modal-wide');
 }
 function openStudentModal(id){
   editId=id;const s=id?students.find(x=>x.id===id):null;
-  document.getElementById('mTitle').textContent=id?'编辑学员':'添加学员';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div><div class="fgrid"><div class="fg"><div class="flabel">姓名 *</div><input class="finput" id="s_name" value="${rv(s,'name')}" placeholder="学员姓名"></div><div class="fg"><div class="flabel">手机号码</div><input class="finput" id="s_phone" value="${rv(s,'phone')}" placeholder="138****1234"></div><div class="fg"><div class="flabel">学员类型</div><select class="fselect" id="s_type"><option value="成人"${rv(s,'type','成人')==='成人'?' selected':''}>成人</option><option value="青少年"${rv(s,'type')==='青少年'?' selected':''}>青少年</option></select></div><div class="fg"><div class="flabel">来源</div><select class="fselect" id="s_source"><option value="">— 选择 —</option>${SOURCES.map(t=>`<option value="${t}"${rv(s,'source')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">活动范围</div><input class="finput" id="s_range" value="${rv(s,'activityRange')}" placeholder="例：朝阳"></div><div class="fg"><div class="flabel">所在校区</div><select class="fselect" id="s_campus">${campusOpts(rv(s,'campus'))}</select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="s_notes">${esc(rv(s,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${s.id}','${esc(s.name)}','student')">删除</button>`:''}<button class="btn-save" onclick="saveStudent()">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const typeOptions=[{value:'成人',label:'成人'},{value:'青少年',label:'青少年'}];
+  const sourceOptions=[{value:'',label:'— 选择 —'},...SOURCES.map(t=>({value:t,label:t}))];
+  const campusOptions=[{value:'',label:'-'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input type="text" class="finput tms-form-control" id="s_name" value="${rv(s,'name')}" placeholder="学员姓名"></div><div class="tms-form-item"><label class="tms-form-label">手机号</label><input type="text" class="finput tms-form-control" id="s_phone" value="${rv(s,'phone')}" placeholder="13800138000"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员类型</label>${renderCourtDropdownHtml('s_type','学员类型',typeOptions,rv(s,'type','成人'),true)}</div><div class="tms-form-item"><label class="tms-form-label">来源</label>${renderCourtDropdownHtml('s_source','来源',sourceOptions,rv(s,'source'),true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">活动范围</label><input type="text" class="finput tms-form-control" id="s_range" value="${rv(s,'activityRange')}" placeholder="例：朝阳"></div><div class="tms-form-item"><label class="tms-form-label">所在校区</label>${renderCourtDropdownHtml('s_campus','校区',campusOptions,rv(s,'campus'),true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="s_notes">${esc(rv(s,'notes'))}</textarea></div></div>`;
+  const footer=id?`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><div style="display:flex;gap:12px;"><button class="tms-btn tms-btn-danger" onclick="confirmDel('${s.id}','${esc(s.name)}','student')">删除</button><button class="tms-btn tms-btn-primary" id="studentSaveBtn" onclick="saveStudent()">保存</button></div>`:`<div style="display:flex;gap:12px;margin-left:auto;"><button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="studentSaveBtn" onclick="saveStudent()">保存</button></div>`;
+  setCourtModalFrame(id?'编辑学员':'添加学员',body,footer,'modal-tight');
 }
 async function saveStudent(){
   const name=document.getElementById('s_name').value.trim();if(!name){toast('请输入姓名','warn');return;}
   const phone=document.getElementById('s_phone').value.trim();if(!validateCnPhone(phone)){toast('手机号格式不正确','warn');return;}
-  const btn=document.getElementById('courtSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
+  const btn=document.getElementById('studentSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const data={name,phone,type:document.getElementById('s_type').value,source:document.getElementById('s_source').value,activityRange:document.getElementById('s_range').value.trim(),campus:document.getElementById('s_campus').value,notes:document.getElementById('s_notes').value.trim(),updatedBy:currentUser?.name||''};
   const duplicates=getStudentDuplicateCandidates(data,editId);
   if(duplicates.length){
@@ -2230,10 +2378,24 @@ function openClassStudentList(classId){
   const el=document.getElementById('stuSearch');if(el){el.value=keyword||cls.className||'';stuPage=1;renderStudents();}
 }
 function syncClassFilterOptions(){
-  const campusEl=document.getElementById('clsCampusFilter'),coachEl=document.getElementById('clsCoachFilter'),typeEl=document.getElementById('clsTypeFilter');
-  if(campusEl){const v=campusEl.value;campusEl.innerHTML='<option value="">全部校区</option>'+campuses.map(c=>`<option value="${c.code||c.id}">${esc(c.name||c.code||c.id)}</option>`).join('');campusEl.value=v;}
-  if(coachEl){const v=coachEl.value;coachEl.innerHTML='<option value="">全部教练</option>'+activeCoachNames().map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');coachEl.value=v;}
-  if(typeEl){const v=typeEl.value;typeEl.innerHTML='<option value="">全部课程</option>'+PRODUCT_TYPES.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');typeEl.value=v;}
+  const statusValue=document.getElementById('clsStatusFilter')?.value||'';
+  const campusValue=document.getElementById('clsCampusFilter')?.value||'';
+  const coachValue=document.getElementById('clsCoachFilter')?.value||'';
+  const typeValue=document.getElementById('clsTypeFilter')?.value||'';
+  const statusOptions=[{value:'',label:'全部状态'},{value:'已排班',label:'已排班'},{value:'已取消',label:'已取消'},{value:'已结课',label:'已结课'}];
+  const campusOptions=[{value:'',label:'全部校区'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  const coachOptions=[{value:'',label:'全部教练'},...activeCoachNames().map(c=>({value:c,label:c}))];
+  const typeOptions=[{value:'',label:'全部课程'},...PRODUCT_TYPES.map(t=>({value:t,label:t}))];
+  const wrapMap=[
+    ['clsStatusFilterHost','clsStatusFilter','全部状态',statusOptions,statusValue],
+    ['clsCampusFilterHost','clsCampusFilter','全部校区',campusOptions,campusValue],
+    ['clsCoachFilterHost','clsCoachFilter','全部教练',coachOptions,coachValue],
+    ['clsTypeFilterHost','clsTypeFilter','全部课程',typeOptions,typeValue]
+  ];
+  wrapMap.forEach(([hostId,id,label,options,value])=>{
+    const host=document.getElementById(hostId);
+    if(host)host.innerHTML=renderCourtDropdownHtml(id,label,options,value,false,'renderClasses');
+  });
 }
 function renderClasses(){
   syncClassFilterOptions();
@@ -2242,7 +2404,6 @@ function renderClasses(){
   const cf=document.getElementById('clsCampusFilter')?.value||'';
   const coachF=document.getElementById('clsCoachFilter')?.value||'';
   const typeF=document.getElementById('clsTypeFilter')?.value||'';
-  const riskF=document.getElementById('clsRiskFilter')?.value||'';
   let list=classes.filter(c=>{
     if(sf&&c.status!==sf)return false;
     if(cf&&c.campus!==cf)return false;
@@ -2252,17 +2413,18 @@ function renderClasses(){
     const prod=products.find(x=>x.id===c.productId);
     if(typeF&&prod?.type!==typeF)return false;
     const tags=classRiskTags(c);
-    if(riskF&&!tags.includes(riskF))return false;
     return searchHit(q,c.className,c.classNo,c.coach,c.productName,prod?.type,prod?.lessons,prod?.price,c.status,c.notes,c.opsNote,c.sourceType,cn(c.campus),stuText,tags.join(' '));
   });
   const active=classes.filter(c=>c.status==='已排班').length,ending=classes.filter(c=>classRiskTags(c).includes('即将结课')).length,noNext=classes.filter(c=>classRiskTags(c).includes('未安排下次课')).length,silent=classes.filter(c=>classRiskTags(c).includes('长期未上课')).length;
-  document.getElementById('classStatsRow').innerHTML=`<div class="scard"><div class="sc-icon si-a">📋</div><div><div class="sc-label">班次总数</div><div class="sc-val">${classes.length}<span class="u">个</span></div><div class="sc-sub">进行中 ${active}</div></div></div><div class="scard"><div class="sc-icon si-c">📚</div><div><div class="sc-label">即将结课</div><div class="sc-val">${ending}<span class="u">个</span></div></div></div><div class="scard"><div class="sc-icon si-b">📅</div><div><div class="sc-label">未排下次课</div><div class="sc-val">${noNext}<span class="u">个</span></div></div></div><div class="scard"><div class="sc-icon si-d">⚠️</div><div><div class="sc-label">长期未上</div><div class="sc-val">${silent}<span class="u">个</span></div></div></div>`;
+  document.getElementById('classStatsRow').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">班次总数</div><div class="tms-stat-value">${classes.length}<span>个</span></div><div class="tms-stat-sub">进行中 ${active}</div></div><div class="tms-stat-card"><div class="tms-stat-label">即将结课</div><div class="tms-stat-value">${ending}<span>个</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">未排下次课</div><div class="tms-stat-value">${noNext}<span>个</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">长期未上</div><div class="tms-stat-value">${silent}<span>个</span></div></div>`;
   const total=list.length,pages=Math.ceil(total/PAGE_SIZE);
   if(clsPage>Math.max(pages,1))clsPage=1;
   const slice=list.slice((clsPage-1)*PAGE_SIZE,clsPage*PAGE_SIZE);
+  const pager=document.querySelector('#page-classes .tms-pagination');
+  if(pager)pager.style.display=pages>1?'flex':'none';
   document.getElementById('clsPagerInfo').textContent=`共 ${total} 条`;
-  document.getElementById('clsPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<button class="pbtn${i+1===clsPage?' active':''}" onclick="clsPage=${i+1};renderClasses()">${i+1}</button>`).join('');
-  const ss={'已排班':'b-blue','已取消':'b-gray','已结课':'b-green'};
+  document.getElementById('clsPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<div class="tms-page-btn${i+1===clsPage?' active':''}" onclick="clsPage=${i+1};renderClasses()">${i+1}</div>`).join('');
+  const ss={'未开始':'tms-tag-tier-gold','已排班':'tms-tag-tier-blue','已取消':'tms-tag-tier-slate','已结课':'tms-tag-green'};
   document.getElementById('clsTbody').innerHTML=slice.length?slice.map(c=>{
     const prod=products.find(x=>x.id===c.productId);
     const ids=parseArr(c.studentIds);
@@ -2271,8 +2433,19 @@ function renderClasses(){
     const tl=parseInt(c.totalLessons)||0,ul=parseInt(c.usedLessons)||0,rem=tl-ul;
     const pct=tl>0?Math.round(rem/tl*100):0,pc=pct>40?'pf-gold':pct>15?'pf-warn':'pf-red';
     const last=classLastLesson(c),next=classNextLesson(c);
-    return `<tr><td><div class="uname">${esc(c.className)||'—'}</div><div class="udesc">${esc(c.classNo)||''} · ${c.startDate||'—'}~${c.endDate||'—'}</div></td><td style="font-weight:500;color:var(--th)">${prod?prod.name:'—'}<div class="udesc">${esc(prod?.type||c.sourceType||'')}</div></td><td style="font-size:12px;color:var(--ts)">${cn(c.campus)||'—'}</td><td style="font-size:12px">${names}</td><td style="font-weight:500">${esc(c.coach)||'—'}</td><td style="font-size:11px;color:var(--ts)">${days}</td><td style="font-size:11px;color:var(--ts)">${last?.startTime?fmtDt(last.startTime):'—'}</td><td style="font-size:11px;color:var(--ts)">${next?.startTime?fmtDt(next.startTime):'—'}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${Math.max(0,Math.min(100,pct))}%"></div></div><span class="prog-txt">${ul}/${tl} 剩${rem}</span></div></td><td>${classTagBadges(c)}</td><td><span class="badge ${ss[c.status]||'b-gray'}">${c.status||'已排班'}</span></td><td style="text-align:right"><button class="abtn" onclick="openClassModal('${c.id}')">编辑</button></td></tr>`;
-  }).join(''):'<tr><td colspan="12"><div class="empty"><div class="empty-ico">📋</div><p>暂无班次</p></div></td></tr>';
+    const displayName=classDisplayName(c);
+    const displayStatus=classDisplayStatus(c);
+    const typeText=prod?.type||c.sourceType||'-';
+    return `<tr><td style="padding-left:20px"><div class="tms-text-primary">${esc(displayName)}</div></td><td>${renderCourtCellText(c.classNo,false)}</td><td><div class="tms-text-primary">${esc(prod?.name||c.productName||'-')}</div></td><td><span class="tms-tag ${productTypeTagClass(typeText)}">${esc(typeText)}</span></td><td>${renderCourtCellText(c.startDate,false)}</td><td>${renderCourtCellText(c.endDate,false)}</td><td>${renderCourtCellText(cn(c.campus))}</td><td><div class="tms-text-remark" title="${names}">${names}</div></td><td>${renderCourtCellText(c.coach)}</td><td>${renderCourtCellText(days)}</td><td>${renderCourtCellText(last?.startTime?fmtDt(last.startTime):'-',false)}</td><td>${renderCourtCellText(next?.startTime?fmtDt(next.startTime):'-',false)}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${Math.max(0,Math.min(100,pct))}%"></div></div><span class="prog-txt">${ul}/${tl} 剩${rem}</span></div></td><td><span class="tms-tag ${ss[displayStatus]||'tms-tag-tier-slate'}">${displayStatus}</span></td><td class="tms-sticky-r tms-action-cell" style="width:160px;padding-right:20px"><span class="tms-action-link" onclick="openClassDetail('${c.id}')">查看</span><span class="tms-action-link" onclick="openClassModal('${c.id}')">编辑</span><span class="tms-action-link" onclick="confirmDel('${c.id}','${esc(displayName)}','class')">删除</span></td></tr>`;
+  }).join(''):'<tr><td colspan="15"><div class="empty"><div class="empty-ico">📋</div><p>暂无班次</p></div></td></tr>';
+}
+function openClassDetail(id){
+  const c=classes.find(x=>x.id===id);if(!c)return;
+  const prod=products.find(x=>x.id===c.productId);
+  const studentText=parseArr(c.studentIds).map(sid=>students.find(s=>s.id===sid)?.name||sid).join('、')||'—';
+  const body=`${classSummaryPanelHtml(c,true)}<div class="tms-section-header">班次信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">班次名称</label><input class="finput tms-form-control" value="${esc(c.className)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">班次编号</label><input class="finput tms-form-control" value="${esc(c.classNo)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">关联课程</label><input class="finput tms-form-control" value="${esc(prod?.name||c.productName)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">课程类型</label><input class="finput tms-form-control" value="${esc(prod?.type||c.sourceType)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">所属校区</label><input class="finput tms-form-control" value="${cn(c.campus)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">预设教练</label><input class="finput tms-form-control" value="${esc(c.coach)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">开始日期</label><input class="finput tms-form-control" value="${esc(c.startDate)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">结束日期</label><input class="finput tms-form-control" value="${esc(c.endDate)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">上课日</label><input class="finput tms-form-control" value="${esc(parseArr(c.scheduleDays).join('、'))||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">状态</label><input class="finput tms-form-control" value="${esc(c.status)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员</label><div class="finput tms-form-control" style="height:auto;min-height:54px;white-space:normal;line-height:1.7">${esc(studentText)}</div></div><div class="tms-form-item"><label class="tms-form-label">班次来源/类型</label><input class="finput tms-form-control" value="${esc(c.sourceType)||'—'}" readonly></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">运营备注</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${esc(c.opsNote)||'—'}</div></div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">关闭</button><button class="tms-btn tms-btn-primary" onclick="openClassModal('${c.id}')">编辑班次</button>`;
+  setCourtModalFrame('查看班次',body,footer,'modal-wide');
 }
 function openClassModal(id){
   editId=id;const c=id?classes.find(x=>x.id===id):null;
@@ -2283,21 +2456,36 @@ function openClassModal(id){
   document.getElementById('mTitle').textContent=id?'编辑班次':'新建班次';
   const po=products.map(p=>`<option value="${p.id}"${rv(c,'productId')===p.id?' selected':''}>${esc(p.name)}（${p.type}，${p.lessons}节）</option>`).join('');
   const co=activeCoachNames().map(x=>`<option value="${x}"${rv(c,'coach')===x?' selected':''}>${x}</option>`).join('');
-  const sc=students.map(s=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${s.id}" class="cls-stu-cb" ${sIds.includes(s.id)?'checked':''}${locked?' disabled':''}>${esc(s.name)}</label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无学员</span>';
-  const dc=WEEKDAYS.map(d=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 8px 3px 0;font-size:12.5px;color:var(--tb);cursor:pointer"><input type="checkbox" value="${d}" class="cls-day-cb" ${days.includes(d)?'checked':''}>${d}</label>`).join('');
-  const previewName=c?esc(c.className):'<span style="color:var(--td)">选择课程后自动生成</span>';
+  const sc=students.map(s=>`<label class="tms-checkbox-wrap"><input type="checkbox" value="${s.id}" class="tms-checkbox cls-stu-cb" ${sIds.includes(s.id)?'checked':''}${locked?' disabled':''}><span>${esc(s.name)}</span></label>`).join('')||'<span style="color:var(--td);font-size:12px">暂无学员</span>';
+  const dc=WEEKDAYS.map(d=>`<label class="tms-checkbox-wrap"><input type="checkbox" value="${d}" class="tms-checkbox cls-day-cb" ${days.includes(d)?'checked':''}><span>${d}</span></label>`).join('');
+  const previewName=c?esc(c.className):'<span style="color:var(--td)">先选择课程产品，保存后自动生成班次编号和名称</span>';
   const noProductHint=products.length?'':`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">请先到「课程产品」创建课程产品，再回来创建班次。<button class="btn-sec" style="display:inline-flex;margin-left:8px;padding:5px 10px" onclick="closeModal();goPage('products')">去创建</button></div>`;
   const lockHint=locked?`<div style="background:rgba(220,38,38,0.06);border:0.5px solid rgba(220,38,38,0.18);border-radius:9px;padding:10px 13px;font-size:12px;color:#b91c1c;margin-bottom:12px">该班次已有排课，课程、学员、教练、校区和总课时已锁定，避免影响历史排课和课时口径。</div>`:'';
-  const detail=id?`<div class="sec-ttl">班次摘要</div><div style="background:rgba(217,119,6,0.06);border:0.5px solid rgba(217,119,6,0.16);border-radius:8px;padding:10px 12px;margin-bottom:12px">${classScheduleSummaryHtml(c)}</div>`:'';
+  const detail=id?classSummaryPanelHtml(c,false):'';
   const sourceOpts=sourceTypes.map(t=>`<option value="${t}"${rv(c,'sourceType')===t?' selected':''}>${t}</option>`).join('');
-  document.getElementById('mBody').innerHTML=`${noProductHint}${lockHint}${detail}<div class="sec-ttl">班次信息</div><div class="fgrid"><div class="fg full"><div class="flabel">班次名称</div><div id="cls_name_preview" style="padding:9px 12px;border:0.5px solid rgba(180,83,9,0.12);border-radius:9px;background:rgba(254,243,199,0.1);font-size:13px;color:var(--th);min-height:38px">${previewName}</div></div><div class="fg full"><div class="flabel">关联课程产品 *</div><select class="fselect" id="cls_prodId"${locked?' disabled':''}><option value="">— 选择 —</option>${po}</select></div><div class="fg full"><div class="flabel">选择学员（多选）</div><div style="max-height:140px;overflow-y:auto;border:0.5px solid rgba(180,83,9,0.15);border-radius:8px;padding:8px">${sc}</div></div><div class="fg"><div class="flabel">预设教练</div><select class="fselect" id="cls_coach"${locked?' disabled':''}><option value="">— 未分配 —</option>${co}</select></div><div class="fg"><div class="flabel">所属校区</div><select class="fselect" id="cls_campus"${locked?' disabled':''}>${campusOpts(rv(c,'campus'))}</select></div><div class="fg"><div class="flabel">开始日期</div><input class="finput" id="cls_start" type="date" value="${rv(c,'startDate',today())}"></div><div class="fg"><div class="flabel">结束日期</div><input class="finput" id="cls_end" type="date" value="${rv(c,'endDate','')}"></div><div class="fg full"><div class="flabel">上课日（多选）</div><div style="padding:4px 0" id="cls_days_wrap">${dc}</div></div><div class="fg"><div class="flabel">应上课时</div><input class="finput" id="cls_total" type="number" value="${rv(c,'totalLessons',0)}"${locked?' readonly':''}></div><div class="fg"><div class="flabel">已上课时（排课自动生成）</div><input class="finput" id="cls_used" type="number" value="${rv(c,'usedLessons',0)}" readonly></div><div class="fg"><div class="flabel">剩余课时</div><div class="finput">${Math.max(0,rem||0)} 节</div></div><div class="fg"><div class="flabel">状态</div><select class="fselect" id="cls_status">${CLS_STATUSES.map(t=>`<option value="${t}"${rv(c,'status','已排班')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">班次来源/类型</div><select class="fselect" id="cls_source"><option value="">— 未设置 —</option>${sourceOpts}</select></div><div class="fg full"><div class="flabel">运营备注</div><textarea class="finput ftextarea" id="cls_ops_note" placeholder="例如：家长已沟通续班、待拼班、暂停原因、需要运营跟进">${esc(rv(c,'opsNote'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${c.id}','${esc(c.className)}','class')">删除</button>`:''}<button class="btn-save" onclick="saveClass()">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const productOptions=[{value:'',label:'— 选择 —'},...products.map(p=>({value:p.id,label:`${p.name}（${p.type}，${p.lessons}节）`}))];
+  const coachOptions=[{value:'',label:'— 未分配 —'},...activeCoachNames().map(x=>({value:x,label:x}))];
+  const campusOptions=[...campuses.map(ca=>({value:ca.code||ca.id,label:ca.name||ca.code||ca.id}))];
+  const statusOptions=CLS_STATUSES.map(t=>({value:t,label:t}));
+  const sourceOptions=[{value:'',label:'— 未设置 —'},...sourceTypes.map(t=>({value:t,label:t}))];
+  const body=`${noProductHint}${lockHint}${detail}<div class="tms-section-header" style="margin-top:${id?'18px':'0'};">班次信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">班次名称</label><div id="cls_name_preview" class="finput tms-form-control" style="min-height:52px;background:#FDF7F2;display:flex;align-items:center;line-height:1.6">${previewName}</div><div style="margin-top:8px;font-size:12px;color:var(--ts)">班次编号和班次名称在保存时生成，格式为「班次编号-课程名」。</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">关联课程产品 *</label>${renderCourtDropdownHtml('cls_prodId','选择课程产品',productOptions,rv(c,'productId'),true)}</div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">选择学员（多选）</label><div class="tms-checkbox-matrix">${sc}</div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">预设教练</label>${renderCourtDropdownHtml('cls_coach','预设教练',coachOptions,rv(c,'coach'),true)}</div><div class="tms-form-item"><label class="tms-form-label">所属校区</label>${renderCourtDropdownHtml('cls_campus','校区',campusOptions,rv(c,'campus'),true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">开始日期</label>${courtDateButtonHtml('cls_start',rv(c,'startDate',today()),'开始日期')}</div><div class="tms-form-item"><label class="tms-form-label">结束日期</label>${courtDateButtonHtml('cls_end',rv(c,'endDate',''),'结束日期')}</div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">上课日（多选）</label><div class="tms-checkbox-matrix" id="cls_days_wrap">${dc}</div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">应上课时</label><input type="number" class="finput tms-form-control" id="cls_total" value="${rv(c,'totalLessons',0)}"${locked?' readonly':''}></div><div class="tms-form-item"><label class="tms-form-label">已上课时</label><input type="number" class="finput tms-form-control" id="cls_used" value="${rv(c,'usedLessons',0)}" readonly></div><div class="tms-form-item"><label class="tms-form-label">剩余课时</label><input type="text" class="finput tms-form-control" id="cls_remaining" value="${Math.max(0,rem||0)} 节" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">课时说明</label><div class="finput tms-form-control" style="height:auto;min-height:52px;white-space:normal;line-height:1.7">已上课时由排课自动累加，剩余课时会跟着自动计算。这里不开放手动输入，避免和排课、学习计划的课时口径打架。</div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">状态</label>${renderCourtDropdownHtml('cls_status','状态',statusOptions,rv(c,'status','已排班'),true)}</div><div class="tms-form-item"><label class="tms-form-label">班次来源/类型</label>${renderCourtDropdownHtml('cls_source','班次来源/类型',sourceOptions,rv(c,'sourceType'),true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">运营备注</label><textarea class="finput tms-form-control" id="cls_ops_note" placeholder="例如：家长已沟通续班、待拼班、暂停原因、需要运营跟进">${esc(rv(c,'opsNote'))}</textarea></div></div>`;
+  const footer=`<div style="display:flex;gap:12px;margin-left:auto;"><button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="classSaveBtn" onclick="saveClass()">保存</button></div>`;
+  setCourtModalFrame(id?'编辑班次':'新建班次',body,footer,'modal-wide');
+  if(locked){
+    ['cls_prodId_dropdown','cls_coach_dropdown','cls_campus_dropdown'].forEach(dropdownId=>{
+      const el=document.getElementById(dropdownId);
+      if(el){el.style.pointerEvents='none';el.style.opacity='0.6';}
+    });
+  }
   // 课程变更 → 自动更新班次名称预览 + 课时
   const prodEl=document.getElementById('cls_prodId');
   prodEl.addEventListener('change',function(){
     const p=products.find(x=>x.id===this.value);
     updateClsNamePreview();
-    if(p&&!id)document.getElementById('cls_total').value=p.lessons||0;
+    if(p&&!id){
+      document.getElementById('cls_total').value=p.lessons||0;
+      syncClassLessonPreview();
+    }
   });
   // 开始日期变更 → 自动勾选对应星期
   document.getElementById('cls_start').addEventListener('change',function(){
@@ -2308,7 +2496,9 @@ function openClassModal(id){
     document.querySelectorAll('.cls-day-cb').forEach(cb=>{if(cb.value===targetDay)cb.checked=true;});
   });
   // 新建时如已选课程，立即预览
+  document.getElementById('cls_total')?.addEventListener('input',syncClassLessonPreview);
   if(!id)updateClsNamePreview();
+  syncClassLessonPreview();
 }
 function updateClsNamePreview(){
   const el=document.getElementById('cls_name_preview');if(!el)return;
@@ -2316,16 +2506,32 @@ function updateClsNamePreview(){
   const prod=products.find(x=>x.id===prodId);
   if(prod){
     const existing=editId?classes.find(x=>x.id===editId):null;
-    const no=existing?.classNo||'系统生成编号';
-    el.innerHTML='<span style="font-weight:600">'+esc(no)+'-'+esc(prod.name)+'</span>';
+    const no=existing?.classNo||'保存后生成编号';
+    el.innerHTML=`<span style="font-weight:600">${esc(no)}-${esc(prod.name)}</span>`;
   }else{
-    el.innerHTML='<span style="color:var(--td)">选择课程后自动生成</span>';
+    el.innerHTML='<span style="color:var(--td)">先选择课程产品，保存后自动生成班次编号和名称</span>';
   }
+}
+function syncClassLessonPreview(){
+  const total=parseInt(document.getElementById('cls_total')?.value)||0;
+  const used=parseInt(document.getElementById('cls_used')?.value)||0;
+  const remaining=Math.max(0,total-used);
+  const el=document.getElementById('cls_remaining');
+  if(el)el.value=`${remaining} 节`;
+}
+function normalizeClassRecord(cls,data={}){
+  if(!cls)return cls;
+  const productName=cls.productName||data.productName||products.find(p=>p.id===(cls.productId||data.productId))?.name||'';
+  const classNo=cls.classNo||'';
+  const className=(String(cls.className||'').trim()&&String(cls.className||'').trim()!=='-')
+    ?cls.className
+    :(classNo&&productName?`${classNo}-${productName}`:cls.className||'');
+  return {...cls,productName,className};
 }
 async function saveClass(){
   const productId=document.getElementById('cls_prodId').value;
   if(!productId){toast('请选择课程产品','warn');return;}
-  const btn=document.getElementById('courtSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
+  const btn=document.getElementById('classSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const studentIds=[...document.querySelectorAll('.cls-stu-cb:checked')].map(cb=>cb.value);
   const scheduleDays=[...document.querySelectorAll('.cls-day-cb:checked')].map(cb=>cb.value);
   const prod=products.find(p=>p.id===productId);
@@ -2337,8 +2543,16 @@ async function saveClass(){
   const data={productId,productName:prod?prod.name:'',studentIds,coach:document.getElementById('cls_coach').value,campus:document.getElementById('cls_campus').value,startDate,endDate,scheduleDays,totalLessons,status:document.getElementById('cls_status').value,sourceType:document.getElementById('cls_source')?.value||'',opsNote:document.getElementById('cls_ops_note')?.value.trim()||'',updatedBy:currentUser?.name||''};
   try{
     let res;
-    if(editId){res=await apiCall('PUT','/classes/'+editId,data);const saved=res.class||res;const i=classes.findIndex(x=>x.id===editId);classes[i]=saved;}
-    else{res=await apiCall('POST','/classes',data);classes.unshift(res.class||res);}
+    if(editId){
+      res=await apiCall('PUT','/classes/'+editId,data);
+      const saved=normalizeClassRecord(res.class||res,data);
+      const i=classes.findIndex(x=>x.id===editId);
+      classes[i]=saved;
+    }
+    else{
+      res=await apiCall('POST','/classes',data);
+      classes.unshift(normalizeClassRecord(res.class||res,data));
+    }
     if(Array.isArray(res?.plans)){
       res.plans.forEach(p=>{const i=plans.findIndex(x=>x.id===p.id);if(i>=0)plans[i]=p;else plans.unshift(p);});
     }
@@ -2389,10 +2603,27 @@ function planFeedbackRows(p,limit=2){
   return feedbacks.filter(f=>f.studentId===p?.studentId||parseArr(f.studentIds).includes(p?.studentId)||planSchedules(p).some(s=>s.id===f.scheduleId)).sort((a,b)=>new Date(b.startTime||b.createdAt||0)-new Date(a.startTime||a.createdAt||0)).slice(0,limit);
 }
 function syncPlanFilterOptions(){
-  const campusEl=document.getElementById('planCampusFilter'),coachEl=document.getElementById('planCoachFilter'),typeEl=document.getElementById('planTypeFilter');
-  if(campusEl){const v=campusEl.value;campusEl.innerHTML='<option value="">全部校区</option>'+campuses.map(c=>`<option value="${c.code||c.id}">${esc(c.name||c.code||c.id)}</option>`).join('');campusEl.value=v;}
-  if(coachEl){const v=coachEl.value;coachEl.innerHTML='<option value="">全部教练</option>'+activeCoachNames().map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');coachEl.value=v;}
-  if(typeEl){const v=typeEl.value;typeEl.innerHTML='<option value="">全部课程</option>'+PRODUCT_TYPES.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');typeEl.value=v;}
+  const statusValue=document.getElementById('planStatusFilter')?.value||'';
+  const campusValue=document.getElementById('planCampusFilter')?.value||'';
+  const coachValue=document.getElementById('planCoachFilter')?.value||'';
+  const typeValue=document.getElementById('planTypeFilter')?.value||'';
+  const stageValue=document.getElementById('planStageFilter')?.value||'';
+  const statusOptions=[{value:'',label:'全部状态'},{value:'active',label:'上课中'},{value:'已取消',label:'已取消'},{value:'已结课',label:'已结课'}];
+  const campusOptions=[{value:'',label:'全部校区'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  const coachOptions=[{value:'',label:'全部教练'},...activeCoachNames().map(c=>({value:c,label:c}))];
+  const typeOptions=[{value:'',label:'全部课程'},...PRODUCT_TYPES.map(t=>({value:t,label:t}))];
+  const stageOptions=[{value:'',label:'全部阶段'},{value:'new',label:'刚开课'},{value:'ongoing',label:'进行中'},{value:'ending',label:'临近结课'}];
+  const wrapMap=[
+    ['planStatusFilterHost','planStatusFilter','全部状态',statusOptions,statusValue],
+    ['planCampusFilterHost','planCampusFilter','全部校区',campusOptions,campusValue],
+    ['planCoachFilterHost','planCoachFilter','全部教练',coachOptions,coachValue],
+    ['planTypeFilterHost','planTypeFilter','全部课程',typeOptions,typeValue],
+    ['planStageFilterHost','planStageFilter','全部阶段',stageOptions,stageValue]
+  ];
+  wrapMap.forEach(([hostId,id,label,options,value])=>{
+    const host=document.getElementById(hostId);
+    if(host)host.innerHTML=renderCourtDropdownHtml(id,label,options,value,false,'renderPlans');
+  });
 }
 function openPlanStudent(planId){
   const p=plans.find(x=>x.id===planId);if(!p)return;
@@ -2414,9 +2645,9 @@ function openPlanDetail(planId){
   const recent=planSchedules(p).slice(0,3);
   const feedbackRows=planFeedbackRows(p,2);
   const entitlementRows=planEntitlementRows(p).slice(0,3);
-  document.getElementById('mTitle').textContent='学习计划详情';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">学习计划摘要</div><div class="fgrid"><div class="fg"><div class="flabel">学员</div><div class="finput">${esc(p.studentName)||'—'}</div></div><div class="fg"><div class="flabel">班次</div><div class="finput">${esc(p.className)||'—'}</div></div><div class="fg"><div class="flabel">教练</div><div class="finput">${esc(p.coach)||'—'}</div></div><div class="fg"><div class="flabel">校区</div><div class="finput">${cn(p.campus)||'—'}</div></div><div class="fg"><div class="flabel">班次进度</div><div class="finput">${ul}/${tl}，剩余 ${Math.max(0,rem)} 节</div></div><div class="fg"><div class="flabel">状态</div><div class="finput">${p.status==='active'?'上课中':esc(p.status)||'—'}</div></div><div class="fg"><div class="flabel">最近上课</div><div class="finput">${last?.startTime?fmtDt(last.startTime):'—'}</div></div><div class="fg"><div class="flabel">下次课</div><div class="finput">${next?.startTime?fmtDt(next.startTime):'—'}</div></div></div><div class="sec-ttl">最近排课</div><div class="finput" style="min-height:42px">${recent.length?recent.map(s=>`${fmtDt(s.startTime)} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''} · ${parseInt(s.lessonCount)||1}节`).join('<br>'):'暂无排课记录'}</div><div class="sec-ttl">权益摘要</div><div class="finput" style="min-height:42px">${entitlementRows.length?entitlementRows.map(e=>`${esc(e.packageName)||'课包'} · 剩 ${parseInt(e.remainingLessons)||0}/${parseInt(e.totalLessons)||0} · 到期 ${esc(e.validUntil)||'—'} · ${esc(e.timeBand)||'全天'}`).join('<br>'):'暂无可用权益'}</div><div class="sec-ttl">最近反馈</div><div class="finput" style="min-height:42px">${feedbackRows.length?feedbackRows.map(f=>`${String(f.startTime||f.createdAt||'').slice(0,10)}：${esc(f.knowledgePoint||f.nextTraining||f.practicedToday||'已填写反馈')}`).join('<br>'):'暂无课后反馈'}</div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button><button class="btn-sec" onclick="openPlanStudent('${p.id}')">看学员</button><button class="btn-sec" onclick="openPlanClass('${p.id}')">看班次</button><button class="btn-save" onclick="openPlanSchedule('${p.id}')">去排课</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const body=`<div class="tms-section-header" style="margin-top:0;">学习计划摘要</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员</label><input class="finput tms-form-control" value="${esc(p.studentName)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">班次</label><input class="finput tms-form-control" value="${esc(p.className)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">教练</label><input class="finput tms-form-control" value="${esc(p.coach)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">校区</label><input class="finput tms-form-control" value="${cn(p.campus)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">班次进度</label><input class="finput tms-form-control" value="${ul}/${tl}，剩余 ${Math.max(0,rem)} 节" readonly></div><div class="tms-form-item"><label class="tms-form-label">状态</label><input class="finput tms-form-control" value="${p.status==='active'?'上课中':esc(p.status)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">最近上课</label><input class="finput tms-form-control" value="${last?.startTime?fmtDt(last.startTime):'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">下次课</label><input class="finput tms-form-control" value="${next?.startTime?fmtDt(next.startTime):'—'}" readonly></div></div><div class="tms-section-header">最近排课</div><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${recent.length?recent.map(s=>`${fmtDt(s.startTime)} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''} · ${parseInt(s.lessonCount)||1}节`).join('<br>'):'暂无排课记录'}</div><div class="tms-section-header">权益摘要</div><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${entitlementRows.length?entitlementRows.map(e=>`${esc(e.packageName)||'课包'} · 剩 ${parseInt(e.remainingLessons)||0}/${parseInt(e.totalLessons)||0} · 到期 ${esc(e.validUntil)||'—'} · ${esc(e.timeBand)||'全天'}`).join('<br>'):'暂无可用权益'}</div><div class="tms-section-header">最近反馈</div><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${feedbackRows.length?feedbackRows.map(f=>`${String(f.startTime||f.createdAt||'').slice(0,10)}：${esc(f.knowledgePoint||f.nextTraining||f.practicedToday||'已填写反馈')}`).join('<br>'):'暂无课后反馈'}</div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">关闭</button><button class="tms-btn tms-btn-default" onclick="openPlanStudent('${p.id}')">看学员</button><button class="tms-btn tms-btn-default" onclick="openPlanClass('${p.id}')">看班次</button><button class="tms-btn tms-btn-primary" onclick="openPlanSchedule('${p.id}')">去排课</button>`;
+  setCourtModalFrame('学习计划详情',body,footer,'modal-wide');
 }
 function renderPlans(){
   syncPlanFilterOptions();
@@ -2440,21 +2671,36 @@ function renderPlans(){
   const total=list.length,pages=Math.ceil(total/PAGE_SIZE);
   if(planPage>Math.max(pages,1))planPage=1;
   const slice=list.slice((planPage-1)*PAGE_SIZE,planPage*PAGE_SIZE);
+  const pager=document.querySelector('#page-plans .tms-pagination');
+  if(pager)pager.style.display=pages>1?'flex':'none';
   document.getElementById('planPagerInfo').textContent=`共 ${total} 条`;
-  document.getElementById('planPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<button class="pbtn${i+1===planPage?' active':''}" onclick="planPage=${i+1};renderPlans()">${i+1}</button>`).join('');
-  const ss={'active':'b-green','已取消':'b-gray','已结课':'b-blue'};
+  document.getElementById('planPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<div class="tms-page-btn${i+1===planPage?' active':''}" onclick="planPage=${i+1};renderPlans()">${i+1}</div>`).join('');
+  const ss={'active':'tms-tag-green','已取消':'tms-tag-tier-slate','已结课':'tms-tag-tier-blue'};
   const sl={'active':'上课中','已取消':'已取消','已结课':'已结课'};
   document.getElementById('planTbody').innerHTML=slice.length?slice.map(p=>{
     const tl=parseInt(p.totalLessons)||0,ul=parseInt(p.usedLessons)||0,rem=tl-ul;
     const pct=tl>0?Math.round(ul/tl*100):0,pc=rem>3?'pf-gold':rem>1?'pf-warn':'pf-red';
     const w=p.status==='active'&&rem<=2;
     const last=planLastLesson(p);
-    return `<tr class="${w?'warn-row':''}"><td><div class="uname">${esc(p.studentName)||'—'}</div></td><td style="color:var(--ts);font-size:12px">${esc(p.studentPhone)||'—'}</td><td style="font-weight:500;color:var(--th)">${esc(p.className)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(p.productName)||'—'}<div class="udesc">${esc(planProduct(p)?.type||'')}</div></td><td style="font-weight:500">${esc(p.coach)||'—'}</td><td style="font-size:11px;color:var(--ts)">${last?.startTime?fmtDt(last.startTime):'—'}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${Math.max(0,Math.min(100,pct))}%"></div></div><span class="prog-txt">${ul}/${tl} ${w?'<span class="warn-txt">剩'+rem+'!</span>':'剩'+rem}</span></div></td><td style="font-size:12px;color:var(--ts)">${planEntitlementSummary(p)}</td><td><span class="badge ${ss[p.status]||'b-gray'}">${sl[p.status]||p.status||'—'}</span></td><td style="text-align:right;display:flex;gap:4px;justify-content:flex-end"><button class="abtn" onclick="openPlanDetail('${p.id}')">详情</button><button class="abtn" onclick="openPlanStudent('${p.id}')">学员</button><button class="abtn" onclick="openPlanSchedule('${p.id}')">排课</button></td></tr>`;
+    return `<tr class="${w?'warn-row':''}"><td style="padding-left:20px"><div class="tms-text-primary">${esc(p.studentName)||'—'}</div></td><td>${renderCourtCellText(p.studentPhone)}</td><td><div class="tms-text-primary">${esc(p.className)||'—'}</div></td><td><div class="tms-text-primary">${esc(p.productName)||'—'}</div><div class="tms-text-secondary">${esc(planProduct(p)?.type||'-')}</div></td><td>${renderCourtCellText(p.coach)}</td><td>${renderCourtCellText(last?.startTime?fmtDt(last.startTime):'-',false)}</td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${Math.max(0,Math.min(100,pct))}%"></div></div><span class="prog-txt">${ul}/${tl} ${w?'<span class="warn-txt">剩'+rem+'!</span>':'剩'+rem}</span></div></td><td><div class="tms-text-remark" style="max-width:240px" title="${esc(planEntitlementRows(p).map(e=>`${e.packageName||'课包'} 剩${parseInt(e.remainingLessons)||0}/${parseInt(e.totalLessons)||0}`).join('；')||'无可用权益')}">${planEntitlementSummary(p)}</div></td><td><span class="tms-tag ${ss[p.status]||'tms-tag-tier-slate'}">${sl[p.status]||p.status||'—'}</span></td><td class="tms-sticky-r tms-action-cell" style="width:180px;padding-right:20px"><span class="tms-action-link" onclick="openPlanDetail('${p.id}')">详情</span><span class="tms-action-link" onclick="openPlanStudent('${p.id}')">学员</span><span class="tms-action-link" onclick="openPlanSchedule('${p.id}')">排课</span></td></tr>`;
   }).join(''):'<tr><td colspan="10"><div class="empty"><div class="empty-ico">📚</div><p>暂无学习计划</p></div></td></tr>';
 }
 
 // ===== 排课表 =====
+function syncScheduleFilterOptions(){
+  const statusValue=document.getElementById('schStatusFilter')?.value||'';
+  const campusValue=document.getElementById('schCampusFilter')?.value||'';
+  const trialValue=document.getElementById('schTrialFilter')?.value||'';
+  const statusOptions=[{value:'',label:'全部状态'},{value:'已排课',label:'已排课'},{value:'已结束',label:'已结束'},{value:'已取消',label:'已取消'}];
+  const campusOptions=[{value:'',label:'全部校区'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  const trialOptions=[{value:'',label:'全部课程'},{value:'trial',label:'仅体验课'},{value:'formal',label:'仅正式课'}];
+  [['schStatusFilterHost','schStatusFilter','全部状态',statusOptions,statusValue],['schCampusFilterHost','schCampusFilter','全部校区',campusOptions,campusValue],['schTrialFilterHost','schTrialFilter','全部课程',trialOptions,trialValue]].forEach(([hostId,id,label,options,value])=>{
+    const host=document.getElementById(hostId);
+    if(host)host.innerHTML=renderCourtDropdownHtml(id,label,options,value,false,'renderSchedule');
+  });
+}
 function renderSchedule(){
+  syncScheduleFilterOptions();
   const q=(document.getElementById('schSearch')?.value||'').toLowerCase();
   const sf=document.getElementById('schStatusFilter')?.value||'';
   const cf=document.getElementById('schCampusFilter')?.value||'';
@@ -2471,15 +2717,19 @@ function renderSchedule(){
     if(tf==='formal'&&scheduleIsTrial(s))return false;
     return true;
   }).map(s=>({...s,_effectiveStatus:effectiveScheduleStatus(s,now)})).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0));
-  const total=list.length,pages=Math.ceil(total/PAGE_SIZE),slice=list.slice((schPage-1)*PAGE_SIZE,schPage*PAGE_SIZE);
+  const total=list.length,pages=Math.ceil(total/PAGE_SIZE);
+  if(schPage>Math.max(pages,1))schPage=1;
+  const slice=list.slice((schPage-1)*PAGE_SIZE,schPage*PAGE_SIZE);
+  const pager=document.querySelector('#page-schedule .tms-pagination');
+  if(pager)pager.style.display=pages>1?'flex':'none';
   document.getElementById('schPagerInfo').textContent=`共 ${total} 条`;
-  document.getElementById('schPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<button class="pbtn${i+1===schPage?' active':''}" onclick="schPage=${i+1};renderSchedule()">${i+1}</button>`).join('');
-  const ss={'已排课':'b-blue','已结束':'b-green','已取消':'b-gray'};
+  document.getElementById('schPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<div class="tms-page-btn${i+1===schPage?' active':''}" onclick="schPage=${i+1};renderSchedule()">${i+1}</div>`).join('');
+  const ss={'已排课':'tms-tag-tier-blue','已结束':'tms-tag-green','已取消':'tms-tag-tier-slate'};
   document.getElementById('schTbody').innerHTML=slice.length?slice.map(s=>{
     const dur=durMin(s.startTime,s.endTime);const cls=s.classId?classes.find(c=>c.id===s.classId):null;
     const fb=scheduleFeedback(s);
     const status=s._effectiveStatus||effectiveScheduleStatus(s);
-    return `<tr><td style="font-weight:600;color:var(--th)">${fmtDt(s.startTime)}</td><td style="color:var(--ts)">${fmtDt(s.endTime)}</td><td><span class="badge b-amber">${dur?dur+'分钟':'—'}</span></td><td><div class="uname">${esc(scheduleStudentSummary(s))}</div><div class="udesc">${scheduleTagBadges(s)}</div></td><td style="font-weight:500">${esc(s.coach)||'—'}</td><td style="font-size:12px;color:var(--ts)">${cls?cls.className:'—'}</td><td style="color:var(--ts);font-size:12px">${cn(s.campus)} · ${esc(s.venue)||'—'}</td><td style="font-size:12px;color:var(--ts)">${esc(s.notifyStatus||'未通知')}<div class="udesc">${esc(scheduleLessonChargeStatus(s))}</div></td><td><button class="abtn" title="${fb?'查看/编辑反馈':'填写反馈'}" onclick="openFeedbackModal('${s.id}')">${fb?'反馈':'填写'}</button></td><td><span class="badge ${ss[status]||'b-gray'}">${status||'已排课'}</span>${status==='已取消'&&s.cancelReason?`<div class="udesc">${esc(s.cancelReason)}</div>`:''}</td><td style="text-align:right;display:flex;gap:4px;justify-content:flex-end"><button class="abtn" onclick="openScheduleDetail('${s.id}')">详情</button><button class="abtn" onclick="openScheduleModal('${s.id}')">编辑</button><button class="abtn" style="background:rgba(220,38,38,0.08);color:#dc2626" onclick="openCancelScheduleModal('${s.id}')">取消</button>${scheduleCanDeleteMistake(s)?`<button class="abtn" style="background:rgba(220,38,38,0.08);color:#dc2626" onclick="confirmDel('${s.id}','误建排课','schedule')">误建删除</button>`:''}</td></tr>`;
+    return `<tr><td style="padding-left:20px">${renderCourtCellText(fmtDt(s.startTime),false)}</td><td>${renderCourtCellText(fmtDt(s.endTime),false)}</td><td>${renderCourtCellText(dur?dur+'分钟':'—',false)}</td><td><div class="tms-text-primary">${esc(scheduleStudentSummary(s))}</div><div class="tms-text-secondary">${scheduleTagBadges(s)}</div></td><td>${renderCourtCellText(s.coach,false)}</td><td><div class="tms-text-primary">${esc(cls?.className)||'—'}</div><div class="tms-text-secondary">${esc(cls?.productName)||'—'}</div></td><td><div class="tms-cell-text">${esc(cn(s.campus)||'-')} · ${esc(s.venue)||'—'}</div></td><td><div class="tms-cell-text">${esc(s.notifyStatus||'未通知')}</div><div class="tms-text-secondary">${esc(scheduleLessonChargeStatus(s))}</div></td><td><span class="tms-action-link" onclick="openFeedbackModal('${s.id}')">${fb?'查看':'填写'}</span></td><td><span class="tms-tag ${ss[status]||'tms-tag-tier-slate'}">${status||'已排课'}</span>${status==='已取消'&&s.cancelReason?`<div class="tms-text-secondary" style="margin-top:6px">${esc(s.cancelReason)}</div>`:''}</td><td class="tms-sticky-r tms-action-cell" style="width:220px;padding-right:20px"><span class="tms-action-link" onclick="openScheduleDetail('${s.id}')">查看</span><span class="tms-action-link" onclick="openScheduleModal('${s.id}')">编辑</span><span class="tms-action-link" onclick="openCancelScheduleModal('${s.id}')">取消</span>${scheduleCanDeleteMistake(s)?`<span class="tms-action-link" onclick="confirmDel('${s.id}','误建排课','schedule')">删除</span>`:''}</td></tr>`;
   }).join(''):'<tr><td colspan="11"><div class="empty"><div class="empty-ico">📅</div><p>暂无排课</p></div></td></tr>';
 }
 function scheduleStudentTextByIds(ids){
@@ -2497,7 +2747,7 @@ function renderScheduleStudentPicker(selectedIds=[],keyword=''){
     return [s.name,s.phone,cn(s.campus)].some(v=>String(v||'').toLowerCase().includes(q));
   }).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'zh-CN'));
   if(!rows.length)return '<div style="font-size:12px;color:var(--td);padding:10px 0">没有匹配到学员，请换个关键词。</div>';
-  return `<select class="fselect" id="sch_stuPicker" multiple size="${Math.min(Math.max(rows.length,4),8)}" onchange="syncSelectedStudentsFromPicker()" style="width:100%;min-width:0;height:auto">${rows.map(s=>`<option value="${s.id}"${picked.has(s.id)?' selected':''}>${esc(s.name)}${s.phone?` · ${esc(s.phone)}`:''} · ${esc(cn(s.campus)||'未设校区')}</option>`).join('')}</select>`;
+  return `<div id="sch_stuPicker" class="tms-checkbox-matrix">${rows.map(s=>`<label class="tms-checkbox-wrap"><input type="checkbox" class="tms-checkbox sch-stu-cb" value="${s.id}" ${picked.has(s.id)?'checked':''} onchange="toggleScheduleStudentCheckbox()"><span>${esc(s.name)}${s.phone?` · ${esc(s.phone)}`:''} · ${esc(cn(s.campus)||'未设校区')}</span></label>`).join('')}</div>`;
 }
 function updateScheduleStudentSummary(ids){
   const summary=document.getElementById('sch_stuSummary');
@@ -2519,21 +2769,30 @@ function applyScheduleStudentFilter(){
   setScheduleStudentSelection(ids,true);
 }
 function syncSelectedStudentsFromPicker(){
-  const picker=document.getElementById('sch_stuPicker');
-  if(!picker)return;
-  const ids=[...picker.selectedOptions].map(o=>o.value).filter(Boolean);
+  const ids=[...document.querySelectorAll('.sch-stu-cb:checked')].map(o=>o.value).filter(Boolean);
   const hidden=document.getElementById('sch_stuIds');
   if(hidden)hidden.value=JSON.stringify(ids);
   updateScheduleStudentSummary(ids);
 }
+function toggleScheduleStudentCheckbox(){
+  syncSelectedStudentsFromPicker();
+}
 function openScheduleModal(id,seed={}){
   editId=id;const s=id?schedules.find(x=>x.id===id):(seed||null);
-  document.getElementById('mTitle').textContent=id?'编辑排课':'添加排课';
-  const clOpts=classes.filter(c=>c.status==='已排班').map(c=>{const rem=(parseInt(c.totalLessons)||0)-(parseInt(c.usedLessons)||0);return `<option value="${c.id}"${rv(s,'classId')===c.id?' selected':''}>${esc(c.className)} 剩余${rem}节</option>`;}).join('');
-  const coOpts=activeCoachNames().map(c=>`<option value="${c}"${rv(s,'coach')===c?' selected':''}>${c}</option>`).join('');
+  const classOptions=[{value:'',label:'— 不关联 —'},...classes.filter(c=>c.status==='已排班').map(c=>{const rem=(parseInt(c.totalLessons)||0)-(parseInt(c.usedLessons)||0);return {value:c.id,label:`${c.className} 剩余${rem}节`};})];
+  const courseTypeOptions=PRODUCT_TYPES.map(t=>({value:t,label:t}));
+  const trialOptions=[{value:'false',label:'正式课'},{value:'true',label:'体验课'}];
+  const coachOptions=[{value:'',label:'— 选择 —'},...activeCoachNames().map(c=>({value:c,label:c}))];
+  const campusOptions=[{value:'',label:'— 选择 —'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  const venueOptions=['1号场','2号场','3号场','4号场'].map(v=>({value:v,label:v}));
+  const statusOptions=SCH_STATUSES.map(t=>({value:t,label:t}));
+  const cancelOptions=[{value:'',label:'— 未取消 —'},...SCH_CANCEL_REASONS.map(t=>({value:t,label:t}))];
+  const notifyOptions=SCH_NOTIFY_STATUSES.map(t=>({value:t,label:t}));
+  const confirmOptions=SCH_CONFIRM_STATUSES.map(t=>({value:t,label:t}));
   const selectedStudentIds=parseArr(rv(s,'studentIds','[]'));
-  document.getElementById('mBody').innerHTML=`<input type="hidden" id="sch_stuIds" value="${rv(s,'studentIds','[]')}"><input type="hidden" id="sch_scheduleSource" value="${rv(s,'scheduleSource',seed.scheduleSource||'排课表')}"><div class="sec-ttl">排课信息</div><div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">排课是一次上课记录；关联班次后会自动消课，并会校验教练、学员、场地时间冲突。</div><div class="fgrid"><div class="fg"><div class="flabel">上课时间 *</div><input class="finput" id="sch_start" type="datetime-local" value="${rv(s,'startTime','').replace(' ','T')}" onchange="refreshSchEntitlementOptions()"></div><div class="fg"><div class="flabel">下课时间</div><input class="finput" id="sch_end" type="datetime-local" value="${rv(s,'endTime','').replace(' ','T')}" onchange="refreshSchEntitlementOptions()"></div><div class="fg full"><div class="flabel">关联班次</div><select class="fselect" id="sch_classId" onchange="onSchClassChange()"><option value="">— 不关联 —</option>${clOpts}</select><div id="sch_class_hint" style="font-size:12px;color:var(--ts);margin-top:6px"></div></div><div class="fg full"><div class="flabel">学员</div><input class="finput" id="sch_stuSearch" placeholder="搜索姓名 / 手机号 / 校区" oninput="applyScheduleStudentFilter()"><div id="sch_stuPickerWrap" style="margin-top:8px">${renderScheduleStudentPicker(selectedStudentIds)}</div><div id="sch_stuSummary" style="font-size:12px;color:var(--ts);margin-top:6px">${esc(scheduleStudentTextByIds(selectedStudentIds)||'未选择学员')}</div></div><div class="fg"><div class="flabel">课程类型</div><select class="fselect" id="sch_courseType" onchange="refreshSchEntitlementOptions()">${PRODUCT_TYPES.map(t=>`<option value="${t}"${rv(s,'courseType')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">课程性质</div><select class="fselect" id="sch_isTrial"><option value="false"${scheduleIsTrial(s)?'':' selected'}>正式课</option><option value="true"${scheduleIsTrial(s)?' selected':''}>体验课</option></select></div><div class="fg"><div class="flabel">教练</div><select class="fselect" id="sch_coach" onchange="refreshSchEntitlementOptions()"><option value="">— 选择 —</option>${coOpts}</select></div><div class="fg"><div class="flabel">校区</div><select class="fselect" id="sch_campus" onchange="refreshSchEntitlementOptions()">${campusOpts(rv(s,'campus'))}</select></div><div class="fg"><div class="flabel">场地</div><select class="fselect" id="sch_venue">${venueOpts(rv(s,'venue','1号场'))}</select></div><div class="fg"><div class="flabel">消课节数</div><input class="finput" id="sch_lc" type="number" value="${rv(s,'lessonCount',1)}" onchange="refreshSchEntitlementOptions()"></div><div class="fg"><div class="flabel">权益账户</div><select class="fselect" id="sch_entitlement"><option value="${rv(s,'entitlementId','')}">${rv(s,'packageName','— 自动推荐 —')||'— 自动推荐 —'}</option></select><div id="sch_ent_hint" style="font-size:12px;color:var(--ts);margin-top:6px"></div></div><div class="fg"><div class="flabel">状态</div><select class="fselect" id="sch_status" onchange="toggleScheduleCancelReason();refreshSchEntitlementOptions()">${SCH_STATUSES.map(t=>`<option value="${t}"${rv(s,'status','已排课')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">取消原因</div><select class="fselect" id="sch_cancelReason">${['',...SCH_CANCEL_REASONS].map(t=>`<option value="${esc(t)}"${rv(s,'cancelReason')===t?' selected':''}>${t||'— 未取消 —'}</option>`).join('')}</select></div><div class="fg"><div class="flabel">通知状态</div><select class="fselect" id="sch_notifyStatus">${SCH_NOTIFY_STATUSES.map(t=>`<option value="${t}"${rv(s,'notifyStatus','未通知')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">确认状态</div><select class="fselect" id="sch_confirmStatus">${SCH_CONFIRM_STATUSES.map(t=>`<option value="${t}"${rv(s,'confirmStatus','待确认')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="sch_notes">${esc(rv(s,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id&&scheduleCanDeleteMistake(s)?`<button class="btn-del" onclick="confirmDel('${s.id}','误建排课','schedule')">误建删除</button>`:''}<button class="btn-save" onclick="saveSchedule()">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const body=`<input type="hidden" id="sch_stuIds" value="${rv(s,'studentIds','[]')}"><input type="hidden" id="sch_scheduleSource" value="${rv(s,'scheduleSource',seed.scheduleSource||'排课表')}"><div class="tms-audit-note" style="margin-bottom:18px;color:#8C5C3A;background:rgba(217,119,6,0.12)">排课会校验时间冲突；正式保存前必须选教练、校区、场地。关联班次后会自动带出学员和推荐权益。</div><div class="tms-section-header" style="margin-top:0;">排课信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">关联班次</label>${renderCourtDropdownHtml('sch_classId','关联班次',classOptions,rv(s,'classId'),true,'onSchClassChange')}<div id="sch_class_hint" style="font-size:12px;color:var(--ts);margin-top:8px"></div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label><input class="finput tms-form-control" id="sch_stuSearch" placeholder="搜索姓名 / 手机号 / 校区" oninput="applyScheduleStudentFilter()"><div id="sch_stuPickerWrap" style="margin-top:8px">${renderScheduleStudentPicker(selectedStudentIds)}</div><div id="sch_stuSummary" style="font-size:12px;color:var(--ts);margin-top:8px">${esc(scheduleStudentTextByIds(selectedStudentIds)||'未选择学员')}</div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">上课日期 *</label>${scheduleDateTimeControls('sch_start',rv(s,'startTime',''),'上课日期')}</div><div class="tms-form-item"><label class="tms-form-label">下课日期 *</label>${scheduleDateTimeControls('sch_end',rv(s,'endTime',''),'下课日期')}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">课程类型</label>${renderCourtDropdownHtml('sch_courseType','课程类型',courseTypeOptions,rv(s,'courseType')||seed.courseType||PRODUCT_TYPES[0],true,'refreshSchEntitlementOptions')}</div><div class="tms-form-item"><label class="tms-form-label">课程性质</label>${renderCourtDropdownHtml('sch_isTrial','课程性质',trialOptions,scheduleIsTrial(s)||seed.isTrial?'true':'false',true)}</div><div class="tms-form-item"><label class="tms-form-label">消课节数</label><input class="finput tms-form-control" id="sch_lc" type="number" value="${rv(s,'lessonCount',seed.lessonCount||1)}" onchange="refreshSchEntitlementOptions()"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">教练 *</label>${renderCourtDropdownHtml('sch_coach','教练',coachOptions,rv(s,'coach')||seed.coach,true,'refreshSchEntitlementOptions')}</div><div class="tms-form-item"><label class="tms-form-label">校区 *</label>${renderCourtDropdownHtml('sch_campus','校区',campusOptions,rv(s,'campus')||seed.campus,true,'refreshSchEntitlementOptions')}</div><div class="tms-form-item"><label class="tms-form-label">场地 *</label>${renderCourtDropdownHtml('sch_venue','场地',venueOptions,rv(s,'venue','1号场'),true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">权益账户</label><select class="finput tms-form-control" id="sch_entitlement"><option value="${rv(s,'entitlementId','')}">${rv(s,'packageName','— 自动推荐 —')||'— 自动推荐 —'}</option></select><div id="sch_ent_hint" style="font-size:12px;color:var(--ts);margin-top:8px"></div></div><div class="tms-form-item"><label class="tms-form-label">状态</label>${renderCourtDropdownHtml('sch_status','状态',statusOptions,rv(s,'status','已排课'),true,'toggleScheduleCancelReason')}</div><div class="tms-form-item"><label class="tms-form-label">取消原因</label>${renderCourtDropdownHtml('sch_cancelReason','取消原因',cancelOptions,rv(s,'cancelReason'),true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">通知状态</label>${renderCourtDropdownHtml('sch_notifyStatus','通知状态',notifyOptions,rv(s,'notifyStatus','未通知'),true)}</div><div class="tms-form-item"><label class="tms-form-label">确认状态</label>${renderCourtDropdownHtml('sch_confirmStatus','确认状态',confirmOptions,rv(s,'confirmStatus','待确认'),true)}</div><div class="tms-form-item"><label class="tms-form-label">排课来源</label><input class="finput tms-form-control" value="${esc(rv(s,'scheduleSource',seed.scheduleSource||'排课表'))}" readonly></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="sch_notes">${esc(rv(s,'notes'))}</textarea></div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button>${id&&scheduleCanDeleteMistake(s)?`<button class="tms-btn tms-btn-danger" onclick="confirmDel('${s.id}','误建排课','schedule')">误建删除</button>`:''}<button class="tms-btn tms-btn-primary" id="scheduleSaveBtn" onclick="saveSchedule()">保存</button>`;
+  setCourtModalFrame(id?'编辑排课':'添加排课',body,footer,'modal-wide');
   updateSchClassHint();
   setScheduleStudentSelection(selectedStudentIds);
   toggleScheduleCancelReason();
@@ -2543,12 +2802,13 @@ function toggleScheduleCancelReason(){
   const el=document.getElementById('sch_cancelReason');
   if(!el)return;
   const isCancelled=document.getElementById('sch_status')?.value==='已取消';
-  el.closest('.fg').style.display=isCancelled?'':'none';
+  const row=el.closest('.tms-form-item');
+  if(row)row.style.display=isCancelled?'':'none';
+  refreshSchEntitlementOptions();
 }
 function openCancelScheduleModal(id){
   openScheduleModal(id);
-  const status=document.getElementById('sch_status');
-  if(status)status.value='已取消';
+  setCourtDropdownValue('sch_status','已取消','已取消');
   toggleScheduleCancelReason();
 }
 function onSchClassChange(){
@@ -2557,9 +2817,9 @@ function onSchClassChange(){
   const ids=parseArr(cls.studentIds);
   setScheduleStudentSelection(ids);
   const prod=products.find(p=>p.id===cls.productId);
-  if(prod?.type)document.getElementById('sch_courseType').value=prod.type;
-  if(cls.coach)document.getElementById('sch_coach').value=cls.coach;
-  if(cls.campus)document.getElementById('sch_campus').value=cls.campus;
+  if(prod?.type)setCourtDropdownValue('sch_courseType',prod.type,prod.type);
+  if(cls.coach)setCourtDropdownValue('sch_coach',cls.coach,cls.coach);
+  if(cls.campus)setCourtDropdownValue('sch_campus',cls.campus,cn(cls.campus)||cls.campus);
   updateSchClassHint();
   refreshSchEntitlementOptions();
 }
@@ -2587,10 +2847,11 @@ async function refreshSchEntitlementOptions(){
   const sel=document.getElementById('sch_entitlement'),hint=document.getElementById('sch_ent_hint');
   if(!sel||!hint)return;
   const ids=parseArr(document.getElementById('sch_stuIds')?.value||'[]');
-  const startRaw=document.getElementById('sch_start')?.value||'',endRaw=document.getElementById('sch_end')?.value||'';
+  const startRaw=scheduleComposeDateTime('sch_start_date','sch_start_time');
+  const endRaw=scheduleComposeDateTime('sch_end_date','sch_end_time');
   if(!ids.length||!startRaw||!endRaw){sel.innerHTML='<option value="">— 先选学员和时间 —</option>';hint.textContent='';return;}
   try{
-    const res=await apiCall('POST','/entitlements/recommend',{studentIds:ids,courseType:document.getElementById('sch_courseType')?.value||'',coach:document.getElementById('sch_coach')?.value||'',coachId:document.getElementById('sch_coach')?.value||'',campus:document.getElementById('sch_campus')?.value||'',startTime:startRaw.replace('T',' '),endTime:endRaw.replace('T',' '),lessonCount:parseInt(document.getElementById('sch_lc')?.value)||1,status:document.getElementById('sch_status')?.value||'已排课'});
+    const res=await apiCall('POST','/entitlements/recommend',{studentIds:ids,courseType:document.getElementById('sch_courseType')?.value||'',coach:document.getElementById('sch_coach')?.value||'',coachId:document.getElementById('sch_coach')?.value||'',campus:document.getElementById('sch_campus')?.value||'',startTime:startRaw,endTime:endRaw,lessonCount:parseInt(document.getElementById('sch_lc')?.value)||1,status:document.getElementById('sch_status')?.value||'已排课'});
     sel.innerHTML=(res.options||[]).filter(x=>x.selectable).map(x=>`<option value="${x.entitlementId}"${(document.getElementById('sch_entitlement').dataset.keep||document.getElementById('sch_entitlement').value||'')===x.entitlementId?' selected':''}>${esc(x.packageName)} · 剩余${x.remainingLessons}/${x.totalLessons} · ${esc(x.timeBand)||'全天'} · 到期${esc(x.validUntil)||'—'}</option>`).join('')||'<option value="">— 无可用课包 —</option>';
     hint.textContent=res.recommended?`推荐：${res.recommended.packageName}，剩余 ${res.recommended.remainingLessons}/${res.recommended.totalLessons}，${res.recommended.timeBand||'全天'}，到期 ${res.recommended.validUntil||'—'}`:'当前没有可用课包';
   }catch(e){sel.innerHTML='<option value="">— 无可用课包 —</option>';hint.textContent=e.message;}
@@ -2610,8 +2871,8 @@ function scheduleSaveConfirmText(data,selectedEntitlement){
   ].join('\n');
 }
 async function saveSchedule(){
-  const startTime=document.getElementById('sch_start').value.replace('T',' ');
-  const endTime=document.getElementById('sch_end').value.replace('T',' ');
+  const startTime=scheduleComposeDateTime('sch_start_date','sch_start_time');
+  const endTime=scheduleComposeDateTime('sch_end_date','sch_end_time');
   const status=document.getElementById('sch_status').value;
   if(!startTime){toast('请选择上课时间','warn');return;}
   if(status!=='已取消'&&!endTime){toast('请选择下课时间，系统需要用它校验冲突','warn');return;}
@@ -2622,12 +2883,18 @@ async function saveSchedule(){
   const selectedEntitlementId=document.getElementById('sch_entitlement').value;
   if(!studentIds.length){toast('请先从学员库中选择学员','warn');return;}
   if(status!=='已取消'&&studentIds.length>1){toast('多人排课暂不支持单个权益账户，请拆成单人排课','warn');return;}
+  const coach=document.getElementById('sch_coach').value;
+  const campusValue=document.getElementById('sch_campus').value;
+  const venue=document.getElementById('sch_venue').value.trim();
+  if(!coach){toast('请选择教练','warn');return;}
+  if(!campusValue){toast('请选择校区','warn');return;}
+  if(!venue){toast('请选择场地','warn');return;}
   const selectedEntitlement=entitlements.find(x=>x.id===selectedEntitlementId);
   const cancelReason=document.getElementById('sch_cancelReason')?.value||'';
   if(status==='已取消'&&!cancelReason){toast('请选择取消原因','warn');return;}
-  const data={startTime,endTime,classId,studentIds,studentName:scheduleStudentTextByIds(studentIds).replace(/（[^）]*）/g,''),courseType:document.getElementById('sch_courseType').value,isTrial:document.getElementById('sch_isTrial').value==='true',coach:document.getElementById('sch_coach').value,coachId:document.getElementById('sch_coach').value,venue:document.getElementById('sch_venue').value.trim(),campus:document.getElementById('sch_campus').value,lessonCount:lc,status,entitlementId:selectedEntitlementId,packageName:selectedEntitlement?.packageName||'',purchaseId:selectedEntitlement?.purchaseId||'',timeBand:selectedEntitlement?.timeBand||'',cancelReason,notifyStatus:document.getElementById('sch_notifyStatus')?.value||'未通知',confirmStatus:document.getElementById('sch_confirmStatus')?.value||'待确认',scheduleSource:document.getElementById('sch_scheduleSource')?.value||'排课表',notes:document.getElementById('sch_notes').value.trim()};
+  const data={startTime,endTime,classId,studentIds,studentName:scheduleStudentTextByIds(studentIds).replace(/（[^）]*）/g,''),courseType:document.getElementById('sch_courseType').value,isTrial:document.getElementById('sch_isTrial').value==='true',coach,coachId:coach,venue,campus:campusValue,lessonCount:lc,status,entitlementId:selectedEntitlementId,packageName:selectedEntitlement?.packageName||'',purchaseId:selectedEntitlement?.purchaseId||'',timeBand:selectedEntitlement?.timeBand||'',cancelReason,notifyStatus:document.getElementById('sch_notifyStatus')?.value||'未通知',confirmStatus:document.getElementById('sch_confirmStatus')?.value||'待确认',scheduleSource:document.getElementById('sch_scheduleSource')?.value||'排课表',notes:document.getElementById('sch_notes').value.trim()};
   if(!window.confirm(scheduleSaveConfirmText(data,selectedEntitlement)))return;
-  const btn=document.getElementById('courtSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
+  const btn=document.getElementById('scheduleSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   try{
     let result;
     if(editId){
@@ -2701,9 +2968,9 @@ function openScheduleDetail(scheduleId){
   const studentNotes=stuRecords.map(st=>st.notes).filter(Boolean).join('；');
   const recentFeedback=stuRecords.flatMap(st=>feedbacks.filter(item=>item.studentId===st.id||parseArr(item.studentIds).includes(st.id))).filter(item=>item.id!==fb?.id).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||''))).slice(0,2);
   const trialSummary=fb&&scheduleIsTrial(s)?`<div class="sec-ttl">4. 如果是体验课，增加“转化判断”</div><div class="fgrid"><div class="fg"><div class="flabel">学员水平</div><div class="finput">${esc(fb.playerLevel)||'—'}</div></div><div class="fg"><div class="flabel">当前目标</div><div class="finput">${esc(fb.goalType)||'—'}</div></div><div class="fg"><div class="flabel">经验背景</div><div class="finput">${esc(fb.experienceBackground)||'—'}</div></div><div class="fg"><div class="flabel">转化意愿</div><div class="finput">${esc(fb.conversionIntent)||'—'}</div></div><div class="fg"><div class="flabel">推荐产品</div><div class="finput">${esc(fb.recommendedProductType)||'—'}</div></div><div class="fg"><div class="flabel">是否需要运营跟进</div><div class="finput">${fb.needOpsFollowUp?'是':'否'}</div></div><div class="fg full"><div class="flabel">主要问题</div><div class="finput" style="min-height:42px">${esc(fb.mainIssues)||'—'}</div></div><div class="fg full"><div class="flabel">推荐原因</div><div class="finput" style="min-height:42px">${esc(fb.recommendedReason)||'—'}</div></div><div class="fg full"><div class="flabel">跟进建议</div><div class="finput" style="min-height:42px">${esc(fb.opsFollowUpSuggestion)||'—'}</div></div></div>`:'';
-  document.getElementById('mTitle').textContent='排课详情';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">1. 课程基础信息</div><div class="fgrid"><div class="fg"><div class="flabel">时间</div><div class="finput">${fmtDt(s.startTime)}${s.endTime?` - ${fmtDt(s.endTime)}`:''}</div></div><div class="fg"><div class="flabel">校区</div><div class="finput">${cn(s.campus)||'—'}</div></div><div class="fg"><div class="flabel">场地</div><div class="finput">${esc(s.venue)||'—'}</div></div><div class="fg"><div class="flabel">课程类型</div><div class="finput">${esc(s.courseType)||esc(ent?.courseType)||'—'} · ${scheduleIsTrial(s)?'体验课':'正式课'}</div></div><div class="fg"><div class="flabel">班次</div><div class="finput">${esc(scheduleClassName(s))}</div></div><div class="fg"><div class="flabel">学员</div><div class="finput">${esc(studentNames)}</div></div><div class="fg"><div class="flabel">状态</div><div class="finput">${effectiveScheduleStatus(s)}${s.cancelReason?` · ${esc(s.cancelReason)}`:''}</div></div><div class="fg"><div class="flabel">通知 / 确认</div><div class="finput">${esc(s.notifyStatus||'未通知')} · ${esc(s.confirmStatus||'待确认')}</div></div><div class="fg"><div class="flabel">反馈状态</div><div class="finput">${scheduleFeedbackLabel(s)}</div></div><div class="fg"><div class="flabel">课包 / 权益</div><div class="finput">${scheduleEntitlementSummary(s)}</div></div><div class="fg"><div class="flabel">排课来源</div><div class="finput">${esc(s.scheduleSource||'排课表')}</div></div></div><div class="sec-ttl">2. 上课前信息</div><div class="fgrid"><div class="fg full"><div class="flabel">学员备注</div><div class="finput" style="min-height:42px">${esc(studentNotes)||'—'}</div></div><div class="fg full"><div class="flabel">历史问题</div><div class="finput" style="min-height:42px">${esc(recentFeedback.map(item=>item.mainIssues||item.knowledgePoint||item.practicedToday).filter(Boolean).join('；'))||'—'}</div></div><div class="fg full"><div class="flabel">教练备注</div><div class="finput" style="min-height:42px">${esc(s.notes)||'—'}</div></div><div class="fg full"><div class="flabel">本节课关注点</div><div class="finput" style="min-height:42px">${esc(fb?.nextTraining||'')}</div></div></div><div class="sec-ttl">3. 课后动作</div><div class="fgrid"><div class="fg"><div class="flabel">消耗课时</div><div class="finput">${parseInt(s.lessonCount)||0} 节</div></div><div class="fg"><div class="flabel">班次剩余课时</div><div class="finput">${scheduleRemainingLessons(s)===''?'—':scheduleRemainingLessons(s)+' 节'}</div></div><div class="fg full"><div class="flabel">反馈摘要</div><div class="finput" style="min-height:42px">${feedbackSummaryHtml(fb)}</div></div><div class="fg full"><div class="flabel">历史反馈</div><div class="finput" style="min-height:42px">${recentFeedback.length?recentFeedback.map(item=>`${String(item.updatedAt||'').slice(0,10)}：${item.practicedToday||item.knowledgePoint||item.mainIssues||'已填写'}`).map(esc).join('<br>'):'—'}</div></div></div>${trialSummary}<div class="mactions"><button class="btn-cancel" onclick="closeModal()">关闭</button><button class="btn-save" onclick="openFeedbackModal('${s.id}')">${fb?'查看/编辑反馈':'填写反馈'}</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const body=`<div class="tms-section-header" style="margin-top:0;">课程基础信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">时间</label><input class="finput tms-form-control" value="${fmtDt(s.startTime)}${s.endTime?` - ${fmtDt(s.endTime)}`:''}" readonly></div><div class="tms-form-item"><label class="tms-form-label">校区 / 场地</label><input class="finput tms-form-control" value="${cn(s.campus)||'—'} · ${esc(s.venue)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">课程类型</label><input class="finput tms-form-control" value="${esc(s.courseType)||esc(ent?.courseType)||'—'} · ${scheduleIsTrial(s)?'体验课':'正式课'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">班次</label><input class="finput tms-form-control" value="${esc(scheduleClassName(s))}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员</label><input class="finput tms-form-control" value="${esc(studentNames)}" readonly></div><div class="tms-form-item"><label class="tms-form-label">状态</label><input class="finput tms-form-control" value="${effectiveScheduleStatus(s)}${s.cancelReason?` · ${esc(s.cancelReason)}`:''}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">通知 / 确认</label><input class="finput tms-form-control" value="${esc(s.notifyStatus||'未通知')} · ${esc(s.confirmStatus||'待确认')}" readonly></div><div class="tms-form-item"><label class="tms-form-label">反馈状态</label><input class="finput tms-form-control" value="${scheduleFeedbackLabel(s)}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">课包 / 权益</label><input class="finput tms-form-control" value="${esc(scheduleEntitlementSummary(s))}" readonly></div><div class="tms-form-item"><label class="tms-form-label">排课来源</label><input class="finput tms-form-control" value="${esc(s.scheduleSource||'排课表')}" readonly></div></div><div class="tms-section-header">上课前信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员备注</label><div class="finput tms-form-control" style="height:auto;min-height:52px;white-space:normal;line-height:1.7">${esc(studentNotes)||'—'}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">历史问题</label><div class="finput tms-form-control" style="height:auto;min-height:52px;white-space:normal;line-height:1.7">${esc(recentFeedback.map(item=>item.mainIssues||item.knowledgePoint||item.practicedToday).filter(Boolean).join('；'))||'—'}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">教练备注 / 本节关注点</label><div class="finput tms-form-control" style="height:auto;min-height:52px;white-space:normal;line-height:1.7">${esc(s.notes)||'—'}${fb?.nextTraining?`<br>${esc(fb.nextTraining)}`:''}</div></div></div><div class="tms-section-header">课后动作</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">消耗课时</label><input class="finput tms-form-control" value="${parseInt(s.lessonCount)||0} 节" readonly></div><div class="tms-form-item"><label class="tms-form-label">班次剩余课时</label><input class="finput tms-form-control" value="${scheduleRemainingLessons(s)===''?'—':scheduleRemainingLessons(s)+' 节'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">反馈摘要</label><div class="finput tms-form-control" style="height:auto;min-height:52px;white-space:normal;line-height:1.7">${feedbackSummaryHtml(fb)}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">历史反馈</label><div class="finput tms-form-control" style="height:auto;min-height:52px;white-space:normal;line-height:1.7">${recentFeedback.length?recentFeedback.map(item=>`${String(item.updatedAt||'').slice(0,10)}：${item.practicedToday||item.knowledgePoint||item.mainIssues||'已填写'}`).map(esc).join('<br>'):'—'}</div></div></div>${trialSummary}`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">关闭</button><button class="tms-btn tms-btn-primary" onclick="openFeedbackModal('${s.id}')">${fb?'查看/编辑反馈':'填写反馈'}</button>`;
+  setCourtModalFrame('排课详情',body,footer,'modal-wide');
 }
 function workbenchSection(title,rows,buttonText){
   if(!rows.length)return '';
@@ -3211,8 +3478,9 @@ function renderCourtDropdownHtml(id,label,options,value,isForm=false,onchange=''
   return `<div class="tms-dropdown ${isForm?'tms-dropdown-form':''}" id="${id}_dropdown" data-target="${id}" data-onchange="${onchange}" onclick="toggleCourtDropdown('${id}',event)"><input type="hidden" id="${id}" value="${esc(active?.value||value||'')}"><div class="tms-dropdown-display">${esc(displayLabel)}</div><div class="tms-dropdown-menu" style="touch-action:pan-y;-webkit-overflow-scrolling:touch" onwheel="event.stopPropagation();event.preventDefault();this.scrollTop += event.deltaY" ontouchmove="event.stopPropagation()">${list.map(opt=>`<div class="tms-dropdown-item ${active&&String(opt.value)===String(active.value)?'active':''}" onclick="selectCourtDropdownItem('${id}',${jsArg(opt.value)},${jsArg(opt.label||opt.value)},event)">${esc(opt.label||opt.value)}</div>`).join('')}</div></div>`;
 }
 function closeCourtDropdowns(){
-  document.querySelectorAll('#page-courts .tms-dropdown.open,#overlay .modal-court .tms-dropdown.open').forEach(el=>{
+  document.querySelectorAll('.tms-dropdown.open').forEach(el=>{
     el.classList.remove('open');
+    el.classList.remove('open-upward');
     const formItem=el.closest('.tms-form-item');
     if(formItem)formItem.style.zIndex='1';
   });
@@ -3229,6 +3497,17 @@ function toggleCourtDropdown(id,event){
     }
   });
   dropdown.classList.toggle('open');
+  dropdown.classList.remove('open-upward');
+  if(dropdown.classList.contains('open')){
+    const menu=dropdown.querySelector('.tms-dropdown-menu');
+    if(menu){
+      const rect=dropdown.getBoundingClientRect();
+      const spaceBelow=window.innerHeight-rect.bottom;
+      const spaceAbove=rect.top;
+      const menuHeight=Math.min(menu.scrollHeight||0,250);
+      if(spaceBelow<menuHeight+12&&spaceAbove>spaceBelow)dropdown.classList.add('open-upward');
+    }
+  }
   const formItem=dropdown.closest('.tms-form-item');
   if(formItem)formItem.style.zIndex=dropdown.classList.contains('open')?'10':'1';
 }
@@ -3282,6 +3561,18 @@ function renderCourtEmptyText(value){
 function courtDateButtonHtml(id,value,label='年 / 月 / 日'){
   const show=value||label;
   return `<div class="filter-date-wrap"><button class="coach-date-btn" id="${id}_btn" onclick="toggleGlobalDatePicker(event,'${id}','${id}_btn','${label}')" type="button">${esc(show)}</button><input class="filter-hidden-date" id="${id}" type="date" value="${esc(value||'')}" onchange="syncDateButton('${id}','${id}_btn','${label}')"></div>`;
+}
+function scheduleDateTimeControls(prefix,value='',label='日期'){
+  const raw=String(value||'').trim().replace(' ','T');
+  const datePart=raw?raw.slice(0,10):'';
+  const timePart=raw&&raw.length>=16?raw.slice(11,16):'';
+  return `<div class="court-date-row"><div style="flex:1">${courtDateButtonHtml(prefix+'_date',datePart,label)}</div><div style="width:132px">${renderCourtDropdownHtml(prefix+'_time','时间',getCourtTimeOptions(timePart||'08:00'),timePart||'08:00',true,'refreshSchEntitlementOptions')}</div></div>`;
+}
+function scheduleComposeDateTime(dateId,timeId){
+  const date=document.getElementById(dateId)?.value||'';
+  const time=document.getElementById(timeId)?.value||'';
+  if(!date)return '';
+  return `${date} ${time||'00:00'}`;
 }
 function setCourtModalFrame(title,bodyHtml,actionsHtml='',extraClass='modal-tight'){
   const ov=document.getElementById('overlay');
@@ -3866,18 +4157,43 @@ async function runPurchaseImport(){
   }
 }
 // ===== 课程产品 =====
+function syncProductFilterOptions(){
+  const typeValue=document.getElementById('prodTypeFilter')?.value||'';
+  const typeOptions=[{value:'',label:'全部类型'},...PRODUCT_TYPES.map(t=>({value:t,label:t}))];
+  const host=document.getElementById('prodTypeFilterHost');
+  if(host)host.innerHTML=renderCourtDropdownHtml('prodTypeFilter','全部类型',typeOptions,typeValue,false,'renderProducts');
+}
 function renderProducts(){
+  syncProductFilterOptions();
   const q=(document.getElementById('prodSearch')?.value||'').toLowerCase();
   const tf=document.getElementById('prodTypeFilter')?.value||'';
   const list=products.filter(p=>{if(!searchHit(q,p.name,p.type,p.price,p.lessons,p.maxStudents,p.notes))return false;if(tf&&p.type!==tf)return false;return true;});
-  const tc={'私教':'b-amber','训练营':'b-green','专项训练':'b-blue'};
-  document.getElementById('productGrid').innerHTML=list.length?list.map(p=>`<div class="product-card"><div class="pc-type"><span class="badge ${tc[p.type]||'b-gray'}">${p.type||'—'}</span></div><div class="pc-name">${esc(p.name)}</div><div class="pc-row"><span>人数</span><span class="pc-val">${p.maxStudents||'不限'}</span></div><div class="pc-row"><span>定价</span><span class="pc-val">¥${fmt(p.price)}</span></div><div class="pc-row"><span>课时</span><span class="pc-val">${p.lessons||0} 节</span></div><div class="pc-actions"><button class="btn-sec" style="flex:1;justify-content:center" onclick="openProductModal('${p.id}')">编辑</button><button class="btn-sec" style="flex:1;justify-content:center" onclick="openPackageModal(null,'${p.id}')">建课包</button><button class="btn-sec" style="color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="confirmDel('${p.id}','${esc(p.name)}','product')">删除</button></div></div>`).join(''):'<div style="grid-column:1/-1"><div class="empty"><p>暂无课程产品</p></div></div>';
+  document.getElementById('productGrid').innerHTML=list.length?list.map(p=>{
+    const linkedClasses=classes.filter(c=>c.productId===p.id).length;
+    const linkedPackages=packages.filter(pkg=>pkg.productId===p.id).length;
+    const locked=productHasReferences(p.id);
+    return `<div class="product-card"><div class="pc-head"><div><div class="pc-type"><span class="tms-tag ${productTypeTagClass(p.type)}">${esc(p.type||'—')}</span>${locked?'<span class="tms-tag tms-tag-tier-slate">已被引用</span>':''}</div><div class="pc-name">${esc(p.name)}</div></div></div><div class="pc-note">${esc(renderCourtEmptyText(p.notes||'用于创建班次和售卖课包的课程模板'))}</div><div class="pc-metrics"><div class="pc-metric"><div class="pc-metric-label">人数</div><div class="pc-metric-value">${p.maxStudents||1}</div></div><div class="pc-metric"><div class="pc-metric-label">定价</div><div class="pc-metric-value">¥${fmt(p.price)}</div></div><div class="pc-metric"><div class="pc-metric-label">课时</div><div class="pc-metric-value">${p.lessons||0}<span>节</span></div></div></div><div class="pc-row"><span>已建班次</span><strong>${linkedClasses} 个</strong></div><div class="pc-row"><span>已建课包</span><strong>${linkedPackages} 个</strong></div><div class="pc-actions"><button class="tms-btn tms-btn-default" onclick="openProductModal('${p.id}')">编辑</button><button class="tms-btn tms-btn-ghost" onclick="openPackageModal(null,'${p.id}')">建课包</button><button class="tms-btn tms-btn-danger" onclick="confirmDel('${p.id}','${esc(p.name)}','product')">删除</button></div></div>`;
+  }).join(''):'<div style="grid-column:1/-1"><div class="empty"><p>暂无课程产品</p></div></div>';
+}
+function syncPackageFilterOptions(){
+  const typeValue=document.getElementById('pkgTypeFilter')?.value||'';
+  const statusValue=document.getElementById('pkgStatusFilter')?.value||'';
+  const typeOptions=[{value:'',label:'全部类型'},...PRODUCT_TYPES.map(t=>({value:t,label:t}))];
+  const statusOptions=[{value:'',label:'全部状态'},{value:'active',label:'启用'},{value:'inactive',label:'停用'}];
+  const wrapMap=[
+    ['pkgTypeFilterHost','pkgTypeFilter','全部类型',typeOptions,typeValue],
+    ['pkgStatusFilterHost','pkgStatusFilter','全部状态',statusOptions,statusValue]
+  ];
+  wrapMap.forEach(([hostId,id,label,options,value])=>{
+    const host=document.getElementById(hostId);
+    if(host)host.innerHTML=renderCourtDropdownHtml(id,label,options,value,false,'renderPackages');
+  });
 }
 function renderPackages(){
+  syncPackageFilterOptions();
   const q=(document.getElementById('pkgSearch')?.value||'').toLowerCase();
   const tf=document.getElementById('pkgTypeFilter')?.value||'';
   const sf=document.getElementById('pkgStatusFilter')?.value||'';
-  const tc={'私教':'b-amber','训练营':'b-green','专项训练':'b-blue'};
   const list=packages.filter(p=>{if(!searchHit(q,p.name,p.courseType,p.price,p.lessons,p.timeBand,p.notes,p.productName))return false;if(tf&&p.courseType!==tf)return false;if(sf&&String(p.status||'active')!==sf)return false;return true;});
   const host=document.getElementById('packageGrid');
   if(!products.length){
@@ -3892,32 +4208,24 @@ function renderPackages(){
     const timeWindow=[p.timeBand||'全天',windows].filter(Boolean).join(' · ');
     const coachText=parseArr(p.coachNames).join('、')||'不限';
     const campusText=parseArr(p.campusIds).map(id=>cn(id)).join('、')||'不限';
-    return `<div class="product-card"><div class="pc-type"><span class="badge ${tc[p.courseType]||'b-gray'}">${p.courseType||'—'}</span><span class="badge ${status==='inactive'?'b-gray':'b-green'}" style="margin-left:6px">${status==='inactive'?'停用':'启用'}</span></div><div class="pc-name">${esc(p.name)}</div><div class="pc-row"><span>课程产品</span><span class="pc-val">${esc(p.productName)||'—'}</span></div><div class="pc-row"><span>售卖规则</span><span class="pc-val">¥${fmt(p.price)} / ${p.lessons||0} 节 / ${p.maxStudents||1} 人</span></div><div class="pc-row"><span>可用教练</span><span class="pc-val">${esc(coachText)}</span></div><div class="pc-row"><span>可用校区</span><span class="pc-val">${esc(campusText)}</span></div><div class="pc-row"><span>活动期</span><span class="pc-val">${esc(saleWindow)}</span></div><div class="pc-row"><span>使用期</span><span class="pc-val">${esc(usageWindow)}</span></div><div class="pc-row"><span>使用时段</span><span class="pc-val">${esc(timeWindow||'全天')}</span></div><div class="pc-actions"><button class="btn-sec" style="flex:1;justify-content:center" onclick="openPackageModal('${p.id}')">编辑</button><button class="btn-sec" style="flex:1;justify-content:center" onclick="focusPurchaseByPackage('${p.id}')">查看购买</button><button class="btn-sec" style="color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="confirmDel('${p.id}','${esc(p.name)}','package')">删除</button></div></div>`;
+    return `<div class="package-card"><div class="package-card-head"><div><div class="package-card-badges"><span class="tms-tag ${productTypeTagClass(p.courseType)}">${esc(p.courseType||'—')}</span><span class="tms-tag ${status==='inactive'?'tms-tag-tier-slate':'tms-tag-green'}">${status==='inactive'?'停用':'启用'}</span></div><div class="package-card-title">${esc(p.name)}</div><div class="package-card-sub">${esc(p.productName||'—')}</div></div></div><div class="package-card-metrics"><div class="package-card-metric"><div class="package-card-metric-label">价格</div><div class="package-card-metric-value">¥${fmt(p.price)}</div></div><div class="package-card-metric"><div class="package-card-metric-label">课时</div><div class="package-card-metric-value">${p.lessons||0}</div></div><div class="package-card-metric"><div class="package-card-metric-label">人数</div><div class="package-card-metric-value">${p.maxStudents||1}</div></div></div><div class="package-card-row"><span>可用教练</span><strong>${esc(coachText)}</strong></div><div class="package-card-row"><span>可用校区</span><strong>${esc(campusText)}</strong></div><div class="package-card-row"><span>活动期</span><strong>${esc(saleWindow)}</strong></div><div class="package-card-row"><span>使用期</span><strong>${esc(usageWindow)}</strong></div><div class="package-card-row"><span>使用时段</span><strong>${esc(timeWindow||'全天')}</strong></div><div class="package-card-actions"><button class="tms-btn tms-btn-default" onclick="openPackageModal('${p.id}')">编辑</button><button class="tms-btn tms-btn-ghost" onclick="focusPurchaseByPackage('${p.id}')">查看购买</button><button class="tms-btn tms-btn-danger" onclick="confirmDel('${p.id}','${esc(p.name)}','package')">删除</button></div></div>`;
   }).join(''):`<div class="package-hero-empty" style="grid-column:1/-1"><div style="font-size:18px;font-weight:800;color:var(--cream-pale)">暂无售卖课包</div><div style="margin-top:8px;font-size:13px;line-height:1.7">先选一个课程产品，再创建对应的售卖方案。</div><div style="margin-top:14px"><button class="light-btn" onclick="openPackageModal(null)">创建售卖课包</button></div></div>`;
 }
 function refreshPurchaseFilters(){
-  const stuEl=document.getElementById('purStudentFilter');
-  const pkgEl=document.getElementById('purPackageFilter');
-  if(stuEl){
-    const selected=stuEl.value||'';
-    stuEl.innerHTML='<option value="">全部学员</option>'+students.map(s=>`<option value="${s.id}"${selected===s.id?' selected':''}>${esc(s.name)}</option>`).join('');
-  }
-  if(pkgEl){
-    const selected=pkgEl.value||'';
-    pkgEl.innerHTML='<option value="">全部课包</option>'+packages.map(p=>`<option value="${p.id}"${selected===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
-  }
+  const packageValue=document.getElementById('purPackageFilter')?.value||'';
+  const packageOptions=[{value:'',label:'全部课包'},...packages.map(p=>({value:p.id,label:p.name}))];
+  [['purPackageFilterHost','purPackageFilter','全部课包',packageOptions,packageValue]].forEach(([hostId,id,label,options,value])=>{
+    const host=document.getElementById(hostId);
+    if(host)host.innerHTML=renderCourtDropdownHtml(id,label,options,value,false,'renderPurchases');
+  });
 }
 function getFilteredPurchases(){
   const q=(document.getElementById('purSearch')?.value||'').toLowerCase();
-  const sf=document.getElementById('purStatusFilter')?.value||'';
-  const studentId=document.getElementById('purStudentFilter')?.value||'';
   const packageId=document.getElementById('purPackageFilter')?.value||'';
   const dateFrom=document.getElementById('purDateFrom')?.value||'';
   const dateTo=document.getElementById('purDateTo')?.value||'';
   return purchases.filter(p=>{
     if(!searchHit(q,p.studentName,p.packageName,p.amountPaid,p.payMethod,p.purchaseDate,p.productName,p.courseType,p.packageTimeBand))return false;
-    if(sf&&p.status!==sf)return false;
-    if(studentId&&p.studentId!==studentId)return false;
     if(packageId&&p.packageId!==packageId)return false;
     if(dateFrom&&String(p.purchaseDate||'')<dateFrom)return false;
     if(dateTo&&String(p.purchaseDate||'')>dateTo)return false;
@@ -3927,22 +4235,25 @@ function getFilteredPurchases(){
 function renderPurchases(){
   refreshPurchaseFilters();
   const list=getFilteredPurchases();
-  const effectiveEntitlements=entitlements.filter(e=>String(e.status||'active')==='active');
-  const nearExpiry=effectiveEntitlements.filter(e=>e.validUntil&&Math.ceil((dateMs(e.validUntil)-dateMs(today()))/86400000)<=7).length;
-  const received=list.filter(p=>p.status!=='voided').reduce((sum,p)=>sum+(parseFloat(p.amountPaid)||0),0);
-  document.getElementById('purchaseStatsRow').innerHTML=`<div class="scard"><div><div class="sc-label">当前筛选购买单</div><div class="sc-val">${list.length}<span class="u">笔</span></div></div></div><div class="scard"><div><div class="sc-label">当前筛选实收</div><div class="sc-val">¥${fmt(received)}</div></div></div><div class="scard"><div><div class="sc-label">有效权益账户</div><div class="sc-val">${effectiveEntitlements.length}<span class="u">个</span></div></div></div><div class="scard"><div><div class="sc-label">7天内到期</div><div class="sc-val">${nearExpiry}<span class="u">个</span></div></div></div>`;
   document.getElementById('purchaseTbody').innerHTML=list.length?list.map(p=>{
     const ent=entitlements.find(e=>e.purchaseId===p.id);
     const remain=ent?`${parseInt(ent.remainingLessons)||0}/${parseInt(ent.totalLessons)||0} 节`:'—';
     const validRange=ent?`${ent.validFrom||'—'} - ${ent.validUntil||'—'}`:'—';
-    return `<tr><td>${esc(p.purchaseDate)||'—'}</td><td><div class="uname">${esc(p.studentName)||'—'}</div><div class="table-meta">${esc(p.payMethod)||'—'}</div></td><td><div class="uname">${esc(p.packageName)||'—'}</div><div class="table-meta">${esc(p.courseType)||'—'} · ${p.packageLessons||0} 节</div></td><td><div class="uname">${esc(p.productName)||'—'}</div><div class="table-meta">${esc(p.packageTimeBand)||'全天'}</div></td><td>¥${fmt(p.amountPaid)}</td><td>${remain}</td><td>${esc(validRange)}</td><td><span class="badge ${p.status==='voided'?'b-gray':'b-green'}">${purchaseStatusText(p)}</span></td><td style="text-align:right"><div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap"><button class="btn-sec" style="padding:7px 12px" onclick="openPurchaseDetailModal('${p.id}')">详情</button>${p.status==='voided'?'':`<button class="btn-sec" style="padding:7px 12px" onclick="openPurchaseEditModal('${p.id}')">编辑</button><button class="btn-sec" style="padding:7px 12px;color:#dc2626;border-color:rgba(220,38,38,0.2)" onclick="openPurchaseVoidModal('${p.id}')">作废</button>`}</div></td></tr>`;
+    return `<tr><td style="padding-left:20px">${renderCourtCellText(p.purchaseDate,false)}</td><td><div class="tms-text-primary">${esc(p.studentName)||'—'}</div><div class="tms-text-secondary">${esc(p.payMethod)||'—'}</div></td><td><div class="tms-text-primary">${esc(p.packageName)||'—'}</div><div class="tms-text-secondary">${esc(p.courseType)||'—'} · ${p.packageLessons||0} 节</div></td><td><div class="tms-text-primary">${esc(p.productName)||'—'}</div><div class="tms-text-secondary">${esc(p.packageTimeBand)||'全天'}</div></td><td><div class="tms-cell-text">¥${fmt(p.amountPaid)}</div></td><td>${renderCourtCellText(remain,false)}</td><td>${renderCourtCellText(validRange,false)}</td><td><span class="tms-tag ${p.status==='voided'?'tms-tag-tier-slate':'tms-tag-green'}">${purchaseStatusText(p)}</span></td><td class="tms-sticky-r tms-action-cell" style="width:180px;padding-right:20px"><span class="tms-action-link" onclick="openPurchaseDetailModal('${p.id}')">查看</span>${p.status==='voided'?'':`<span class="tms-action-link" onclick="openPurchaseEditModal('${p.id}')">编辑</span><span class="tms-action-link" onclick="openPurchaseVoidModal('${p.id}')">作废</span>`}</td></tr>`;
   }).join(''):'<tr><td colspan="9"><div class="empty"><p>暂无购买记录</p></div></td></tr>';
 }
+function syncEntitlementFilters(){
+  const statusValue=document.getElementById('entStatusFilter')?.value||'';
+  const statusOptions=[{value:'',label:'全部状态'},{value:'active',label:'正常'},{value:'depleted',label:'已用完'},{value:'voided',label:'已作废'}];
+  const host=document.getElementById('entStatusFilterHost');
+  if(host)host.innerHTML=renderCourtDropdownHtml('entStatusFilter','全部状态',statusOptions,statusValue,false,'renderEntitlements');
+}
 function renderEntitlements(){
+  syncEntitlementFilters();
   const q=(document.getElementById('entSearch')?.value||'').toLowerCase();
   const sf=document.getElementById('entStatusFilter')?.value||'';
   const list=entitlements.filter(e=>{const status=e.status||'active';if(!searchHit(q,e.studentName,e.packageName,e.courseType,e.timeBand,e.validUntil))return false;if(sf&&status!==sf)return false;return true;}).sort((a,b)=>String(a.validUntil||'9999-12-31').localeCompare(String(b.validUntil||'9999-12-31')));
-  document.getElementById('entitlementTbody').innerHTML=list.length?list.map(e=>`<tr><td><div class="uname">${esc(e.studentName)||'—'}</div></td><td><div class="uname">${esc(e.packageName)||'—'}</div></td><td>${esc(e.courseType)||'—'}</td><td>${parseInt(e.remainingLessons)||0}/${parseInt(e.totalLessons)||0} 节</td><td>${esc(e.validFrom)||'—'} ~ ${esc(e.validUntil)||'—'}</td><td>${esc(e.timeBand)||'全天'}</td><td><span class="badge ${e.status==='voided'?'b-gray':e.status==='depleted'?'b-amber':'b-green'}">${entitlementStatusText(e)}</span></td></tr>`).join(''):'<tr><td colspan="7"><div class="empty"><p>暂无权益账户</p></div></td></tr>';
+  document.getElementById('entitlementTbody').innerHTML=list.length?list.map(e=>`<tr><td style="padding-left:20px"><div class="tms-text-primary">${esc(e.studentName)||'—'}</div></td><td><div class="tms-text-primary">${esc(e.packageName)||'—'}</div></td><td>${renderCourtCellText(e.courseType,false)}</td><td>${renderCourtCellText(`${parseInt(e.remainingLessons)||0}/${parseInt(e.totalLessons)||0} 节`,false)}</td><td>${renderCourtCellText(`${e.validFrom||'—'} ~ ${e.validUntil||'—'}`,false)}</td><td>${renderCourtCellText(e.timeBand||'全天',false)}</td><td class="tms-sticky-r" style="padding-right:20px"><span class="tms-tag ${e.status==='voided'?'tms-tag-tier-slate':e.status==='depleted'?'tms-tag-tier-gold':'tms-tag-green'}">${entitlementStatusText(e)}</span></td></tr>`).join(''):'<tr><td colspan="7"><div class="empty"><p>暂无权益账户</p></div></td></tr>';
 }
 function productOpts(sel){
   return '<option value="">— 选择课程产品 —</option>'+products.map(p=>`<option value="${p.id}"${sel===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
@@ -4098,11 +4409,10 @@ async function savePackage(){
 }
 function openPurchaseEntryModal(){
   editId=null;
-  const modal=document.querySelector('#overlay .modal');
-  if(modal)modal.className='modal modal-tight';
-  document.getElementById('mTitle').textContent='新增购买记录';
-  document.getElementById('mBody').innerHTML=`<div class="form-section"><div class="form-section-title">先选择学员</div><div class="fgrid"><div class="fg full"><div class="flabel">学员 *</div><select class="fselect modern-select" id="pur_entry_student"><option value="">选择学员</option>${students.map(s=>`<option value="${s.id}">${esc(s.name)}${s.phone?' · '+esc(s.phone):''}</option>`).join('')}</select></div></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="openPurchaseFromEntry()">下一步</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const studentOptions=[{value:'',label:'选择学员'},...students.map(s=>({value:s.id,label:`${s.name}${s.phone?` · ${s.phone}`:''}`}))];
+  const body=`<div class="tms-section-header" style="margin-top:0;">先选择学员</div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_entry_student','选择学员',studentOptions,'',true)}</div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" onclick="openPurchaseFromEntry()">下一步</button>`;
+  setCourtModalFrame('新增购买记录',body,footer,'modal-tight');
 }
 function openPurchaseFromEntry(){
   const studentId=document.getElementById('pur_entry_student')?.value||'';
@@ -4112,11 +4422,10 @@ function openPurchaseFromEntry(){
 function openPurchaseModal(studentId){
   const stu=students.find(x=>x.id===studentId);if(!stu){toast('学员不存在','error');return;}
   editId=null;
-  const modal=document.querySelector('#overlay .modal');
-  if(modal)modal.className='modal modal-tight';
-  document.getElementById('mTitle').textContent='购买课包';
-  document.getElementById('mBody').innerHTML=`<div class="form-section"><div class="form-section-title">学员信息</div><div class="inline-help">${esc(stu.name)}${stu.phone?' · '+esc(stu.phone):''}</div></div><div class="form-section"><div class="form-section-title">购买信息</div><div class="fgrid"><div class="fg full"><div class="flabel">选择课包 *</div><select class="fselect modern-select" id="pur_packageId" onchange="fillPurchasePackageMeta()">${packageOpts('')}</select></div><div class="fg"><div class="flabel">购买日期</div><button class="coach-date-btn" id="pur_purchaseDate_btn" onclick="toggleGlobalDatePicker(event,'pur_purchaseDate','pur_purchaseDate_btn','购买日期')">${today()}</button><input class="filter-hidden-date" id="pur_purchaseDate" type="date" value="${today()}" onchange="syncDateButton('pur_purchaseDate','pur_purchaseDate_btn','购买日期')"></div><div class="fg"><div class="flabel">实收金额</div><input class="finput" id="pur_amountPaid" type="number" value="0"></div><div class="fg"><div class="flabel">支付方式</div><select class="fselect modern-select" id="pur_payMethod"><option value="微信">微信</option><option value="支付宝">支付宝</option><option value="现金">现金</option><option value="转账">转账</option><option value="其他">其他</option></select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="pur_notes"></textarea></div></div></div><input type="hidden" id="pur_studentId" value="${stu.id}"><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="savePurchase()">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const payOptions=[{value:'微信',label:'微信'},{value:'支付宝',label:'支付宝'},{value:'现金',label:'现金'},{value:'转账',label:'转账'},{value:'其他',label:'其他'}];
+  const body=`<div class="tms-section-header" style="margin-top:0;">学员信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">当前学员</label><input class="finput tms-form-control" value="${esc(stu.name)}${stu.phone?` · ${esc(stu.phone)}`:''}" readonly></div></div><div class="tms-section-header">购买信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_packageId','选择课包',packages.filter(p=>p.status!=='inactive').map(p=>({value:p.id,label:`${p.name} · ¥${fmt(p.price)} · ${p.lessons||0}节`})), '', true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">购买日期</label>${courtDateButtonHtml('pur_purchaseDate',today(),'购买日期')}</div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_amountPaid" type="number" value="0"></div><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_payMethod','支付方式',payOptions,'微信',true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_notes"></textarea></div></div><input type="hidden" id="pur_studentId" value="${stu.id}">`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" onclick="savePurchase()">保存</button>`;
+  setCourtModalFrame('新增购买记录',body,footer,'modal-tight');
   fillPurchasePackageMeta();
 }
 function fillPurchasePackageMeta(){
@@ -4135,11 +4444,19 @@ function openPurchaseDetailModal(id){
 function openPurchaseEditModal(id){
   const p=purchases.find(x=>x.id===id);if(!p){toast('购买记录不存在','error');return;}
   const locked=purchaseHasLedger(id);
-  const modal=document.querySelector('#overlay .modal');
-  if(modal)modal.className='modal modal-tight';
-  document.getElementById('mTitle').textContent='编辑购买记录';
-  document.getElementById('mBody').innerHTML=`${locked?'<div class="inline-help">该购买记录已有课时消耗，只能修改备注。</div>':''}<div class="form-section"><div class="form-section-title">购买信息</div><div class="fgrid"><div class="fg full"><div class="flabel">学员 *</div><select class="fselect modern-select" id="pur_edit_studentId"${locked?' disabled':''}>${students.map(s=>`<option value="${s.id}"${p.studentId===s.id?' selected':''}>${esc(s.name)}${s.phone?' · '+esc(s.phone):''}</option>`).join('')}</select></div><div class="fg full"><div class="flabel">选择课包 *</div><select class="fselect modern-select" id="pur_edit_packageId" onchange="fillPurchaseEditPackageMeta()"${locked?' disabled':''}>${purchasePackageOpts(p.packageId)}</select></div><div class="fg"><div class="flabel">购买日期</div><button class="coach-date-btn" id="pur_edit_purchaseDate_btn" onclick="toggleGlobalDatePicker(event,'pur_edit_purchaseDate','pur_edit_purchaseDate_btn','购买日期')"${locked?' disabled':''}>${p.purchaseDate||today()}</button><input class="filter-hidden-date" id="pur_edit_purchaseDate" type="date" value="${p.purchaseDate||today()}" onchange="syncDateButton('pur_edit_purchaseDate','pur_edit_purchaseDate_btn','购买日期')"${locked?' disabled':''}></div><div class="fg"><div class="flabel">实收金额</div><input class="finput" id="pur_edit_amountPaid" type="number" value="${parseFloat(p.amountPaid)||0}"${locked?' readonly':''}></div><div class="fg"><div class="flabel">支付方式</div><select class="fselect modern-select" id="pur_edit_payMethod"${locked?' disabled':''}><option value="微信"${p.payMethod==='微信'?' selected':''}>微信</option><option value="支付宝"${p.payMethod==='支付宝'?' selected':''}>支付宝</option><option value="现金"${p.payMethod==='现金'?' selected':''}>现金</option><option value="转账"${p.payMethod==='转账'?' selected':''}>转账</option><option value="其他"${p.payMethod==='其他'?' selected':''}>其他</option></select></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="pur_edit_notes">${esc(p.notes||'')}</textarea></div></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" onclick="savePurchaseEdit('${p.id}')">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const studentOptions=students.map(s=>({value:s.id,label:`${s.name}${s.phone?` · ${s.phone}`:''}`}));
+  const payOptions=[{value:'微信',label:'微信'},{value:'支付宝',label:'支付宝'},{value:'现金',label:'现金'},{value:'转账',label:'转账'},{value:'其他',label:'其他'}];
+  const body=`${locked?'<div class="tms-audit-note" style="margin-bottom:18px">该购买记录已有课时消耗，只能修改备注。</div>':''}<div class="tms-section-header" style="margin-top:0;">购买信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_edit_studentId','选择学员',studentOptions,p.studentId,true)}</div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_edit_packageId','选择课包',packages.filter(pkg=>pkg.status!=='inactive'||pkg.id===p.packageId).map(pkg=>({value:pkg.id,label:`${pkg.name} · ¥${fmt(pkg.price)} · ${pkg.lessons||0}节${pkg.status==='inactive'?' · 已停用':''}`})),p.packageId,true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">购买日期</label>${courtDateButtonHtml('pur_edit_purchaseDate',p.purchaseDate||today(),'购买日期')}</div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_edit_amountPaid" type="number" value="${parseFloat(p.amountPaid)||0}"${locked?' readonly':''}></div><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_edit_payMethod','支付方式',payOptions,p.payMethod||'微信',true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_edit_notes">${esc(p.notes||'')}</textarea></div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" onclick="savePurchaseEdit('${p.id}')">保存</button>`;
+  setCourtModalFrame('编辑购买记录',body,footer,'modal-tight');
+  if(locked){
+    ['pur_edit_studentId_dropdown','pur_edit_packageId_dropdown','pur_edit_payMethod_dropdown'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el){el.style.pointerEvents='none';el.style.opacity='0.6';}
+    });
+    const dateBtn=document.getElementById('pur_edit_purchaseDate_btn');
+    if(dateBtn){dateBtn.disabled=true;dateBtn.style.pointerEvents='none';dateBtn.style.opacity='0.6';}
+  }
   fillPurchaseEditPackageMeta();
 }
 function fillPurchaseEditPackageMeta(){
@@ -4221,13 +4538,14 @@ function exportPurchaseCSV(){
 function openProductModal(id){
   editId=id;const p=id?products.find(x=>x.id===id):null;
   const locked=!!(id&&productHasReferences(id));
-  document.getElementById('mTitle').textContent=id?'编辑课程产品':'新增课程产品';
-  document.getElementById('mBody').innerHTML=`<div class="sec-ttl">基本信息</div>${locked?'<div class="inline-help">核心字段已锁定：该课程产品已被班次或售卖课包使用，只能修改名称和备注。</div>':''}<div class="fgrid"><div class="fg full"><div class="flabel">课程名称 *</div><input class="finput" id="p_name" value="${rv(p,'name')}"></div><div class="fg"><div class="flabel">类型</div><select class="fselect" id="p_type"${locked?' disabled':''}>${PRODUCT_TYPES.map(t=>`<option value="${t}"${rv(p,'type')===t?' selected':''}>${t}</option>`).join('')}</select></div><div class="fg"><div class="flabel">人数</div><input class="finput" id="p_max" type="number" value="${rv(p,'maxStudents',1)}"${locked?' readonly':''}></div><div class="fg"><div class="flabel">定价</div><input class="finput" id="p_price" type="number" value="${rv(p,'price',0)}"${locked?' readonly':''}></div><div class="fg"><div class="flabel">课时</div><input class="finput" id="p_lessons" type="number" value="${rv(p,'lessons',0)}"${locked?' readonly':''}></div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="p_notes">${esc(rv(p,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${id?`<button class="btn-del" onclick="confirmDel('${p.id}','${esc(p.name)}','product')">删除</button>`:''}<button class="btn-save" onclick="saveProduct()">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const typeOptions=PRODUCT_TYPES.map(t=>({value:t,label:t}));
+  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div>${locked?'<div class="tms-audit-note" style="margin-bottom:18px">该课程产品已经被班次或售卖课包引用。为避免历史班次、售卖规则、已购权益口径被改乱，类型、人数、定价、课时不能再改，只保留名称和备注可改。</div>':''}<div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">课程名称 *</label><input class="finput tms-form-control" id="p_name" value="${rv(p,'name')}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">类型</label>${locked?`<input class="finput tms-form-control" id="p_type" value="${rv(p,'type')}" readonly>`:renderCourtDropdownHtml('p_type','类型',typeOptions,rv(p,'type'),true)}</div><div class="tms-form-item"><label class="tms-form-label">人数</label><input class="finput tms-form-control" id="p_max" type="number" value="${rv(p,'maxStudents',1)}"${locked?' readonly':''}></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">定价</label><input class="finput tms-form-control" id="p_price" type="number" value="${rv(p,'price',0)}"${locked?' readonly':''}></div><div class="tms-form-item"><label class="tms-form-label">课时</label><input class="finput tms-form-control" id="p_lessons" type="number" value="${rv(p,'lessons',0)}"${locked?' readonly':''}></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="p_notes">${esc(rv(p,'notes'))}</textarea></div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button>${id?`<button class="tms-btn tms-btn-danger" onclick="confirmDel('${p.id}','${esc(p.name)}','product')">删除</button>`:''}<button class="tms-btn tms-btn-primary" id="productSaveBtn" onclick="saveProduct()">保存</button>`;
+  setCourtModalFrame(id?'编辑课程产品':'新增课程产品',body,footer,'modal-tight');
 }
 async function saveProduct(){
   const name=document.getElementById('p_name').value.trim();if(!name){toast('请输入名称','warn');return;}
-  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  const btn=document.getElementById('productSaveBtn');btn.disabled=true;btn.textContent='保存中…';
   const data={name,type:document.getElementById('p_type').value,maxStudents:parseInt(document.getElementById('p_max').value)||1,price:parseFloat(document.getElementById('p_price').value)||0,lessons:parseInt(document.getElementById('p_lessons').value)||0,notes:document.getElementById('p_notes').value.trim()};
   try{if(editId){await apiCall('PUT','/products/'+editId,data);const i=products.findIndex(x=>x.id===editId);products[i]={...products[i],...data,id:editId};classes.forEach(c=>{if(c.productId===editId){c.productName=name;if(c.classNo)c.className=c.classNo+'-'+name;}});plans.forEach(p=>{const cls=classes.find(c=>c.id===p.classId);if(cls?.productId===editId){p.productName=name;p.className=cls.className||p.className;}});}else{const r=await apiCall('POST','/products',data);products.unshift(r);}closeModal();toast(editId?'修改成功 ✓':'添加成功，可以去班次管理创建班次','success');renderProducts();renderPackages();renderClasses();renderPlans();}catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
 }
