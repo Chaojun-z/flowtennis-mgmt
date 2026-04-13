@@ -10,9 +10,9 @@ assert.match(html, /id="page-memberships"/, 'should have memberships page sectio
 assert.match(html, /id="page-membership-plans"/, 'should have dedicated membership plans page section');
 assert.match(html, /id="page-membership-plans"[\s\S]*class="tms-toolbar"/, 'membership plan page should use the court-style toolbar');
 assert.match(html, /id="page-membership-plans"[\s\S]*class="tms-table-card"[\s\S]*class="tms-table-wrapper"[\s\S]*class="tms-table"/, 'membership plan page should use the court-style table shell');
-assert.match(html, /会员购买[\s\S]*会员账户[\s\S]*赠送权益/, 'membership page should keep operation views');
-assert.doesNotMatch(html, /id="page-memberships"[\s\S]*membershipTabPlans/, 'membership management page should not keep plan tab');
-assert.match(html, /let membershipTab='accounts';/, 'membership page should default to account overview');
+assert.doesNotMatch(html, /membershipTabOrders|membershipTabAccounts|membershipTabBenefits/, 'membership page should no longer use tabs');
+assert.match(html, /查看购买记录[\s\S]*查看权益总流水/, 'membership page should expose audit links near the main actions');
+assert.doesNotMatch(html, /会员数[\s\S]*订购次数[\s\S]*总金额[\s\S]*30天内到期/, 'membership page should remove top summary cards');
 
 assert.match(html, /let courts=\[\],students=\[\],products=\[\],packages=\[\],purchases=\[\],entitlements=\[\],entitlementLedger=\[\],membershipPlans=\[\],membershipAccounts=\[\],membershipOrders=\[\],membershipBenefitLedger=\[\],membershipAccountEvents=\[\]/, 'frontend state should load membership data separately');
 assert.match(html, /membershipPlans=Array\.isArray\(data\?\.membershipPlans\)\?data\.membershipPlans:\[\]/, 'load-all should store membership plans');
@@ -68,7 +68,7 @@ assert.match(html, /function membershipStepperHtml/, 'membership forms should us
 assert.match(html, /function membershipPlanPreviewHtml/, 'membership plan form should render realtime preview');
 assert.match(html, /function refreshMembershipPlanPreview/, 'membership plan form should refresh preview on input');
 assert.match(html, /售卖开始日期[\s\S]*售卖结束日期[\s\S]*方案状态/, 'membership plan form should expose sale window and plan status fields');
-assert.match(html, /上架[\s\S]*停售/, 'membership plan form should expose simple active and inactive statuses');
+assert.match(html, /草稿[\s\S]*上架[\s\S]*停售/, 'membership plan form should expose draft, active and inactive statuses');
 assert.match(html, /saleStartDate[\s\S]*saleEndDate/, 'membership plan save and rendering should include sale window fields');
 assert.doesNotMatch(html, /id="mp_discount"[^>]*value="1"/, 'membership plan discount should not force default value 1 in html');
 assert.doesNotMatch(html, /例如 8 折填 0\.8/, 'membership plan discount should not ask operators to type decimal discount');
@@ -83,10 +83,12 @@ assert.match(html, /function membershipCoachSelectorHtml/, 'designated coach sel
 assert.match(html, /coaches\.map/, 'designated coach selector should be linked to coach records');
 assert.match(html, /function membershipOrderBenefitSummaryHtml/, 'membership purchase list should render readable benefit batch summary');
 assert.match(html, /额外赠送/, 'membership purchase list should show one-off extra benefit adjustments');
-assert.match(html, /购买日期[\s\S]*订场用户[\s\S]*会员方案[\s\S]*充值[\s\S]*赠送金额[\s\S]*折扣[\s\S]*是否重置有效期[\s\S]*当次权益摘要[\s\S]*状态/, 'membership purchase page should be reduced to audit fields');
-assert.match(html, /此页面仅用于审计与追溯，不用于日常操作/, 'audit pages should explain read-only positioning');
-assert.match(html, /会员数[\s\S]*订购次数[\s\S]*总金额[\s\S]*30天内到期/, 'membership accounts home should show current-phase summary cards');
-assert.match(html, /goPage\('membership-plans'[\s\S]*购买记录[\s\S]*权益流水/, 'membership accounts home should expose secondary navigation actions');
+assert.match(html, /function openMembershipOrdersAuditModal/, 'membership page should provide a dedicated purchase audit modal');
+assert.match(html, /function openMembershipLedgerAuditModal/, 'membership page should provide a dedicated global ledger audit modal');
+assert.match(html, /购买日期[\s\S]*订场用户[\s\S]*会员方案[\s\S]*充值[\s\S]*赠送金额[\s\S]*折扣[\s\S]*是否重置有效期[\s\S]*当次权益摘要[\s\S]*状态/, 'membership purchase audit should keep reduced audit fields');
+assert.match(html, /时间[\s\S]*订场用户[\s\S]*购买批次[\s\S]*权益[\s\S]*变动[\s\S]*动作[\s\S]*原因/, 'membership ledger audit should keep audit columns only');
+assert.match(html, /此页面仅用于审计与追溯，不用于日常操作/, 'audit modal should explain read-only positioning');
+assert.match(html, /goPage\('membership-plans'[\s\S]*查看购买记录[\s\S]*查看权益总流水/, 'membership page should expose scheme config and audit links as secondary actions');
 assert.match(html, /权益有效期固定 12 个月[\s\S]*余额最长按当前系统规则至 24 个月/, 'membership plan form should explain fixed validity rules');
 assert.match(html, /可用权益/, 'membership account list should expose benefit summary');
 assert.match(html, /查看账户/, 'membership account list should expose account detail entry');
@@ -111,14 +113,12 @@ assert.match(html, /const benefits=benefitRows\.length\?benefitRows\.map\(b=>`\$
 assert.match(html, /<thead style="font-size:10px"/, 'membership tables should use 10px table header size');
 assert.match(html, /<tbody style="font-size:12px"/, 'membership tables should use 12px body size');
 assert.match(html, /售卖时间[\s\S]*方案状态[\s\S]*操作/, 'membership plan list should show sale window and plan status columns');
-assert.match(html, /tms-action-link[\s\S]*编辑/, 'membership plan list should use text action links');
+assert.match(html, /tms-action-link[\s\S]*编辑[\s\S]*(上架|停售)/, 'membership plan list should use text action links for editing and publish control');
 assert.doesNotMatch(html, /async function saveMembershipOrder[\s\S]*?await loadAll\(\)[\s\S]*?function openMembershipBenefitModal/, 'membership order save should avoid full reload to reduce waiting time');
 assert.match(html, /if\(Date\.now\(\)-lastDataSyncAt>60000\)syncAllQuietly\(\);/, 'background sync should not refetch full data too aggressively');
 assert.match(html, /setInterval\(syncAllQuietly,180000\);/, 'background sync interval should be reduced to avoid overloading save flows');
-assert.match(html, /membershipBenefitCourtFilter/, 'membership benefit page should support filtering by court user');
-assert.match(html, /赠送权益批次 = 每次购买送了什么、还剩多少、何时到期/, 'membership benefit page should explain batch table meaning');
-assert.match(html, /权益流水 = 后来用了什么、补了什么、为什么变动/, 'membership benefit page should explain ledger table meaning');
-assert.match(html, /时间[\s\S]*订场用户[\s\S]*购买批次[\s\S]*权益[\s\S]*变动[\s\S]*动作[\s\S]*原因/, 'membership benefit ledger page should keep audit columns only');
+assert.doesNotMatch(html, /membershipBenefitCourtFilter/, 'membership management page should remove the global benefit batch filter');
+assert.doesNotMatch(html, /赠送权益批次 = 每次购买送了什么、还剩多少、何时到期/, 'membership management page should no longer expose global benefit batch explanation');
 assert.doesNotMatch(html, /请选择权益账户，排课必须绑定课包权益/, 'schedule form should not hard-block saving when no entitlement is selected');
 
 console.log('membership view tests passed');

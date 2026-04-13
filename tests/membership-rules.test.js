@@ -62,7 +62,7 @@ const plan = rules.buildMembershipPlanRecord({
 }, { id: 'mplan-gold', now: '2026-04-12T00:00:00.000Z' });
 
 assert.strictEqual(plan.id, 'mplan-gold');
-assert.strictEqual(plan.status, 'active');
+assert.strictEqual(plan.status, 'draft');
 assert.strictEqual(plan.saleStartDate, '2026-04-01');
 assert.strictEqual(plan.saleEndDate, '2026-04-30');
 assert.strictEqual(plan.validMonths, 12);

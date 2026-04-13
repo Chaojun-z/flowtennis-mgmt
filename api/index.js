@@ -1348,7 +1348,7 @@ function buildMembershipPlanRecord(input,opts={}){
     maxMonths:parseInt(input.maxMonths)||24,
     saleStartDate,
     saleEndDate,
-    status:input.status||'active',
+    status:input.status||'draft',
     notes:input.notes||'',
     createdAt:input.createdAt||now,
     updatedAt:now
@@ -1979,7 +1979,7 @@ module.exports = async (req, res) => {
       const id=mpM[1];
       if(method==='GET')return sendJson(res,await get(T_MEMBERSHIP_PLANS,id));
       if(method==='PUT'){const old=await get(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);const r=buildMembershipPlanRecord({...old,...body,id,createdAt:old.createdAt},{id,now:new Date().toISOString()});await put(T_MEMBERSHIP_PLANS,id,r);return sendJson(res,r);}
-      if(method==='DELETE'){const orders=await scan(T_MEMBERSHIP_ORDERS).catch(()=>[]);if(orders.some(o=>o.membershipPlanId===id))return sendJson(res,{error:'该会员方案已有购买记录，不能删除，请停用'},400);await del(T_MEMBERSHIP_PLANS,id);return sendJson(res,{success:true});}
+      if(method==='DELETE'){const old=await get(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);if(old.status==='active')return sendJson(res,{error:'上架中的会员方案不能删除，请先停售'},400);const orders=await scan(T_MEMBERSHIP_ORDERS).catch(()=>[]);if(orders.some(o=>o.membershipPlanId===id))return sendJson(res,{error:'该会员方案已有购买记录，不能删除，请停用'},400);await del(T_MEMBERSHIP_PLANS,id);return sendJson(res,{success:true});}
     }
     if(path==='/membership-accounts/reconcile'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
