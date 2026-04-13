@@ -201,6 +201,82 @@ assert.strictEqual(normalized.totalDeposit, 5000);
 assert.strictEqual(normalized.spentAmount, 300);
 assert.strictEqual(normalized.receivedAmount, 5000);
 
+assert.throws(
+  () => normalizeCourtRecord({
+    name: '订场用户冲突',
+    phone: '15001010368',
+    campus: 'mabao',
+    history: [
+      {
+        id: 'recharge-1',
+        date: '2026-04-11',
+        type: '充值',
+        payMethod: '微信',
+        category: '储值',
+        amount: 1000
+      },
+      {
+        id: 'booking-1',
+        date: '2026-04-11',
+        type: '消费',
+        payMethod: '储值扣款',
+        category: '订场',
+        startTime: '09:00',
+        endTime: '10:00',
+        venue: '1号场',
+        amount: 300
+      }
+    ]
+  }, {
+    schedules: [{
+      id: 'sch-1',
+      startTime: '2026-04-11 09:30',
+      endTime: '2026-04-11 10:30',
+      campus: 'mabao',
+      venue: '1号场',
+      status: '已排课'
+    }]
+  }),
+  /已被占用|已占场|占用/,
+  'saving court booking history should fail when schedule already occupies the same court'
+);
+
+const stickyBookingCourt = normalizeCourtRecord({
+  name: '订场用户归属',
+  phone: '15001010368',
+  campus: 'mabao',
+  history: [
+    {
+      id: 'recharge-2',
+      date: '2026-04-11',
+      type: '充值',
+      payMethod: '微信',
+      category: '储值',
+      amount: 1000
+    },
+    {
+      id: 'booking-2',
+      date: '2026-04-11',
+      type: '消费',
+      payMethod: '储值扣款',
+      category: '订场',
+      startTime: '09:00',
+      endTime: '10:00',
+      venue: '1号场',
+      amount: 300
+    }
+  ]
+});
+
+assert.strictEqual(stickyBookingCourt.history[1].campus, 'mabao');
+
+const movedStickyBookingCourt = normalizeCourtRecord({
+  ...stickyBookingCourt,
+  campus: 'shilipu'
+});
+
+assert.strictEqual(movedStickyBookingCourt.history[1].campus, 'mabao');
+
 const legacy = normalizeCourtRecord({
   name: '旧客户',
   studentId: 'stu-old',

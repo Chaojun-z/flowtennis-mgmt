@@ -477,4 +477,43 @@ assert.deepStrictEqual(coachLoaded.membershipBenefitLedger, []);
 assert.deepStrictEqual(coachLoaded.membershipAccountEvents, []);
 assert.deepStrictEqual(coachLoaded.courts, []);
 
+const emptyCourt = {
+  id: 'court-delete-1',
+  name: '待删订场用户',
+  phone: '15001010368',
+  history: []
+};
+
+assert.throws(
+  () => rules.assertCanDeleteCourt(emptyCourt, {
+    membershipAccounts: [{ id: 'macc-delete-1', courtId: 'court-delete-1' }]
+  }),
+  /会员账户/,
+  'membership account should block court deletion'
+);
+
+assert.throws(
+  () => rules.assertCanDeleteCourt(emptyCourt, {
+    membershipOrders: [{ id: 'mord-delete-1', courtId: 'court-delete-1' }]
+  }),
+  /会员订单/,
+  'membership order should block court deletion'
+);
+
+assert.throws(
+  () => rules.assertCanDeleteCourt(emptyCourt, {
+    membershipBenefitLedger: [{ id: 'mled-delete-1', courtId: 'court-delete-1' }]
+  }),
+  /权益流水/,
+  'membership benefit ledger should block court deletion'
+);
+
+assert.throws(
+  () => rules.assertCanDeleteCourt(emptyCourt, {
+    membershipAccountEvents: [{ id: 'mevt-delete-1', courtId: 'court-delete-1' }]
+  }),
+  /账户事件/,
+  'membership account event should block court deletion'
+);
+
 console.log('membership rules tests passed');

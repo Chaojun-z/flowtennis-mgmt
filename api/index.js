@@ -207,6 +207,33 @@ function validateCourtBookingConflicts(candidate,courts){
     }
   }
 }
+function normalizeCourtBookingHistoryRows(court,history){
+  return (history||[]).map(row=>{
+    if(row?.type==='消费'&&row?.category==='订场'&&!row.campus){
+      return {...row,campus:court?.campus||''};
+    }
+    return row;
+  });
+}
+function assertCourtBookingHistoryAgainstSchedules(court,schedules){
+  for(const row of normalizeCourtHistory(court?.history)){
+    if(row?.type!=='消费'||row?.category!=='订场')continue;
+    const booking=courtBookingRange(court,row);
+    if(!booking)continue;
+    validateScheduleConflicts(
+      {
+        id:row.id||court?.id||'court-booking',
+        startTime:booking.startTime,
+        endTime:booking.endTime,
+        campus:booking.campus,
+        venue:booking.venue,
+        status:'已排课'
+      },
+      schedules,
+      row.id
+    );
+  }
+}
 function buildEntitlementFromPurchase(pkg,purchase,student,id=uuidv4(),now=new Date().toISOString()){
   const purchaseDate=purchase.purchaseDate||now.slice(0,10);
   const validUntil=pkg.usageEndDate||pkg.validUntil||(pkg.validDays?addDaysKey(purchaseDate,pkg.validDays):'');
@@ -1144,9 +1171,17 @@ function assertCanDeleteStudent(studentId,data){
 function assertStudentWriteAccess(user){
   if(user?.role!=='admin')throw new Error('无权限');
 }
-function assertCanDeleteCourt(court){
+function assertCanDeleteCourt(court,data={}){
   if(parseArr(court?.history).length)throw new Error('该客户已有财务流水，不能直接删除');
   if(normalizeMoney(court?.balance)||normalizeMoney(court?.totalDeposit)||normalizeMoney(court?.spentAmount))throw new Error('该客户已有财务数据，不能直接删除');
+  const courtId=String(court?.id||'').trim();
+  if(!courtId)return;
+  const used=
+    (data.membershipAccounts||[]).some(r=>String(r.courtId||'').trim()===courtId)||
+    (data.membershipOrders||[]).some(r=>String(r.courtId||'').trim()===courtId)||
+    (data.membershipBenefitLedger||[]).some(r=>String(r.courtId||'').trim()===courtId)||
+    (data.membershipAccountEvents||[]).some(r=>String(r.courtId||'').trim()===courtId);
+  if(used)throw new Error('该客户已有会员账户、会员订单、权益流水或账户事件关联，不能直接删除');
 }
 function assertCanDeleteCampus(campusId,data={}){
   const id=String(campusId||'').trim();
@@ -1204,7 +1239,7 @@ async function syncClassPlans(classId,cls){
   }
   return saved;
 }
-function normalizeCourtRecord(input){
+function normalizeCourtRecord(input,refs={}){
   const inferredDeposit=extractDepositAmountFromText(input.depositAttitude);
   const normalizedInput={...input};
   if(inferredDeposit>0&&!normalizeMoney(normalizedInput.totalDeposit))normalizedInput.totalDeposit=inferredDeposit;
@@ -1214,7 +1249,8 @@ function normalizeCourtRecord(input){
     if(spent>0&&total>0)normalizedInput.balance=Math.max(0,total-spent);
   }
   const currentHistory=normalizeCourtHistory(input.history);
-  const history=currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(normalizedInput);
+  const history=normalizeCourtBookingHistoryRows(normalizedInput,currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(normalizedInput));
+  if(Array.isArray(refs.schedules))assertCourtBookingHistoryAgainstSchedules({...normalizedInput,history},refs.schedules);
   const finance=computeCourtFinance({...normalizedInput,history});
   const studentIds=normalizeStudentIds(normalizedInput);
   return {
@@ -1594,7 +1630,16 @@ function shouldMigrateLegacyCourtFinance(court){
     normalizeMoney(court?.spentAmount)>0
   );
 }
-async function deleteCourtsByIds(ids){
+async function loadCourtDeleteReferenceData(){
+  const [membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents]=await Promise.all([
+    scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
+    scan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
+    scan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
+    scan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])
+  ]);
+  return {membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents};
+}
+async function deleteCourtsByIds(ids,data={}){
   const uniqueIds=[...new Set((ids||[]).map(id=>String(id||'').trim()).filter(Boolean))];
   const deleted=[],errors=[];
   for(let i=0;i<uniqueIds.length;i+=10){
@@ -1602,7 +1647,7 @@ async function deleteCourtsByIds(ids){
     const results=await Promise.all(chunk.map(async(id)=>{
       try{
         const court=await get(T_COURTS,id).catch(()=>null);
-        assertCanDeleteCourt(court);
+        assertCanDeleteCourt(court,data);
         await del(T_COURTS,id);
         return {id,ok:true};
       }catch(e){
@@ -1619,12 +1664,13 @@ async function clearAllCourts(){
   return existing.length;
 }
 async function importCourtRows(rows){
+  const schedules=await scan(T_SCHEDULE).catch(()=>[]);
   let success=0,failed=0;
   const errors=[];
   for(const row of rows){
     try{
       const id=uuidv4();
-      const record={...normalizeCourtRecord(row),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+      const record={...normalizeCourtRecord(row,{schedules}),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
       await put(T_COURTS,id,record);
       success++;
     }catch(e){
@@ -1772,7 +1818,8 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,await scan(T_COURTS));
       if(method==='POST'){
         const id=uuidv4();
-        const r={...normalizeCourtRecord(body),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+        const schedules=await scan(T_SCHEDULE).catch(()=>[]);
+        const r={...normalizeCourtRecord(body,{schedules}),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
         await put(T_COURTS,id,r);return sendJson(res,r);
       }
     }
@@ -1783,7 +1830,7 @@ module.exports = async (req, res) => {
     }
     if(path==='/courts/batch-delete'&&method==='POST'){
       await init();
-      const result=await deleteCourtsByIds(body.ids);
+      const result=await deleteCourtsByIds(body.ids,await loadCourtDeleteReferenceData());
       return sendJson(res,result);
     }
     if(path==='/courts/migrate-legacy'&&method==='POST'){
@@ -1821,6 +1868,7 @@ module.exports = async (req, res) => {
       await init();
       const dryRun=body?.dryRun!==false;
       const rows=await scan(T_COURTS);
+      const schedules=await scan(T_SCHEDULE).catch(()=>[]);
       let candidates=0,migrated=0,skipped=0;
       const preview=[];
       for(const row of rows){
@@ -1840,14 +1888,14 @@ module.exports = async (req, res) => {
         });
         if(warnings.length){skipped++;continue;}
         if(!dryRun){
-          const next=normalizeCourtRecord({...row,history,updatedAt:new Date().toISOString()});
+          const next=normalizeCourtRecord({...row,history,updatedAt:new Date().toISOString()},{schedules});
           await put(T_COURTS,row.id,next);
           migrated++;
         }
       }
       return sendJson(res,{dryRun,total:rows.length,candidates,migrated,skipped,preview});
     }
-    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const r={...normalizeCourtRecord(body),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await get(T_COURTS,id).catch(()=>null);assertCanDeleteCourt(court);await del(T_COURTS,id);return sendJson(res,{success:true});}}
+    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const schedules=await scan(T_SCHEDULE).catch(()=>[]);const r={...normalizeCourtRecord(body,{schedules}),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await get(T_COURTS,id).catch(()=>null);assertCanDeleteCourt(court,await loadCourtDeleteReferenceData());await del(T_COURTS,id);return sendJson(res,{success:true});}}
     if(path==='/students'){await init();if(method==='GET')return sendJson(res,await scan(T_STUDENTS));if(method==='POST'){assertStudentWriteAccess(user);const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
     const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){assertStudentWriteAccess(user);const old=await get(T_STUDENTS,id).catch(()=>null);const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);const studentUpdates=old?await applyStudentIdentityUpdate(old,r):{plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};return sendJson(res,{...r,studentUpdates});}if(method==='DELETE'){assertStudentWriteAccess(user);const [classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_PLANS).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scanFeedbacks().catch(()=>[]),scan(T_PURCHASES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanDeleteStudent(id,{classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger});await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
     if(path==='/init-data'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const ss=body.students||[];for(const s of ss)await put(T_STUDENTS,s.id||uuidv4(),{...s,updatedAt:new Date().toISOString()});return sendJson(res,{success:true,count:ss.length});}
