@@ -8,6 +8,8 @@ assert.match(html, /goPage\('memberships',this\)[\s\S]*?会员管理/, 'sidebar 
 assert.match(html, /goPage\('membership-plans',this\)[\s\S]*?会员方案/, 'sidebar should add membership plan entry');
 assert.match(html, /id="page-memberships"/, 'should have memberships page section');
 assert.match(html, /id="page-membership-plans"/, 'should have dedicated membership plans page section');
+assert.match(html, /id="page-membership-plans"[\s\S]*class="tms-toolbar"/, 'membership plan page should use the court-style toolbar');
+assert.match(html, /id="page-membership-plans"[\s\S]*class="tms-table-card"[\s\S]*class="tms-table-wrapper"[\s\S]*class="tms-table"/, 'membership plan page should use the court-style table shell');
 assert.match(html, /会员购买[\s\S]*会员账户[\s\S]*赠送权益/, 'membership page should keep operation views');
 assert.doesNotMatch(html, /id="page-memberships"[\s\S]*membershipTabPlans/, 'membership management page should not keep plan tab');
 assert.match(html, /let membershipTab='accounts';/, 'membership page should default to account overview');
@@ -65,9 +67,12 @@ assert.match(html, /function membershipOrderDraftFromPlan/, 'membership order mo
 assert.match(html, /function membershipStepperHtml/, 'membership forms should use stepper helper');
 assert.match(html, /function membershipPlanPreviewHtml/, 'membership plan form should render realtime preview');
 assert.match(html, /function refreshMembershipPlanPreview/, 'membership plan form should refresh preview on input');
+assert.match(html, /售卖开始日期[\s\S]*售卖结束日期[\s\S]*方案状态/, 'membership plan form should expose sale window and plan status fields');
+assert.match(html, /上架[\s\S]*停售/, 'membership plan form should expose simple active and inactive statuses');
+assert.match(html, /saleStartDate[\s\S]*saleEndDate/, 'membership plan save and rendering should include sale window fields');
 assert.doesNotMatch(html, /id="mp_discount"[^>]*value="1"/, 'membership plan discount should not force default value 1 in html');
 assert.doesNotMatch(html, /例如 8 折填 0\.8/, 'membership plan discount should not ask operators to type decimal discount');
-assert.match(html, /<select class="fselect" id="mp_discount"/, 'membership plan discount should use option select');
+assert.match(html, /mp_discount/, 'membership plan discount should use explicit option selection');
 assert.doesNotMatch(html, /id="mp_publicLesson"[^>]*value="0"/, 'membership plan benefit inputs should not force default zero in html');
 assert.doesNotMatch(html, /id="mo_publicLesson"[^>]*value="0"/, 'membership order adjustment inputs should not force default zero in html');
 assert.match(html, /本次额外赠送/, 'membership order modal should allow one-time benefit adjustments');
@@ -105,6 +110,8 @@ assert.match(html, /const planCount=parseInt\(planSnap\?\.\[item\.code\]\?\.coun
 assert.match(html, /const benefits=benefitRows\.length\?benefitRows\.map\(b=>`\$\{b\.label\} \$\{b\.remaining\}\/\$\{b\.total\}`\)\.join\('；'\):'—';/, 'membership account list should show remaining\/total benefit counts');
 assert.match(html, /<thead style="font-size:10px"/, 'membership tables should use 10px table header size');
 assert.match(html, /<tbody style="font-size:12px"/, 'membership tables should use 12px body size');
+assert.match(html, /售卖时间[\s\S]*方案状态[\s\S]*操作/, 'membership plan list should show sale window and plan status columns');
+assert.match(html, /tms-action-link[\s\S]*编辑/, 'membership plan list should use text action links');
 assert.doesNotMatch(html, /async function saveMembershipOrder[\s\S]*?await loadAll\(\)[\s\S]*?function openMembershipBenefitModal/, 'membership order save should avoid full reload to reduce waiting time');
 assert.match(html, /if\(Date\.now\(\)-lastDataSyncAt>60000\)syncAllQuietly\(\);/, 'background sync should not refetch full data too aggressively');
 assert.match(html, /setInterval\(syncAllQuietly,180000\);/, 'background sync interval should be reduced to avoid overloading save flows');

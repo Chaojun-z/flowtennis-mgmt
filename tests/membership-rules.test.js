@@ -50,6 +50,8 @@ const plan = rules.buildMembershipPlanRecord({
   rechargeAmount: 5000,
   discountRate: 0.8,
   bonusAmount: 498,
+  saleStartDate: '2026-04-01',
+  saleEndDate: '2026-04-30',
   publicLessonCount: 2,
   stringingLaborCount: 5,
   ballMachineCount: 6,
@@ -61,6 +63,8 @@ const plan = rules.buildMembershipPlanRecord({
 
 assert.strictEqual(plan.id, 'mplan-gold');
 assert.strictEqual(plan.status, 'active');
+assert.strictEqual(plan.saleStartDate, '2026-04-01');
+assert.strictEqual(plan.saleEndDate, '2026-04-30');
 assert.strictEqual(plan.validMonths, 12);
 assert.strictEqual(plan.maxMonths, 24);
 assert.strictEqual(plan.benefitTemplate.designatedCoachPartner.count, 1);
@@ -70,6 +74,18 @@ assert.strictEqual(plan.stringingLaborCount, 5);
 assert.strictEqual(plan.ballMachineCount, 6);
 assert.strictEqual(plan.level2PartnerCount, 2);
 assert.strictEqual(plan.designatedCoachPartnerCount, 1);
+
+assert.throws(
+  () => rules.buildMembershipPlanRecord({
+    name: '测试方案',
+    rechargeAmount: 1000,
+    discountRate: 0.9,
+    saleStartDate: '2026-05-10',
+    saleEndDate: '2026-05-01'
+  }),
+  /售卖结束日期不能早于售卖开始日期/,
+  'membership plan should reject reversed sale window'
+);
 
 const court = {
   id: 'court-1',

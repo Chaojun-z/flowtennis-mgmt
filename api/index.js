@@ -1324,6 +1324,9 @@ function buildMembershipPlanRecord(input,opts={}){
   if(rechargeAmount<=0)throw new Error('会员充值金额必须大于 0');
   const discountRate=normalizeMoney(input.discountRate||1);
   if(discountRate<=0||discountRate>1)throw new Error('会员折扣必须在 0 到 1 之间');
+  const saleStartDate=String(input.saleStartDate||'').trim();
+  const saleEndDate=String(input.saleEndDate||'').trim();
+  if(saleStartDate&&saleEndDate&&saleEndDate<saleStartDate)throw new Error('售卖结束日期不能早于售卖开始日期');
   const benefitTemplate=normalizeMembershipBenefitTemplate(input,input?.benefitTemplate);
   return {
     ...input,
@@ -1343,6 +1346,8 @@ function buildMembershipPlanRecord(input,opts={}){
     benefitTemplate,
     validMonths:parseInt(input.validMonths)||12,
     maxMonths:parseInt(input.maxMonths)||24,
+    saleStartDate,
+    saleEndDate,
     status:input.status||'active',
     notes:input.notes||'',
     createdAt:input.createdAt||now,
@@ -2039,6 +2044,8 @@ module.exports = async (req, res) => {
           : (await scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])).find(a=>a.courtId===court.id&&a.status!=='voided');
         if(!plan){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'会员方案不存在'},404);}
         if(plan.status&&plan.status!=='active'){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'该会员方案已停用'},400);}
+        if(plan.saleStartDate&&purchaseDate<plan.saleStartDate){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'未到会员方案售卖时间'},400);}
+        if(plan.saleEndDate&&purchaseDate>plan.saleEndDate){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'会员方案售卖时间已结束'},400);}
         const finalRechargeAmount=normalizeMoney(body.rechargeAmount??plan.rechargeAmount);
         const built=buildMembershipPurchase({court,plan:normalizeMembershipPlanViewRecord(plan),existingAccount,body:{...body,purchaseDate,rechargeAmount:finalRechargeAmount,operator:body.operator||user.name},now});
         const benefitLedgerRows=buildMembershipGrantLedgerRows(built.order,{idFactory:uuidv4,now});

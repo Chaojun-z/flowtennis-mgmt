@@ -32,6 +32,7 @@ assert.match(fnBody('renderCoaches'), /tms-action-link[\s\S]*编辑[\s\S]*删除
 assert.match(fnBody('openCoachModal'), /setCourtModalFrame/, 'coach create/edit should use the court-style modal frame');
 assert.match(fnBody('openCoachModal'), /tms-section-header[\s\S]*tms-form-row[\s\S]*tms-form-label[\s\S]*tms-form-control/, 'coach modal should use court-style form fields');
 assert.match(fnBody('openCoachModal'), /co_hireDate/, 'coach modal should include hire date field');
+assert.match(fnBody('openCoachModal'), /courtDateButtonHtml\('co_hireDate'/, 'coach hire date should use the shared court-style date picker');
 assert.doesNotMatch(fnBody('openCoachModal'), /confirmDel\([^)]*'coach'|删除|class="fgrid"|class="fg"|class="flabel"|class="mactions"/, 'coach modal should not include delete entry or old form classes');
 assert.match(fnBody('saveCoach'), /hireDate:document\.getElementById\('co_hireDate'\)\.value/, 'coach save should include hire date');
 

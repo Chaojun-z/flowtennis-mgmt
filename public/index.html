@@ -129,6 +129,11 @@ body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradi
 #page-campusmgr .tms-table tbody tr:hover td.tms-sticky-r{background-color:#F4EBE3}
 #page-coaches .tms-table{min-width:1000px}
 #page-coaches .tms-table-wrapper{max-height:calc(100vh - 190px)}
+#page-membership-plans .tms-table{min-width:1180px}
+#page-membership-plans .tms-table-wrapper{max-height:calc(100vh - 250px)}
+#page-membership-plans .tms-table th.tms-sticky-r{position:sticky;top:0;right:0;z-index:140;background-color:#FDF7F2}
+#page-membership-plans .tms-table td.tms-sticky-r{position:sticky;right:0;z-index:40;background-color:#FDF7F2}
+#page-membership-plans .tms-table tbody tr:hover td.tms-sticky-r{background-color:#F4EBE3}
 #page-coaches .tms-table th.tms-sticky-r{position:sticky;top:0;right:0;z-index:140;background-color:#FDF7F2}
 #page-coaches .tms-table td.tms-sticky-r{position:sticky;right:0;z-index:40;background-color:#FDF7F2}
 #page-coaches .tms-table tbody tr:hover td.tms-sticky-r{background-color:#F4EBE3}
@@ -311,6 +316,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .modal.modal-court .tms-form-control{height:38px;padding:0 12px;font-size:13px;font-weight:400}
 .modal.modal-court textarea.tms-form-control{height:auto;min-height:62px;padding:10px 12px}
 .modal.modal-court .coach-date-btn,.modal.modal-court .tms-dropdown.tms-dropdown-form .tms-dropdown-display{height:38px;font-size:13px;font-weight:400}
+.modal.modal-court .coach-date-btn{background:#FDF7F2;box-shadow:none}
 .modal.modal-court .tms-checkbox-matrix{font-size:10px}
 .modal.modal-court .tms-checkbox-matrix .tms-checkbox-wrap,.modal.modal-court .tms-checkbox-matrix .tms-checkbox-wrap span{font-size:10px;font-weight:400}
 .modal.modal-court .court-date-row{gap:12px}
@@ -371,7 +377,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .coach-mobile-meta{margin-top:6px;font-size:12px;line-height:1.6;color:var(--ts)}
 .coach-mobile-empty{padding:18px 14px;text-align:center;color:var(--ts);font-size:12px;background:rgba(254,243,199,0.2);border-radius:12px;border:0.5px dashed rgba(180,83,9,0.16)}
 .coach-ops-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(254,243,199,.16);border:0.5px solid rgba(254,243,199,.22);border-radius:14px;padding:10px 12px;margin-bottom:14px}
-.coach-ops-select,.coach-date-btn,.coach-ops-nav{height:42px;border:0.5px solid rgba(180,83,9,.18);border-radius:10px;background:rgba(255,255,255,.96);color:var(--th);padding:0 14px;font-size:13px;font-weight:500;font-family:inherit;box-shadow:0 8px 22px rgba(60,20,0,.08);cursor:pointer}
+.coach-ops-select,.coach-date-btn,.coach-ops-nav{height:42px;border:0.5px solid rgba(180,83,9,.18);border-radius:10px;background:#FDF7F2;color:var(--th);padding:0 14px;font-size:13px;font-weight:500;font-family:inherit;box-shadow:0 8px 22px rgba(60,20,0,.08);cursor:pointer}
 .coach-ops-select{min-width:132px}
 .coach-date-wrap{position:relative}.coach-date-btn{min-width:178px;text-align:left}.coach-ops-nav{color:var(--amber-base);min-width:64px}.coach-ops-arrow{min-width:38px;width:38px;padding:0;font-size:22px;line-height:1}.coach-ops-nav:hover,.coach-date-btn:hover,.coach-ops-select:hover{background:#fff}
 .coach-date-pop{display:none;position:absolute;top:44px;left:0;width:292px;background:rgba(255,251,245,.98);border:0.5px solid rgba(180,83,9,.18);border-radius:12px;box-shadow:0 18px 54px rgba(60,20,0,.28);padding:12px;z-index:30;color:var(--th)}
@@ -651,11 +657,14 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
     </div>
     <!-- 会员方案 -->
     <div class="page-section" id="page-membership-plans">
-      <div class="toolbar">
-        <div class="search-box"><span class="filter-search-mark"></span><input type="text" id="membershipPlanSearch" placeholder="搜索会员方案…" oninput="renderMembershipPlans()"></div>
-        <button class="btn-add" onclick="openMembershipPlanModal(null)">＋ 新增会员方案</button>
+      <div class="tms-toolbar">
+        <div class="tms-toolbar-left">
+          <div class="tms-search-wrap"><span class="tms-search-icon">⌕</span><input type="text" id="membershipPlanSearch" placeholder="搜索会员方案" oninput="renderMembershipPlans()"></div>
+        </div>
+        <div class="tms-toolbar-right">
+          <button class="tms-btn tms-btn-primary" onclick="openMembershipPlanModal(null)">＋ 新增会员方案</button>
+        </div>
       </div>
-      <div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.18);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--tb);margin-bottom:12px">会员方案是后台配置，用于定义充值金额、折扣和默认赠送权益。日常开卡、续充、消耗权益请到会员管理处理。</div>
       <div id="membershipPlanBody"></div>
     </div>
     <!-- 课程产品 -->
@@ -1080,6 +1089,16 @@ function studentAccountSummaryHtml(stu){
 function membershipStatusText(status){
   return ({active:'正常',extended:'延续期',expired:'已到期',cleared:'已清零',voided:'已作废',inactive:'未启用'}[status]||status||'—');
 }
+function membershipPlanStatusMeta(plan){
+  if(!plan)return {text:'-',tagClass:'tms-tag-tier-slate'};
+  if(plan.status==='inactive')return {text:'停售',tagClass:'tms-tag-red'};
+  if(plan.saleEndDate&&plan.saleEndDate<today())return {text:'已过期',tagClass:'tms-tag-tier-slate'};
+  return {text:'上架',tagClass:'tms-tag-green'};
+}
+function membershipPlanSaleWindowText(plan){
+  if(!plan)return '-';
+  return [renderCourtEmptyText(plan.saleStartDate||''),renderCourtEmptyText(plan.saleEndDate||'')].join(' ~ ');
+}
 function membershipDisplayStatus(account){
   if(!account)return '未开卡';
   if(account.status==='voided')return '已作废';
@@ -1215,7 +1234,7 @@ function membershipNumericValue(value){
   return Number.isFinite(n)&&n!==0?String(Number.isInteger(n)?n:n):'';
 }
 function membershipStepperHtml(inputId,value='',step=1,placeholder=''){
-  return `<input class="finput" id="${inputId}" type="number" step="${step}" value="${esc(membershipNumericValue(value))}" placeholder="${esc(placeholder)}">`;
+  return `<input class="finput tms-form-control" id="${inputId}" type="number" step="${step}" value="${esc(membershipNumericValue(value))}" placeholder="${esc(placeholder)}">`;
 }
 function membershipCoachSelectorHtml(containerId,selectedIds=[]){
   const selected=new Set(parseArr(selectedIds).map(x=>String(x||'')));
@@ -1263,17 +1282,20 @@ function membershipPlanPreviewHtml(input={}){
     ['国家二级运动员陪打',parseInt(input.level2PartnerCount)||0],
     ['指定教练陪打',parseInt(input.designatedCoachPartnerCount)||0]
   ].filter(x=>x[1]>0).map(x=>`${x[0]} ${x[1]}次`).join('；')||'暂无赠送权益';
-  return `<div style="font-size:12px;color:var(--tb);line-height:1.7"><div><strong style="color:var(--th)">${esc(input.name||'未命名方案')}</strong></div><div>充值金额：¥${fmt(parseFloat(input.rechargeAmount)||0)}</div><div>赠送金额：¥${fmt(parseFloat(input.bonusAmount)||0)}</div><div>折扣：${esc(membershipDiscountText(input.discountRate)||'—')}</div><div>赠送权益：${esc(benefitLines)}</div></div>`;
+  const statusMeta=membershipPlanStatusMeta(input);
+  return `<div style="font-size:12px;color:var(--tb);line-height:1.7"><div><strong style="color:var(--th)">${esc(input.name||'未命名方案')}</strong></div><div>会员档位：${esc(renderCourtEmptyText(input.tierCode||input.name||''))}</div><div>充值金额：¥${fmt(parseFloat(input.rechargeAmount)||0)}</div><div>赠送金额：¥${fmt(parseFloat(input.bonusAmount)||0)}</div><div>折扣：${esc(membershipDiscountText(input.discountRate)||'—')}</div><div>售卖时间：${esc(membershipPlanSaleWindowText(input))}</div><div>方案状态：${esc(statusMeta.text)}</div><div>赠送权益：${esc(benefitLines)}</div></div>`;
 }
 function refreshMembershipPlanPreview(){
-  const hiddenTier=document.getElementById('mp_tier');
   const name=document.getElementById('mp_name')?.value.trim()||'';
-  if(hiddenTier&&!hiddenTier.value)hiddenTier.value=membershipTierCodeValue(name);
   const data={
     name,
+    tierCode:document.getElementById('mp_tier')?.value.trim()||'',
     rechargeAmount:document.getElementById('mp_recharge')?.value||0,
     discountRate:document.getElementById('mp_discount')?.value||0,
     bonusAmount:document.getElementById('mp_bonus')?.value||0,
+    saleStartDate:document.getElementById('mp_saleStartDate')?.value||'',
+    saleEndDate:document.getElementById('mp_saleEndDate')?.value||'',
+    status:document.getElementById('mp_status')?.value||'active',
     publicLessonCount:document.getElementById('mp_publicLesson')?.value||0,
     stringingLaborCount:document.getElementById('mp_stringingLabor')?.value||0,
     ballMachineCount:document.getElementById('mp_ballMachine')?.value||0,
@@ -2815,7 +2837,7 @@ function setMembershipTab(tab){
 }
 function membershipPlansTableHtml(q=''){
   const rows=membershipPlans.filter(p=>searchHit(q,p.name,p.tierCode,p.notes));
-  return `<div class="tcard"><table><thead style="font-size:10px"><tr><th>会员方案</th><th>档位</th><th>充值金额</th><th>赠送金额</th><th>折扣</th><th>赠送权益</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody style="font-size:12px">${rows.map(p=>`<tr><td><div class="uname">${esc(p.name)}</div></td><td>${esc(p.tierCode)||'—'}</td><td>¥${fmt(p.rechargeAmount)}</td><td>¥${fmt(p.bonusAmount)}</td><td>${p.discountRate?Math.round((parseFloat(p.discountRate)||1)*100)/10+' 折':'—'}</td><td style="font-size:12px;color:var(--tb)">${[{label:'大师公开课',count:parseInt(p.publicLessonCount)||0},{label:'穿线免手工费',count:parseInt(p.stringingLaborCount)||0},{label:'发球机免费',count:parseInt(p.ballMachineCount)||0},{label:'国家二级运动员陪打',count:parseInt(p.level2PartnerCount)||0},{label:'指定教练陪打',count:parseInt(p.designatedCoachPartnerCount)||0}].filter(x=>x.count>0).map(x=>`${x.label} ${x.count}次`).join('；')||'—'}</td><td>${membershipStatusText(p.status)}</td><td style="text-align:right"><button class="abtn" onclick="openMembershipPlanModal('${p.id}')">编辑</button></td></tr>`).join('')||'<tr><td colspan="8"><div class="empty"><p>暂无会员方案</p></div></td></tr>'}</tbody></table></div>`;
+  return `<div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:160px;padding-left:20px">会员方案</th><th style="width:140px">档位</th><th style="width:120px">充值金额</th><th style="width:120px">赠送金额</th><th style="width:90px">折扣</th><th style="width:180px">售卖时间</th><th style="width:120px">方案状态</th><th style="width:340px">赠送权益</th><th style="width:180px">备注</th><th class="tms-sticky-r" style="width:120px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody>${rows.map(p=>{const statusMeta=membershipPlanStatusMeta(p);const benefits=[{label:'大师公开课',count:parseInt(p.publicLessonCount)||0},{label:'穿线免手工费',count:parseInt(p.stringingLaborCount)||0},{label:'发球机免费',count:parseInt(p.ballMachineCount)||0},{label:'国家二级运动员陪打',count:parseInt(p.level2PartnerCount)||0},{label:'指定教练陪打',count:parseInt(p.designatedCoachPartnerCount)||0}].filter(x=>x.count>0).map(x=>`${x.label} ${x.count}次`).join('；')||'-';return `<tr><td style="padding-left:20px">${renderCourtCellText(p.name,false)}</td><td><span class="tms-tag tms-tag-tier-blue">${esc(renderCourtEmptyText(p.tierCode||p.name))}</span></td><td><div class="tms-cell-text">¥${fmt(p.rechargeAmount)}</div></td><td><div class="tms-cell-text">¥${fmt(p.bonusAmount)}</div></td><td>${renderCourtCellText(p.discountRate?Math.round((parseFloat(p.discountRate)||1)*100)/10+' 折':'')}</td><td>${renderCourtCellText(membershipPlanSaleWindowText(p),false)}</td><td><span class="tms-tag ${statusMeta.tagClass}">${statusMeta.text}</span></td><td><div class="tms-text-remark" style="max-width:320px" title="${esc(benefits)}">${esc(benefits)}</div></td><td><div class="tms-text-remark" title="${esc(p.notes||'')}">${esc(renderCourtEmptyText(p.notes))}</div></td><td class="tms-sticky-r tms-action-cell" style="width:120px;padding-right:20px"><span class="tms-action-link" onclick="openMembershipPlanModal('${p.id}')">编辑</span></td></tr>`;}).join('')||'<tr><td colspan="10"><div class="empty"><p>暂无会员方案</p></div></td></tr>'}</tbody></table></div></div>`;
 }
 function renderMembershipPlans(){
   const host=document.getElementById('membershipPlanBody');if(!host)return;
@@ -2849,10 +2871,12 @@ function renderMemberships(){
 }
 function openMembershipPlanModal(id){
   editId=id;const p=id?membershipPlans.find(x=>x.id===id):null;
-  document.getElementById('mTitle').textContent=id?'编辑会员方案':'新增会员方案';
   const discountValue=String(parseFloat(rv(p,'discountRate'))||'');
-  document.getElementById('mBody').innerHTML=`<input type="hidden" id="mp_tier" value="${esc(rv(p,'tierCode'))}"><div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.18);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--tb);margin-bottom:12px">权益有效期固定 12 个月<br>余额最长按当前系统规则至 24 个月<br>有效期不是方案配置项，按系统规则统一处理</div><div id="membershipPlanPreview" style="background:rgba(255,255,255,0.48);border:0.5px solid rgba(180,83,9,0.12);border-radius:8px;padding:10px 12px;margin-bottom:12px"></div><div class="fgrid"><div class="fg"><div class="flabel">方案名称 *</div><input class="finput" id="mp_name" value="${rv(p,'name')}" oninput="refreshMembershipPlanPreview()"></div><div class="fg"><div class="flabel">充值金额 *</div>${membershipStepperHtml('mp_recharge',rv(p,'rechargeAmount'),'1','例如 5000')}</div><div class="fg"><div class="flabel">折扣</div><select class="fselect" id="mp_discount" onchange="refreshMembershipPlanPreview()"><option value="">— 选择 —</option><option value="0.7"${discountValue==='0.7'?' selected':''}>7 折</option><option value="0.8"${discountValue==='0.8'?' selected':''}>8 折</option><option value="0.9"${discountValue==='0.9'?' selected':''}>9 折</option><option value="1"${discountValue==='1'?' selected':''}>原价</option></select></div><div class="fg"><div class="flabel">赠送金额</div>${membershipStepperHtml('mp_bonus',rv(p,'bonusAmount'),'1','例如 498')}</div><div class="fg"><div class="flabel">大师公开课</div>${membershipStepperHtml('mp_publicLesson',rv(p,'publicLessonCount'),'1')}</div><div class="fg"><div class="flabel">穿线免手工费</div>${membershipStepperHtml('mp_stringingLabor',rv(p,'stringingLaborCount'),'1')}</div><div class="fg"><div class="flabel">发球机免费</div>${membershipStepperHtml('mp_ballMachine',rv(p,'ballMachineCount'),'1')}</div><div class="fg"><div class="flabel">国家二级运动员陪打</div>${membershipStepperHtml('mp_level2Partner',rv(p,'level2PartnerCount'),'1')}</div><div class="fg"><div class="flabel">指定教练陪打</div><input class="finput" id="mp_designatedCoachPartner" type="number" step="1" value="${esc(membershipNumericValue(rv(p,'designatedCoachPartnerCount')))}" oninput="toggleMembershipCoachSelector('mp_designatedCoachPartner','mp_designatedCoachSection');refreshMembershipPlanPreview()"></div><div class="fg full" id="mp_designatedCoachSection" style="display:none"><div class="flabel">选择指定教练</div>${membershipCoachSelectorHtml('mp_designatedCoachIdsWrap',parseArr(p?.designatedCoachIds))}</div><div class="fg full"><div class="flabel">备注</div><textarea class="finput ftextarea" id="mp_notes">${esc(rv(p,'notes'))}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-save" id="membershipPlanSaveBtn" onclick="saveMembershipPlan()">保存</button></div>`;
-  document.getElementById('overlay').classList.add('open');
+  const statusOptions=[{value:'active',label:'上架'},{value:'inactive',label:'停售'}];
+  const discountOptions=[{value:'',label:'- 选择 -'},{value:'0.7',label:'7 折'},{value:'0.8',label:'8 折'},{value:'0.9',label:'9 折'},{value:'1',label:'原价'}];
+  const body=`<div class="tms-section-header" style="margin-top:0;">基础信息</div><div class="tms-readonly-panel" style="margin-bottom:16px"><span class="tms-panel-tip">权益有效期固定 12 个月，余额最长按当前系统规则至 24 个月。停售后仅影响后续售卖，不影响已开通会员。</span><div id="membershipPlanPreview"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">方案名称 *</label><input class="finput tms-form-control" id="mp_name" value="${rv(p,'name')}" oninput="refreshMembershipPlanPreview()"></div><div class="tms-form-item"><label class="tms-form-label">会员档位 *</label><input class="finput tms-form-control" id="mp_tier" value="${rv(p,'tierCode')}" placeholder="例如：订场会员" oninput="refreshMembershipPlanPreview()"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">充值金额 *</label>${membershipStepperHtml('mp_recharge',rv(p,'rechargeAmount'),'1','例如 5000')}</div><div class="tms-form-item"><label class="tms-form-label">赠送金额</label>${membershipStepperHtml('mp_bonus',rv(p,'bonusAmount'),'1','例如 498')}</div><div class="tms-form-item"><label class="tms-form-label">折扣</label>${renderCourtDropdownHtml('mp_discount','折扣',discountOptions,discountValue,true,'refreshMembershipPlanPreview')}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">售卖开始日期</label>${courtDateButtonHtml('mp_saleStartDate',rv(p,'saleStartDate'),'售卖开始日期')}</div><div class="tms-form-item"><label class="tms-form-label">售卖结束日期</label>${courtDateButtonHtml('mp_saleEndDate',rv(p,'saleEndDate'),'售卖结束日期')}</div><div class="tms-form-item"><label class="tms-form-label">方案状态</label>${renderCourtDropdownHtml('mp_status','方案状态',statusOptions,rv(p,'status','active'),true,'refreshMembershipPlanPreview')}</div></div><div class="tms-section-header">赠送权益</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">大师公开课</label>${membershipStepperHtml('mp_publicLesson',rv(p,'publicLessonCount'),'1')}</div><div class="tms-form-item"><label class="tms-form-label">穿线免手工费</label>${membershipStepperHtml('mp_stringingLabor',rv(p,'stringingLaborCount'),'1')}</div><div class="tms-form-item"><label class="tms-form-label">发球机免费</label>${membershipStepperHtml('mp_ballMachine',rv(p,'ballMachineCount'),'1')}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">国家二级运动员陪打</label>${membershipStepperHtml('mp_level2Partner',rv(p,'level2PartnerCount'),'1')}</div><div class="tms-form-item"><label class="tms-form-label">指定教练陪打</label><input class="finput tms-form-control" id="mp_designatedCoachPartner" type="number" step="1" value="${esc(membershipNumericValue(rv(p,'designatedCoachPartnerCount')))}" oninput="toggleMembershipCoachSelector('mp_designatedCoachPartner','mp_designatedCoachSection');refreshMembershipPlanPreview()"></div><div class="tms-form-item"></div></div><div class="tms-form-row"><div class="tms-form-item full-width" id="mp_designatedCoachSection" style="display:none"><label class="tms-form-label">选择指定教练</label>${membershipCoachSelectorHtml('mp_designatedCoachIdsWrap',parseArr(p?.designatedCoachIds))}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="mp_notes">${esc(rv(p,'notes'))}</textarea></div></div>`;
+  const actions=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="membershipPlanSaveBtn" onclick="saveMembershipPlan()">保存</button>`;
+  setCourtModalFrame(id?'编辑会员方案':'新增会员方案',body,actions,'modal-wide');
   toggleMembershipCoachSelector('mp_designatedCoachPartner','mp_designatedCoachSection');
   ['mp_recharge','mp_bonus','mp_publicLesson','mp_stringingLabor','mp_ballMachine','mp_level2Partner'].forEach(id=>{const el=document.getElementById(id);if(el)el.setAttribute('oninput','refreshMembershipPlanPreview()');});
   refreshMembershipPlanPreview();
@@ -2861,7 +2885,10 @@ async function saveMembershipPlan(){
   const name=document.getElementById('mp_name').value.trim();
   const tierInput=document.getElementById('mp_tier');
   if(tierInput&&!tierInput.value.trim())tierInput.value=membershipTierCodeValue(name);
-  const data={name,tierCode:tierInput.value.trim(),rechargeAmount:parseFloat(document.getElementById('mp_recharge').value)||0,discountRate:parseFloat(document.getElementById('mp_discount').value)||0,bonusAmount:parseFloat(document.getElementById('mp_bonus').value)||0,publicLessonCount:parseInt(document.getElementById('mp_publicLesson').value)||0,stringingLaborCount:parseInt(document.getElementById('mp_stringingLabor').value)||0,ballMachineCount:parseInt(document.getElementById('mp_ballMachine').value)||0,level2PartnerCount:parseInt(document.getElementById('mp_level2Partner').value)||0,designatedCoachPartnerCount:parseInt(document.getElementById('mp_designatedCoachPartner').value)||0,designatedCoachIds:membershipCoachSelectorValues('mp_designatedCoachIdsWrap'),notes:document.getElementById('mp_notes').value.trim(),status:'active'};
+  const saleStartDate=document.getElementById('mp_saleStartDate').value;
+  const saleEndDate=document.getElementById('mp_saleEndDate').value;
+  if(saleStartDate&&saleEndDate&&saleEndDate<saleStartDate){toast('售卖结束日期不能早于售卖开始日期','warn');return;}
+  const data={name,tierCode:tierInput.value.trim(),rechargeAmount:parseFloat(document.getElementById('mp_recharge').value)||0,discountRate:parseFloat(document.getElementById('mp_discount').value)||0,bonusAmount:parseFloat(document.getElementById('mp_bonus').value)||0,saleStartDate,saleEndDate,publicLessonCount:parseInt(document.getElementById('mp_publicLesson').value)||0,stringingLaborCount:parseInt(document.getElementById('mp_stringingLabor').value)||0,ballMachineCount:parseInt(document.getElementById('mp_ballMachine').value)||0,level2PartnerCount:parseInt(document.getElementById('mp_level2Partner').value)||0,designatedCoachPartnerCount:parseInt(document.getElementById('mp_designatedCoachPartner').value)||0,designatedCoachIds:membershipCoachSelectorValues('mp_designatedCoachIdsWrap'),notes:document.getElementById('mp_notes').value.trim(),status:document.getElementById('mp_status').value||'active'};
   const btn=document.getElementById('membershipPlanSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   try{if(editId){const r=await apiCall('PUT','/membership-plans/'+editId,data);const i=membershipPlans.findIndex(x=>x.id===editId);membershipPlans[i]=r;}else{const r=await apiCall('POST','/membership-plans',data);membershipPlans.unshift(r);}closeModal();renderMembershipPlans();renderMemberships();toast('会员方案已保存','success');}catch(e){if(btn){btn.disabled=false;btn.textContent='保存';}toast('保存失败：'+e.message,'error');}
 }
@@ -4028,7 +4055,7 @@ function openCoachModal(id){
   editId=id||null;const c=id?coaches.find(x=>x.id===id):null;
   const campusOptions=campuses.map(x=>({value:x.code||x.id,label:esc(x.name)}));
   const statusOptions=[{value:'active',label:'在职'},{value:'inactive',label:'离职'}];
-  const body=`<div class="tms-section-header" style="margin-top:0;">基础信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input class="finput tms-form-control" id="co_name" value="${rv(c,'name')}"></div><div class="tms-form-item"><label class="tms-form-label">电话</label><input class="finput tms-form-control" id="co_phone" value="${rv(c,'phone')}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">校区</label>${renderCourtDropdownHtml('co_campus','校区',campusOptions,rv(c,'campus')||campuses[0]?.code||campuses[0]?.id,true)}</div><div class="tms-form-item"><label class="tms-form-label">入职时间</label><input class="finput tms-form-control" id="co_hireDate" type="date" value="${rv(c,'hireDate')}"></div><div class="tms-form-item"><label class="tms-form-label">状态</label>${renderCourtDropdownHtml('co_status','状态',statusOptions,rv(c,'status','active'),true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="co_notes">${esc(rv(c,'notes'))}</textarea></div></div>`;
+  const body=`<div class="tms-section-header" style="margin-top:0;">基础信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input class="finput tms-form-control" id="co_name" value="${rv(c,'name')}"></div><div class="tms-form-item"><label class="tms-form-label">电话</label><input class="finput tms-form-control" id="co_phone" value="${rv(c,'phone')}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">校区</label>${renderCourtDropdownHtml('co_campus','校区',campusOptions,rv(c,'campus')||campuses[0]?.code||campuses[0]?.id,true)}</div><div class="tms-form-item"><label class="tms-form-label">入职时间</label>${courtDateButtonHtml('co_hireDate',rv(c,'hireDate'),'入职日期')}</div><div class="tms-form-item"><label class="tms-form-label">状态</label>${renderCourtDropdownHtml('co_status','状态',statusOptions,rv(c,'status','active'),true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="co_notes">${esc(rv(c,'notes'))}</textarea></div></div>`;
   const actions=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="coachSaveBtn" onclick="saveCoach()">保存</button>`;
   setCourtModalFrame(id?'编辑教练':'新增教练',body,actions,'modal-tight');
 }
