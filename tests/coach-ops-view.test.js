@@ -58,4 +58,136 @@ assert.match(
   'schedule modal should preserve schedule source'
 );
 
+assert.match(
+  html,
+  /私教课/,
+  'schedule views should expose 私教课 as a fixed course type'
+);
+
+assert.match(
+  html,
+  /体验课/,
+  'schedule views should expose 体验课 as a fixed course type'
+);
+
+assert.match(
+  html,
+  /训练营/,
+  'schedule views should expose 训练营 as a fixed course type'
+);
+
+assert.match(
+  html,
+  /大师课/,
+  'schedule views should expose 大师课 as a fixed course type'
+);
+
+assert.doesNotMatch(
+  html,
+  /仅正式课/,
+  'schedule filters should not keep the old formal-course option'
+);
+
+assert.doesNotMatch(
+  html,
+  /课程性质/,
+  'schedule modal should no longer expose a separate course nature field'
+);
+
+assert.match(
+  html,
+  /id="coachOpsQuickCreateBtn"/,
+  'coach ops should expose a quick create button in the toolbar'
+);
+
+assert.match(
+  html,
+  /id="coachOpsRangeHost"/,
+  'coach ops should render the shared custom dropdown host for view switching'
+);
+
+assert.doesNotMatch(
+  html,
+  /<select class="coach-ops-select" id="coachOpsRange"/,
+  'coach ops should not keep the native select for the view switcher'
+);
+
+assert.match(
+  html,
+  /coach-ops-legend/,
+  'coach ops toolbar should render a course type legend'
+);
+
+assert.doesNotMatch(
+  html,
+  /\.coach-ops-toolbar\{[^}]*background:#FCFAF7/s,
+  'coach ops toolbar should not render as a filled white block background'
+);
+
+assert.match(
+  html,
+  /class="tms-btn tms-btn-primary" id="coachOpsQuickCreateBtn"/,
+  'coach ops quick create should use the shared primary button style'
+);
+
+assert.match(
+  html,
+  /function coachOpsCourseTypeTagClass\(/,
+  'coach ops should expose a shared course type color helper'
+);
+
+assert.doesNotMatch(
+  html,
+  /coach-ops-legend-dot\.master\{background:#7B6DDF\}/,
+  'coach ops master color should avoid the old purple tone'
+);
+
+assert.match(
+  html,
+  /校区.*场地/,
+  'coach ops day cards should show campus and venue together'
+);
+
+assert.match(
+  html,
+  /id="sch_date"/,
+  'schedule modal should expose a single class date field'
+);
+
+assert.match(
+  html,
+  /id="sch_startTime"/,
+  'schedule modal should expose a start time field'
+);
+
+assert.match(
+  html,
+  /id="sch_endTime"/,
+  'schedule modal should expose an end time field'
+);
+
+assert.doesNotMatch(
+  html,
+  /上课日期 \*[\s\S]*下课日期 \*/,
+  'schedule modal should not keep separate start and end date sections'
+);
+
+assert.match(
+  html,
+  /日期<\/th>[\s\S]*上课时间<\/th>[\s\S]*时长<\/th>[\s\S]*校区\/场地<\/th>[\s\S]*教练<\/th>[\s\S]*学员<\/th>[\s\S]*课程类型<\/th>[\s\S]*反馈<\/th>/,
+  'schedule list should use the refreshed column set'
+);
+
+assert.match(
+  html,
+  /function scheduleListStudentSummary\(/,
+  'schedule list should expose the multi-student summary helper'
+);
+
+assert.match(
+  html,
+  /function scheduleFeedbackStatusText\(/,
+  'schedule list should expose the feedback status text helper'
+);
+
 console.log('coach ops view tests passed');

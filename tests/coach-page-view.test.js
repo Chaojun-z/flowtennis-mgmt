@@ -18,6 +18,11 @@ assert.match(html, /id="page-coaches"[\s\S]*class="tms-toolbar"/, 'coach page sh
 assert.match(html, /id="coachSearch"[\s\S]*placeholder="搜索教练姓名、电话或备注"/, 'coach page should use the court-style search field');
 assert.match(html, /<button class="tms-btn tms-btn-primary" onclick="openCoachModal\(null\)"/, 'coach add button should use the court-style primary button');
 assert.match(html, /id="page-coaches"[\s\S]*class="tms-table-card"[\s\S]*class="tms-table-wrapper"[\s\S]*class="tms-table"/, 'coach page should use the court-style table shell');
+assert.match(html, /id="page-myschedule"[\s\S]*id="myScheduleWeekSection"/, 'my schedule should keep the week overview shell');
+assert.doesNotMatch(html, /id="myScheduleStats"|id="mySchedulePrimarySection"|id="myScheduleSideSection"|id="myMobileSchedule"/, 'my schedule should remove the duplicate stat and list areas');
+assert.match(fnBody('renderMySchedule'), /本周总览/, 'my schedule should label the week overview as a secondary section');
+assert.match(fnBody('renderMySchedule'), /slice\(11,16\)\}\$\{s\.endTime\?' - '\+s\.endTime\.slice\(11,16\)/, 'my schedule week cards should render the time range');
+assert.match(fnBody('renderMySchedule'), /scheduleCourseType\(s\).*cn\(s\.campus\).*scheduleFeedbackLabel\(s\)/s, 'my schedule week cards should show course type, campus, and feedback');
 assert.match(html, /#page-coaches \.tms-table\s*\{[^}]*min-width:1000px/s, 'coach table should not inherit the wide court table min width');
 assert.match(html, /#page-coaches \.tms-table-wrapper\s*\{[^}]*max-height:calc\(100vh - 190px\)/s, 'coach table should use more vertical space before scrolling');
 assert.match(html, /\.tms-dropdown-menu[^}]*overscroll-behavior:contain/s, 'dropdown scrolling should not drag the modal or page behind it');
@@ -34,6 +39,8 @@ assert.match(fnBody('openCoachModal'), /tms-section-header[\s\S]*tms-form-row[\s
 assert.match(fnBody('openCoachModal'), /co_hireDate/, 'coach modal should include hire date field');
 assert.match(fnBody('openCoachModal'), /courtDateButtonHtml\('co_hireDate'/, 'coach hire date should use the shared court-style date picker');
 assert.doesNotMatch(fnBody('openCoachModal'), /confirmDel\([^)]*'coach'|删除|class="fgrid"|class="fg"|class="flabel"|class="mactions"/, 'coach modal should not include delete entry or old form classes');
+assert.match(fnBody('scheduleTimeRangeControls'), /court-date-row[\s\S]*sch_date[\s\S]*sch_startTime[\s\S]*sch_endTime/, 'schedule modal should keep date and time controls on one row');
+assert.match(fnBody('scheduleTimeRangeControls'), /white-space:nowrap/, 'schedule modal date and time separator should stay on one line');
 assert.match(fnBody('saveCoach'), /hireDate:document\.getElementById\('co_hireDate'\)\.value/, 'coach save should include hire date');
 assert.match(html, /function renderCourtDropdownHtml[\s\S]*onwheel="event\.stopPropagation\(\);event\.preventDefault\(\);this\.scrollTop \+= event\.deltaY"/, 'coach campus dropdown should consume wheel scrolling inside the menu');
 

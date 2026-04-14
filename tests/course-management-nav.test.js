@@ -35,5 +35,11 @@ assert.match(html, /function resolveUniquePackageIdByText/, 'purchase import sho
 assert.match(html, /匹配到多个/, 'purchase import should warn duplicate matches');
 assert.match(html, /固定使用结束日优先/, 'package modal should explain usage end date priority');
 assert.match(html, /购买记录用于查账和追溯/, 'purchase page should explain purpose');
+assert.match(html, /私教课/, 'course pages should expose 私教课 as a fixed type');
+assert.match(html, /体验课/, 'course pages should expose 体验课 as a fixed type');
+assert.match(html, /训练营/, 'course pages should expose 训练营 as a fixed type');
+assert.match(html, /大师课/, 'course pages should expose 大师课 as a fixed type');
+assert.doesNotMatch(html, /课程性质/, 'course pages should not mention the removed 课程性质 field');
+assert.doesNotMatch(html, /正式课/, 'course pages should not keep the old 正式课 wording');
 
 console.log('course management nav tests passed');

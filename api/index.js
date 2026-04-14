@@ -196,6 +196,7 @@ function validateScheduleConflicts(candidate,schedules,excludeId){
   if(!isBillableSchedule(candidate))return;
   if(!candidate.startTime)throw new Error('请选择上课时间');
   if(!candidate.endTime)throw new Error('请选择下课时间，系统需要用它校验冲突');
+  if(String(candidate.startTime).slice(0,10)!==String(candidate.endTime).slice(0,10))throw new Error('上课时间不能跨天');
   if(dateMs(candidate.endTime)<=dateMs(candidate.startTime))throw new Error('下课时间不能早于上课时间');
   for(const rec of schedules||[]){
     if(!rec||rec.id===(excludeId||candidate.id)||!isBillableSchedule(rec))continue;

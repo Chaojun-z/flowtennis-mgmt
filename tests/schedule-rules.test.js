@@ -444,4 +444,22 @@ assert.throws(
   'court bookings should block schedule venue conflicts'
 );
 
+assert.throws(
+  () => rules.validateScheduleConflicts(
+    {
+      id: 'new',
+      startTime: '2026-04-14 23:00',
+      endTime: '2026-04-15 00:00',
+      coach: '朝珺',
+      campus: 'mabao',
+      venue: '1号场',
+      studentIds: ['stu-1'],
+      status: '已排课'
+    },
+    []
+  ),
+  /不能跨天/,
+  'schedules should be rejected when start and end time span two dates'
+);
+
 console.log('schedule rules tests passed');
