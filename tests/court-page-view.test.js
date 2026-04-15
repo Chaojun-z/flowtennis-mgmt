@@ -69,6 +69,11 @@ assert.match(html, /search.*nextFollowUp|nextFollowUp.*search|courtSearch[\s\S]*
 assert.match(html, /id="courtSearch"[^>]*oninput="onCourtFilterChange\(\)"/, 'court search should reset to the first page before rendering');
 assert.match(html, /courtPageSize=\d+/, 'court page should keep its own page size state');
 assert.match(html, /function setCourtPageSize\(/, 'court page should expose page size switching');
+assert.match(html, /function courtDisplayName\(/, 'court page should expose a display-name helper for blank court names');
+assert.match(fnBody('courtDisplayName'), /courtStudentNames\(court\)\|\|String\(court\?\.phone\|\|''\)\.trim\(\)\|\|'未命名订场用户'/, 'court blank names should fall back to linked student, phone, then default copy');
+assert.match(html, /function courtSortMetric\(/, 'court page should centralize sortable metrics');
+assert.match(fnBody('courtSortMetric'), /if\(!raw\|\|raw==='-'\|\|raw==='—'\)return \{empty:true,value:0\};/, 'court date sorting should treat dash placeholders as empty values');
+assert.match(fnBody('renderCourts'), /const sortedList=\[\.\.\.list\];/, 'court page should sort the full filtered list before paging');
 assert.match(fnBody('renderCourts'), /else\{[\s\S]*updatedAt\|\|b\.createdAt[\s\S]*updatedAt\|\|a\.createdAt/, 'court rows should use a deterministic default sort when no explicit sort is selected');
 assert.match(html, /function handleCourtMoreAction\(/, 'court page should expose more action handler');
 assert.match(html, /id="courtBatchDelBtn"[^>]*style="display:none"/, 'court batch delete button should stay hidden before any selection');
@@ -90,6 +95,7 @@ assert.match(html, /data-finance-field="booking"/, 'court booking-only fields sh
 assert.match(html, /data-finance-field="course"/, 'court course-only fields should be scoped');
 assert.match(fnBody('runBatchDeleteCourts'), /隐藏/, 'batch delete result should explain hidden archived courts');
 assert.match(fnBody('renderCourts'), /class="tms-court-row-main"[\s\S]*class="tms-checkbox court-row-cb"/, 'court name cell should separate checkbox and name for easier text selection');
+assert.match(fnBody('renderCourts'), /\$\{esc\(courtDisplayName\(u\)\)\}/, 'court rows should render the display-name helper instead of raw names');
 assert.doesNotMatch(fnBody('renderCourts'), /<label class="tms-checkbox-wrap"[\s\S]*\$\{esc\(u\.name\)\}/, 'court name text should no longer be wrapped by a clickable label');
 assert.match(html, /function openCourtFinanceModal[\s\S]*renderCourtDropdownHtml\('nrStudentId','关联学员'/, 'court finance modal should use a shorter linked-student label');
 assert.match(fnBody('openCourtModal'), /openCourtMergeModal\('/, 'court edit modal should expose a merge entry for existing users');

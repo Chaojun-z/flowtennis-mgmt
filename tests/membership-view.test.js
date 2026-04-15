@@ -23,7 +23,7 @@ assert.match(html, /查看购买记录[\s\S]*查看权益总流水/, 'membership
 assert.doesNotMatch(html, /page-memberships[\s\S]*方案配置/, 'membership management page should remove the scheme config shortcut');
 assert.match(html, /id="membershipStatsRow"/, 'membership management page should expose summary stat cards');
 assert.match(html, /function renderMembershipStats/, 'membership management page should compute summary stat cards');
-assert.match(html, /会员数[\s\S]*订购次数[\s\S]*总收入金额[\s\S]*总余额/, 'membership summary should show requested stat labels');
+assert.match(html, /会员数[\s\S]*订场次数[\s\S]*总收入金额[\s\S]*总余额/, 'membership summary should show booking count instead of purchase count');
 assert.match(html, /id="page-memberships"[\s\S]*class="tms-toolbar"/, 'membership management page should use the court-style toolbar');
 assert.match(html, /id="page-memberships"[\s\S]*class="tms-table-card"[\s\S]*class="tms-table-wrapper"[\s\S]*class="tms-table"/, 'membership management page should use the court-style table shell');
 assert.match(html, /id="membershipSearch"[\s\S]*placeholder="搜索会员姓名、手机号或方案"/, 'membership management search should use the new unified copy');
@@ -154,7 +154,9 @@ assert.match(html, /setInterval\(syncAllQuietly,180000\);/, 'background sync int
 assert.doesNotMatch(html, /membershipBenefitCourtFilter/, 'membership management page should remove the global benefit batch filter');
 assert.doesNotMatch(html, /赠送权益批次 = 每次购买送了什么、还剩多少、何时到期/, 'membership management page should no longer expose global benefit batch explanation');
 assert.doesNotMatch(html, /请选择权益账户，排课必须绑定课包权益/, 'schedule form should not hard-block saving when no entitlement is selected');
-assert.match(html, /会员状态<\/th>[\s\S]*余额有效期<\/th>[\s\S]*清零时间<\/th>/, 'membership management list should split validity into balance expiry and clear time columns');
+assert.match(html, /会员状态<\/th>[\s\S]*订场次数<\/th>[\s\S]*余额有效期<\/th>[\s\S]*清零时间<\/th>/, 'membership management list should show booking count before validity columns');
+assert.match(html, /function membershipBookingCount\(/, 'membership management should expose a helper to count stored-value bookings');
+assert.match(fnBody('membershipBookingCount'), /h\.type==='消费'&&String\(h\.payMethod\|\|''\)\.trim\(\)==='储值扣款'&&String\(h\.category\|\|''\)\.includes\('订场'\)/, 'membership booking count should only include stored-value booking consumption');
 assert.match(html, /class="tms-action-link tms-action-link-strong" style="color:#C06031" onclick="goPage\('membership-orders'\)"/, 'membership management purchase audit entry should use visible accent color');
 assert.match(html, /class="tms-action-link tms-action-link-strong" style="color:#C06031" onclick="goPage\('membership-ledger'\)"/, 'membership management ledger audit entry should use visible accent color');
 assert.match(html, /#page-memberships \.tms-toolbar-right \.tms-action-link-strong[\s\S]*#FEF3C7/s, 'membership audit entries should be readable on the brown background');
