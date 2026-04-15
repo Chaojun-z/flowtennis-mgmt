@@ -35,7 +35,10 @@ assert.match(html, /openStudentDetail\('[^']+'\)[\s\S]*openStudentModal\('[^']+'
 assert.match(html, /function studentTeachingInfoHtml\(/, 'student detail should render teaching info block');
 assert.match(html, /function studentOpsInfoHtml\(/, 'student detail should render operations info block');
 assert.match(html, /function studentConsumptionInfoHtml\(/, 'student detail should render consumption relation block');
+assert.match(html, /function studentEntitlementLedgerHtml\(/, 'student detail should provide a dedicated lesson charge history helper');
 assert.match(html, /教学信息[\s\S]*运营信息[\s\S]*消费与关联信息/, 'student detail should follow the agreed information hierarchy');
+assert.match(html, /已购课包/, 'student detail should present purchased packages in plain language');
+assert.match(html, /扣课记录/, 'student detail should expose lesson charge history in the student detail');
 assert.doesNotMatch(html, /function openStudentModal[\s\S]*studentLinkedDetailHtml\(s\)/, 'student edit modal should not embed linked detail summary anymore');
 assert.match(html, /function openStudentModal[\s\S]*姓名 \*[\s\S]*手机号[\s\S]*学员类型[\s\S]*来源[\s\S]*活动范围[\s\S]*所在校区[\s\S]*备注/, 'student edit modal should keep only base profile fields');
 assert.match(html, /function openStudentModal[\s\S]*setCourtModalFrame\(/, 'student edit modal should reuse the booking-style modal shell');

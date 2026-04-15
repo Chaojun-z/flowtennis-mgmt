@@ -9,6 +9,7 @@ assert.ok(rules.normalizeMembershipBenefitTemplate, 'membership benefit template
 assert.ok(rules.allocateMembershipBenefitUsage, 'membership benefit allocation helper should be exposed');
 assert.ok(rules.buildMembershipAccountEventRecord, 'membership account event helper should be exposed');
 assert.ok(rules.isDuplicateMembershipOrderSubmission, 'membership order duplicate guard should be exposed');
+assert.ok(rules.mergeCourtRecords, 'court merge helper should be exposed');
 assert.deepStrictEqual(
   rules.MEMBERSHIP_TABLES,
   [
@@ -724,6 +725,73 @@ assert.strictEqual(
   }),
   'archive',
   'court account with membership links should be archived instead of physically deleted'
+);
+
+const mergedCourt = rules.mergeCourtRecords({
+  targetCourt: {
+    id: 'court-target',
+    name: '正式用户',
+    phone: '13800138000',
+    campus: 'mabao',
+    studentIds: ['stu-a'],
+    notes: '原备注',
+    history: [{ id: 'h-target', date: '2026-04-10', type: '充值', amount: 500, payMethod: '微信', category: '储值' }]
+  },
+  sourceCourt: {
+    id: 'court-source',
+    name: '导入用户',
+    phone: '',
+    campus: '',
+    studentIds: ['stu-b'],
+    notes: '导入备注',
+    history: [{ id: 'h-source', date: '2026-04-12', type: '消费', amount: 120, payMethod: '储值扣款', category: '订场' }]
+  },
+  membershipAccounts: [{ id: 'macc-merge', courtId: 'court-source', courtName: '导入用户', phone: '', studentIds: ['stu-b'], status: 'active' }],
+  membershipOrders: [{ id: 'mord-merge', membershipAccountId: 'macc-merge', courtId: 'court-source', courtName: '导入用户', studentIds: ['stu-b'] }],
+  membershipBenefitLedger: [{ id: 'mled-merge', membershipAccountId: 'macc-merge', courtId: 'court-source', benefitCode: 'ballMachine', delta: -1 }],
+  membershipAccountEvents: [{ id: 'mevt-merge', membershipAccountId: 'macc-merge', courtId: 'court-source', eventType: 'opened' }],
+  now: '2026-04-14T10:00:00.000Z'
+});
+
+assert.deepStrictEqual(
+  {
+    targetId: mergedCourt.targetCourt.id,
+    targetStudentIds: mergedCourt.targetCourt.studentIds,
+    targetHistoryCount: mergedCourt.targetCourt.history.length,
+    targetNotes: mergedCourt.targetCourt.notes,
+    accountCourtId: mergedCourt.membershipAccounts[0].courtId,
+    accountCourtName: mergedCourt.membershipAccounts[0].courtName,
+    accountPhone: mergedCourt.membershipAccounts[0].phone,
+    orderCourtId: mergedCourt.membershipOrders[0].courtId,
+    ledgerCourtId: mergedCourt.membershipBenefitLedger[0].courtId,
+    eventCourtId: mergedCourt.membershipAccountEvents[0].courtId
+  },
+  {
+    targetId: 'court-target',
+    targetStudentIds: ['stu-a', 'stu-b'],
+    targetHistoryCount: 2,
+    targetNotes: '原备注\n[合并自 导入用户 · court-source] 导入备注',
+    accountCourtId: 'court-target',
+    accountCourtName: '正式用户',
+    accountPhone: '13800138000',
+    orderCourtId: 'court-target',
+    ledgerCourtId: 'court-target',
+    eventCourtId: 'court-target'
+  },
+  'court merge should merge source finance and linked membership records into the target court'
+);
+
+assert.throws(
+  () => rules.mergeCourtRecords({
+    targetCourt: { id: 'court-target', name: '正式用户', history: [] },
+    sourceCourt: { id: 'court-source', name: '导入用户', history: [] },
+    membershipAccounts: [
+      { id: 'macc-target', courtId: 'court-target', status: 'active' },
+      { id: 'macc-source', courtId: 'court-source', status: 'active' }
+    ]
+  }),
+  /两个订场用户都已有会员账户/,
+  'court merge should reject when both source and target already have membership accounts'
 );
 
 console.log('membership rules tests passed');

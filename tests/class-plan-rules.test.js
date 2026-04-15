@@ -206,13 +206,13 @@ assert.throws(
 
 assert.throws(
   () => rules.assertCanDeleteCourt({ id: 'court-a', history: [{ type: '充值', amount: 1000 }] }),
-  /已有财务流水/,
+  /不能直接删除：已存在财务流水/,
   'court account with finance history should not be deletable'
 );
 
 assert.throws(
   () => rules.assertCanDeleteCourt({ id: 'court-b', balance: 500, history: [] }),
-  /已有财务数据/,
+  /不能直接删除：仍有财务余额或累计金额/,
   'legacy court account with non-zero money should not be deletable'
 );
 
@@ -256,7 +256,7 @@ assert.throws(
     courts: [],
     feedbacks: []
   }),
-  /该学员已有班次、排课、学习计划、订场账户或反馈关联/,
+  /不能直接删除：已关联班次/,
   'student linked to class should not be deletable'
 );
 

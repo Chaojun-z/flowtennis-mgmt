@@ -436,7 +436,7 @@ function validatePurchaseInputForPackage(pkg,purchase,{isEdit=false,oldPackageId
 function assertScheduleEntitlementRequired(rec){
   if(!isBillableSchedule(rec))return;
   const studentIds=parseArr(rec.studentIds).filter(Boolean);
-  if(studentIds.length>1)throw new Error('多人排课暂不支持单个权益账户，请拆成单人排课或先升级一对多权益结构');
+  if(studentIds.length>1)throw new Error('多人排课暂不支持单个课包余额，请拆成单人排课或先升级一对多结构');
 }
 function syncEntitlementFromPurchase(pkg,purchase,student,oldEnt,now=new Date().toISOString()){
   const used=parseInt(oldEnt?.usedLessons)||0;
@@ -475,7 +475,7 @@ function isScheduleInsideDailyTimeWindows(schedule,windows){
 function validateEntitlementForSchedule(entitlement,schedule){
   if(!isBillableSchedule(schedule))return;
   if(!entitlement)return;
-  if(entitlement.status&&entitlement.status!=='active')throw new Error('课包权益账户不可用');
+  if(entitlement.status&&entitlement.status!=='active')throw new Error('课包余额不可用');
   const lessonCount=parseInt(schedule.lessonCount)||1;
   if((parseInt(entitlement.remainingLessons)||0)<lessonCount)throw new Error('课包剩余课时不足');
   const studentIds=parseArr(schedule.studentIds);
@@ -540,7 +540,7 @@ function assertScheduleEditableAfterFeedback(oldRec,nextRec,feedbacks){
   const nextStudents=parseArr(nextRec.studentIds).sort();
   const sameStudents=oldStudents.length===nextStudents.length&&oldStudents.every((id,idx)=>id===nextStudents[idx]);
   if(!sameStudents)changed.push('studentIds');
-  if(changed.length)throw new Error('该排课已有课后反馈，不能修改学员、班次、权益账户、时间、教练、校区、场地、课程类型、课时或状态');
+  if(changed.length)throw new Error('该排课已有课后反馈，不能修改学员、班次、课包余额、时间、教练、校区、场地、课程类型、课时或状态');
 }
 function scheduleEntitlementDelta(rec){
   if(!rec||!rec.entitlementId||!isBillableSchedule(rec))return null;
@@ -552,7 +552,7 @@ async function assertScheduleEntitlementCapacity(nextRec,oldRec){
   const nextDelta=scheduleEntitlementDelta(nextRec);
   if(!nextDelta)return null;
   const ent=await get(T_ENTITLEMENTS,nextDelta.entitlementId);
-  if(!ent)throw new Error('课包权益账户不存在');
+  if(!ent)throw new Error('课包余额不存在');
   const oldDelta=scheduleEntitlementDelta(oldRec);
   const adjusted=oldDelta&&oldDelta.entitlementId===nextDelta.entitlementId?{...ent,status:'active',remainingLessons:(parseInt(ent.remainingLessons)||0)+oldDelta.delta}:ent;
   validateEntitlementForSchedule(adjusted,nextRec);
@@ -712,10 +712,14 @@ function mergeStoredAuthUser(tokenUser,storedUser){
     id:source.id||tokenUser?.id||'',
     name,
     role,
+    status:source.status||tokenUser?.status||'active',
     username:source.username||tokenUser?.username||'',
     coachId:source.coachId||tokenUser?.coachId||'',
     coachName:source.coachName||(role==='editor'?name:(tokenUser?.coachName||''))
   };
+}
+function assertAuthUserActive(user){
+  if(String(user?.status||'active')==='inactive')throw new Error('账号已停用');
 }
 function operatorAccountName(user){
   return String(user?.username||user?.id||user?.name||'').trim();
@@ -1096,8 +1100,8 @@ function assertCanVoidPurchase(purchaseId,entitlements,ledger){
   if((ledger||[]).some(l=>entitlementIds.has(l.entitlementId)))throw new Error('该购买记录已有课时消耗，不能直接作废');
 }
 function assertCanDeleteEntitlement(entitlementId,ledger,entitlements=[]){
-  if((ledger||[]).some(l=>l.entitlementId===entitlementId))throw new Error('该权益账户已有消耗记录，不能删除');
-  if((entitlements||[]).some(e=>e.id===entitlementId&&e.purchaseId))throw new Error('该权益账户来自购买记录，不能删除');
+  if((ledger||[]).some(l=>l.entitlementId===entitlementId))throw new Error('该课包余额已有消耗记录，不能删除');
+  if((entitlements||[]).some(e=>e.id===entitlementId&&e.purchaseId))throw new Error('该课包余额来自购买记录，不能删除');
 }
 function sameStudentIds(a,b){
   const x=parseArr(a).filter(Boolean).sort();
@@ -1204,31 +1208,32 @@ function assertCanDeleteSchedule(scheduleId,feedbacks,ledger=[]){
 }
 function assertCanDeleteStudent(studentId,data){
   if(!studentId)return;
-  const used=
-    (data.classes||[]).some(c=>parseArr(c.studentIds).includes(studentId))||
-    (data.schedule||[]).some(s=>parseArr(s.studentIds).includes(studentId))||
-    (data.plans||[]).some(p=>p.studentId===studentId)||
-    (data.purchases||[]).some(p=>p.studentId===studentId)||
-    (data.entitlements||[]).some(e=>e.studentId===studentId)||
-    (data.entitlementLedger||[]).some(l=>l.studentId===studentId)||
-    (data.courts||[]).some(c=>c.studentId===studentId||parseArr(c.studentIds).includes(studentId)||normalizeCourtHistory(c.history).some(h=>h.studentId===studentId))||
-    (data.feedbacks||[]).some(f=>f.studentId===studentId||parseArr(f.studentIds).includes(studentId));
-  if(used)throw new Error('该学员已有班次、排课、学习计划、订场账户或反馈关联，不能直接删除');
+  const reasons=[];
+  if((data.classes||[]).some(c=>parseArr(c.studentIds).includes(studentId)))reasons.push('班次');
+  if((data.schedule||[]).some(s=>parseArr(s.studentIds).includes(studentId)))reasons.push('排课');
+  if((data.plans||[]).some(p=>p.studentId===studentId))reasons.push('学习计划');
+  if((data.purchases||[]).some(p=>p.studentId===studentId))reasons.push('购买记录');
+  if((data.entitlements||[]).some(e=>e.studentId===studentId))reasons.push('课包余额');
+  if((data.entitlementLedger||[]).some(l=>l.studentId===studentId))reasons.push('扣课记录');
+  if((data.courts||[]).some(c=>c.studentId===studentId||parseArr(c.studentIds).includes(studentId)||normalizeCourtHistory(c.history).some(h=>h.studentId===studentId)))reasons.push('订场账户');
+  if((data.feedbacks||[]).some(f=>f.studentId===studentId||parseArr(f.studentIds).includes(studentId)))reasons.push('课后反馈');
+  if(reasons.length)throw new Error(`该学员不能直接删除：已关联${[...new Set(reasons)].join('、')}`);
 }
 function assertStudentWriteAccess(user){
   if(user?.role!=='admin')throw new Error('无权限');
 }
 function assertCanDeleteCourt(court,data={}){
-  if(parseArr(court?.history).length)throw new Error('该客户已有财务流水，不能直接删除');
-  if(normalizeMoney(court?.balance)||normalizeMoney(court?.totalDeposit)||normalizeMoney(court?.spentAmount))throw new Error('该客户已有财务数据，不能直接删除');
+  const reasons=[];
+  if(parseArr(court?.history).length)reasons.push('已存在财务流水');
+  if(normalizeMoney(court?.balance)||normalizeMoney(court?.totalDeposit)||normalizeMoney(court?.spentAmount))reasons.push('仍有财务余额或累计金额');
   const courtId=String(court?.id||'').trim();
-  if(!courtId)return;
-  const used=
-    (data.membershipAccounts||[]).some(r=>String(r.courtId||'').trim()===courtId)||
-    (data.membershipOrders||[]).some(r=>String(r.courtId||'').trim()===courtId)||
-    (data.membershipBenefitLedger||[]).some(r=>String(r.courtId||'').trim()===courtId)||
-    (data.membershipAccountEvents||[]).some(r=>String(r.courtId||'').trim()===courtId);
-  if(used)throw new Error('该客户已有会员账户、会员订单、权益流水或账户事件关联，不能直接删除');
+  if(courtId){
+    if((data.membershipAccounts||[]).some(r=>String(r.courtId||'').trim()===courtId))reasons.push('已关联会员账户');
+    if((data.membershipOrders||[]).some(r=>String(r.courtId||'').trim()===courtId))reasons.push('已关联会员订单');
+    if((data.membershipBenefitLedger||[]).some(r=>String(r.courtId||'').trim()===courtId))reasons.push('已关联权益流水');
+    if((data.membershipAccountEvents||[]).some(r=>String(r.courtId||'').trim()===courtId))reasons.push('已关联账户事件');
+  }
+  if(reasons.length)throw new Error(`该客户不能直接删除：${[...new Set(reasons)].join('、')}`);
 }
 function courtDeleteAction(court,data={}){
   try{
@@ -1237,6 +1242,51 @@ function courtDeleteAction(court,data={}){
   }catch(e){
     return 'archive';
   }
+}
+function mergeCourtNotes(targetCourt,sourceCourt){
+  const targetNotes=String(targetCourt?.notes||'').trim();
+  const sourceNotes=String(sourceCourt?.notes||'').trim();
+  const sourceMark=`[合并自 ${sourceCourt?.name||'原用户'} · ${sourceCourt?.id||''}]`;
+  if(!sourceNotes)return [targetNotes,sourceMark].filter(Boolean).join('\n');
+  return [targetNotes,`${sourceMark} ${sourceNotes}`].filter(Boolean).join('\n');
+}
+function mergeCourtRecords({targetCourt,sourceCourt,membershipAccounts=[],membershipOrders=[],membershipBenefitLedger=[],membershipAccountEvents=[],now=new Date().toISOString()}={}){
+  if(!targetCourt?.id||!sourceCourt?.id)throw new Error('请选择要合并的订场用户');
+  if(String(targetCourt.id)===String(sourceCourt.id))throw new Error('不能合并到自己');
+  const targetActiveAccount=(membershipAccounts||[]).find(row=>String(row.courtId||'')===String(targetCourt.id)&&row.status!=='voided');
+  const sourceActiveAccount=(membershipAccounts||[]).find(row=>String(row.courtId||'')===String(sourceCourt.id)&&row.status!=='voided');
+  if(targetActiveAccount&&sourceActiveAccount)throw new Error('两个订场用户都已有会员账户，当前暂不支持直接合并，请先处理会员账户');
+  const mergedStudentIds=[...new Set([...normalizeStudentIds(targetCourt),...normalizeStudentIds(sourceCourt)])];
+  const mergedHistory=[...buildLegacyCourtOpeningHistory(targetCourt),...buildLegacyCourtOpeningHistory(sourceCourt)];
+  const mergedTarget=normalizeCourtRecord({
+    ...sourceCourt,
+    ...targetCourt,
+    id:targetCourt.id,
+    name:targetCourt.name||sourceCourt.name||'',
+    phone:targetCourt.phone||sourceCourt.phone||'',
+    campus:targetCourt.campus||sourceCourt.campus||'',
+    joinDate:targetCourt.joinDate||sourceCourt.joinDate||'',
+    recentFollowUpDate:targetCourt.recentFollowUpDate||sourceCourt.recentFollowUpDate||'',
+    nextFollowUpDate:targetCourt.nextFollowUpDate||sourceCourt.nextFollowUpDate||'',
+    owner:targetCourt.owner||sourceCourt.owner||'',
+    depositAttitude:targetCourt.depositAttitude||sourceCourt.depositAttitude||'',
+    familiarity:targetCourt.familiarity||sourceCourt.familiarity||'',
+    notes:mergeCourtNotes(targetCourt,sourceCourt),
+    studentId:mergedStudentIds[0]||'',
+    studentIds:mergedStudentIds,
+    status:'active',
+    history:mergedHistory,
+    updatedAt:now
+  });
+  const rewriteCourtLink=row=>({...row,courtId:targetCourt.id,courtName:mergedTarget.name||targetCourt.name||targetCourt.id,phone:mergedTarget.phone||'',studentIds:mergedStudentIds,updatedAt:now});
+  return {
+    targetCourt:mergedTarget,
+    sourceCourt:{...sourceCourt,status:'inactive',mergedIntoCourtId:targetCourt.id,mergedAt:now,updatedAt:now},
+    membershipAccounts:(membershipAccounts||[]).map(row=>String(row.courtId||'')===String(sourceCourt.id)?rewriteCourtLink(row):row),
+    membershipOrders:(membershipOrders||[]).map(row=>String(row.courtId||'')===String(sourceCourt.id)?rewriteCourtLink(row):row),
+    membershipBenefitLedger:(membershipBenefitLedger||[]).map(row=>String(row.courtId||'')===String(sourceCourt.id)?rewriteCourtLink(row):row),
+    membershipAccountEvents:(membershipAccountEvents||[]).map(row=>String(row.courtId||'')===String(sourceCourt.id)?rewriteCourtLink(row):row)
+  };
 }
 function assertCanDeleteCampus(campusId,data={}){
   const id=String(campusId||'').trim();
@@ -1814,13 +1864,14 @@ module.exports = async (req, res) => {
   const body=req.body||{};
   try{
     if(path==='/health')return sendJson(res,{status:'ok',time:new Date().toISOString()});
-    if(path==='/auth/login'&&method==='POST'){await init();const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await get(T_USERS,username);if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});}
+    if(path==='/auth/login'&&method==='POST'){await init();const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await get(T_USERS,username);if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});}
     let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
     const storedAuthUser=await get(T_USERS,user.id).catch(()=>null);
     user=mergeStoredAuthUser(user,storedAuthUser);
-    if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');await put(T_USERS,id,{id,name,password:hashed,role:nextRole,coachId:coachId||'',coachName:nextCoachName});return sendJson(res,{success:true,id,name,role:nextRole,coachId:coachId||'',coachName:nextCoachName});}
-    if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);const updates={...u,coachId:coachId||''};if(body.name)updates.name=body.name;updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');await put(T_USERS,id,updates);return sendJson(res,{success:true});}
-    if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await scan(T_USERS);return sendJson(res,all.map(u=>({id:u.id,name:u.name,role:u.role,coachId:u.coachId||'',coachName:u.coachName||''})));}
+    try{assertAuthUserActive(user);}catch(e){return sendJson(res,{error:e.message},403);}
+    if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');await put(T_USERS,id,{id,name,password:hashed,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName});return sendJson(res,{success:true,id,name,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName});}
+    if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName,status}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);const updates={...u,coachId:coachId||'',status:status||u.status||'active'};if(body.name)updates.name=body.name;updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');await put(T_USERS,id,updates);return sendJson(res,{success:true});}
+    if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await scan(T_USERS);return sendJson(res,all.map(u=>({id:u.id,name:u.name,role:u.role,status:u.status||'active',coachId:u.coachId||'',coachName:u.coachName||''})));}
     if(path==='/admin/clear-test-data'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       if(body.confirm!=='CLEAR_TEST_DATA')return sendJson(res,{error:'缺少清空确认'},400);
@@ -1918,6 +1969,40 @@ module.exports = async (req, res) => {
       await init();
       const result=await deleteCourtsByIds(body.ids,await loadCourtDeleteReferenceData());
       return sendJson(res,result);
+    }
+    if(path==='/courts/merge'&&method==='POST'){
+      await init();
+      const sourceCourtId=String(body?.sourceCourtId||'').trim();
+      const targetCourtId=String(body?.targetCourtId||'').trim();
+      const deleteSource=body?.deleteSource===true;
+      if(!sourceCourtId||!targetCourtId)return sendJson(res,{error:'请选择要合并的订场用户'},400);
+      if(sourceCourtId===targetCourtId)return sendJson(res,{error:'不能合并到自己'},400);
+      const [sourceCourt,targetCourt,membershipRefs]=await Promise.all([
+        get(T_COURTS,sourceCourtId).catch(()=>null),
+        get(T_COURTS,targetCourtId).catch(()=>null),
+        loadCourtDeleteReferenceData()
+      ]);
+      if(!sourceCourt)return sendJson(res,{error:'原订场用户不存在'},404);
+      if(!targetCourt)return sendJson(res,{error:'目标订场用户不存在'},404);
+      const merged=mergeCourtRecords({
+        targetCourt,
+        sourceCourt,
+        membershipAccounts:membershipRefs.membershipAccounts,
+        membershipOrders:membershipRefs.membershipOrders,
+        membershipBenefitLedger:membershipRefs.membershipBenefitLedger,
+        membershipAccountEvents:membershipRefs.membershipAccountEvents,
+        now:new Date().toISOString()
+      });
+      await put(T_COURTS,targetCourt.id,merged.targetCourt);
+      await Promise.all([
+        ...merged.membershipAccounts.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_ACCOUNTS,row.id,row)),
+        ...merged.membershipOrders.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_ORDERS,row.id,row)),
+        ...merged.membershipBenefitLedger.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_BENEFIT_LEDGER,row.id,row)),
+        ...merged.membershipAccountEvents.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_ACCOUNT_EVENTS,row.id,row))
+      ]);
+      if(deleteSource)await del(T_COURTS,sourceCourt.id);
+      else await put(T_COURTS,sourceCourt.id,merged.sourceCourt);
+      return sendJson(res,{success:true,targetCourt:merged.targetCourt,removedCourtId:deleteSource?sourceCourt.id:'',archivedSource:!deleteSource});
     }
     if(path==='/courts/migrate-legacy'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
@@ -2320,6 +2405,7 @@ module.exports._test={
   buildProductRenameDisplayUpdates,
   assertCanDeleteCoachName,
   assertUniqueCoachName,
+  assertAuthUserActive,
   mergeStoredAuthUser,
   normalizeVenue,
   rangesOverlap,
@@ -2334,6 +2420,7 @@ module.exports._test={
   buildMembershipGrantLedgerRows,
   allocateMembershipBenefitUsage,
   reconcileMembershipAccounts,
+  mergeCourtRecords,
   normalizeMembershipPlanViewRecord,
   normalizeMembershipOrderViewRecord,
   isTransientStorageError,

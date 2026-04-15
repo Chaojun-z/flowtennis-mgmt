@@ -83,13 +83,13 @@ assert.doesNotThrow(
 
 assert.doesNotThrow(
   () => rules.assertScheduleEntitlementRequired({ classId: 'class-a', studentIds: ['stu-1'], status: '已排课', lessonCount: 1 }),
-  'billable schedule may be saved without binding a package entitlement account'
+  'billable schedule may be saved without binding a package balance record'
 );
 
 assert.throws(
   () => rules.assertScheduleEntitlementRequired({ classId: 'class-a', entitlementId: 'ent-1', studentIds: ['stu-1', 'stu-2'], status: '已排课', lessonCount: 1 }),
-  /多人排课暂不支持单个权益账户/,
-  'multi-student schedule cannot consume one entitlement account'
+  /多人排课暂不支持单个课包余额/,
+  'multi-student schedule cannot consume one package balance record'
 );
 
 assert.doesNotThrow(

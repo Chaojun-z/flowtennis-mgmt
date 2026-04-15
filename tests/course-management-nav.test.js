@@ -11,11 +11,11 @@ assert.match(html, /<div class="sb-sec">场地与资源<\/div>/, 'sidebar should
 assert.match(html, /goPage\('products',this\)[\s\S]*?课程产品/, 'sidebar should keep products page');
 assert.match(html, /goPage\('packages',this\)[\s\S]*?售卖课包/, 'sidebar should add packages page');
 assert.match(html, /goPage\('purchases',this\)[\s\S]*?购买记录/, 'sidebar should add purchases page');
-assert.match(html, /goPage\('entitlements',this\)[\s\S]*?权益账户/, 'sidebar should add entitlements page');
+assert.match(html, /goPage\('admin-users',this\)[\s\S]*?账号管理/, 'sidebar should add account management page');
+assert.doesNotMatch(html, /goPage\('entitlements',this\)[\s\S]*?权益账户/, 'sidebar should hide the old entitlement page entry');
 
 assert.match(html, /id="page-packages"/, 'should have packages page section');
 assert.match(html, /id="page-purchases"/, 'should have purchases page section');
-assert.match(html, /id="page-entitlements"/, 'should have entitlements page section');
 assert.match(html, /course-showcase/, 'course product page should use the new showcase container');
 assert.match(html, /course-package-showcase/, 'package page should use the new showcase container');
 assert.match(html, /product-card-shell/, 'product page should render the gemini-style product cards');
@@ -31,6 +31,9 @@ assert.match(html, /核心字段已锁定/, 'locked core fields should show oper
 assert.match(html, /function openPurchaseDetailModal/, 'purchase page should have detail modal');
 assert.match(html, /function openPurchaseEditModal/, 'purchase page should have edit modal');
 assert.match(html, /function savePurchaseEdit/, 'purchase page should save purchase edits');
+assert.match(html, /function openPurchaseModal/, 'purchase page should provide the unified purchase modal');
+assert.match(html, /function openPurchaseModal[\s\S]*renderCourtDropdownHtml\('pur_studentId','选择学员'/, 'purchase modal should pick the student in the same step');
+assert.doesNotMatch(html, /先选择学员[\s\S]*下一步/, 'purchase modal should not require a separate first-step student gate');
 assert.match(html, /购买时规则快照/, 'purchase detail should show package snapshot');
 assert.match(html, /function openPurchaseVoidModal/, 'purchase page should use dedicated void modal');
 assert.match(html, /function voidPurchase/, 'purchase page should send void reason');
@@ -39,7 +42,7 @@ assert.match(html, /function resolveUniqueStudentIdByText/, 'purchase import sho
 assert.match(html, /function resolveUniquePackageIdByText/, 'purchase import should resolve packages uniquely');
 assert.match(html, /匹配到多个/, 'purchase import should warn duplicate matches');
 assert.match(html, /固定使用结束日优先/, 'package modal should explain usage end date priority');
-assert.match(html, /购买记录用于查账和追溯/, 'purchase page should explain purpose');
+assert.match(html, /真正消课的是课包余额/, 'purchase page should explain package balance purpose');
 assert.match(html, /私教课/, 'course pages should expose 私教课 as a fixed type');
 assert.match(html, /体验课/, 'course pages should expose 体验课 as a fixed type');
 assert.match(html, /训练营/, 'course pages should expose 训练营 as a fixed type');

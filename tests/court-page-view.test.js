@@ -25,10 +25,13 @@ assert.match(html, /id="courtMoreActions"/, 'court toolbar should provide more a
 assert.match(html, /导入CSV[\s\S]*财务迁移预览[\s\S]*备份/, 'court more actions should include import, finance migration preview, and backup');
 assert.doesNotMatch(html, /courtMoreActionValue_dropdown[\s\S]*class="tms-dropdown-item[^"]*">更多操作</, 'court more actions menu should not include a redundant self option');
 assert.match(html, /<th class="tms-sortable" onclick="setCourtSort\('validUntil'\)"[\s\S]*?>会员到期/, 'court table should keep expiry sorting');
+assert.match(html, /<th class="tms-sortable" onclick="setCourtSort\('recentFollowUpDate'\)"[\s\S]*?>末次跟进日期/, 'court table should support sorting by recent follow-up date');
+assert.match(html, /<th class="tms-sortable" onclick="setCourtSort\('nextFollowUpDate'\)"[\s\S]*?>下次跟进日期/, 'court table should support sorting by next follow-up date');
 assert.match(html, /<th class="tms-sortable" onclick="setCourtSort\('balance'\)"[\s\S]*?>当前余额/, 'court table should keep balance sorting');
 assert.match(html, /<th class="tms-sortable" onclick="setCourtSort\('spentAmount'\)"[\s\S]*?>消费金额/, 'court table should keep spending sorting');
 assert.match(fnBody('setCourtSort'), /courtSortKey='';courtSortDir='desc'/, 'court sorting should cycle back to no sort');
-assert.match(html, /\.tms-sort-icon[^}]*vertical-align:middle[^}]*font-size:9px/s, 'sort icon should be visually centered and smaller');
+assert.match(html, /\.tms-sort-icon[^}]*display:inline-flex[^}]*align-items:center[^}]*justify-content:center/s, 'sort icon should align vertically with header text');
+assert.match(html, /\.tms-sort-icon svg[^}]*width:16px[^}]*height:16px/s, 'sort icon should use the larger mac-style svg glyph');
 assert.match(html, /<th class="tms-sticky-r"[\s\S]*操作/, 'court table should freeze the action header');
 assert.match(html, /查看[\s\S]*编辑[\s\S]*订场/, 'court row actions should use shorter copy');
 assert.doesNotMatch(html, /courtCampusFilterBtn|courtCampusFilterMenu/, 'court table should no longer expose campus header filter');
@@ -57,12 +60,16 @@ assert.match(fnBody('openCourtModal'), /renderCourtDropdownHtml\('f_campus','校
 assert.match(fnBody('openCourtModal'), /courtDateButtonHtml\('f_joinDate',rv\(r,'joinDate'\)\)/, 'court modal should allow blank join date');
 assert.match(html, /function openCourtFinanceModal[\s\S]*tms-record-add-box/, 'court finance modal should use the upgraded local record card layout');
 assert.match(html, /function openCourtFinanceModal[\s\S]*历史记录[\s\S]*tms-history-list/, 'court finance modal should keep the Gemini-style history list under the entry form');
+assert.match(html, /\.modal\.modal-court \.tms-record-add-box \.tms-dropdown-display[^}]*font-size:12px/s, 'court finance entry row should use smaller dropdown text to avoid overlapping');
+assert.match(html, /function openCourtFinanceModal[\s\S]*flex:0 0 96px[\s\S]*renderCourtDropdownHtml\('nrType','类型'[\s\S]*flex:0 0 96px[\s\S]*renderCourtDropdownHtml\('nrCategory','项目'[\s\S]*flex:0 0 118px[\s\S]*renderCourtDropdownHtml\('nrPayMethod','支付'/s, 'court finance modal should narrow the first three selectors to avoid stacking');
 assert.match(html, /function getCourtDuplicateCandidates\(/, 'court save flow should detect duplicates');
 assert.match(html, /发现可能重复的订场用户：/, 'court save flow should warn about possible duplicates');
 assert.match(html, /手机号优先，若无手机号则按姓名\+校区/, 'court duplicate reminder should prioritize phone and then name plus campus');
 assert.match(html, /search.*nextFollowUp|nextFollowUp.*search|courtSearch[\s\S]*followUp/, 'court search should cover follow-up fields');
+assert.match(html, /id="courtSearch"[^>]*oninput="onCourtFilterChange\(\)"/, 'court search should reset to the first page before rendering');
 assert.match(html, /courtPageSize=\d+/, 'court page should keep its own page size state');
 assert.match(html, /function setCourtPageSize\(/, 'court page should expose page size switching');
+assert.match(fnBody('renderCourts'), /else\{[\s\S]*updatedAt\|\|b\.createdAt[\s\S]*updatedAt\|\|a\.createdAt/, 'court rows should use a deterministic default sort when no explicit sort is selected');
 assert.match(html, /function handleCourtMoreAction\(/, 'court page should expose more action handler');
 assert.match(html, /id="courtBatchDelBtn"[^>]*style="display:none"/, 'court batch delete button should stay hidden before any selection');
 assert.match(html, /function updateCourtBatchButton\([\s\S]*btn\.style\.display=selectedCourtIds\.size\?'inline-flex':'none'/, 'court batch delete button should only show when rows are selected');
@@ -82,5 +89,13 @@ assert.match(html, /function onCourtFinanceSceneChange\(/, 'court finance modal 
 assert.match(html, /data-finance-field="booking"/, 'court booking-only fields should be scoped');
 assert.match(html, /data-finance-field="course"/, 'court course-only fields should be scoped');
 assert.match(fnBody('runBatchDeleteCourts'), /隐藏/, 'batch delete result should explain hidden archived courts');
+assert.match(fnBody('renderCourts'), /class="tms-court-row-main"[\s\S]*class="tms-checkbox court-row-cb"/, 'court name cell should separate checkbox and name for easier text selection');
+assert.doesNotMatch(fnBody('renderCourts'), /<label class="tms-checkbox-wrap"[\s\S]*\$\{esc\(u\.name\)\}/, 'court name text should no longer be wrapped by a clickable label');
+assert.match(html, /function openCourtFinanceModal[\s\S]*renderCourtDropdownHtml\('nrStudentId','关联学员'/, 'court finance modal should use a shorter linked-student label');
+assert.match(fnBody('openCourtModal'), /openCourtMergeModal\('/, 'court edit modal should expose a merge entry for existing users');
+assert.match(html, /function openCourtMergeModal\(/, 'court page should expose a manual merge modal');
+assert.match(html, /function renderCourtMergeTargetOptions\(/, 'court page should expose merge target filtering by search');
+assert.match(html, /id="mergeCourtSearch"[^>]*placeholder="搜索姓名"[^>]*oninput="renderCourtMergeTargetOptions\(\)"/, 'merge modal should support searching target users by name');
+assert.match(html, /function mergeCourtUsers\(/, 'court page should expose a merge submit handler');
 
 console.log('court page view tests passed');
