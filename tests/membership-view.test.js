@@ -162,7 +162,9 @@ assert.match(html, /class="tms-action-link tms-action-link-strong" style="color:
 assert.match(html, /#page-memberships \.tms-toolbar-right \.tms-action-link-strong[\s\S]*#FEF3C7/s, 'membership audit entries should be readable on the brown background');
 assert.match(html, /const statusMeta=membershipStatusTagMeta\(a\);/, 'membership management rows should derive status tag metadata');
 assert.match(html, /function membershipVisibleCourt/, 'membership management should ignore deleted or archived court users');
-assert.match(fnBody('renderMemberships'), /courts\.map\(court=>\(\{court,account:courtMembershipAccount\(court\.id\)\}\)\)/, 'membership management should render from visible court users instead of stale account rows');
+assert.match(fnBody('renderMemberships'), /courts\.filter\(court=>isActiveCourtRecord\(court\)\)\.map/, 'membership management should build rows from active court users only');
+assert.match(html, /function isActiveCourtRecord\(/, 'frontend should centralize active court filtering');
+assert.match(fnBody('isActiveCourtRecord'), /status!=='inactive'&&status!=='deleted'&&!court\?\.deletedAt&&!court\?\.mergedIntoCourtId/, 'active court filtering should exclude hidden, deleted and merged users');
 assert.match(fnBody('renderMemberships'), /openCourtMembershipPanel\('\$\{court\.id\}'\)/, 'membership account action should open the account for the visible row court');
 assert.match(html, /const statusTagMeta=membershipStatusTagMeta\(m\.status\);/, 'court rows should derive status tag metadata');
 assert.match(html, /memberLabel:'-',tierLabel:'-',status:membershipDisplayStatus\(account\),discount:'-',validUntil:'-'/, 'voided or cleared membership summaries should clear benefit display in court list');

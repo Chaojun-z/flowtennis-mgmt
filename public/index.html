@@ -2111,6 +2111,10 @@ function courtDisplayName(court){
   if(raw)return raw;
   return courtStudentNames(court)||String(court?.phone||'').trim()||'未命名订场用户';
 }
+function isActiveCourtRecord(court){
+  const status=String(court?.status||'active').trim();
+  return status!=='inactive'&&status!=='deleted'&&!court?.deletedAt&&!court?.mergedIntoCourtId;
+}
 function resolveStudentIdByText(value){
   const raw=String(value||'').trim();
   if(!raw)return '';
@@ -3686,7 +3690,7 @@ async function toggleMembershipPlanStatus(id,nextStatus){
 }
 function membershipVisibleCourt(account){
   const court=courts.find(c=>c.id===account?.courtId);
-  if(!court||court.status==='inactive'||court.deletedAt)return null;
+  if(!court||!isActiveCourtRecord(court))return null;
   return court;
 }
 function renderMembershipStats(rows=[]){
@@ -3701,7 +3705,7 @@ function renderMembershipStats(rows=[]){
 function renderMemberships(){
   const host=document.getElementById('membershipTabBody');if(!host)return;
   const q=(document.getElementById('membershipSearch')?.value||'').toLowerCase();
-  const rows=courts.map(court=>({court,account:courtMembershipAccount(court.id)})).filter(row=>row.account&&membershipVisibleCourt(row.account)&&searchHit(q,row.court.name,row.court.phone,row.account.courtName,row.account.memberLabel,row.account.phone));
+  const rows=courts.filter(court=>isActiveCourtRecord(court)).map(court=>({court,account:courtMembershipAccount(court.id)})).filter(row=>row.account&&membershipVisibleCourt(row.account)&&searchHit(q,row.court.name,row.court.phone,row.account.courtName,row.account.memberLabel,row.account.phone));
   renderMembershipStats(rows);
   host.innerHTML=`<div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:150px;padding-left:20px">会员姓名</th><th style="width:140px">手机号</th><th style="width:160px">当前会员</th><th style="width:120px">会员状态</th><th style="width:120px">当前余额</th><th style="width:100px">当前折扣</th><th style="width:120px">订场次数</th><th style="width:360px">可用权益</th><th style="width:150px">余额有效期</th><th style="width:150px">清零时间</th><th class="tms-sticky-r" style="width:160px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody>${rows.map(({court,account:a})=>{const finance=courtFinanceLocal(court||{history:[]});const benefitRows=membershipBenefitRowsForAccount(a);const benefits=benefitRows.length?benefitRows.map(b=>`${b.label} ${b.remaining}/${b.total}`).join('；'):'—';const statusMeta=membershipStatusTagMeta(a);const tierLabel=courtMembershipTierLabel(a);const bookingCount=membershipBookingCount(court);return `<tr><td style="padding-left:20px">${renderCourtCellText(courtDisplayName(court)||a.courtName,false)}</td><td>${renderCourtCellText(court.phone)}</td><td>${['voided','cleared'].includes(a.status)||tierLabel==='-'?'-':`<span class="tms-tag ${courtMembershipTierTagClass(tierLabel)}">${esc(tierLabel)}</span>`}</td><td><span class="tms-tag ${statusMeta.tagClass}">${statusMeta.text}</span></td><td><div class="tms-cell-text">¥${fmt(finance.balance)}</div></td><td>${renderCourtCellText(['voided','cleared'].includes(a.status)?'-':(a.discountRate?Math.round((parseFloat(a.discountRate)||1)*100)/10+' 折':''))}</td><td><div class="tms-cell-text">${bookingCount}次</div></td><td><div class="tms-cell-text" style="white-space:normal;line-height:1.55;min-width:320px;color:#A3968F">${esc(benefits)}</div></td><td>${renderCourtCellText(['voided','cleared'].includes(a.status)?'-':a.validUntil,false)}</td><td>${renderCourtCellText(['voided','cleared'].includes(a.status)?'-':a.hardExpireAt,false)}</td><td class="tms-sticky-r tms-action-cell" style="width:160px;padding-right:20px;text-align:right"><span class="tms-action-link" onclick="openCourtMembershipPanel('${court.id}')">查看账户</span></td></tr>`;}).join('')||'<tr><td colspan="11"><div class="empty"><p>暂无会员账户</p></div></td></tr>'}</tbody></table></div></div>`;
 }
@@ -4067,7 +4071,7 @@ function getCourtTimeOptions(selected='08:00'){
 }
 function renderCourts(){
   const q=(document.getElementById('courtSearch')?.value||'').toLowerCase();
-  const visibleCourts=courts.filter(c=>String(c.status||'active')!=='inactive');
+  const visibleCourts=courts.filter(c=>isActiveCourtRecord(c));
   const base=visibleCourts.filter(c=>campus==='all'||c.campus===campus);
   renderCourtHeaderFilters(base);
   let list=visibleCourts.filter(c=>{
