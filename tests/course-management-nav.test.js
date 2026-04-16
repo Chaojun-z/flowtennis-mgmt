@@ -36,6 +36,7 @@ assert.match(html, /function openPurchaseEditModal/, 'purchase page should have 
 assert.match(html, /function savePurchaseEdit/, 'purchase page should save purchase edits');
 assert.match(html, /function openPurchaseModal/, 'purchase page should provide the unified purchase modal');
 assert.match(html, /function openPurchaseModal[\s\S]*renderCourtDropdownHtml\('pur_studentId','选择学员'/, 'purchase modal should pick the student in the same step');
+assert.match(html, /function openPurchaseModal[\s\S]*支付方式[\s\S]*margin-bottom:0[\s\S]*可上课教练/, 'purchase modal should put pay method and allowed coach fields on separate rows to avoid layout overlap');
 assert.match(html, /＋ 课包购买/, 'purchase page should expose a direct package purchase entry button');
 assert.match(html, /<th style="width:120px;padding-left:20px">购买日期<\/th><th style="width:140px">学员<\/th><th style="width:170px">售卖课包<\/th><th style="width:120px">主归属教练<\/th>/, 'purchase table should show owner coach directly in the list');
 assert.doesNotMatch(html, /先选择学员[\s\S]*下一步/, 'purchase modal should not require a separate first-step student gate');

@@ -430,6 +430,9 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .modal.modal-court .court-date-row{display:flex;align-items:center;gap:12px;flex-wrap:nowrap}
 .modal.modal-court .court-date-row > *{min-width:0}
 .choice-grid{display:flex;flex-wrap:wrap;gap:8px}
+.choice-wrap{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+.choice-wrap .choice-tag{flex:0 0 auto}
+.purchase-coach-wrap{padding-top:4px}
 .choice-tag{display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border-radius:12px;background:rgba(255,251,245,.72);border:0.5px solid rgba(180,83,9,.12);font-size:12.5px;font-weight:400;color:var(--tb)}
 .choice-tag input{appearance:none;-webkit-appearance:none;margin:0;width:14px;height:14px;border-radius:4px;border:0.5px solid rgba(120,53,15,.24);background:#fff;box-shadow:inset 0 1px 2px rgba(60,20,0,.06)}
 .choice-tag input:checked{border-color:var(--amber-base);background:var(--amber-base);box-shadow:inset 0 0 0 3px #fff}
@@ -595,6 +598,30 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .coach-mobile-info-note{margin-top:10px;padding-top:10px;border-top:0.5px solid rgba(180,83,9,0.12);font-size:12px;line-height:1.6;color:var(--ts)}
 .coach-mobile-actions{display:flex;gap:8px;margin-top:12px}
 .coach-mobile-actions .tms-btn,.coach-mobile-actions .tms-action-link{flex:1;text-align:center;justify-content:center}
+.coach-mobile-week-timeline{display:grid;grid-template-columns:58px minmax(0,1fr);background:#FCFAF7;border:1px solid #E9DED2;border-radius:18px;box-shadow:0 10px 30px rgba(60,20,0,.05);overflow:hidden}
+.coach-mobile-time-rail{background:#FCFAF7;border-right:1px solid #E9DED2;position:sticky;left:0;z-index:3}
+.coach-mobile-time-head{height:54px;border-bottom:1px solid #E9DED2;background:#F7F1EA}
+.coach-mobile-time-label{height:56px;padding:0 8px;font-size:11px;color:#A3968F;display:flex;align-items:flex-start;justify-content:flex-end;border-bottom:1px solid rgba(233,222,210,.65)}
+.coach-mobile-day-columns{display:flex;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+.coach-mobile-day-columns::-webkit-scrollbar{display:none}
+.coach-mobile-day-column{flex:0 0 136px;min-width:136px;border-right:1px solid rgba(233,222,210,.7);background:#FFFDFC;scroll-snap-align:start}
+.coach-mobile-day-column.today{background:#FFF8F1}
+.coach-mobile-day-head{height:54px;padding:8px 10px 6px;border-bottom:1px solid #E9DED2;background:#F7F1EA;display:flex;flex-direction:column;justify-content:center}
+.coach-mobile-day-column.today .coach-mobile-day-head{background:#FCE9D8}
+.coach-mobile-day-head strong{font-size:14px;color:#2F241E;line-height:1.1}
+.coach-mobile-day-head span{font-size:11px;color:#8C7B6E;line-height:1.3;margin-top:4px}
+.coach-mobile-day-body{position:relative;background-image:repeating-linear-gradient(to bottom,rgba(180,83,9,.08),rgba(180,83,9,.08) 1px,transparent 1px,transparent 56px)}
+.coach-mobile-event{position:absolute;left:6px;right:6px;border-radius:14px;padding:8px 9px;border:1px solid transparent;box-shadow:0 6px 16px rgba(60,20,0,.06);overflow:hidden}
+.coach-mobile-event.type-private{background:#E7F0FF;border-color:#AFC8FF;color:#224185}
+.coach-mobile-event.type-trial{background:#FFF2E2;border-color:#E7B57C;color:#9A5622}
+.coach-mobile-event.type-camp{background:#EAF7EA;border-color:#B9D8BC;color:#2E6E37}
+.coach-mobile-event.type-master{background:#F5ECE6;border-color:#DAB8A1;color:#73452D}
+.coach-mobile-event-time{font-size:12px;font-weight:800;line-height:1.15}
+.coach-mobile-event-title{font-size:13px;font-weight:800;line-height:1.25;margin-top:4px}
+.coach-mobile-event-meta{font-size:11px;line-height:1.35;margin-top:4px;opacity:.96}
+.coach-mobile-now-line{position:absolute;left:0;right:0;height:2px;background:#F24822;box-shadow:0 0 0 1px rgba(255,255,255,.65);z-index:2}
+.coach-mobile-now-dot{position:absolute;left:-4px;top:50%;transform:translateY(-50%);width:8px;height:8px;border-radius:50%;background:#F24822}
+.coach-mobile-day-empty-tip{position:absolute;left:10px;right:10px;top:14px;padding:8px 10px;border-radius:12px;border:1px dashed rgba(180,83,9,.18);background:rgba(254,243,199,.22);font-size:11px;color:#8C7B6E;text-align:center}
 .coach-ops-shell{display:grid;gap:12px;margin-bottom:14px}
 .coach-ops-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:transparent;border:none;border-radius:0;padding:0;box-shadow:none}
 .coach-ops-toolbar-main,.coach-ops-toolbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -708,8 +735,14 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
   body.coach-mobile .tb-title{font-size:15px}
   body.coach-mobile #campusTabs{display:none!important}
   body.coach-mobile .coach-top-logout{display:block}
-  body.coach-mobile .content{padding:14px}
+  body.coach-mobile .content{padding:12px 12px 18px}
   body.coach-mobile .stats-row{grid-template-columns:1fr;gap:10px}
+  body.coach-mobile .tms-stats-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;overflow:visible}
+  body.coach-mobile .tms-stat-card{min-height:0;padding:12px 12px 14px}
+  body.coach-mobile .tms-stat-label{white-space:normal;line-height:1.35}
+  body.coach-mobile .tms-stat-value{font-size:18px;white-space:normal}
+  body.coach-mobile .tms-stat-value span{font-size:12px}
+  body.coach-mobile .tms-stat-sub{position:static;margin-top:8px;white-space:normal}
   body.coach-mobile .my-schedule-primary{grid-template-columns:1fr}
   body.coach-mobile .my-schedule-meta{grid-template-columns:1fr}
   body.coach-mobile .my-schedule-actions{flex-direction:column}
@@ -731,7 +764,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
   body.coach-mobile .today-card-actions{flex-direction:column}
   body.coach-mobile #page-workbench .coach-wb-container{gap:12px}
   body.coach-mobile #page-workbench .coach-wb-page-header{flex-direction:column;align-items:flex-start;gap:10px}
-  body.coach-mobile #page-workbench .coach-wb-stats-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  body.coach-mobile #page-workbench .coach-wb-stats-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
   body.coach-mobile #page-workbench .coach-wb-stat-card{min-height:0;padding:12px 14px}
   body.coach-mobile #page-workbench .coach-wb-stat-value{font-size:18px}
   body.coach-mobile #page-workbench .coach-wb-grid{grid-template-columns:1fr;gap:10px}
@@ -743,8 +776,14 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
   body.coach-mobile .my-schedule-week-title{font-size:16px}
   body.coach-mobile .my-schedule-week-sub{font-size:11px;line-height:1.5}
   body.coach-mobile .coach-mobile-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}
-  body.coach-mobile .coach-mobile-info-grid{grid-template-columns:1fr 1fr}
+  body.coach-mobile .coach-mobile-info-grid{grid-template-columns:1fr}
   body.coach-mobile .coach-mobile-actions{flex-direction:column}
+  body.coach-mobile .coach-mobile-week-timeline{grid-template-columns:52px minmax(0,1fr);margin-top:12px}
+  body.coach-mobile .coach-mobile-day-column{flex-basis:128px;min-width:128px}
+  body.coach-mobile .coach-mobile-day-head{padding:8px 8px 6px}
+  body.coach-mobile .coach-mobile-event{left:5px;right:5px;padding:7px 8px}
+  body.coach-mobile .coach-mobile-event-title{font-size:12px}
+  body.coach-mobile .coach-mobile-event-meta{font-size:10px}
   body.admin-mobile{overflow:auto;padding-bottom:88px}
   body.admin-mobile .sidebar{top:auto;bottom:0;width:100%;height:78px;border-right:none;border-top:0.5px solid rgba(255,255,255,0.16);background:rgba(60,20,0,0.78);overflow-x:auto;overflow-y:hidden;flex-direction:row}
   body.admin-mobile .sb-logo,body.admin-mobile .sb-sec,body.admin-mobile .sb-bottom,body.admin-mobile #sbCoachView{display:none!important}
@@ -5004,7 +5043,7 @@ function openPurchaseModal(studentId=''){
   const payOptions=[{value:'微信',label:'微信'},{value:'支付宝',label:'支付宝'},{value:'现金',label:'现金'},{value:'转账',label:'转账'},{value:'其他',label:'其他'}];
   const studentOptions=students.map(s=>({value:s.id,label:`${s.name}${s.phone?` · ${s.phone}`:''}`}));
   const ownerOptions=[{value:'',label:'— 未分配 —'},...activeCoachNames().map(name=>({value:name,label:name}))];
-  const body=`<div class="tms-section-header" style="margin-top:0;">学员信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_studentId','选择学员',studentOptions,stu?.id||'',true)}</div></div><div class="tms-section-header">购买信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_packageId','选择课包',packages.filter(p=>p.status!=='inactive').map(p=>({value:p.id,label:`${p.name} · ¥${fmt(p.price)} · ${p.lessons||0}节`})), '', true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">主归属教练</label>${renderCourtDropdownHtml('pur_ownerCoach','主归属教练',ownerOptions,stu?.primaryCoach||'',true)}</div><div class="tms-form-item"><label class="tms-form-label">购买日期</label>${courtDateButtonHtml('pur_purchaseDate',today(),'购买日期')}</div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_amountPaid" type="number" value="0"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_payMethod','支付方式',payOptions,'微信',true)}</div><div class="tms-form-item full-width"><label class="tms-form-label">可上课教练</label><div class="choice-wrap">${purchaseAllowedCoachChecks([], 'pur-allowed-coach-cb')}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_notes"></textarea></div></div>`;
+  const body=`<div class="tms-section-header" style="margin-top:0;">学员信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_studentId','选择学员',studentOptions,stu?.id||'',true)}</div></div><div class="tms-section-header">购买信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_packageId','选择课包',packages.filter(p=>p.status!=='inactive').map(p=>({value:p.id,label:`${p.name} · ¥${fmt(p.price)} · ${p.lessons||0}节`})), '', true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">主归属教练</label>${renderCourtDropdownHtml('pur_ownerCoach','主归属教练',ownerOptions,stu?.primaryCoach||'',true)}</div><div class="tms-form-item"><label class="tms-form-label">购买日期</label>${courtDateButtonHtml('pur_purchaseDate',today(),'购买日期')}</div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_amountPaid" type="number" value="0"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_payMethod','支付方式',payOptions,'微信',true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">可上课教练</label><div class="choice-wrap purchase-coach-wrap">${purchaseAllowedCoachChecks([], 'pur-allowed-coach-cb')}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_notes"></textarea></div></div>`;
   const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" onclick="savePurchase()">保存</button>`;
   setCourtModalFrame('课包购买',body,footer,'modal-wide');
   fillPurchasePackageMeta();
@@ -5028,9 +5067,9 @@ function openPurchaseEditModal(id){
   const studentOptions=students.map(s=>({value:s.id,label:`${s.name}${s.phone?` · ${s.phone}`:''}`}));
   const payOptions=[{value:'微信',label:'微信'},{value:'支付宝',label:'支付宝'},{value:'现金',label:'现金'},{value:'转账',label:'转账'},{value:'其他',label:'其他'}];
   const ownerOptions=[{value:'',label:'— 未分配 —'},...activeCoachNames().map(name=>({value:name,label:name}))];
-  const body=`${locked?'<div class="tms-audit-note" style="margin-bottom:18px">该购买记录已有课时消耗，只能修改备注。</div>':''}<div class="tms-section-header" style="margin-top:0;">购买信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_edit_studentId','选择学员',studentOptions,p.studentId,true)}</div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_edit_packageId','选择课包',packages.filter(pkg=>pkg.status!=='inactive'||pkg.id===p.packageId).map(pkg=>({value:pkg.id,label:`${pkg.name} · ¥${fmt(pkg.price)} · ${pkg.lessons||0}节${pkg.status==='inactive'?' · 已停用':''}`})),p.packageId,true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">主归属教练</label>${renderCourtDropdownHtml('pur_edit_ownerCoach','主归属教练',ownerOptions,p.ownerCoach||'',true)}</div><div class="tms-form-item"><label class="tms-form-label">购买日期</label>${courtDateButtonHtml('pur_edit_purchaseDate',p.purchaseDate||today(),'购买日期')}</div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_edit_amountPaid" type="number" value="${parseFloat(p.amountPaid)||0}"${locked?' readonly':''}></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_edit_payMethod','支付方式',payOptions,p.payMethod||'微信',true)}</div><div class="tms-form-item full-width"><label class="tms-form-label">可上课教练</label><div class="choice-wrap">${purchaseAllowedCoachChecks(p.allowedCoaches, 'pur-edit-allowed-coach-cb')}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_edit_notes">${esc(p.notes||'')}</textarea></div></div>`;
+  const body=`${locked?'<div class="tms-audit-note" style="margin-bottom:18px">该购买记录已有课时消耗，只能修改备注。</div>':''}<div class="tms-section-header" style="margin-top:0;">购买信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_edit_studentId','选择学员',studentOptions,p.studentId,true)}</div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_edit_packageId','选择课包',packages.filter(pkg=>pkg.status!=='inactive'||pkg.id===p.packageId).map(pkg=>({value:pkg.id,label:`${pkg.name} · ¥${fmt(pkg.price)} · ${pkg.lessons||0}节${pkg.status==='inactive'?' · 已停用':''}`})),p.packageId,true)}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">主归属教练</label>${renderCourtDropdownHtml('pur_edit_ownerCoach','主归属教练',ownerOptions,p.ownerCoach||'',true)}</div><div class="tms-form-item"><label class="tms-form-label">购买日期</label>${courtDateButtonHtml('pur_edit_purchaseDate',p.purchaseDate||today(),'购买日期')}</div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_edit_amountPaid" type="number" value="${parseFloat(p.amountPaid)||0}"${locked?' readonly':''}></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_edit_payMethod','支付方式',payOptions,p.payMethod||'微信',true)}</div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">可上课教练</label><div class="choice-wrap purchase-coach-wrap">${purchaseAllowedCoachChecks(p.allowedCoaches, 'pur-edit-allowed-coach-cb')}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_edit_notes">${esc(p.notes||'')}</textarea></div></div>`;
   const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" onclick="savePurchaseEdit('${p.id}')">保存</button>`;
-  setCourtModalFrame('编辑购买记录',body,footer,'modal-tight');
+  setCourtModalFrame('编辑购买记录',body,footer,'modal-wide');
   if(locked){
     ['pur_edit_studentId_dropdown','pur_edit_packageId_dropdown','pur_edit_payMethod_dropdown','pur_edit_ownerCoach_dropdown'].forEach(id=>{
       const el=document.getElementById(id);
@@ -5432,6 +5471,7 @@ function renderMySchedule(){
   const cn2=getMyCoachName();
   const week=getWeekDates(myWeekOffset);
   const todayStr=today();
+  const now=shanghaiNow();
   const WDNAMES=['周一','周二','周三','周四','周五','周六','周日'];
   const allMine=billableSchedules().filter(s=>coachName(s.coach)===cn2);
   const m1=week[0],m2=week[6];
@@ -5462,11 +5502,25 @@ function renderMySchedule(){
   document.getElementById('myWeekGrid').innerHTML=html;
   const mobile=document.getElementById('myScheduleMobileList');
   if(mobile){
-    mobile.innerHTML=week.map((d,i)=>{
+    const mobileHourHeight=56;
+    const timelineHeight=(endH-startH)*mobileHourHeight;
+    const timeRail=`<div class="coach-mobile-time-rail"><div class="coach-mobile-time-head"></div>${Array.from({length:endH-startH},(_,idx)=>`<div class="coach-mobile-time-label">${String(startH+idx).padStart(2,'0')}:00</div>`).join('')}</div>`;
+    const dayColumns=week.map((d,i)=>{
       const ds=d.toISOString().slice(0,10);
       const rows=allMine.filter(s=>s.startTime.slice(0,10)===ds).sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
-      return `<div class="coach-mobile-day"><div class="coach-mobile-dayhead"><div class="coach-mobile-daytitle">${WDNAMES[i]}</div><div class="coach-mobile-daydate">${ds}</div></div>${rows.length?rows.map(s=>`<div class="coach-mobile-card" onclick="openScheduleDetail('${s.id}')"><div class="coach-mobile-main"><div class="coach-mobile-name">${esc(myScheduleBlockTitle(s))}</div><div class="coach-mobile-time">${s.startTime.slice(11,16)}</div></div><div class="coach-mobile-meta">${esc(scheduleCourseType(s))} · ${cn(s.campus)} ${esc(s.venue)||'—'}<br>反馈：${scheduleFeedbackLabel(s)} · ${scheduleAbsentText(s)}</div></div>`).join(''):'<div class="coach-mobile-empty">当天暂无课程</div>'}</div>`;
+      const isToday=ds===todayStr;
+      const nowLine=isToday&&now.getHours()>=startH&&now.getHours()<endH?`<div class="coach-mobile-now-line" style="top:${((now.getHours()-startH)*60+now.getMinutes())/60*mobileHourHeight}px"><span class="coach-mobile-now-dot"></span></div>`:'';
+      const events=rows.map(s=>{
+        const startMinutes=(parseInt(s.startTime.slice(11,13),10)-startH)*60+parseInt(s.startTime.slice(14,16),10);
+        const topPx=startMinutes/60*mobileHourHeight;
+        const heightPx=Math.max((scheduleDurMin(s)/60)*mobileHourHeight,70);
+        const cc=coachOpsCourseTypeTagClass(scheduleCourseType(s));
+        return `<div class="coach-mobile-event ${cc}" style="top:${topPx}px;height:${heightPx}px" onclick="openScheduleDetail('${s.id}')"><div class="coach-mobile-event-time">${s.startTime.slice(11,16)}${s.endTime?' - '+s.endTime.slice(11,16):''}</div><div class="coach-mobile-event-title">${esc(myScheduleBlockTitle(s))}</div><div class="coach-mobile-event-meta">${esc(scheduleCourseType(s))}<br>${cn(s.campus)} ${esc(s.venue)||'-'}<br>反馈：${scheduleFeedbackLabel(s)} · ${scheduleAbsentText(s)}</div></div>`;
+      }).join('');
+      const emptyTip=rows.length?'':'<div class="coach-mobile-day-empty-tip">当天暂无课程</div>';
+      return `<div class="coach-mobile-day-column${isToday?' today':''}"><div class="coach-mobile-day-head"><strong>${WDNAMES[i]}</strong><span>${ds}</span></div><div class="coach-mobile-day-body" style="height:${timelineHeight}px">${nowLine}${emptyTip}${events}</div></div>`;
     }).join('');
+    mobile.innerHTML=`<div class="coach-mobile-week-timeline">${timeRail}<div class="coach-mobile-day-columns">${dayColumns}</div></div>`;
   }
 }
 function myStudentLessonCount(stu,coach){

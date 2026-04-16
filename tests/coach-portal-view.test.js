@@ -135,6 +135,12 @@ assert.match(
 
 assert.match(
   html,
+  /coach-mobile-week-timeline[\s\S]*coach-mobile-time-rail[\s\S]*coach-mobile-day-column/,
+  'coach mobile schedule should provide an ios-like timeline with a left time rail and day columns'
+);
+
+assert.match(
+  html,
   /id="myStudentMobileList"[^>]*coach-mobile-list[\s\S]*id="myClassMobileList"[^>]*coach-mobile-list/,
   'coach my students and my classes should provide dedicated mobile card lists'
 );
@@ -161,6 +167,12 @@ assert.match(
   fnBody('renderMyClasses'),
   /myClassMobileList/,
   'coach my classes renderer should fill the mobile list container'
+);
+
+assert.match(
+  fnBody('renderMySchedule'),
+  /coach-mobile-time-rail[\s\S]*coach-mobile-day-column[\s\S]*coach-mobile-week-timeline/,
+  'coach mobile schedule renderer should build the timeline calendar shell instead of stacked summary cards'
 );
 
 assert.match(
