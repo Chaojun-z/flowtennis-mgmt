@@ -37,7 +37,7 @@ function priceDurationText(row){
   return row.durationMinutes?`${row.durationMinutes}分钟`:'—';
 }
 function priceAmountText(row){
-  if(row.type==='venue_rate')return `¥${fmt(Number(row.unitPrice)||0)}/小时`;
+  if(row.type==='venue_rate')return `¥${fmt(Number(row.unitPrice)||0)}`;
   return `¥${fmt(Number(row.salePrice)||0)}`;
 }
 function syncPriceFilterOptions(){

@@ -1,5 +1,14 @@
 const assert = require('assert');
 const { html, appSource } = require('./helpers/read-index-bundle');
+function fnBody(name){
+  const start = appSource.indexOf(`function ${name}(`);
+  assert.notStrictEqual(start, -1, `${name} should exist`);
+  const nextFunction = appSource.indexOf('\nfunction ', start + 1);
+  const nextAsync = appSource.indexOf('\nasync function ', start + 1);
+  const candidates = [nextFunction, nextAsync].filter(i => i !== -1);
+  const next = candidates.length ? Math.min(...candidates) : -1;
+  return appSource.slice(start, next === -1 ? appSource.length : next);
+}
 
 assert.match(html, /goPage\('prices',this\)[\s\S]*?价格管理/, 'sidebar should expose price management page');
 assert.match(html, /id="page-prices"/, 'price management page section should exist');
@@ -24,6 +33,8 @@ assert.match(appSource, /function priceDurationText\(/, 'price page should expos
 assert.match(appSource, /function priceChannelText\(/, 'price page should expose a dedicated channel renderer');
 assert.match(appSource, /function priceNameText\(/, 'price page should expose a dedicated name renderer');
 assert.match(appSource, /function priceVenueSpaceTypeText\(/, 'price page should expose a dedicated venue space type renderer');
+assert.match(appSource, /function priceAmountText\(/, 'price page should expose a dedicated amount renderer');
+assert.doesNotMatch(fnBody('priceAmountText'), /\/小时/, 'price page should not render hourly suffix in amount text');
 assert.match(appSource, /青少年1v1私教体验课/, 'default Mabao products should use the updated 1v1 youth trial name');
 assert.match(appSource, /1小时/, 'default Mabao products should keep fixed one-hour durations as text');
 assert.match(appSource, /1-2小时/, 'default Mabao products should support range durations as text');
