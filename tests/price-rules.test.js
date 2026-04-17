@@ -24,6 +24,7 @@ assert.deepStrictEqual(
     id: 'price-1',
     type: 'venue_rate',
     campus: 'mabao',
+    venueSpaceType: '室内',
     dateType: '工作日',
     startTime: '16:00',
     endTime: '20:00',
@@ -48,6 +49,24 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(
   rules.normalizePricePlan(
     {
+      type: 'venue_rate',
+      campus: 'guowang',
+      venueSpaceType: '室外',
+      dateType: '工作日',
+      startTime: '08:00',
+      endTime: '10:00',
+      unitPrice: '180'
+    },
+    'price-1b',
+    '2026-04-18T00:00:00.000Z'
+  ).venueSpaceType,
+  '室外',
+  'venue price plan should preserve indoor or outdoor type'
+);
+
+assert.deepStrictEqual(
+  rules.normalizePricePlan(
+    {
       type: 'channel_product',
       channel: '大众点评',
       productName: '黄金时段 场地预定 1H',
@@ -64,6 +83,7 @@ assert.deepStrictEqual(
     id: 'price-2',
     type: 'channel_product',
     campus: '',
+    venueSpaceType: '',
     dateType: '',
     startTime: '',
     endTime: '',
@@ -103,6 +123,7 @@ assert.deepStrictEqual(
     id: 'price-3',
     type: 'channel_product',
     campus: '',
+    venueSpaceType: '',
     dateType: '',
     startTime: '',
     endTime: '',
@@ -137,12 +158,12 @@ assert.throws(
 );
 
 const mabaoVenuePrices = [
-  { id: 'weekday-early', type: 'venue_rate', campus: 'mabao', dateType: '工作日', startTime: '06:00', endTime: '08:00', unitPrice: 100, status: 'active' },
-  { id: 'weekday-day', type: 'venue_rate', campus: 'mabao', dateType: '工作日', startTime: '08:00', endTime: '16:00', unitPrice: 140, status: 'active' },
-  { id: 'weekday-prime', type: 'venue_rate', campus: 'mabao', dateType: '工作日', startTime: '16:00', endTime: '20:00', unitPrice: 220, status: 'active' },
-  { id: 'weekday-night', type: 'venue_rate', campus: 'mabao', dateType: '工作日', startTime: '20:00', endTime: '22:00', unitPrice: 180, status: 'active' },
-  { id: 'weekend-early', type: 'venue_rate', campus: 'mabao', dateType: '周末节假日', startTime: '06:00', endTime: '08:00', unitPrice: 100, status: 'active' },
-  { id: 'weekend-day', type: 'venue_rate', campus: 'mabao', dateType: '周末节假日', startTime: '08:00', endTime: '22:00', unitPrice: 220, status: 'active' }
+  { id: 'weekday-early', type: 'venue_rate', campus: 'mabao', venueSpaceType: '室内', dateType: '工作日', startTime: '06:00', endTime: '08:00', unitPrice: 100, status: 'active' },
+  { id: 'weekday-day', type: 'venue_rate', campus: 'mabao', venueSpaceType: '室内', dateType: '工作日', startTime: '08:00', endTime: '16:00', unitPrice: 140, status: 'active' },
+  { id: 'weekday-prime', type: 'venue_rate', campus: 'mabao', venueSpaceType: '室内', dateType: '工作日', startTime: '16:00', endTime: '20:00', unitPrice: 220, status: 'active' },
+  { id: 'weekday-night', type: 'venue_rate', campus: 'mabao', venueSpaceType: '室内', dateType: '工作日', startTime: '20:00', endTime: '22:00', unitPrice: 180, status: 'active' },
+  { id: 'weekend-early', type: 'venue_rate', campus: 'mabao', venueSpaceType: '室内', dateType: '周末节假日', startTime: '06:00', endTime: '08:00', unitPrice: 100, status: 'active' },
+  { id: 'weekend-day', type: 'venue_rate', campus: 'mabao', venueSpaceType: '室内', dateType: '周末节假日', startTime: '08:00', endTime: '22:00', unitPrice: 220, status: 'active' }
 ];
 
 assert.deepStrictEqual(

@@ -16,14 +16,18 @@ assert.match(html, /导入默认马坡价格/, 'price page should expose default
 assert.match(html, /新增价格/, 'price page should expose one generic create button');
 assert.match(html, /tms-btn-ghost" onclick="importDefaultMabaoPrices/, 'price import button should match student page secondary action style');
 assert.match(html, /tms-btn-primary" onclick="openPriceModal/, 'price create button should match student page primary action style');
-assert.match(html, /日期类型[\s\S]*?商品类型[\s\S]*?关联业务[\s\S]*?时间段[\s\S]*?时长/, 'price table should split date type, product type, business type, time band and duration');
+assert.match(html, /渠道[\s\S]*?名称[\s\S]*?场地类型[\s\S]*?日期类型[\s\S]*?商品类型[\s\S]*?关联业务[\s\S]*?时间段[\s\S]*?时长/, 'price table should split channel, name, venue type, date type, product type, business type, time band and duration');
 assert.match(html, /price-table/, 'price table should use compact page-specific table sizing');
 assert.match(appSource, /function importDefaultMabaoPrices/, 'price page script should import default Mabao prices');
 assert.match(appSource, /function priceTimeBandText\(/, 'price page should expose a dedicated time-band renderer');
 assert.match(appSource, /function priceDurationText\(/, 'price page should expose a dedicated duration renderer');
+assert.match(appSource, /function priceChannelText\(/, 'price page should expose a dedicated channel renderer');
+assert.match(appSource, /function priceNameText\(/, 'price page should expose a dedicated name renderer');
+assert.match(appSource, /function priceVenueSpaceTypeText\(/, 'price page should expose a dedicated venue space type renderer');
 assert.match(appSource, /青少年1v1私教体验课/, 'default Mabao products should use the updated 1v1 youth trial name');
 assert.match(appSource, /1小时/, 'default Mabao products should keep fixed one-hour durations as text');
 assert.match(appSource, /1-2小时/, 'default Mabao products should support range durations as text');
 assert.match(appSource, /新客福利 约球双打局 2H/, 'default Mabao products should keep the updated 2H product');
+assert.match(appSource, /venueSpaceType:\s*'室内'/, 'default Mabao venue prices should default to indoor');
 
 console.log('price page view tests passed');

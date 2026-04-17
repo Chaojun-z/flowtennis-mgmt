@@ -1055,7 +1055,7 @@ function defaultMabaoPricePlans(){
     ['工作日','20:00','22:00',180],
     ['周末节假日','06:00','08:00',100],
     ['周末节假日','08:00','22:00',220]
-  ].map(([dateType,startTime,endTime,unitPrice])=>({type:'venue_rate',campus:'mabao',dateType,startTime,endTime,unitPrice,status:'active',notes:'默认马坡场地价'}));
+  ].map(([dateType,startTime,endTime,unitPrice])=>({type:'venue_rate',campus:'mabao',venueSpaceType:'室内',dateType,startTime,endTime,unitPrice,status:'active',notes:'默认马坡场地价'}));
   const products=[
     ['青少年1v1私教体验课','体验课','lesson','1小时',60,199],
     ['成人1v1私教体验课','体验课','lesson','1小时',60,239],
@@ -1084,6 +1084,7 @@ function assertPricePlanInput(plan){
   if(!['venue_rate','channel_product'].includes(type))throw new Error('请选择价格类型');
   if(type==='venue_rate'){
     if(!String(plan.campus||'').trim())throw new Error('请选择校区');
+    if(!String(plan.venueSpaceType||'').trim())throw new Error('请选择场地类型');
     if(!String(plan.dateType||'').trim())throw new Error('请选择日期类型');
     const start=clockMin(plan.startTime),end=clockMin(plan.endTime);
     if(!Number.isFinite(start)||!Number.isFinite(end))throw new Error('请填写有效时间段');
@@ -1105,6 +1106,7 @@ function normalizePricePlan(input={},id=uuidv4(),now=new Date().toISOString(),ol
     id,
     type,
     campus:String(input.campus??old?.campus??'').trim(),
+    venueSpaceType:String(input.venueSpaceType??old?.venueSpaceType??'室内').trim()||'室内',
     dateType:String(input.dateType??old?.dateType??'').trim(),
     startTime:String(input.startTime??old?.startTime??'').trim(),
     endTime:String(input.endTime??old?.endTime??'').trim(),
@@ -1134,6 +1136,7 @@ function normalizePricePlan(input={},id=uuidv4(),now=new Date().toISOString(),ol
   }
   if(base.type==='channel_product'){
     base.campus='';
+    base.venueSpaceType='';
     base.dateType='';
     base.startTime='';
     base.endTime='';
