@@ -25,6 +25,9 @@ assert.match(fnBody('drawFeedbackPoster'), /网球兄弟/, 'feedback poster shou
 assert.match(fnBody('openFeedbackPosterModal'), /blueGreenDiagonal/, 'feedback poster modal should default to the first Gemini template');
 assert.match(source, /function drawFeedbackPoster\(/, 'feedback poster should draw fixed templates with canvas');
 assert.match(source, /function openFeedbackPosterModal\(/, 'feedback poster should expose a modal entry');
+assert.match(source, /function downloadFeedbackPoster\(/, 'feedback poster should expose a direct download action');
+assert.match(fnBody('openFeedbackPosterModal'), /下载图片[\s\S]*分享图片/, 'feedback poster modal should separate local download from system share');
+assert.match(fnBody('shareFeedbackPoster'), /AbortError/, 'cancelled share should not be treated as a generation failure');
 assert.match(fnBody('openFeedbackModal'), /生成海报/, 'saved feedback modal should show a poster entry');
 assert.match(fnBody('openFeedbackModal'), /trialFieldsHtml/, 'trial conversion fields should be conditional');
 assert.doesNotMatch(fnBody('openFeedbackModal'), /复制给学员/, 'feedback modal should not keep copy action after poster entry exists');

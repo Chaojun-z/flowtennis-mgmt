@@ -444,18 +444,36 @@ function openFeedbackPosterModal(feedbackId,scheduleId){
   if(!s||!fb){toast('找不到反馈记录','error');return;}
   feedbackPosterState={scheduleId:s.id,feedbackId:fb.id,templateKey:'blueGreenDiagonal',data:feedbackPosterData(s,fb)};
   const buttons=Object.entries(FEEDBACK_POSTER_TEMPLATES).map(([key,t])=>`<button class="poster-template-btn${key==='blueGreenDiagonal'?' active':''}" data-poster-template="${key}" onclick="renderFeedbackPosterPreview('${key}')">${esc(t.name)}</button>`).join('');
-  const body=`<div class="poster-mobile-shell"><div class="poster-template-row">${buttons}</div><canvas id="feedbackPosterCanvas" class="feedback-poster-canvas" width="750" height="1334"></canvas><img id="feedbackPosterImage" class="feedback-poster-image" alt="课后反馈海报"><div class="poster-save-tip">手机不支持直接分享时，请长按图片保存。</div></div>`;
-  const footer=`<button class="tms-btn tms-btn-default" onclick="openFeedbackModal('${s.id}')">返回反馈</button><button class="tms-btn tms-btn-primary" id="posterShareBtn" onclick="shareFeedbackPoster()">分享/保存</button>`;
+  const body=`<div class="poster-mobile-shell"><div class="poster-template-row">${buttons}</div><canvas id="feedbackPosterCanvas" class="feedback-poster-canvas" width="750" height="1334"></canvas><img id="feedbackPosterImage" class="feedback-poster-image" alt="课后反馈海报"><div class="poster-save-tip">电脑点“下载图片”会保存 PNG；手机若没有下载入口，请长按海报图片保存。</div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="openFeedbackModal('${s.id}')">返回反馈</button><button class="tms-btn tms-btn-default" id="posterDownloadBtn" onclick="downloadFeedbackPoster()">下载图片</button><button class="tms-btn tms-btn-primary" id="posterShareBtn" onclick="shareFeedbackPoster()">分享图片</button>`;
   setCourtModalFrame('生成课后海报',body,footer,'modal-tight');
   requestAnimationFrame(()=>renderFeedbackPosterPreview('blueGreenDiagonal'));
 }
 function feedbackPosterBlob(canvas){
   return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('图片生成失败')),'image/png'));
 }
+async function downloadFeedbackPoster(){
+  const canvas=document.getElementById('feedbackPosterCanvas');
+  if(!canvas||!feedbackPosterState)return;
+  const btn=document.getElementById('posterDownloadBtn');if(btn){btn.disabled=true;btn.textContent='生成中…';}
+  try{
+    const blob=await feedbackPosterBlob(canvas);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=feedbackPosterFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('已生成下载；手机浏览器如未保存，请长按海报图片保存','success');
+  }catch(e){toast('下载失败：'+e.message,'error');}
+  finally{if(btn){btn.disabled=false;btn.textContent='下载图片';}}
+}
 async function shareFeedbackPoster(){
   const canvas=document.getElementById('feedbackPosterCanvas');
   if(!canvas||!feedbackPosterState)return;
-  const btn=document.getElementById('posterShareBtn');if(btn){btn.disabled=true;btn.textContent='生成中…';}
+  const btn=document.getElementById('posterShareBtn');if(btn){btn.disabled=true;btn.textContent='准备中…';}
   try{
     const blob=await feedbackPosterBlob(canvas);
     const file=window.File?new File([blob],feedbackPosterFilename(),{type:'image/png'}):null;
@@ -463,11 +481,13 @@ async function shareFeedbackPoster(){
       await navigator.share({files:[file],title:'网球兄弟课后反馈'});
       toast('已打开分享','success');
     }else{
-      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=feedbackPosterFilename();a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-      toast('如果手机没有下载，请长按图片保存','warn');
+      toast('当前浏览器不支持系统分享，请点“下载图片”或长按海报保存','warn');
     }
-  }catch(e){toast('生成失败：'+e.message,'error');}
-  finally{if(btn){btn.disabled=false;btn.textContent='分享/保存';}}
+  }catch(e){
+    if(e?.name==='AbortError'||/cancel/i.test(e?.message||'')){toast('已取消分享','warn');}
+    else toast('分享失败：'+e.message,'error');
+  }
+  finally{if(btn){btn.disabled=false;btn.textContent='分享图片';}}
 }
 function openFeedbackModal(scheduleId){
   const s=schedules.find(x=>x.id===scheduleId);if(!s){toast('找不到排课记录','error');return;}
