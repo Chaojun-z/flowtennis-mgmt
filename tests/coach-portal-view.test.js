@@ -46,8 +46,8 @@ assert.match(
 
 assert.match(
   source,
-  /本周课程[\s\S]*?今日待处理[\s\S]*?本周待反馈[\s\S]*?体验课待判断/,
-  'coach workbench should show four priority cards'
+  /本月课时[\s\S]*?本周课时[\s\S]*?今天课时[\s\S]*?本月反馈[\s\S]*?未反馈[\s\S]*?本月体验课转化率/,
+  'coach workbench should show the six manager-facing summary cards'
 );
 
 assert.match(
@@ -106,7 +106,7 @@ assert.match(
 
 assert.match(
   source,
-  /推荐产品[\s\S]*?转化意愿[\s\S]*?是否需要运营跟进/,
+  /推荐产品[\s\S]*?转化意愿[\s\S]*?是否需要跟进/,
   'course detail should show trial conversion summary fields'
 );
 
