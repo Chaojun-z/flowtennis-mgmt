@@ -11,19 +11,19 @@ let modalCleanupTimer=null;
 let lastDataSyncAt=0,isSyncingAll=false,dataRequestVersion=0;
 let loadedDatasets=new Set();
 const PAGE_DATA_REQUIREMENTS={
-  students:['campuses','students','courts','membershipAccounts','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products'],
+  students:[],
   classes:['campuses','students','products','classes','schedule','coaches'],
-  plans:['campuses','students','classes','plans','products','schedule','courts','entitlements','coaches'],
+  plans:[],
   schedule:['campuses','students','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products'],
   coachops:['campuses','students','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products'],
   products:['products','classes','plans'],
-  packages:['packages','products','coaches','campuses'],
-  purchases:['purchases','packages','products','students','entitlements'],
+  packages:[],
+  purchases:[],
   entitlements:['entitlements','students'],
   coaches:['coaches'],
   'admin-users':[],
-  courts:['campuses','students','courts','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','coaches','pricePlans'],
-  memberships:['campuses','students','courts','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','coaches'],
+  courts:[],
+  memberships:[],
   'membership-orders':['campuses','students','courts','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','coaches'],
   'membership-ledger':['campuses','students','courts','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','coaches'],
   'membership-plans':['membershipPlans','membershipOrders','campuses','coaches'],
@@ -33,6 +33,14 @@ const PAGE_DATA_REQUIREMENTS={
   myschedule:['campuses','students','classes','schedule','feedbacks'],
   mystudents:['campuses','students','classes','schedule','feedbacks','entitlements'],
   myclasses:['students','classes','products']
+};
+const PAGE_DATA_BACKGROUND_REQUIREMENTS={
+  students:['campuses','students','courts','classes','schedule','feedbacks','products'],
+  plans:['campuses','students','classes','plans','products','schedule','courts','entitlements'],
+  packages:['packages','products'],
+  purchases:['purchases','packages','students','entitlements'],
+  courts:['campuses','students','courts','membershipAccounts','coaches','pricePlans'],
+  memberships:['campuses','students','courts','membershipAccounts','coaches']
 };
 const DATASET_LOADERS={
   courts:()=>apiCall('GET','/courts'),
@@ -80,13 +88,34 @@ function setDatasetValue(name,data){
 function requiredDatasetsForPage(pg){
   return PAGE_DATA_REQUIREMENTS[pg]||[];
 }
-async function ensurePageDatasets(pg,{force=false}={}){
-  const names=requiredDatasetsForPage(pg).filter(name=>force||!loadedDatasets.has(name));
-  if(!names.length)return;
-  const results=await Promise.all(names.map(name=>DATASET_LOADERS[name]().then(data=>[name,data])));
+function backgroundDatasetsForPage(pg){
+  return PAGE_DATA_BACKGROUND_REQUIREMENTS[pg]||[];
+}
+async function ensureDatasetsByName(names=[],{force=false}={}){
+  const pending=(names||[]).filter(name=>force||!loadedDatasets.has(name));
+  if(!pending.length)return;
+  const results=await Promise.all(pending.map(name=>DATASET_LOADERS[name]().then(data=>[name,data])));
   results.forEach(([name,data])=>setDatasetValue(name,data));
   CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});
   lastDataSyncAt=Date.now();
+}
+async function ensurePageDatasets(pg,{force=false}={}){
+  const names=requiredDatasetsForPage(pg);
+  if(!names.length)return;
+  await ensureDatasetsByName(names,{force});
+}
+async function loadPageBackgroundDatasets(pg,requestVersion,{force=false}={}){
+  const names=backgroundDatasetsForPage(pg);
+  if(!names.length)return;
+  try{
+    await ensureDatasetsByName(names,{force});
+    if(requestVersion!==dataRequestVersion)return;
+    buildCampusTabs();
+    renderAll();
+  }catch(e){
+    if(requestVersion!==dataRequestVersion)return;
+    console.warn('deferred page data load failed',pg,e);
+  }
 }
 function clearLoadedData(){
   courts=[];students=[];products=[];packages=[];purchases=[];entitlements=[];entitlementLedger=[];
@@ -147,6 +176,7 @@ async function loadPageDataAndRender(pg,{quiet=false,force=false}={}){
     if(requestVersion!==dataRequestVersion)return;
     buildCampusTabs();
     renderAll();
+    loadPageBackgroundDatasets(pg,requestVersion,{force});
   }catch(e){
     if(requestVersion!==dataRequestVersion)return;
     if(String(e.message||'').includes('Token')||String(e.message||'').includes('登录')){doLogout();return;}
