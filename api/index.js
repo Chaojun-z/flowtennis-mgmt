@@ -1023,6 +1023,7 @@ async function init(){
     }
     await ensureCoachBindings();
   }
+  await syncDefaultPricePlans().catch(err=>console.error('[api-bootstrap] sync default price plans failed',err));
   inited=true;
   prewarmHotScanCache().catch(err=>console.error('[api-timing] prewarm hot tables failed',err));
   console.log(`[api-timing] init cold start ${Date.now()-startedAt}ms`);
@@ -1046,6 +1047,38 @@ function normalizeMoney(value){
   const n=parseFloat(String(value??'').replace(/,/g,''));
   return Number.isFinite(n)?n:0;
 }
+function defaultMabaoPricePlans(){
+  const venue=[
+    ['工作日','06:00','08:00',100],
+    ['工作日','08:00','16:00',140],
+    ['工作日','16:00','20:00',220],
+    ['工作日','20:00','22:00',180],
+    ['周末节假日','06:00','08:00',100],
+    ['周末节假日','08:00','22:00',220]
+  ].map(([dateType,startTime,endTime,unitPrice])=>({type:'venue_rate',campus:'mabao',dateType,startTime,endTime,unitPrice,status:'active',notes:'默认马坡场地价'}));
+  const products=[
+    ['青少年1v1私教体验课','体验课','lesson','1小时',60,199],
+    ['成人1v1私教体验课','体验课','lesson','1小时',60,239],
+    ['青少年1v4小班课体验课','小班课','lesson','1-2小时',0,99],
+    ['成人1v4小班课体验课','小班课','lesson','1-2小时',0,129],
+    ['王牌专项：2.5~3.0多球实战特训','体验课','lesson','1-2小时',0,200],
+    ['发接发与实战练习','体验课','lesson','1-2小时',0,260],
+    ['削球实战训练','体验课','lesson','1-2小时',0,260],
+    ['截击入门训练','体验课','lesson','1-2小时',0,260],
+    ['疯狂多球训练','体验课','lesson','1-2小时',0,260],
+    ['新客福利 约球双打局 2H','订场券','court','',0,70],
+    ['晚场福利 场地预定 1H','订场券','court','1小时',60,180],
+    ['黄金时段 场地预定 1H','订场券','court','1小时',60,220],
+    ['实力之选 网球陪打 1H','订场券','court','1小时',60,100],
+    ['闲时特惠 场地预定 1H','订场券','court','1小时',60,140],
+    ['刷球时刻 网球发球机畅打 1H','订场券','court','1小时',60,60],
+    ['晨练 场地预定 30min','订场券','court','30min',30,50]
+  ].map(([productName,productType,businessType,durationLabel,durationMinutes,salePrice])=>({type:'channel_product',channel:'大众点评',productName,productType,businessType,durationLabel,durationMinutes,salePrice,status:'active',notes:'默认大众点评商品价'}));
+  return [...venue,...products];
+}
+function normalizeDefaultPriceName(name){
+  return String(name||'').replace(/[：:\s]/g,'').replace(/体验课$/,'体验').trim();
+}
 function assertPricePlanInput(plan){
   const type=String(plan?.type||'').trim();
   if(!['venue_rate','channel_product'].includes(type))throw new Error('请选择价格类型');
@@ -1062,7 +1095,7 @@ function assertPricePlanInput(plan){
     if(!String(plan.productName||'').trim())throw new Error('请填写渠道商品名称');
     if(!String(plan.productType||'').trim())throw new Error('请选择商品类型');
     if(!String(plan.businessType||'').trim())throw new Error('请选择关联业务');
-    if(String(plan.businessType||'').trim()==='court'&&(parseInt(plan.durationMinutes)||0)<=0)throw new Error('订场券请填写时长');
+    if(String(plan.businessType||'').trim()==='court'&&(parseInt(plan.durationMinutes)||0)<=0&&!String(plan.durationLabel||'').trim())throw new Error('订场券请填写时长');
     if(normalizeMoney(plan.salePrice)<=0)throw new Error('渠道商品售价必须大于 0');
   }
 }
@@ -1081,6 +1114,7 @@ function normalizePricePlan(input={},id=uuidv4(),now=new Date().toISOString(),ol
     productType:String(input.productType??old?.productType??'').trim(),
     businessType:String(input.businessType??old?.businessType??'').trim(),
     durationMinutes:parseInt(input.durationMinutes??old?.durationMinutes)||0,
+    durationLabel:String(input.durationLabel??old?.durationLabel??'').trim(),
     salePrice:normalizeMoney(input.salePrice??old?.salePrice),
     status:String(input.status??old?.status??'active').trim()||'active',
     effectiveFrom:String(input.effectiveFrom??old?.effectiveFrom??'').trim(),
@@ -1095,6 +1129,7 @@ function normalizePricePlan(input={},id=uuidv4(),now=new Date().toISOString(),ol
     base.productType='';
     base.businessType='';
     base.durationMinutes=0;
+    base.durationLabel='';
     base.salePrice=0;
   }
   if(base.type==='channel_product'){
@@ -1106,6 +1141,20 @@ function normalizePricePlan(input={},id=uuidv4(),now=new Date().toISOString(),ol
   }
   assertPricePlanInput(base);
   return base;
+}
+async function syncDefaultPricePlans(){
+  const existing=await scan(T_PRICE_PLANS).catch(()=>[]);
+  const now=new Date().toISOString();
+  for(const row of defaultMabaoPricePlans()){
+    const same=existing.find(p=>{
+      if(p.type!==row.type)return false;
+      if(row.type==='venue_rate')return p.campus===row.campus&&p.dateType===row.dateType&&p.startTime===row.startTime&&p.endTime===row.endTime;
+      return p.channel===row.channel&&normalizeDefaultPriceName(p.productName)===normalizeDefaultPriceName(row.productName);
+    });
+    const normalized=normalizePricePlan(row,same?.id||uuidv4(),now,same||null);
+    await put(T_PRICE_PLANS,normalized.id,normalized);
+    if(!same)existing.push(normalized);
+  }
 }
 function priceDateType(date){
   const d=new Date(`${dateKey(date)}T00:00:00`);

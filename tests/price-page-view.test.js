@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { appSource: html } = require('./helpers/read-index-bundle');
+const { html, appSource } = require('./helpers/read-index-bundle');
 
 assert.match(html, /goPage\('prices',this\)[\s\S]*?价格管理/, 'sidebar should expose price management page');
 assert.match(html, /id="page-prices"/, 'price management page section should exist');
@@ -8,16 +8,22 @@ assert.doesNotMatch(html, /id="priceVenueTbody"/, 'price page should not render 
 assert.doesNotMatch(html, /id="priceChannelTbody"/, 'price page should not render a separate channel table');
 assert.match(html, /id="priceTypeFilterHost"/, 'price page should expose a type filter dropdown host');
 assert.match(html, /id="priceProductTypeFilterHost"/, 'price page should expose a product type filter dropdown host');
-assert.match(html, /function renderPrices/, 'price page script should expose renderPrices');
-assert.match(html, /function syncPriceFilterOptions/, 'price page script should sync the type filter dropdown');
-assert.match(html, /function openPriceModal/, 'price page script should expose openPriceModal');
-assert.match(html, /function savePricePlan/, 'price page script should expose savePricePlan');
+assert.match(appSource, /function renderPrices/, 'price page script should expose renderPrices');
+assert.match(appSource, /function syncPriceFilterOptions/, 'price page script should sync the type filter dropdown');
+assert.match(appSource, /function openPriceModal/, 'price page script should expose openPriceModal');
+assert.match(appSource, /function savePricePlan/, 'price page script should expose savePricePlan');
 assert.match(html, /导入默认马坡价格/, 'price page should expose default Mabao price import');
 assert.match(html, /新增价格/, 'price page should expose one generic create button');
 assert.match(html, /tms-btn-ghost" onclick="importDefaultMabaoPrices/, 'price import button should match student page secondary action style');
 assert.match(html, /tms-btn-primary" onclick="openPriceModal/, 'price create button should match student page primary action style');
-assert.match(html, /日期类型[\s\S]*?商品类型[\s\S]*?关联业务[\s\S]*?时长/, 'price table should split date type, product type, business type and duration');
+assert.match(html, /日期类型[\s\S]*?商品类型[\s\S]*?关联业务[\s\S]*?时间段[\s\S]*?时长/, 'price table should split date type, product type, business type, time band and duration');
 assert.match(html, /price-table/, 'price table should use compact page-specific table sizing');
-assert.match(html, /function importDefaultMabaoPrices/, 'price page script should import default Mabao prices');
+assert.match(appSource, /function importDefaultMabaoPrices/, 'price page script should import default Mabao prices');
+assert.match(appSource, /function priceTimeBandText\(/, 'price page should expose a dedicated time-band renderer');
+assert.match(appSource, /function priceDurationText\(/, 'price page should expose a dedicated duration renderer');
+assert.match(appSource, /青少年1v1私教体验课/, 'default Mabao products should use the updated 1v1 youth trial name');
+assert.match(appSource, /1小时/, 'default Mabao products should keep fixed one-hour durations as text');
+assert.match(appSource, /1-2小时/, 'default Mabao products should support range durations as text');
+assert.match(appSource, /新客福利 约球双打局 2H/, 'default Mabao products should keep the updated 2H product');
 
 console.log('price page view tests passed');

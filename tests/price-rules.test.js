@@ -33,6 +33,7 @@ assert.deepStrictEqual(
     productType: '',
     businessType: '',
     durationMinutes: 0,
+    durationLabel: '',
     salePrice: 0,
     status: 'active',
     effectiveFrom: '',
@@ -72,6 +73,7 @@ assert.deepStrictEqual(
     productType: '订场券',
     businessType: 'court',
     durationMinutes: 60,
+    durationLabel: '',
     salePrice: 220,
     status: 'inactive',
     effectiveFrom: '',
@@ -81,6 +83,45 @@ assert.deepStrictEqual(
     updatedAt: '2026-04-18T00:00:00.000Z'
   },
   'channel product price plan should normalize product fields'
+);
+
+assert.deepStrictEqual(
+  rules.normalizePricePlan(
+    {
+      type: 'channel_product',
+      channel: '大众点评',
+      productName: '发接发与实战练习',
+      productType: '体验课',
+      businessType: 'lesson',
+      durationLabel: '1-2小时',
+      salePrice: '260'
+    },
+    'price-3',
+    '2026-04-18T00:00:00.000Z'
+  ),
+  {
+    id: 'price-3',
+    type: 'channel_product',
+    campus: '',
+    dateType: '',
+    startTime: '',
+    endTime: '',
+    unitPrice: 0,
+    channel: '大众点评',
+    productName: '发接发与实战练习',
+    productType: '体验课',
+    businessType: 'lesson',
+    durationMinutes: 0,
+    durationLabel: '1-2小时',
+    salePrice: 260,
+    status: 'active',
+    effectiveFrom: '',
+    effectiveTo: '',
+    notes: '',
+    createdAt: '2026-04-18T00:00:00.000Z',
+    updatedAt: '2026-04-18T00:00:00.000Z'
+  },
+  'channel product price plan should preserve text duration labels'
 );
 
 assert.throws(
