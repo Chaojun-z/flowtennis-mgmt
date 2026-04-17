@@ -554,6 +554,14 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 #page-workbench .coach-wb-action.is-warning{color:#FFFFFF;border-color:#8C4A32;background:#8C4A32}
 #page-workbench .coach-wb-action.is-warning:hover{background:#733621;border-color:#733621}
 .workbench-empty{background:#FCFAF7;border:1px dashed #E3D6C8;border-radius:18px;padding:28px 20px;text-align:center;font-size:13px;color:#8C7B6E}
+#page-workbench .coach-wb-day-section{margin-bottom:18px}
+#page-workbench .coach-wb-day-section.is-past{opacity:.72}
+#page-workbench .coach-wb-day-label{font-size:13px;font-weight:700;color:rgba(255,255,255,0.88);margin-bottom:10px;padding:4px 6px;display:flex;align-items:center;gap:8px}
+#page-workbench .coach-wb-day-label::before{content:"";display:block;width:4px;height:14px;background:#DF895E;border-radius:2px;flex-shrink:0}
+#page-workbench .coach-wb-day-section.is-today .coach-wb-day-label{color:#FFFFFF;font-size:14px}
+#page-workbench .coach-wb-day-section.is-today .coach-wb-day-label::before{background:#FFFFFF;box-shadow:0 0 8px rgba(255,255,255,.8)}
+#page-workbench .coach-wb-alert.is-alert-warn{background-color:#FDF3EA;color:#9B512C}
+#page-workbench .coach-wb-alert.is-alert-note{background-color:#F5F0EB;color:#4A3C32;font-weight:400}
 #page-mystudents .tms-table,#page-myclasses .tms-table{table-layout:fixed;width:100%;min-width:0}
 #page-mystudents .tms-text-remark,#page-myclasses .tms-text-remark{min-width:0;max-width:none}
 #page-mystudents th,#page-mystudents td,#page-myclasses th,#page-myclasses td{padding-top:10px;padding-bottom:10px}

@@ -30,7 +30,7 @@ const PAGE_DATA_REQUIREMENTS={
   campusmgr:['campuses'],
   workbench:['campuses','students','classes','schedule','feedbacks'],
   myschedule:['campuses','students','classes','schedule','feedbacks'],
-  mystudents:['campuses','students','classes','schedule','feedbacks','entitlements','purchases'],
+  mystudents:['campuses','students','classes','schedule','feedbacks','entitlements'],
   myclasses:['students','classes','products']
 };
 const DATASET_LOADERS={
