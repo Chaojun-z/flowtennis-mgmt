@@ -568,7 +568,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 #page-myclasses .prog-wrap{min-width:0}
 #page-myclasses .prog-track{width:48px}
 #page-myclasses .prog-txt{font-size:11px}
-.coach-mobile-only{display:none}
+.coach-mobile-only{display:none!important}
 .coach-mobile-list{display:flex;flex-direction:column;gap:12px}
 .coach-mobile-day{background:var(--card-f);border:var(--borf);border-radius:16px;padding:14px;box-shadow:var(--shm)}
 .coach-mobile-dayhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
@@ -753,7 +753,7 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
   body.coach-mobile .week-nav button{padding:10px 8px}
   body.coach-mobile .week-nav button:last-child{grid-column:1/-1;margin-left:0}
   body.coach-mobile .week-grid,body.coach-mobile .desktop-only{display:none!important}
-  body.coach-mobile .coach-mobile-only{display:block}
+  body.coach-mobile .coach-mobile-only{display:block!important}
   body.coach-mobile .today-card{padding:12px 13px}
   body.coach-mobile .today-card-grid{grid-template-columns:1fr}
   body.coach-mobile .today-card-actions{flex-direction:column}
