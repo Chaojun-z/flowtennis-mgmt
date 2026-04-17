@@ -23,8 +23,8 @@ assert.match(fnBody('scheduleSaveConfirmText'), /确认截止/, 'schedule save c
 assert.match(fnBody('saveSchedule'), /buildRepeatScheduleSeeds\(/, 'saving schedules should fan out repeat seeds when enabled');
 assert.match(fnBody('openScheduleDetail'), /确认规则/, 'schedule detail should show the applied confirm rule');
 assert.match(source, /const FEEDBACK_POSTER_TEMPLATES\s*=/, 'feedback poster should define fixed template configs');
-assert.match(source, /blueGreenDiagonal[\s\S]*minimalDarkGreen[\s\S]*flatPopBlue[\s\S]*retroCourt[\s\S]*blueprintBlue[\s\S]*dynamicSmash[\s\S]*minimalRacket[\s\S]*activeGreen/, 'feedback poster should expose the selected Gemini template styles');
-assert.doesNotMatch(source, /粉蓝笔刷|专业白\(拍网\)/, 'feedback poster should remove the rejected poster styles');
+assert.match(source, /blueGreenDiagonal[\s\S]*minimalDarkGreen[\s\S]*retroCourt[\s\S]*blueprintBlue[\s\S]*minimalRacket[\s\S]*activeGreen/, 'feedback poster should expose the selected Gemini template styles');
+assert.doesNotMatch(source, /粉蓝笔刷|专业白\(拍网\)|深蓝撞色|波普斜切/, 'feedback poster should remove the rejected poster styles');
 assert.match(fnBody('drawFeedbackPoster'), /网球兄弟/, 'feedback poster should use the local brand name');
 assert.match(fnBody('openFeedbackPosterModal'), /blueGreenDiagonal/, 'feedback poster modal should default to the first Gemini template');
 assert.match(source, /function drawFeedbackPoster\(/, 'feedback poster should draw fixed templates with canvas');
