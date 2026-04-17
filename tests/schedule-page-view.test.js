@@ -19,5 +19,15 @@ assert.match(fnBody('openScheduleModal'), /确认规则/, 'schedule modal should
 assert.match(fnBody('scheduleSaveConfirmText'), /确认截止/, 'schedule save confirm copy should show the confirm deadline');
 assert.match(fnBody('saveSchedule'), /buildRepeatScheduleSeeds\(/, 'saving schedules should fan out repeat seeds when enabled');
 assert.match(fnBody('openScheduleDetail'), /确认规则/, 'schedule detail should show the applied confirm rule');
+assert.match(source, /const FEEDBACK_POSTER_TEMPLATES\s*=/, 'feedback poster should define fixed template configs');
+assert.match(source, /blueGreenDiagonal[\s\S]*minimalDarkGreen[\s\S]*neonBrush[\s\S]*flatPopBlue[\s\S]*retroCourt[\s\S]*blueprintBlue[\s\S]*dynamicSmash[\s\S]*minimalRacket[\s\S]*proWhite[\s\S]*activeGreen/, 'feedback poster should expose ten Gemini template styles');
+assert.match(fnBody('drawFeedbackPoster'), /网球兄弟/, 'feedback poster should use the local brand name');
+assert.match(fnBody('openFeedbackPosterModal'), /blueGreenDiagonal/, 'feedback poster modal should default to the first Gemini template');
+assert.match(source, /function drawFeedbackPoster\(/, 'feedback poster should draw fixed templates with canvas');
+assert.match(source, /function openFeedbackPosterModal\(/, 'feedback poster should expose a modal entry');
+assert.match(fnBody('openFeedbackModal'), /生成海报/, 'saved feedback modal should show a poster entry');
+assert.match(fnBody('openFeedbackModal'), /trialFieldsHtml/, 'trial conversion fields should be conditional');
+assert.doesNotMatch(fnBody('openFeedbackModal'), /复制给学员/, 'feedback modal should not keep copy action after poster entry exists');
+assert.doesNotMatch(fnBody('saveFeedback'), /openFeedbackPosterModal\(/, 'saving feedback should not force coach into poster generation');
 
 console.log('schedule page view tests passed');
