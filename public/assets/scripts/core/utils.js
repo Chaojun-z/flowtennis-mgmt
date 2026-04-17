@@ -922,8 +922,9 @@ function courtFinanceLocal(c){
   const t={balance:0,totalDeposit:0,spentAmount:0,receivedAmount:0,storedValueSpent:0,directPaidSpent:0};
   hist.forEach(h=>{
     const amount=parseFloat(h.amount)||0,bonus=parseFloat(h.bonusAmount)||0;
+    const isInternal=String(h.category||'').includes('内部占用');
     if(h.type==='充值'){t.totalDeposit+=amount;t.receivedAmount+=amount;t.balance+=amount+bonus;}
-    else if(h.type==='消费'){t.spentAmount+=amount;if(h.payMethod==='储值扣款'){t.storedValueSpent+=amount;t.balance-=amount;}else{t.directPaidSpent+=amount;t.receivedAmount+=amount;}}
+    else if(h.type==='消费'){if(isInternal)return;t.spentAmount+=amount;if(h.payMethod==='储值扣款'){t.storedValueSpent+=amount;t.balance-=amount;}else{t.directPaidSpent+=amount;t.receivedAmount+=amount;}}
     else if(h.type==='退款'){if(h.payMethod==='储值退款')t.balance-=amount;t.receivedAmount-=amount;}
     else if(h.type==='冲正'){t.spentAmount-=amount;if(h.payMethod==='储值扣款'){t.storedValueSpent-=amount;t.balance+=amount;}else{t.directPaidSpent-=amount;t.receivedAmount-=amount;}}
   });
@@ -986,6 +987,7 @@ function courtFinanceConfirmText(h,studentId){
   if(h.type==='充值')return `确认充值 ¥${fmt(h.amount)}？这笔钱会进入当前余额，以后订场可选择“储值扣款”使用${target}。`;
   if(h.type==='退款')return h.payMethod==='储值退款'?`确认从储值余额退款 ¥${fmt(h.amount)}？会减少当前余额${target}。`:`确认退款 ¥${fmt(h.amount)}？用于记录已退回的单次付款${target}。`;
   if(h.type==='冲正')return h.payMethod==='储值扣款'?`确认冲正 ¥${fmt(h.amount)}？用于撤回一笔录错的储值扣款，余额会加回${target}。`:`确认冲正 ¥${fmt(h.amount)}？用于撤回一笔录错的单次支付消费${target}。`;
+  if(String(h.category||'').includes('内部占用'))return `确认记录内部占用？该记录只占用场地时间，不计入累计消费和累计实收${h.internalReason?`，原因：${h.internalReason}`:''}。`;
   if(h.payMethod==='储值扣款')return `确认用储值余额支付 ¥${fmt(h.amount)}？会从当前余额扣除${target}。`;
   return `确认记录单次支付 ¥${fmt(h.amount)}？适用于微信、支付宝、现金或转账现场收款${target}。`;
 }

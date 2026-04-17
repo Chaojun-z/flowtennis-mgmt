@@ -28,12 +28,13 @@ assert.match(source, /<table class="tms-table">[\s\S]*<th[^>]*>学员<\/th><th[^
 assert.match(source, /function studentPrimaryCoachText\(/, 'student list should render primary coach from the profile field');
 assert.match(source, /studentPrimaryCoachText\(s\)/, 'student list coach column should use the profile primary coach');
 assert.match(source, /未分配/, 'empty primary coach should display 未分配');
-assert.match(source, /const SOURCES=\[[^\]]*'孙老师'/, 'student source options should include 孙老师');
+assert.match(source, /const SOURCES=\['转介绍','小红书','大众点评','视频号','抖音','播客','孙老师','其他'\]/, 'student source options should keep the unified ops order');
 assert.match(source, /function renderCourtCellText[\s\S]*const muted=!raw\|\|raw==='-'\|\|raw==='—'\|\|raw==='未开卡'/, 'empty list values should always render with the muted dash style');
 assert.doesNotMatch(source, /<th>最后订场<\/th>/, 'student table should remove last-court as a primary list column in phase 2');
 assert.doesNotMatch(source, /<th>关联账户<\/th>/, 'student table should replace account wording with booking membership summary');
 assert.match(source, /function openStudentDetail\(/, 'student list should provide a dedicated view action');
 assert.match(source, /openStudentDetail\('[^']+'\)[\s\S]*openStudentModal\('[^']+'\)/, 'student row should prioritize view before edit');
+assert.match(source, /openStudentDetail\('[^']+'\)[\s\S]*openPurchaseModal\('[^']+'\)[\s\S]*openStudentModal\('[^']+'\)/, 'student row should expose a direct package purchase shortcut between view and edit');
 assert.match(source, /function studentTeachingInfoHtml\(/, 'student detail should render teaching info block');
 assert.match(source, /function studentOpsInfoHtml\(/, 'student detail should render operations info block');
 assert.match(source, /function studentConsumptionInfoHtml\(/, 'student detail should render consumption relation block');

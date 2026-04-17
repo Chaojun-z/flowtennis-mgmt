@@ -16,7 +16,7 @@ function venueOpts(sel){
 const COACHES_LIST=['朝珺','晓哲','Siren','吴教练','Rive','郭教练','代教练','Jack','李韬','孙老师','Zoe','刘朝'];
 function coachName(v){return String(v||'').trim()}
 function activeCoachNames(){const live=[...new Set(coaches.filter(c=>c.status==='active').map(c=>coachName(c.name)).filter(Boolean))];return live.length?live:COACHES_LIST;}
-const SOURCES=['大众点评','抖音','视频号','小红书','转介绍','孙老师','播客','其他'];
+const SOURCES=['转介绍','小红书','大众点评','视频号','抖音','播客','孙老师','其他'];
 const WEEKDAYS=['周一','周二','周三','周四','周五','周六','周日'];
 const PAGE_SIZE=15;
 const PRODUCT_TYPES=['私教课','体验课','训练营','大师课'];

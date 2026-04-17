@@ -94,6 +94,13 @@ assert.match(html, /function renderCourtFinanceFields\(/, 'court finance modal s
 assert.match(html, /function onCourtFinanceSceneChange\(/, 'court finance modal should update visible fields when scene changes');
 assert.match(html, /data-finance-field="booking"/, 'court booking-only fields should be scoped');
 assert.match(html, /data-finance-field="course"/, 'court course-only fields should be scoped');
+assert.match(html, /内部占用/, 'court finance modal should support internal occupancy records');
+assert.match(html, /领导打球[\s\S]*活动[\s\S]*测试教学[\s\S]*其他/, 'internal occupancy should provide reason options');
+assert.match(html, /data-finance-field="internal"/, 'court finance modal should scope internal-only fields');
+assert.match(fnBody('renderCourtFinanceFields'), /const isInternal=type==='消费'&&category==='内部占用';/, 'court finance field visibility should recognize internal occupancy');
+assert.match(fnBody('courtFinanceLocal'), /const isInternal=String\(h\.category\|\|''\)\.includes\('内部占用'\);/, 'court finance summary should detect internal occupancy rows');
+assert.match(fnBody('courtFinanceLocal'), /else if\(h\.type==='消费'\)\{if\(isInternal\)return;/, 'internal occupancy should not count as direct income or spending totals');
+assert.match(fnBody('courtFinanceConfirmText'), /内部占用/, 'court finance confirm copy should explain internal occupancy');
 assert.match(fnBody('runBatchDeleteCourts'), /隐藏/, 'batch delete result should explain hidden archived courts');
 assert.match(fnBody('renderCourts'), /class="tms-court-row-main"[\s\S]*class="tms-checkbox court-row-cb"/, 'court name cell should separate checkbox and name for easier text selection');
 assert.match(fnBody('renderCourts'), /\$\{esc\(courtDisplayName\(u\)\)\}/, 'court rows should render the display-name helper instead of raw names');
