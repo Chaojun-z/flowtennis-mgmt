@@ -46,20 +46,20 @@ assert.match(
 
 assert.match(
   source,
-  /今日课程[\s\S]*?即将开始[\s\S]*?待反馈[\s\S]*?体验课待判断/,
+  /本周课程[\s\S]*?今日待处理[\s\S]*?本周待反馈[\s\S]*?体验课待判断/,
   'coach workbench should show four priority cards'
 );
 
 assert.match(
   fnBody('renderWorkbench'),
-  /coach-wb-page-header[\s\S]*coach-wb-current-time[\s\S]*亟待处理[\s\S]*今日后续[\s\S]*已完成/,
-  'coach workbench should render the gemini-style grouped shell directly'
+  /coach-wb-page-header[\s\S]*本周课程待办[\s\S]*coach-wb-current-time[\s\S]*coach-wb-board/,
+  'coach workbench should render the weekly shell directly'
 );
 
 assert.match(
   fnBody('renderWorkbench'),
-  /今日全部课程（已上 \$\{counts\.completed\} \/ 共 \$\{todayRows\.length\} 节）/,
-  'coach workbench should expose dynamic daily progress text'
+  /本周课程待办（\$\{weekLabel\}）/,
+  'coach workbench should expose dynamic weekly progress text'
 );
 
 assert.match(
@@ -76,8 +76,8 @@ assert.match(
 
 assert.match(
   fnBody('renderWorkbench'),
-  /亟待处理[\s\S]*今日后续[\s\S]*已完成/,
-  'coach workbench should group cards into urgent, later, and done sections'
+  /coach-wb-day-section[\s\S]*coach-wb-day-label[\s\S]*coach-wb-grid/,
+  'coach workbench should group cards by week day'
 );
 
 assert.match(

@@ -283,13 +283,217 @@ function scheduleRemainingLessons(s){
   if(!cls)return '';
   return Math.max(0,(parseInt(cls.totalLessons)||0)-(parseInt(cls.usedLessons)||0));
 }
+const FEEDBACK_POSTER_TEMPLATES={
+  blueGreenDiagonal:{name:'蓝绿对角',type:'diagonalSplit',bg1:'#1F4287',bg2:'#278EA5',ink:'#FFFFFF',muted:'rgba(255,255,255,0.7)',accent:'#BCE84A',soft:'rgba(255,255,255,0.08)'},
+  minimalDarkGreen:{name:'极简墨绿',type:'cleanSilhouette',bg1:'#F4F6F8',bg2:'#F4F6F8',ink:'#143D30',muted:'#76948A',accent:'#8DC63F',soft:'#FFFFFF'},
+  retroCourt:{name:'对角球场',type:'split',bg1:'#1E3D33',bg2:'#B35432',ink:'#1E3D33',muted:'#6D827A',accent:'#B35432',soft:'#F9F8F6'},
+  blueprintBlue:{name:'线框蓝图',type:'wireframe',bg1:'#12355B',bg2:'#0D2744',ink:'#FFFFFF',muted:'rgba(255,255,255,0.6)',accent:'#D4F02E',soft:'rgba(0,0,0,0.3)'},
+  minimalRacket:{name:'极简白框',type:'minimal',bg1:'#2F74B4',bg2:'#2F74B4',ink:'#12355B',muted:'#82A9CE',accent:'#D4F02E',soft:'rgba(255,255,255,0.95)'},
+  activeGreen:{name:'活力绿(缝线)',type:'sport',bg1:'#064E3B',bg2:'#022C22',ink:'#F8FAFC',muted:'#6EE7B7',accent:'#10B981',soft:'rgba(255,255,255,0.08)'}
+};
+let feedbackPosterState=null;
+function feedbackPosterData(schedule,feedback){
+  return {
+    studentName:scheduleStudentSummary(schedule)||feedback?.studentName||'学员',
+    date:String(feedback?.startTime||schedule?.startTime||feedback?.createdAt||'').slice(0,10)||today(),
+    coach:feedback?.coach||schedule?.coach||'教练',
+    practicedToday:feedback?.practicedToday||feedback?.template?.focus||'—',
+    knowledgePoint:feedback?.knowledgePoint||'—',
+    nextTraining:feedback?.nextTraining||feedback?.nextAdvice||'—'
+  };
+}
+function posterRoundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+function posterDrawSpacedText(ctx,text,x,y,spacing){
+  let currentX=x;
+  Array.from(text||'').forEach(ch=>{ctx.fillText(ch,currentX,y);currentX+=ctx.measureText(ch).width+spacing;});
+}
+function posterTextLines(ctx,text,maxWidth,maxLines){
+  const lines=[];
+  String(text||'—').split('\n').forEach(part=>{
+    let line='';
+    Array.from(part||' ').forEach(ch=>{
+      const next=line+ch;
+      if(ctx.measureText(next).width>maxWidth&&line){lines.push(line);line=ch;}
+      else line=next;
+    });
+    lines.push(line);
+  });
+  if(lines.length>maxLines){
+    const kept=lines.slice(0,maxLines);
+    while(kept[kept.length-1]&&ctx.measureText(kept[kept.length-1]+'…').width>maxWidth)kept[kept.length-1]=kept[kept.length-1].slice(0,-1);
+    kept[kept.length-1]=(kept[kept.length-1]||'').replace(/[，。；、\s]*$/,'')+'…';
+    return kept;
+  }
+  return lines;
+}
+function posterDrawTextBlock(ctx,tpl,label,text,x,y,w,maxLines){
+  ctx.font='400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  const lines=posterTextLines(ctx,text,w,maxLines);
+  const paddingTop=32,paddingBottom=54,titleSpace=48,lineHeight=46;
+  const contentHeight=(lines.length>0?lines.length-1:0)*lineHeight;
+  const boxHeight=paddingTop+titleSpace+contentHeight+paddingBottom;
+  const boxY=y-paddingTop-24;
+  ctx.save();
+  if(tpl.type==='diagonalSplit'){
+    posterRoundRect(ctx,x-20,boxY,w+40,boxHeight,16);ctx.fillStyle=tpl.soft;ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=1.5;ctx.stroke();
+  }else if(tpl.type==='cleanSilhouette'){
+    ctx.shadowColor='rgba(20, 61, 48, 0.08)';ctx.shadowBlur=15;ctx.shadowOffsetY=8;posterRoundRect(ctx,x-20,boxY,w+40,boxHeight,16);ctx.fillStyle=tpl.soft;ctx.fill();ctx.shadowColor='transparent';ctx.strokeStyle='rgba(20, 61, 48, 0.1)';ctx.lineWidth=1;ctx.stroke();
+  }else if(tpl.type==='brushSplash'||tpl.type==='sport'){
+    ctx.save();posterRoundRect(ctx,x-20,boxY,w+40,boxHeight,12);ctx.fillStyle=tpl.soft;ctx.fill();ctx.clip();ctx.fillStyle=tpl.accent;ctx.fillRect(x-20,boxY,8,boxHeight);ctx.restore();
+  }else if(tpl.type==='flatPopBlue'){
+    ctx.shadowColor='#0A2E7A';ctx.shadowBlur=0;ctx.shadowOffsetX=6;ctx.shadowOffsetY=6;posterRoundRect(ctx,x-20,boxY,w+40,boxHeight,0);ctx.fillStyle=tpl.soft;ctx.fill();ctx.shadowColor='transparent';
+  }else if(tpl.type==='split'||tpl.type==='minimal'){
+    if(tpl.type==='split'){ctx.shadowColor='rgba(0,0,0,0.1)';ctx.shadowBlur=10;ctx.shadowOffsetY=4;}
+    posterRoundRect(ctx,x-30,boxY,w+60,boxHeight,16);ctx.fillStyle=tpl.soft;ctx.fill();ctx.shadowColor='transparent';
+  }else if(tpl.type==='wireframe'){
+    posterRoundRect(ctx,x-20,boxY,w+40,boxHeight,12);ctx.fillStyle=tpl.soft;ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=1;ctx.stroke();
+  }else if(tpl.type==='popart'){
+    ctx.fillStyle='#111111';posterRoundRect(ctx,x-12,boxY+8,w+40,boxHeight,6);ctx.fill();ctx.fillStyle=tpl.soft;posterRoundRect(ctx,x-20,boxY,w+40,boxHeight,6);ctx.fill();ctx.strokeStyle='#111111';ctx.lineWidth=4;ctx.stroke();
+  }else if(tpl.type==='magazine'){
+    ctx.fillStyle=tpl.ink;ctx.fillRect(x-24,y-22,4,boxHeight-paddingTop+4);
+  }
+  ctx.fillStyle=tpl.accent;
+  ctx.font='800 22px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText(label,x,y);
+  ctx.fillStyle=tpl.ink;
+  ctx.font='400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  lines.forEach((line,i)=>ctx.fillText(line,x,y+titleSpace+i*lineHeight));
+  ctx.restore();
+  return boxHeight+28;
+}
+function drawFeedbackPoster(canvas,data,templateKey='blueGreenDiagonal'){
+  const tpl=FEEDBACK_POSTER_TEMPLATES[templateKey]||FEEDBACK_POSTER_TEMPLATES.blueGreenDiagonal;
+  const ctx=canvas.getContext('2d');
+  canvas.width=750;canvas.height=1334;
+  const grad=ctx.createLinearGradient(0,0,0,1334);grad.addColorStop(0,tpl.bg1);grad.addColorStop(1,tpl.bg2);ctx.fillStyle=grad;ctx.fillRect(0,0,750,1334);
+  ctx.save();
+  if(tpl.type==='diagonalSplit'){
+    ctx.fillStyle=tpl.accent;ctx.beginPath();ctx.moveTo(0,950);ctx.lineTo(750,1100);ctx.lineTo(750,1334);ctx.lineTo(0,1334);ctx.fill();
+    ctx.strokeStyle='#4A8DB7';ctx.lineWidth=14;ctx.beginPath();ctx.ellipse(650,450,160,220,Math.PI/5,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(560,630);ctx.lineTo(460,830);ctx.stroke();
+    ctx.lineWidth=2;ctx.strokeStyle='rgba(74, 141, 183, 0.4)';for(let i=500;i<800;i+=25){ctx.beginPath();ctx.moveTo(i,200);ctx.lineTo(i-100,700);ctx.stroke();}
+  }else if(tpl.type==='cleanSilhouette'){
+    ctx.strokeStyle=tpl.ink;ctx.lineWidth=10;ctx.beginPath();ctx.ellipse(650,1150,200,260,-Math.PI/6,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(550,1350);ctx.lineTo(450,1550);ctx.stroke();
+    ctx.lineWidth=1.5;ctx.strokeStyle='rgba(20, 61, 48, 0.3)';for(let i=500;i<900;i+=20){ctx.beginPath();ctx.moveTo(i,900);ctx.lineTo(i-150,1400);ctx.stroke();}for(let i=900;i<1400;i+=20){ctx.beginPath();ctx.moveTo(400,i);ctx.lineTo(900,i-150);ctx.stroke();}
+    ctx.fillStyle=tpl.accent;ctx.beginPath();ctx.arc(150,1100,45,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#FFFFFF';ctx.lineWidth=3;ctx.beginPath();ctx.arc(120,1100,30,-Math.PI/3,Math.PI/3);ctx.stroke();
+  }else if(tpl.type==='brushSplash'){
+    ctx.lineCap='round';ctx.lineWidth=80;ctx.strokeStyle=tpl.accent;ctx.beginPath();ctx.moveTo(-50,180);ctx.quadraticCurveTo(300,300,500,80);ctx.stroke();ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.beginPath();ctx.moveTo(-30,80);ctx.quadraticCurveTo(350,200,600,-50);ctx.stroke();ctx.strokeStyle='#00A8CC';ctx.beginPath();ctx.moveTo(800,1200);ctx.quadraticCurveTo(500,1150,300,1350);ctx.stroke();
+    ctx.lineWidth=8;ctx.strokeStyle='#00A8CC';ctx.beginPath();ctx.ellipse(180,480,110,150,Math.PI/4,0,Math.PI*2);ctx.stroke();ctx.strokeStyle='#FF9D00';ctx.beginPath();ctx.ellipse(650,750,130,170,-Math.PI/6,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#A3D953';ctx.beginPath();ctx.arc(380,650,40,0,Math.PI*2);ctx.fill();
+  }else if(tpl.type==='flatPopBlue'){
+    ctx.fillStyle='#FFFFFF';ctx.fillRect(520,0,14,1334);ctx.fillRect(0,900,750,14);ctx.shadowColor='#0A2E7A';ctx.shadowBlur=0;ctx.shadowOffsetX=8;ctx.shadowOffsetY=8;ctx.fillStyle='#FFFFFF';ctx.beginPath();ctx.ellipse(640,1120,110,140,Math.PI/5,0,Math.PI*2);ctx.fill();ctx.fillRect(520,1220,30,150);ctx.fillStyle=tpl.accent;ctx.beginPath();ctx.arc(120,180,35,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(680,750,25,0,Math.PI*2);ctx.fill();ctx.shadowColor='transparent';
+  }else if(tpl.type==='split'){
+    ctx.fillStyle=tpl.bg2;ctx.beginPath();ctx.moveTo(0,1334);ctx.lineTo(750,1334);ctx.lineTo(750,450);ctx.lineTo(0,950);ctx.fill();ctx.strokeStyle='#FFFFFF';ctx.lineWidth=18;ctx.beginPath();ctx.moveTo(-50,983);ctx.lineTo(800,416);ctx.stroke();ctx.fillStyle='#D4F02E';ctx.beginPath();ctx.arc(580,430,70,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#FFFFFF';ctx.lineWidth=6;ctx.beginPath();ctx.arc(540,430,40,-Math.PI/2,Math.PI/2);ctx.stroke();
+  }else if(tpl.type==='wireframe'){
+    ctx.strokeStyle='rgba(255,255,255,0.1)';ctx.lineWidth=2;for(let i=0;i<750;i+=40){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,1334);ctx.stroke();}for(let i=0;i<1334;i+=40){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(750,i);ctx.stroke();}
+    ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=6;ctx.beginPath();ctx.ellipse(600,300,220,280,Math.PI*.1,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(500,560);ctx.lineTo(300,1000);ctx.stroke();ctx.beginPath();ctx.moveTo(560,580);ctx.lineTo(360,1030);ctx.stroke();ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=20;ctx.shadowOffsetX=10;ctx.shadowOffsetY=10;ctx.fillStyle=tpl.accent;ctx.beginPath();ctx.arc(480,380,50,0,Math.PI*2);ctx.fill();
+  }else if(tpl.type==='popart'){
+    ctx.fillStyle=tpl.accent;ctx.beginPath();ctx.moveTo(150,0);ctx.lineTo(750,0);ctx.lineTo(750,500);ctx.lineTo(0,1334);ctx.lineTo(0,800);ctx.fill();ctx.fillStyle='rgba(0,0,0,0.08)';ctx.font='900 240px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText('TENNIS',-20,220);ctx.fillText('WINNER',10,1280);
+  }else if(tpl.type==='minimal'){
+    ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.lineWidth=14;ctx.beginPath();ctx.ellipse(375,450,280,350,0,0,Math.PI*2);ctx.stroke();ctx.lineWidth=2;ctx.strokeStyle='rgba(255,255,255,0.3)';for(let i=120;i<650;i+=40){ctx.beginPath();ctx.moveTo(i,110);ctx.lineTo(i,790);ctx.stroke();}for(let i=120;i<800;i+=40){ctx.beginPath();ctx.moveTo(110,i);ctx.lineTo(640,i);ctx.stroke();}ctx.fillStyle=tpl.accent;ctx.beginPath();ctx.arc(375,200,55,0,Math.PI*2);ctx.fill();
+  }else if(tpl.type==='magazine'){
+    ctx.strokeStyle='rgba(0,0,0,0.02)';ctx.lineWidth=1;for(let i=0;i<750;i+=30){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,1334);ctx.stroke();}for(let i=0;i<1334;i+=30){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(750,i);ctx.stroke();}ctx.fillStyle='rgba(0,0,0,0.02)';ctx.font='900 180px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText('TENNIS',-10,220);ctx.fillText('REPORT',140,1260);
+  }else if(tpl.type==='sport'){
+    ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=14;ctx.beginPath();ctx.arc(750,1000,450,Math.PI,Math.PI*1.5);ctx.stroke();ctx.beginPath();ctx.arc(0,300,400,0,Math.PI*.5);ctx.stroke();
+  }
+  ctx.restore();
+  if(tpl.type==='popart'){ctx.fillStyle=tpl.muted;ctx.font='900 34px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';ctx.fillText('网球兄弟',64,94);}
+  if(tpl.type==='flatPopBlue'){ctx.save();ctx.shadowColor='#0A2E7A';ctx.shadowBlur=0;ctx.shadowOffsetX=5;ctx.shadowOffsetY=5;}
+  if(tpl.type==='cleanSilhouette')ctx.fillStyle=tpl.accent;
+  ctx.font='900 34px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';ctx.fillText('网球兄弟',60,90);
+  ctx.fillStyle=tpl.type==='wireframe'?tpl.soft:tpl.muted;ctx.font='600 20px -apple-system,BlinkMacSystemFont,sans-serif';posterDrawSpacedText(ctx,'TRAINING REPORT',60,125,2);
+  ctx.fillStyle=tpl.ink;ctx.font='900 68px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';ctx.fillText(data.studentName||'学员',60,240);
+  if(tpl.type==='flatPopBlue')ctx.restore();
+  ctx.fillStyle=tpl.type==='cleanSilhouette'?tpl.muted:tpl.accent;ctx.font='700 26px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(data.date||'',60,290);
+  if(!['sport','popart','flatPopBlue','diagonalSplit'].includes(tpl.type)){ctx.fillStyle=tpl.muted;ctx.globalAlpha=.3;ctx.fillRect(60,330,630,2);ctx.globalAlpha=1;}
+  let currentY=410;
+  const contentWidth=570;
+  currentY+=posterDrawTextBlock(ctx,tpl,'今天练习了',data.practicedToday,90,currentY,contentWidth,4);
+  currentY+=posterDrawTextBlock(ctx,tpl,'知识点',data.knowledgePoint,90,currentY,contentWidth,5);
+  posterDrawTextBlock(ctx,tpl,'下节课我们训练',data.nextTraining,90,currentY,contentWidth,4);
+  ctx.fillStyle=tpl.type==='wireframe'?tpl.soft:tpl.muted;ctx.font='500 24px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText('Coach',60,1220);
+  ctx.fillStyle=tpl.ink;ctx.font='900 36px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';ctx.fillText(data.coach||'教练',60,1265);
+  ctx.save();ctx.fillStyle=tpl.accent;
+  if(tpl.type==='sport'||tpl.type==='brushSplash'){ctx.beginPath();ctx.moveTo(630,1265);ctx.lineTo(690,1265);ctx.lineTo(670,1235);ctx.fill();}
+  else if(tpl.type==='magazine'){ctx.fillRect(640,1255,50,6);}
+  else if(tpl.type==='popart'||tpl.type==='flatPopBlue'){ctx.fillRect(650,1245,16,16);}
+  else{ctx.beginPath();ctx.arc(670,1255,10,0,Math.PI*2);ctx.fill();}
+  ctx.restore();
+}
+function feedbackPosterFilename(){
+  const d=feedbackPosterState?.data||{};
+  return `网球兄弟-${String(d.studentName||'学员').replace(/[\\/:*?"<>|]/g,'')}-${d.date||today()}.png`;
+}
+function renderFeedbackPosterPreview(templateKey){
+  if(!feedbackPosterState)return;
+  feedbackPosterState.templateKey=templateKey;
+  document.querySelectorAll('[data-poster-template]').forEach(btn=>btn.classList.toggle('active',btn.dataset.posterTemplate===templateKey));
+  const canvas=document.getElementById('feedbackPosterCanvas');
+  if(!canvas)return;
+  drawFeedbackPoster(canvas,feedbackPosterState.data,templateKey);
+  const img=document.getElementById('feedbackPosterImage');
+  if(img)img.src=canvas.toDataURL('image/png');
+}
+function openFeedbackPosterModal(feedbackId,scheduleId){
+  const s=schedules.find(x=>x.id===scheduleId);
+  const fb=feedbacks.find(x=>x.id===feedbackId)||scheduleFeedback(s);
+  if(!s||!fb){toast('找不到反馈记录','error');return;}
+  feedbackPosterState={scheduleId:s.id,feedbackId:fb.id,templateKey:'blueGreenDiagonal',data:feedbackPosterData(s,fb)};
+  const buttons=Object.entries(FEEDBACK_POSTER_TEMPLATES).map(([key,t])=>`<button class="poster-template-btn${key==='blueGreenDiagonal'?' active':''}" data-poster-template="${key}" onclick="renderFeedbackPosterPreview('${key}')">${esc(t.name)}</button>`).join('');
+  const body=`<div class="poster-mobile-shell"><div class="poster-template-row">${buttons}</div><canvas id="feedbackPosterCanvas" class="feedback-poster-canvas" width="750" height="1334"></canvas><img id="feedbackPosterImage" class="feedback-poster-image" alt="课后反馈海报"><div class="poster-save-tip">电脑点“下载图片”会保存 PNG；手机若没有下载入口，请长按海报图片保存。</div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="openFeedbackModal('${s.id}')">返回反馈</button><button class="tms-btn tms-btn-default" id="posterDownloadBtn" onclick="downloadFeedbackPoster()">下载图片</button><button class="tms-btn tms-btn-primary" id="posterShareBtn" onclick="shareFeedbackPoster()">分享图片</button>`;
+  setCourtModalFrame('生成课后海报',body,footer,'modal-tight');
+  requestAnimationFrame(()=>renderFeedbackPosterPreview('blueGreenDiagonal'));
+}
+function feedbackPosterBlob(canvas){
+  return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('图片生成失败')),'image/png'));
+}
+async function downloadFeedbackPoster(){
+  const canvas=document.getElementById('feedbackPosterCanvas');
+  if(!canvas||!feedbackPosterState)return;
+  const btn=document.getElementById('posterDownloadBtn');if(btn){btn.disabled=true;btn.textContent='生成中…';}
+  try{
+    const blob=await feedbackPosterBlob(canvas);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=feedbackPosterFilename();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('已生成下载；手机浏览器如未保存，请长按海报图片保存','success');
+  }catch(e){toast('下载失败：'+e.message,'error');}
+  finally{if(btn){btn.disabled=false;btn.textContent='下载图片';}}
+}
+async function shareFeedbackPoster(){
+  const canvas=document.getElementById('feedbackPosterCanvas');
+  if(!canvas||!feedbackPosterState)return;
+  const btn=document.getElementById('posterShareBtn');if(btn){btn.disabled=true;btn.textContent='准备中…';}
+  try{
+    const blob=await feedbackPosterBlob(canvas);
+    const file=window.File?new File([blob],feedbackPosterFilename(),{type:'image/png'}):null;
+    if(file&&navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'网球兄弟课后反馈'});
+      toast('已打开分享','success');
+    }else{
+      toast('当前浏览器不支持系统分享，请点“下载图片”或长按海报保存','warn');
+    }
+  }catch(e){
+    if(e?.name==='AbortError'||/cancel/i.test(e?.message||'')){toast('已取消分享','warn');}
+    else toast('分享失败：'+e.message,'error');
+  }
+  finally{if(btn){btn.disabled=false;btn.textContent='分享图片';}}
+}
 function openFeedbackModal(scheduleId){
   const s=schedules.find(x=>x.id===scheduleId);if(!s){toast('找不到排课记录','error');return;}
   const fb=scheduleFeedback(s)||{};
   const trial=scheduleIsTrial(s);
   editId=fb.id||null;
   document.getElementById('mTitle').textContent=fb.id?'编辑课后反馈':'课后反馈';
-  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">${fmtDt(s.startTime)} · ${esc(scheduleStudentSummary(s))} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''} · ${scheduleCourseType(s)}</div><div class="sec-ttl">反馈内容</div><div class="fgrid"><div class="fg full"><div class="flabel">今天练习了 *</div><textarea class="finput ftextarea" id="fb_practiced">${esc(fb.practicedToday||fb.template?.focus||fb.performance)}</textarea></div><div class="fg full"><div class="flabel">知识点（非必填）</div><textarea class="finput ftextarea" id="fb_knowledge">${esc(fb.knowledgePoint||fb.problems)}</textarea></div><div class="fg full"><div class="flabel">下节课我们训练 *</div><textarea class="finput ftextarea" id="fb_next_training">${esc(fb.nextTraining||fb.nextAdvice)}</textarea></div></div><div class="sec-ttl">体验课转化判断</div><div class="fgrid"><div class="fg"><div class="flabel">学员水平</div><select class="fselect" id="fb_player_level"><option value="">未判断</option><option value="零基础"${fb.playerLevel==='零基础'?' selected':''}>零基础</option><option value="初学"${fb.playerLevel==='初学'?' selected':''}>初学</option><option value="有基础"${fb.playerLevel==='有基础'?' selected':''}>有基础</option><option value="长期打球"${fb.playerLevel==='长期打球'?' selected':''}>长期打球</option></select></div><div class="fg"><div class="flabel">目标类型</div><select class="fselect" id="fb_goal_type"><option value="">未判断</option><option value="健身"${fb.goalType==='健身'?' selected':''}>健身</option><option value="入门"${fb.goalType==='入门'?' selected':''}>入门</option><option value="提升技术"${fb.goalType==='提升技术'?' selected':''}>提升技术</option><option value="社交"${fb.goalType==='社交'?' selected':''}>社交</option><option value="比赛"${fb.goalType==='比赛'?' selected':''}>比赛</option><option value="陪练"${fb.goalType==='陪练'?' selected':''}>陪练</option></select></div><div class="fg"><div class="flabel">经验背景</div><select class="fselect" id="fb_experience_background"><option value="">未判断</option><option value="无经验"${fb.experienceBackground==='无经验'?' selected':''}>无经验</option><option value="有少量体验课"${fb.experienceBackground==='有少量体验课'?' selected':''}>有少量体验课</option><option value="打球半年内"${fb.experienceBackground==='打球半年内'?' selected':''}>打球半年内</option><option value="长期打球"${fb.experienceBackground==='长期打球'?' selected':''}>长期打球</option></select></div><div class="fg"><div class="flabel">转化意愿</div><select class="fselect" id="fb_conversion_intent"><option value="">未判断</option><option value="高"${fb.conversionIntent==='高'?' selected':''}>高</option><option value="中"${fb.conversionIntent==='中'?' selected':''}>中</option><option value="低"${fb.conversionIntent==='低'?' selected':''}>低</option></select></div><div class="fg"><div class="flabel">推荐产品类型</div><select class="fselect" id="fb_recommended_product_type"><option value="">未推荐</option><option value="场地会员"${fb.recommendedProductType==='场地会员'?' selected':''}>场地会员</option><option value="私教课"${fb.recommendedProductType==='私教课'?' selected':''}>私教课</option><option value="体验课"${fb.recommendedProductType==='体验课'?' selected':''}>体验课</option><option value="训练营"${fb.recommendedProductType==='训练营'?' selected':''}>训练营</option><option value="大师课"${fb.recommendedProductType==='大师课'?' selected':''}>大师课</option><option value="继续观察"${fb.recommendedProductType==='继续观察'?' selected':''}>继续观察</option></select></div><div class="fg"><div class="flabel">是否需要运营跟进</div><select class="fselect" id="fb_need_ops_follow_up"><option value="否"${fb.needOpsFollowUp?'':' selected'}>否</option><option value="是"${fb.needOpsFollowUp?' selected':''}>是</option></select></div><div class="fg"><div class="flabel">跟进优先级</div><select class="fselect" id="fb_ops_follow_up_priority"><option value="">未设置</option><option value="高"${fb.opsFollowUpPriority==='高'?' selected':''}>高</option><option value="中"${fb.opsFollowUpPriority==='中'?' selected':''}>中</option><option value="低"${fb.opsFollowUpPriority==='低'?' selected':''}>低</option></select></div><div class="fg full"><div class="flabel">主要问题</div><textarea class="finput ftextarea" id="fb_main_issues">${esc(fb.mainIssues)}</textarea></div><div class="fg full"><div class="flabel">推荐原因</div><textarea class="finput ftextarea" id="fb_recommended_reason">${esc(fb.recommendedReason)}</textarea></div><div class="fg full"><div class="flabel">跟进建议</div><textarea class="finput ftextarea" id="fb_ops_follow_up_suggestion">${esc(fb.opsFollowUpSuggestion)}</textarea></div></div><div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button><button class="btn-sec" onclick="copyFeedbackDraft('${s.id}')">复制给学员</button><button class="btn-save" onclick="saveFeedback('${s.id}')">保存反馈</button></div>`;
+  const posterBtn=fb.id?`<button class="btn-sec" onclick="openFeedbackPosterModal('${fb.id}','${s.id}')">生成海报</button>`:'';
+  const trialFieldsHtml=trial?`<div class="sec-ttl">体验课转化判断</div><div class="fgrid"><div class="fg"><div class="flabel">学员水平</div><select class="fselect" id="fb_player_level"><option value="">未判断</option><option value="零基础"${fb.playerLevel==='零基础'?' selected':''}>零基础</option><option value="初学"${fb.playerLevel==='初学'?' selected':''}>初学</option><option value="有基础"${fb.playerLevel==='有基础'?' selected':''}>有基础</option><option value="长期打球"${fb.playerLevel==='长期打球'?' selected':''}>长期打球</option></select></div><div class="fg"><div class="flabel">转化意愿</div><select class="fselect" id="fb_conversion_intent"><option value="">未判断</option><option value="高"${fb.conversionIntent==='高'?' selected':''}>高</option><option value="中"${fb.conversionIntent==='中'?' selected':''}>中</option><option value="低"${fb.conversionIntent==='低'?' selected':''}>低</option></select></div><div class="fg"><div class="flabel">推荐产品类型</div><select class="fselect" id="fb_recommended_product_type"><option value="">未推荐</option><option value="场地会员"${fb.recommendedProductType==='场地会员'?' selected':''}>场地会员</option><option value="私教课"${fb.recommendedProductType==='私教课'?' selected':''}>私教课</option><option value="训练营"${fb.recommendedProductType==='训练营'?' selected':''}>训练营</option><option value="继续观察"${fb.recommendedProductType==='继续观察'?' selected':''}>继续观察</option></select></div><div class="fg"><div class="flabel">是否需要运营跟进</div><select class="fselect" id="fb_need_ops_follow_up"><option value="否"${fb.needOpsFollowUp?'':' selected'}>否</option><option value="是"${fb.needOpsFollowUp?' selected':''}>是</option></select></div></div>`:'';
+  document.getElementById('mBody').innerHTML=`<div style="background:rgba(217,119,6,0.08);border:0.5px solid rgba(217,119,6,0.2);border-radius:9px;padding:10px 13px;font-size:12px;color:var(--ts);margin-bottom:12px">${fmtDt(s.startTime)} · ${esc(scheduleStudentSummary(s))} · ${esc(s.coach)||'—'} · ${cn(s.campus)} ${esc(s.venue)||''} · ${scheduleCourseType(s)}</div><div class="sec-ttl">反馈内容</div><div class="fgrid"><div class="fg full"><div class="flabel">今天练习了 *</div><textarea class="finput ftextarea" id="fb_practiced">${esc(fb.practicedToday||fb.template?.focus||fb.performance)}</textarea></div><div class="fg full"><div class="flabel">知识点（非必填）</div><textarea class="finput ftextarea" id="fb_knowledge">${esc(fb.knowledgePoint||fb.problems)}</textarea></div><div class="fg full"><div class="flabel">下节课我们训练 *</div><textarea class="finput ftextarea" id="fb_next_training">${esc(fb.nextTraining||fb.nextAdvice)}</textarea></div></div>${trialFieldsHtml}<div class="mactions"><button class="btn-cancel" onclick="closeModal()">取消</button>${posterBtn}<button class="btn-save" onclick="saveFeedback('${s.id}')">保存反馈</button></div>`;
   document.getElementById('overlay').classList.add('open');
 }
 function feedbackDraftText(s){
@@ -316,11 +520,12 @@ async function saveFeedback(scheduleId){
   const practicedToday=document.getElementById('fb_practiced').value.trim();
   const nextTraining=document.getElementById('fb_next_training').value.trim();
   if(!practicedToday||!nextTraining){toast('请填写「今天练习了」和「下节课我们训练」','warn');btn.disabled=false;btn.textContent='保存反馈';return;}
-  const data={scheduleId:s.id,studentId:studentIds[0]||'',studentIds,studentName:s.studentName||'',coach:s.coach||'',startTime:s.startTime||'',campus:s.campus||'',venue:s.venue||'',lessonCount:s.lessonCount||0,isTrial:scheduleIsTrial(s),remainingLessons:scheduleRemainingLessons(s),practicedToday,knowledgePoint:document.getElementById('fb_knowledge').value.trim(),nextTraining,playerLevel:document.getElementById('fb_player_level')?.value||'',goalType:document.getElementById('fb_goal_type')?.value||'',experienceBackground:document.getElementById('fb_experience_background')?.value||'',mainIssues:document.getElementById('fb_main_issues')?.value.trim()||'',conversionIntent:document.getElementById('fb_conversion_intent')?.value||'',recommendedProductType:document.getElementById('fb_recommended_product_type')?.value||'',recommendedReason:document.getElementById('fb_recommended_reason')?.value.trim()||'',needOpsFollowUp:(document.getElementById('fb_need_ops_follow_up')?.value||'否')==='是',opsFollowUpPriority:document.getElementById('fb_ops_follow_up_priority')?.value||'',opsFollowUpSuggestion:document.getElementById('fb_ops_follow_up_suggestion')?.value.trim()||''};
+  const isTrial=scheduleIsTrial(s);
+  const data={scheduleId:s.id,studentId:studentIds[0]||'',studentIds,studentName:s.studentName||'',coach:s.coach||'',startTime:s.startTime||'',campus:s.campus||'',venue:s.venue||'',lessonCount:s.lessonCount||0,isTrial,remainingLessons:scheduleRemainingLessons(s),practicedToday,knowledgePoint:document.getElementById('fb_knowledge').value.trim(),nextTraining,playerLevel:isTrial?(document.getElementById('fb_player_level')?.value||''):'',goalType:'',experienceBackground:'',mainIssues:'',conversionIntent:isTrial?(document.getElementById('fb_conversion_intent')?.value||''):'',recommendedProductType:isTrial?(document.getElementById('fb_recommended_product_type')?.value||''):'',recommendedReason:'',needOpsFollowUp:isTrial&&((document.getElementById('fb_need_ops_follow_up')?.value||'否')==='是'),opsFollowUpPriority:'',opsFollowUpSuggestion:''};
   try{
     const saved=editId?await apiCall('PUT','/feedbacks/'+editId,data):await apiCall('POST','/feedbacks',data);
     const i=feedbacks.findIndex(f=>f.id===saved.id);if(i>=0)feedbacks[i]=saved;else feedbacks.unshift(saved);
-    closeModal();toast('反馈已保存 ✓','success');renderSchedule();renderCoachOps();renderWorkbench();renderMySchedule();renderMyStudents();
+    toast('反馈已保存 ✓','success');renderSchedule();renderCoachOps();renderWorkbench();renderMySchedule();renderMyStudents();openFeedbackModal(s.id);
   }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存反馈';}
 }
 function feedbackSummaryHtml(fb){
