@@ -12,6 +12,7 @@ const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'ALIBABA_CLOUD_ACCESS_KE
 const ENABLE_DEFAULT_USER_BOOTSTRAP = process.env.ENABLE_DEFAULT_USER_BOOTSTRAP === 'true';
 const ENABLE_TABLE_BOOTSTRAP = process.env.ENABLE_TABLE_BOOTSTRAP === 'true';
 const ENABLE_RUNTIME_TABLE_ENSURE = process.env.ENABLE_RUNTIME_TABLE_ENSURE === 'true';
+const ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP = process.env.ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP === 'true';
 
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
 const MEMBERSHIP_TABLES=[T_MEMBERSHIP_PLANS,T_MEMBERSHIP_ACCOUNTS,T_MEMBERSHIP_ORDERS,T_MEMBERSHIP_BENEFIT_LEDGER,T_MEMBERSHIP_ACCOUNT_EVENTS];
@@ -986,6 +987,7 @@ async function validateScheduleSave(nextRec,oldRec){
 }
 
 let inited=false;
+let defaultPricePlanSyncStarted=false;
 const DEFAULT_COACH_USERS=['baiyangj','chendand','yuekez','zhoux','sunmingy'];
 async function bootstrapDefaultUsers(){
   if(!ENABLE_DEFAULT_USER_BOOTSTRAP)return;
@@ -1023,8 +1025,13 @@ async function init(){
     }
     await ensureCoachBindings();
   }
-  await syncDefaultPricePlans().catch(err=>console.error('[api-bootstrap] sync default price plans failed',err));
   inited=true;
+  if(ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP){
+    await syncDefaultPricePlans().catch(err=>console.error('[api-bootstrap] sync default price plans failed',err));
+  }else if(!defaultPricePlanSyncStarted){
+    defaultPricePlanSyncStarted=true;
+    Promise.resolve().then(()=>syncDefaultPricePlans()).catch(err=>console.error('[api-bootstrap] sync default price plans failed',err));
+  }
   prewarmHotScanCache().catch(err=>console.error('[api-timing] prewarm hot tables failed',err));
   console.log(`[api-timing] init cold start ${Date.now()-startedAt}ms`);
 }
