@@ -1,5 +1,8 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const { appSource: source } = require('./helpers/read-index-bundle');
+const styles = fs.readFileSync(path.join(__dirname, '..', 'public', 'assets', 'styles', 'pages.css'), 'utf8');
 
 function fnBody(name){
   const start = source.indexOf(`function ${name}(`);
@@ -20,7 +23,8 @@ assert.match(fnBody('scheduleSaveConfirmText'), /确认截止/, 'schedule save c
 assert.match(fnBody('saveSchedule'), /buildRepeatScheduleSeeds\(/, 'saving schedules should fan out repeat seeds when enabled');
 assert.match(fnBody('openScheduleDetail'), /确认规则/, 'schedule detail should show the applied confirm rule');
 assert.match(source, /const FEEDBACK_POSTER_TEMPLATES\s*=/, 'feedback poster should define fixed template configs');
-assert.match(source, /blueGreenDiagonal[\s\S]*minimalDarkGreen[\s\S]*neonBrush[\s\S]*flatPopBlue[\s\S]*retroCourt[\s\S]*blueprintBlue[\s\S]*dynamicSmash[\s\S]*minimalRacket[\s\S]*proWhite[\s\S]*activeGreen/, 'feedback poster should expose ten Gemini template styles');
+assert.match(source, /blueGreenDiagonal[\s\S]*minimalDarkGreen[\s\S]*flatPopBlue[\s\S]*retroCourt[\s\S]*blueprintBlue[\s\S]*dynamicSmash[\s\S]*minimalRacket[\s\S]*activeGreen/, 'feedback poster should expose the selected Gemini template styles');
+assert.doesNotMatch(source, /粉蓝笔刷|专业白\(拍网\)/, 'feedback poster should remove the rejected poster styles');
 assert.match(fnBody('drawFeedbackPoster'), /网球兄弟/, 'feedback poster should use the local brand name');
 assert.match(fnBody('openFeedbackPosterModal'), /blueGreenDiagonal/, 'feedback poster modal should default to the first Gemini template');
 assert.match(source, /function drawFeedbackPoster\(/, 'feedback poster should draw fixed templates with canvas');
@@ -28,6 +32,7 @@ assert.match(source, /function openFeedbackPosterModal\(/, 'feedback poster shou
 assert.match(source, /function downloadFeedbackPoster\(/, 'feedback poster should expose a direct download action');
 assert.match(fnBody('openFeedbackPosterModal'), /下载图片[\s\S]*分享图片/, 'feedback poster modal should separate local download from system share');
 assert.match(fnBody('shareFeedbackPoster'), /AbortError/, 'cancelled share should not be treated as a generation failure');
+assert.match(styles, /::-webkit-scrollbar\{height:3px\}[\s\S]*max-height:58vh/, 'poster preview should fit the modal and use a thin horizontal scrollbar');
 assert.match(fnBody('openFeedbackModal'), /生成海报/, 'saved feedback modal should show a poster entry');
 assert.match(fnBody('openFeedbackModal'), /trialFieldsHtml/, 'trial conversion fields should be conditional');
 assert.doesNotMatch(fnBody('openFeedbackModal'), /复制给学员/, 'feedback modal should not keep copy action after poster entry exists');

@@ -286,13 +286,11 @@ function scheduleRemainingLessons(s){
 const FEEDBACK_POSTER_TEMPLATES={
   blueGreenDiagonal:{name:'蓝绿对角',type:'diagonalSplit',bg1:'#1F4287',bg2:'#278EA5',ink:'#FFFFFF',muted:'rgba(255,255,255,0.7)',accent:'#BCE84A',soft:'rgba(255,255,255,0.08)'},
   minimalDarkGreen:{name:'极简墨绿',type:'cleanSilhouette',bg1:'#F4F6F8',bg2:'#F4F6F8',ink:'#143D30',muted:'#76948A',accent:'#8DC63F',soft:'#FFFFFF'},
-  neonBrush:{name:'粉蓝笔刷',type:'brushSplash',bg1:'#11183B',bg2:'#11183B',ink:'#FFFFFF',muted:'#A0A5B5',accent:'#F93972',soft:'rgba(255,255,255,0.06)'},
   flatPopBlue:{name:'深蓝撞色',type:'flatPopBlue',bg1:'#1D5FD6',bg2:'#1D5FD6',ink:'#FFFFFF',muted:'#93B9F9',accent:'#C7F000',soft:'#1241A1'},
   retroCourt:{name:'对角球场',type:'split',bg1:'#1E3D33',bg2:'#B35432',ink:'#1E3D33',muted:'#6D827A',accent:'#B35432',soft:'#F9F8F6'},
   blueprintBlue:{name:'线框蓝图',type:'wireframe',bg1:'#12355B',bg2:'#0D2744',ink:'#FFFFFF',muted:'rgba(255,255,255,0.6)',accent:'#D4F02E',soft:'rgba(0,0,0,0.3)'},
   dynamicSmash:{name:'波普斜切',type:'popart',bg1:'#819873',bg2:'#819873',ink:'#111111',muted:'#444444',accent:'#C13E27',soft:'#FFFFFF'},
   minimalRacket:{name:'极简白框',type:'minimal',bg1:'#2F74B4',bg2:'#2F74B4',ink:'#12355B',muted:'#82A9CE',accent:'#D4F02E',soft:'rgba(255,255,255,0.95)'},
-  proWhite:{name:'专业白(拍网)',type:'magazine',bg1:'#FFFFFF',bg2:'#F8FAFC',ink:'#0F172A',muted:'#94A3B8',accent:'#000000',soft:'transparent'},
   activeGreen:{name:'活力绿(缝线)',type:'sport',bg1:'#064E3B',bg2:'#022C22',ink:'#F8FAFC',muted:'#6EE7B7',accent:'#10B981',soft:'rgba(255,255,255,0.08)'}
 };
 let feedbackPosterState=null;
