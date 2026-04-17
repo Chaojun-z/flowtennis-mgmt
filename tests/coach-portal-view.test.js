@@ -51,6 +51,18 @@ assert.match(
 );
 
 assert.match(
+  source,
+  /function workbenchMetricHelpHtml\([\s\S]*coach-wb-help-btn[\s\S]*本月已结束体验课中，后续已购买任意产品的学员占比/,
+  'coach workbench should expose a metric help trigger with the updated conversion-rate definition'
+);
+
+assert.match(
+  fnBody('workbenchTrialConvertedByPurchase'),
+  /purchases\.some\([\s\S]*purchaseDate\|\|p\.createdAt[\s\S]*studentId/,
+  'trial conversion rate should be derived from later package purchases instead of internal judgment fields'
+);
+
+assert.match(
   fnBody('renderWorkbench'),
   /coach-wb-page-header[\s\S]*本周课程待办[\s\S]*coach-wb-current-time[\s\S]*coach-wb-board/,
   'coach workbench should render the weekly shell directly'
