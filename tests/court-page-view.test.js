@@ -106,6 +106,9 @@ assert.match(fnBody('renderCourts'), /class="tms-court-row-main"[\s\S]*class="tm
 assert.match(fnBody('renderCourts'), /\$\{esc\(courtDisplayName\(u\)\)\}/, 'court rows should render the display-name helper instead of raw names');
 assert.doesNotMatch(fnBody('renderCourts'), /<label class="tms-checkbox-wrap"[\s\S]*\$\{esc\(u\.name\)\}/, 'court name text should no longer be wrapped by a clickable label');
 assert.match(html, /function openCourtFinanceModal[\s\S]*renderCourtDropdownHtml\('nrStudentId','关联学员'/, 'court finance modal should use a shorter linked-student label');
+assert.match(html, /function openCourtFinanceModal[\s\S]*renderCourtDropdownHtml\('nrCompanionCoach','陪打教练'/, 'court finance modal should allow selecting a companion coach for bookings');
+assert.match(html, /function saveCourtFinanceRecord[\s\S]*scheduleSource:'订场陪打'/, 'court booking with companion coach should generate a linked coach schedule source');
+assert.match(html, /function saveCourtFinanceRecord[\s\S]*courseType:'陪打'/, 'companion coach booking should create a companion schedule type');
 assert.match(fnBody('openCourtModal'), /openCourtMergeModal\('/, 'court edit modal should expose a merge entry for existing users');
 assert.match(html, /function openCourtMergeModal\(/, 'court page should expose a manual merge modal');
 assert.match(html, /function renderCourtMergeTargetOptions\(/, 'court page should expose merge target filtering by search');

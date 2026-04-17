@@ -88,8 +88,8 @@ assert.match(
 
 assert.match(
   fnBody('openMyStudentDetail'),
-  /tms-section-header[\s\S]*setCourtModalFrame/,
-  'my student detail should reuse the management modal frame and section style'
+  /tms-section-header[\s\S]*上课记录[\s\S]*setCourtModalFrame/,
+  'my student detail should reuse the management modal frame and include lesson history'
 );
 
 assert.match(
@@ -120,6 +120,12 @@ assert.match(
   fnBody('renderMySchedule'),
   /scheduleAbsentText/,
   'coach weekly schedule should show absent count for class schedules'
+);
+
+assert.match(
+  fnBody('renderMySchedule'),
+  /scheduleSource==='订场陪打'[\s\S]*陪打/,
+  'coach weekly schedule should label companion bookings as dedicated companion tasks'
 );
 
 assert.match(
@@ -184,6 +190,12 @@ assert.match(
   fnBody('renderMyStudents'),
   /visibleStudentCount[\s\S]*ownerStudentCount[\s\S]*substituteStudentCount[\s\S]*monthLessons[\s\S]*totalLessons/,
   'coach my students stats should distinguish visible, owner, substitute and lesson counts'
+);
+
+assert.match(
+  source,
+  /function myStudentLessonRecordHtml\(/,
+  'coach portal should expose a my-student lesson record helper'
 );
 
 assert.doesNotMatch(

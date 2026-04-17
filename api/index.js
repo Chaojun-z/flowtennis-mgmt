@@ -280,6 +280,7 @@ function courtBookingRange(court,row){
   };
 }
 function validateCourtBookingConflicts(candidate,courts){
+  if(candidate?.scheduleSource==='订场陪打')return;
   if(!isBillableSchedule(candidate)||!candidate.startTime||!candidate.endTime||!candidate.campus||!candidate.venue)return;
   const candidateVenue=normalizeVenue(candidate.venue);
   for(const court of courts||[]){

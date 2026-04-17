@@ -239,6 +239,37 @@ assert.throws(
   'legacy venue names should be normalized before conflict checks'
 );
 
+assert.doesNotThrow(
+  () => rules.validateCourtBookingConflicts(
+    {
+      id: 'companion-new',
+      startTime: '2026-04-11 10:30',
+      endTime: '2026-04-11 11:30',
+      coach: '陪打教练',
+      campus: 'mabao',
+      venue: '1号场',
+      scheduleSource: '订场陪打',
+      status: '已排课'
+    },
+    [{
+      id: 'court-1',
+      name: '小鹿',
+      campus: 'mabao',
+      history: [{
+        id: 'hist-1',
+        type: '消费',
+        category: '订场',
+        date: '2026-04-11',
+        campus: 'mabao',
+        venue: '1号场',
+        startTime: '10:00',
+        endTime: '12:00'
+      }]
+    }]
+  ),
+  'companion schedules created from bookings should not conflict with their own booking rows'
+);
+
 assert.throws(
   () => rules.validateScheduleConflicts(
     {

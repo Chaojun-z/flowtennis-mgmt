@@ -11,12 +11,12 @@ assert.match(source, /oninput="onStudentFilterChange\(\)"/, 'student search shou
 assert.match(source, /function renderStudentToolbarFilters\(/, 'student filters should render through the booking-style dropdown helper');
 assert.match(source, /stuTypeFilterHost[\s\S]*onStudentFilterChange/, 'student type filter should reset pagination before rendering');
 assert.match(source, /stuSourceFilterHost[\s\S]*onStudentFilterChange/, 'student source filter should reset pagination before rendering');
-assert.match(source, /stuLinkFilterHost[\s\S]*onStudentFilterChange/, 'student relation filter should reset pagination before rendering');
+assert.match(source, /stuCoachFilterHost[\s\S]*onStudentFilterChange/, 'student primary coach filter should reset pagination before rendering');
 assert.match(source, /function getStudentDuplicateCandidates\(/, 'student save flow should detect possible duplicates before submit');
 assert.match(source, /发现可能重复的学员：/, 'student save flow should warn operators about possible duplicates');
 assert.match(source, /const d=getFilteredStudents\(\);[\s\S]*a\.download='FlowTennis_学员_'\+today\(\)\+'.csv'/, 'student csv export should use current filtered result set');
-assert.match(source, /stuLinkFilterHost/, 'student page should include relation filter host');
-assert.match(source, /有班次[\s\S]*无班次[\s\S]*有订场[\s\S]*无订场[\s\S]*有会员[\s\S]*无会员/, 'student filters should expose relation options');
+assert.match(source, /stuCoachFilterHost/, 'student page should include primary coach filter host');
+assert.match(source, /全部负责教练[\s\S]*未分配/, 'student filters should expose responsible coach options');
 assert.match(source, /const activeCount=base\.filter\(s=>studentStatusMeta\(s\)\.label==='上课中'\)\.length;/, 'student stats should summarize active students');
 assert.match(source, /const convertingCount=base\.filter\(s=>studentStatusMeta\(s\)\.label==='待转化'\)\.length;/, 'student stats should summarize converting students');
 assert.match(source, /const silentCount=base\.filter\(s=>studentStatusMeta\(s\)\.label==='沉默30天'\)\.length;/, 'student stats should summarize silent students');
@@ -24,7 +24,9 @@ assert.match(source, /const relationCount=base\.filter\(s=>studentBookingMembers
 assert.match(source, /function studentStatusMeta\(/, 'student list should compute business status labels');
 assert.match(source, /上课中[\s\S]*待转化[\s\S]*沉默30天[\s\S]*仅订场[\s\S]*无班次/, 'student status labels should cover the agreed business states');
 assert.match(source, /function studentNoteSummary\(/, 'student list should compute compact ops-style note summary');
-assert.match(source, /<table class="tms-table">[\s\S]*<th[^>]*>学员<\/th><th[^>]*>电话<\/th><th[^>]*>类型<\/th><th[^>]*>校区<\/th><th[^>]*>当前班次<\/th><th[^>]*>最近上课<\/th><th[^>]*>负责教练<\/th><th[^>]*>课包\/课时<\/th><th[^>]*>订场\/会员<\/th><th[^>]*>来源<\/th><th[^>]*>备注<\/th><th[^>]*>操作<\/th>/, 'student table should split phone, type, and campus into separate columns');
+assert.match(source, /<table class="tms-table">[\s\S]*<th[^>]*>学员<\/th><th[^>]*>电话<\/th><th[^>]*>类型<\/th><th[^>]*>校区<\/th><th[^>]*>当前班次<\/th><th[^>]*>最近上课<\/th><th[^>]*>累计上课<\/th><th[^>]*>负责教练<\/th><th[^>]*>课包\/课时<\/th><th[^>]*>订场\/会员<\/th><th[^>]*>来源<\/th><th[^>]*>备注<\/th><th[^>]*>操作<\/th>/, 'student table should add cumulative lesson count beside last lesson');
+assert.match(source, /function studentCompletedLessonCount\(/, 'student page should expose a cumulative completed lesson helper');
+assert.match(source, /studentCompletedLessonCount\(s\)/, 'student list should render cumulative completed lessons');
 assert.match(source, /function studentPrimaryCoachText\(/, 'student list should render primary coach from the profile field');
 assert.match(source, /studentPrimaryCoachText\(s\)/, 'student list coach column should use the profile primary coach');
 assert.match(source, /未分配/, 'empty primary coach should display 未分配');
@@ -38,8 +40,10 @@ assert.match(source, /openStudentDetail\('[^']+'\)[\s\S]*openPurchaseModal\('[^'
 assert.match(source, /function studentTeachingInfoHtml\(/, 'student detail should render teaching info block');
 assert.match(source, /function studentOpsInfoHtml\(/, 'student detail should render operations info block');
 assert.match(source, /function studentConsumptionInfoHtml\(/, 'student detail should render consumption relation block');
+assert.match(source, /function studentLessonRecordHtml\(/, 'student detail should expose a dedicated lesson record helper');
 assert.match(source, /function studentEntitlementLedgerHtml\(/, 'student detail should provide a dedicated lesson charge history helper');
 assert.match(source, /教学信息[\s\S]*运营信息[\s\S]*消费与关联信息/, 'student detail should follow the agreed information hierarchy');
+assert.match(source, /上课记录/, 'student detail should provide lesson record history in plain language');
 assert.match(source, /已购课包/, 'student detail should present purchased packages in plain language');
 assert.match(source, /扣课记录/, 'student detail should expose lesson charge history in the student detail');
 assert.doesNotMatch(source, /function openStudentModal[\s\S]*studentLinkedDetailHtml\(s\)/, 'student edit modal should not embed linked detail summary anymore');
