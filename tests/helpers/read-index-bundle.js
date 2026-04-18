@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const publicDir = path.join(__dirname, '..', '..', 'public');
+const apiSource = fs.readFileSync(path.join(__dirname, '..', '..', 'api', 'index.js'), 'utf8');
 const html = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
 const coreScriptDir = path.join(publicDir, 'assets', 'scripts', 'core');
 const pageScriptDir = path.join(publicDir, 'assets', 'scripts', 'pages');
@@ -25,8 +26,9 @@ const pageScriptFiles = [
 ];
 const appSource = [
   html,
+  apiSource,
   ...coreScriptFiles.map(file => fs.readFileSync(path.join(coreScriptDir, file), 'utf8')),
   ...pageScriptFiles.map(file => fs.readFileSync(path.join(pageScriptDir, file), 'utf8'))
 ].join('\n');
 
-module.exports = { html, appSource };
+module.exports = { html, appSource, apiSource };

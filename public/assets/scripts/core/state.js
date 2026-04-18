@@ -39,7 +39,7 @@ const PAGE_DATA_REQUIREMENTS={
 };
 const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   students:['classes','schedule','feedbacks','products','courts'],
-  plans:['campuses','students','classes','plans','products','schedule','courts','entitlements'],
+  plans:['plansPage'],
   packages:['packages','products'],
   purchases:['purchases','packages','students','entitlements'],
   finance:['campuses','students','schedule','entitlements','entitlementLedger','coaches','products','purchases','packages'],
@@ -70,6 +70,7 @@ const DATASET_LOADERS={
   classes:()=>apiCall('GET','/classes'),
   campuses:()=>apiCall('GET','/campuses'),
   feedbacks:()=>apiCall('GET','/feedbacks')
+  ,plansPage:()=>apiCall('GET','/page-data/plans')
 };
 function datasetCacheKey(name){
   return DATA_CACHE_PREFIX+(currentUser?.id||'anon')+'_'+name;
@@ -165,7 +166,21 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
     datasetLoadPromises.set(name,promise);
     return promise;
   }));
-  results.forEach(([name,data])=>setDatasetValue(name,data));
+  results.forEach(([name,data])=>{
+    if(name==='plansPage'){
+      setDatasetValue('campuses',data.campuses||[]);
+      setDatasetValue('students',data.students||[]);
+      setDatasetValue('classes',data.classes||[]);
+      setDatasetValue('plans',data.plans||[]);
+      setDatasetValue('products',data.products||[]);
+      setDatasetValue('schedule',data.schedule||[]);
+      setDatasetValue('courts',data.courts||[]);
+      setDatasetValue('entitlements',data.entitlements||[]);
+      loadedDatasets.add('plansPage');
+      return;
+    }
+    setDatasetValue(name,data);
+  });
   CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});
   lastDataSyncAt=Date.now();
 }
