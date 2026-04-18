@@ -3,11 +3,32 @@ const seed = require('../api/seeds/mabao-finance-seed.json');
 
 assert.strictEqual(seed.purchases.length, 47, 'income report should include initial purchases and renewals');
 assert.strictEqual(seed.entitlements.length, 47, 'initial purchases and renewal rows should create course entitlements');
-assert.ok(seed.packages.length <= 6, 'imported purchases should link to a small set of course-spec packages');
+assert.strictEqual(seed.products.length, 4, 'course products should stay as the four real course types');
+assert.strictEqual(seed.packages.length, 7, 'imported purchases should link to seven course-product package records');
+assert.deepStrictEqual(
+  seed.products.map(x => x.name).sort(),
+  ['成人1v1私教课', '成人1v2私教课', '青少年1v1私教课', '青少年1v2私教课'].sort(),
+  'history special should not become a course product'
+);
 assert.deepStrictEqual(
   seed.packages.map(x => x.name).sort(),
-  ['成人1v1 10节课包', '历史特殊课包', '青少年1v1 10节课包', '青少年1v2 20节课包', '青少年1v2 40节课包'].sort(),
-  'standard packages should not be split by coach-specific or historical deal prices'
+  ['成人1v1 10节课包', '成人1v1 历史特殊课包', '成人1v2 历史特殊课包', '青少年1v1 10节课包', '青少年1v1 历史特殊课包', '青少年1v2 20节课包', '青少年1v2 40节课包'].sort(),
+  'packages should be course-product based without splitting by coach-specific deal prices'
+);
+assert.ok(seed.packages.every(pkg => seed.products.some(product => product.id === pkg.productId)), 'every package should link to a real course product');
+assert.ok(
+  seed.purchases.every(purchase => {
+    const pkg = seed.packages.find(x => x.id === purchase.packageId);
+    return pkg && pkg.productId === purchase.productId && pkg.productName === purchase.productName;
+  }),
+  'every purchase should link through package to the same course product'
+);
+assert.ok(
+  seed.entitlements.every(entitlement => {
+    const purchase = seed.purchases.find(x => x.id === entitlement.purchaseId);
+    return purchase && purchase.packageId === entitlement.packageId && purchase.productId === entitlement.productId;
+  }),
+  'every entitlement should keep purchase, package, and product linkage'
 );
 assert.ok(seed.meta.deletePackages.includes('seed-package-001'), 'old per-student package records should be cleaned from online data');
 assert.strictEqual(
@@ -42,14 +63,14 @@ const liRenewal = seed.purchases.find(x => x.studentName === '李嵚' && x.sourc
 assert.ok(liRenewal, '李嵚 renewal should be imported');
 assert.strictEqual(liRenewal.amountPaid, 21000, '李嵚 renewal fee should be imported');
 assert.strictEqual(liRenewal.packageLessons, 50, '李嵚 renewal lessons should be imported');
-assert.strictEqual(liRenewal.packageName, '历史特殊课包', '李嵚 50 lesson renewal should not be promoted to a standard package');
+assert.strictEqual(liRenewal.packageName, '成人1v1 历史特殊课包', '李嵚 50 lesson renewal should stay under adult 1v1 history package');
 assert.strictEqual(liRenewal.coachPriceName, '晓哲教练', 'coach price dimension should stay on the purchase snapshot');
 
 const wjingRenewal = seed.purchases.find(x => x.studentName === 'W.Jing' && x.sourceType === 'renewal');
 assert.ok(wjingRenewal, 'W.Jing renewal should be imported');
 assert.strictEqual(wjingRenewal.amountPaid, 7600, 'W.Jing renewal fee should be parsed from text');
 assert.strictEqual(wjingRenewal.packageLessons, 20, 'W.Jing renewal lessons should be parsed from text');
-assert.strictEqual(wjingRenewal.packageName, '历史特殊课包', 'W.Jing 20 lesson renewal should not be promoted to a standard package');
+assert.strictEqual(wjingRenewal.packageName, '成人1v1 历史特殊课包', 'W.Jing 20 lesson renewal should stay under adult 1v1 history package');
 assert.strictEqual(wjingRenewal.coachPriceName, 'siren', 'coach price dimension should stay on the purchase snapshot');
 
 const misha = seed.purchases.find(x => x.studentName === 'misha');
