@@ -1042,8 +1042,6 @@ async function putSeedRows(table,rows=[]){
 }
 async function bootstrapMabaoFinanceSeed(){
   if(!ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP)return;
-  const existing=await get(T_PURCHASES,'seed-purchase-001').catch(()=>null);
-  if(existing)return;
   await putSeedRows(T_STUDENTS,mabaoFinanceSeed.students);
   await putSeedRows(T_PRODUCTS,mabaoFinanceSeed.products);
   await putSeedRows(T_PACKAGES,mabaoFinanceSeed.packages);

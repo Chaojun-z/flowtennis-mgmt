@@ -43,6 +43,7 @@ function coachOpsLessonText(value){
   return Number.isInteger(n)?String(n):String(Math.round(n*10)/10);
 }
 function coachOpsLedgerTimeText(row){
+  if(row?.importSource==='系统导入'&&row?.sourceDate&&row?.sourceTimeBand)return `${row.sourceDate} ${row.sourceTimeBand} · 系统导入`;
   if(row?.importSource==='系统导入'&&row?.sourceMonth)return `${row.sourceMonth} · 系统导入`;
   return fmtDt(row?.createdAt||row?.relatedDate);
 }
@@ -265,11 +266,13 @@ function renderCoachOpsRevenueReport(){
   const totalIncome=rows.reduce((sum,row)=>sum+(Number(row.amountPaid)||0),0);
   const totalLessons=rows.reduce((sum,row)=>sum+(Number(row.totalLessons)||0),0);
   const usedLessons=rows.reduce((sum,row)=>sum+(Number(row.usedLessons)||0),0);
+  const remainingLessons=rows.reduce((sum,row)=>sum+(Number(row.remainingLessons)||0),0);
   stats.innerHTML=[
     ['成交笔数',rows.length,'笔'],
     ['实收合计',`¥${fmt(totalIncome)}`,''],
     ['售出课时',coachOpsLessonText(totalLessons),'节'],
-    ['已消课时',coachOpsLessonText(usedLessons),'节']
+    ['已消课时',coachOpsLessonText(usedLessons),'节'],
+    ['未消课时',coachOpsLessonText(remainingLessons),'节']
   ].map(([label,val,unit])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${val}${unit?`<span>${unit}</span>`:''}</div></div>`).join('');
   body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.purchaseDate,false)}</td><td>${renderCourtCellText(row.studentName,false)}</td><td><div class="tms-text-primary">${esc(renderCourtEmptyText(row.packageName))}</div><div class="tms-text-secondary">${esc(renderCourtEmptyText(row.entitlement?.timeBand||row.packageTimeBand||'全天'))}</div></td><td>${renderCourtCellText(row.productName,false)}</td><td>${renderCourtCellText(row.ownerCoach,false)}</td><td>¥${fmt(row.amountPaid)}</td><td>${coachOpsLessonText(row.totalLessons)} 节</td><td>${coachOpsLessonText(row.usedLessons)} 节</td><td>${coachOpsLessonText(row.remainingLessons)} 节</td><td>${row.entitlement?.validFrom||'—'} - ${row.entitlement?.validUntil||'—'}</td><td>${renderCourtCellText(row.payMethod,false)}</td><td><span class="tms-tag ${row.status==='voided'?'tms-tag-tier-slate':'tms-tag-green'}">${purchaseStatusText(row)}</span></td><td><div class="tms-text-remark" title="${esc(row.notes||'')}">${esc(renderCourtEmptyText(row.notes))}</div></td><td class="tms-sticky-r tms-action-cell" style="width:110px;padding-right:20px"><span class="tms-action-link" onclick="openPurchaseDetailModal('${row.id}')">查看</span></td></tr>`).join(''):`<tr><td colspan="14"><div class="empty"><p>暂无收入课时记录</p></div></td></tr>`;
 }
@@ -289,7 +292,7 @@ function coachOpsConsumeRows(){
     const schedule=schedules.find(s=>s.id===row.scheduleId)||{};
     return {
       ...row,
-      actionLabel:(Number(row.lessonDelta)||0)<0?'扣课':'退回',
+      actionLabel:(Number(row.lessonDelta)||0)<0?'扣课':((Number(row.lessonDelta)||0)>0?'退回':'记录'),
       studentName:ent.studentName||purchase.studentName||schedule.studentName||'—',
       packageName:ent.packageName||purchase.packageName||'—',
       notes:row.notes||ent.notes||purchase.notes||'',
@@ -311,7 +314,7 @@ function renderCoachOpsConsumeReport(){
     ['流水条数',rows.length,'条'],
     ['扣课节数',coachOpsLessonText(usedLessons),'节'],
     ['退回记录',refundRows.length,'条'],
-    ['异常风险',rows.filter(row=>!row.scheduleId).length,'条']
+    ['需追溯',rows.filter(row=>!row.scheduleId&&row.importSource!=='系统导入').length,'条']
   ].map(([label,val,unit])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${val}<span>${unit}</span></div></div>`).join('');
   body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${coachOpsLedgerTimeText(row)}</td><td><span class="tms-tag ${row.actionLabel==='扣课'?'tms-tag-tier-gold':'tms-tag-tier-slate'}">${row.actionLabel}</span></td><td>${renderCourtCellText(row.studentName,false)}</td><td>${renderCourtCellText(row.packageName,false)}</td><td>${coachOpsLessonText(Math.abs(Number(row.lessonDelta)||0))} 节</td><td>${renderCourtCellText(row.scheduleTime?fmtDt(row.scheduleTime):'—',false)}</td><td>${renderCourtCellText(row.coach,false)}</td><td>${renderCourtCellText(row.courseType,false)}</td><td>${renderCourtCellText(row.reason,false)}</td><td><div class="tms-text-remark" title="${esc(row.notes||'')}">${esc(renderCourtEmptyText(row.notes))}</div></td><td>${renderCourtCellText(row.operator,false)}</td><td class="tms-sticky-r tms-action-cell" style="width:100px;padding-right:20px">${row.scheduleId?`<span class="tms-action-link" onclick="openScheduleDetail('${row.scheduleId}')">排课</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="12"><div class="empty"><p>暂无消课记录</p></div></td></tr>`;
 }

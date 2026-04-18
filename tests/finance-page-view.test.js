@@ -21,6 +21,8 @@ assert.match(source,/courtDateButtonHtml\(id,value,label,handler\)/,'finance dat
 assert.match(source,/coachOpsLedgerTimeText\(row\)/,'finance consume report should show imported source month instead of fake class time');
 assert.match(source,/renderCoachOpsRevenueReport\(\)">查询/,'revenue date filters should have an explicit query button');
 assert.match(source,/renderCoachOpsConsumeReport\(\)">查询/,'consume date filters should have an explicit query button');
+assert.match(source,/未消课时/,'revenue report should show unconsumed lessons');
+assert.match(source,/需追溯/,'consume report should not treat imported history as abnormal risk');
 assert.match(source,/查看迟到月结/,'finance center should expose late settlement entry');
 
 console.log('finance page view tests passed');
