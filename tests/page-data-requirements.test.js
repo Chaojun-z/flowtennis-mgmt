@@ -4,7 +4,7 @@ const path = require('path');
 
 const source = fs.readFileSync(path.join(__dirname, '../public/assets/scripts/core/state.js'), 'utf8');
 
-assert.match(source, /students:\['campuses','students'\]/, 'students page should only block on the dataset needed to paint the list immediately');
+assert.match(source, /students:\['campuses','students','entitlements','entitlementLedger'\]/, 'students page should load package balances and ledger with the first student list render');
 assert.match(source, /plans:\[\]/, 'plans page should open shell immediately and load data in background');
 assert.match(source, /packages:\[\]/, 'packages page should open shell immediately and load data in background');
 assert.match(source, /purchases:\[\]/, 'purchases page should open shell immediately and load data in background');

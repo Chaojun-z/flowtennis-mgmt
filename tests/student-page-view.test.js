@@ -40,7 +40,7 @@ assert.match(source, /<th style="width:80px">课包\/课时<\/th>/, 'student pac
 assert.match(source, /function studentPackageLessonMeta\(/, 'student package lesson summary should expose remaining and total lessons');
 assert.match(source, /function studentPackageLessonMiniBar\(/, 'student package lesson column should render the same mini balance bar as booking accounts');
 assert.match(source, /studentPackageLessonMiniBar\(s\)/, 'student list should render package lessons through the mini balance bar');
-assert.match(source, /\$\{remaining\}\/\$\{total\}/, 'student package lesson text should use remaining over total lesson count');
+assert.match(source, /\$\{lessonQty\(remaining\)\}\/\$\{lessonQty\(total\)\}/, 'student package lesson text should use remaining over total lesson count without truncating half lessons');
 assert.match(source, /student-summary-strong/, 'student rows should visually distinguish non-empty package and booking summaries');
 assert.match(source, /function openStudentDetail\(/, 'student list should provide a dedicated view action');
 assert.match(source, /openStudentDetail\('[^']+'\)[\s\S]*openStudentModal\('[^']+'\)/, 'student row should prioritize view before edit');

@@ -1104,6 +1104,19 @@ function importedLedgerDuplicateKey(row){
   return [
     row.entitlementId,
     row.purchaseId,
+    row.reason||'',
+    monthKey
+  ].join('|');
+}
+function isCurrentImportedLedgerRow(row){
+  return !!(importedLedgerMonthKey(row)&&String(row?.sourceMonth||'').trim()&&isMabaoFinanceSeedRow(row)&&String(row?.studentId||'').trim());
+}
+function importedLedgerExactKey(row){
+  const monthKey=importedLedgerMonthKey(row);
+  if(!monthKey)return '';
+  return [
+    row.entitlementId,
+    row.purchaseId,
     row.studentId,
     Number(row.lessonDelta)||0,
     row.action||'',
@@ -1130,29 +1143,62 @@ function compareImportedLedgerRowScore(a,b){
   return 0;
 }
 function collectDuplicateImportedLedgerIds(existingRows=[]){
-  const keepers=new Map();
+  const grouped=new Map();
   const removeIds=[];
   (existingRows||[]).forEach(row=>{
     const key=importedLedgerDuplicateKey(row);
     if(!key)return;
-    const current=keepers.get(key);
-    if(!current){
-      keepers.set(key,row);
-      return;
-    }
-    if(compareImportedLedgerRowScore(row,current)>0){
-      removeIds.push(current.id);
-      keepers.set(key,row);
-      return;
-    }
-    removeIds.push(row.id);
+    const list=grouped.get(key)||[];
+    list.push(row);
+    grouped.set(key,list);
+  });
+  grouped.forEach(list=>{
+    const currentRows=list.filter(isCurrentImportedLedgerRow);
+    const candidates=currentRows.length?currentRows:list;
+    const currentIds=new Set(candidates.map(row=>row.id));
+    list.forEach(row=>{if(!currentIds.has(row.id))removeIds.push(row.id);});
+    const keepers=new Map();
+    candidates.forEach(row=>{
+      const key=importedLedgerExactKey(row)||importedLedgerDuplicateKey(row);
+      const current=keepers.get(key);
+      if(!current){
+        keepers.set(key,row);
+        return;
+      }
+      if(compareImportedLedgerRowScore(row,current)>0){
+        removeIds.push(current.id);
+        keepers.set(key,row);
+        return;
+      }
+      removeIds.push(row.id);
+    });
   });
   return [...new Set(removeIds.filter(Boolean))];
+}
+function filterImportedLedgerRowsForView(rows=[]){
+  const grouped=new Map();
+  const passthrough=[];
+  for(const row of rows||[]){
+    const key=importedLedgerDuplicateKey(row);
+    if(!key){
+      passthrough.push(row);
+      continue;
+    }
+    const list=grouped.get(key)||[];
+    list.push(row);
+    grouped.set(key,list);
+  }
+  const filtered=[...passthrough];
+  grouped.forEach(list=>{
+    const currentRows=list.filter(isCurrentImportedLedgerRow);
+    filtered.push(...(currentRows.length?currentRows:list));
+  });
+  return filtered;
 }
 function normalizeEntitlementLedgerRowsForView(rows=[]){
   const deduped=[];
   const seen=new Set();
-  for(const row of rows||[]){
+  for(const row of filterImportedLedgerRowsForView(rows)||[]){
     const monthKey=importedLedgerMonthKey(row);
     const key=monthKey
       ? [
@@ -3239,6 +3285,7 @@ module.exports._test={
   collectMabaoSeedStaleRowIds,
   collectMabaoSeedImportedLedgerReplacementIds,
   collectDuplicateImportedLedgerIds,
+  normalizeEntitlementLedgerRowsForView,
   syncEntitlementFromPurchase,
   writePurchaseAndEntitlementAtomic,
   validateEntitlementForSchedule,

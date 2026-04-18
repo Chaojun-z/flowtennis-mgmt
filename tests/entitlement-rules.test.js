@@ -7,6 +7,7 @@ assert.ok(rules, 'api._test should expose entitlement rule helpers');
 assert.ok(rules.collectMabaoSeedStaleRowIds, 'api._test should expose mabao seed stale row cleanup helper');
 assert.ok(rules.collectMabaoSeedImportedLedgerReplacementIds, 'api._test should expose imported ledger replacement cleanup helper');
 assert.ok(rules.collectDuplicateImportedLedgerIds, 'api._test should expose generic duplicate imported ledger cleanup helper');
+assert.ok(rules.normalizeEntitlementLedgerRowsForView, 'api._test should expose ledger view normalization helper');
 
 const pkg = {
   id: 'pkg-1',
@@ -39,6 +40,41 @@ const purchase = {
 };
 
 const entitlement = rules.buildEntitlementFromPurchase(pkg, purchase, { id: 'stu-1', name: '张三' }, 'ent-1', '2026-04-12T00:00:00.000Z');
+
+const oldImportedLedger = {
+  id: 'old-2',
+  entitlementId: 'ent-import',
+  purchaseId: 'pur-import',
+  scheduleId: '',
+  lessonDelta: -2,
+  reason: '历史导入 2月消课',
+  relatedDate: '2026-02-28'
+};
+const currentImportedLedger = {
+  id: 'new-2',
+  entitlementId: 'ent-import',
+  purchaseId: 'pur-import',
+  studentId: 'stu-import',
+  scheduleId: '',
+  lessonDelta: -1.5,
+  action: 'consume',
+  reason: '历史导入 2月消课',
+  relatedDate: '2026-02-28',
+  sourceMonth: '2026-02',
+  seedTag: 'mabao-finance-seed-v8'
+};
+
+assert.deepStrictEqual(
+  rules.collectDuplicateImportedLedgerIds([oldImportedLedger, currentImportedLedger]),
+  ['old-2'],
+  'current monthly imported ledger should replace older partial rows even when lesson counts differ'
+);
+
+assert.deepStrictEqual(
+  rules.normalizeEntitlementLedgerRowsForView([oldImportedLedger, currentImportedLedger]).map(row => ({ id: row.id, lessonDelta: row.lessonDelta })),
+  [{ id: 'new-2', lessonDelta: -1.5 }],
+  'ledger view should ignore older monthly rows when a current monthly import row exists'
+);
 
 assert.deepStrictEqual(
   {
@@ -261,8 +297,8 @@ assert.deepStrictEqual(
       { id: 'different-delta', entitlementId: 'ent-1', purchaseId: 'pur-1', studentId: 'stu-1', scheduleId: '', lessonDelta: -1, reason: '历史导入 1月消课', relatedDate: '2026-01-31', sourceMonth: '', notes: '固定周六', seedTag: '' }
     ]
   ),
-  ['legacy-1'],
-  'generic imported ledger cleanup should drop only true duplicate historical month rows and keep non-duplicate adjustments'
+  ['legacy-1', 'different-delta'],
+  'generic imported ledger cleanup should let current monthly imports replace old rows for the same package month and keep unrelated adjustments'
 );
 
 assert.throws(

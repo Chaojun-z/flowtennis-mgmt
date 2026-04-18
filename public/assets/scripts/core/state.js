@@ -15,7 +15,7 @@ const DATA_CACHE_VERSION_KEY='ft_dataset_cache_version';
 const DATA_CACHE_VERSION='2026-04-18-disable-ledger-cache';
 const datasetLoadPromises=new Map();
 const PAGE_DATA_REQUIREMENTS={
-  students:['campuses','students'],
+  students:['campuses','students','entitlements','entitlementLedger'],
   classes:['campuses','students','products','classes','schedule','coaches'],
   plans:[],
   schedule:['campuses','students','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products'],

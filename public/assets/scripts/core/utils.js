@@ -710,6 +710,10 @@ function daysAgoText(dateStr){
   const days=Math.max(0,Math.floor((Date.now()-new Date(dateStr))/(86400000)));
   return `${dateStr} · ${days}天前`;
 }
+function lessonQty(value){
+  const num=Number(value)||0;
+  return Number.isInteger(num)?String(num):String(Math.round(num*10)/10);
+}
 function studentCoachSummary(stu){
   const coachSet=[...new Set([stu?.primaryCoach,...studentActiveClasses(stu).map(c=>String(c.coach||'').trim())].filter(Boolean))];
   if(!coachSet.length)return '—';
@@ -722,10 +726,10 @@ function studentPrimaryCoachText(stu){
 function studentPackageLessonMeta(stu){
   const rows=entitlements.filter(e=>e.studentId===stu?.id&&e.status!=='voided');
   if(!rows.length)return {hasPackage:false,remaining:0,total:0,text:'-'};
-  const total=rows.reduce((sum,row)=>sum+(parseInt(row.totalLessons)||0),0);
-  const remaining=rows.reduce((sum,row)=>sum+(parseInt(row.remainingLessons)||0),0);
+  const total=rows.reduce((sum,row)=>sum+(Number(row.totalLessons)||0),0);
+  const remaining=rows.reduce((sum,row)=>sum+(Number(row.remainingLessons)||0),0);
   if(total<=0)return {hasPackage:false,remaining:0,total:0,text:'-'};
-  return {hasPackage:true,remaining,total,text:`${remaining}/${total}`,pct:Math.max(0,Math.min(100,Math.round((remaining/total)*100)))};
+  return {hasPackage:true,remaining,total,text:`${lessonQty(remaining)}/${lessonQty(total)}`,pct:Math.max(0,Math.min(100,Math.round((remaining/total)*100)))};
 }
 function studentPackageLessonSummary(stu){
   const meta=studentPackageLessonMeta(stu);
@@ -735,7 +739,8 @@ function studentPackageLessonMiniBar(stu){
   const meta=studentPackageLessonMeta(stu);
   if(!meta.hasPackage)return renderCourtCellText('-',false);
   const remaining=meta.remaining,total=meta.total;
-  return `<div class="tms-mini-bar student-package-mini" title="${remaining}/${total} 节"><div class="tms-mini-bar-bg" style="width:100%"></div><div class="tms-mini-bar-fill" style="width:${meta.pct}%"></div><div class="tms-mini-bar-text">${remaining}/${total}</div></div>`;
+  const text=`${lessonQty(remaining)}/${lessonQty(total)}`;
+  return `<div class="tms-mini-bar student-package-mini" title="${text} 节"><div class="tms-mini-bar-bg" style="width:100%"></div><div class="tms-mini-bar-fill" style="width:${meta.pct}%"></div><div class="tms-mini-bar-text">${text}</div></div>`;
 }
 function studentBookingMembershipSummary(stu){
   const linked=courtsForStudent(stu);
@@ -850,8 +855,8 @@ function studentEntitlementSummaryHtml(stu){
   const rows=entitlements.filter(e=>e.studentId===stu?.id).sort((a,b)=>String(a.validUntil||'9999-12-31').localeCompare(String(b.validUntil||'9999-12-31')));
   if(!rows.length)return '<div style="color:var(--td);font-size:12px">暂无已购课包</div>';
   return rows.map(e=>{
-    const used=parseInt(e.usedLessons)||0;
-    return `<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:7px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${esc(e.packageName)||'—'} <span class="badge b-amber" style="font-size:10px">${esc(e.courseType)||'—'}</span></div><div style="margin-top:3px">剩余 ${parseInt(e.remainingLessons)||0}/${parseInt(e.totalLessons)||0} 节；已扣 ${used} 节；有效至 ${esc(e.validUntil)||'—'}；${esc(e.timeBand)||'全天'}；${entitlementStatusText(e)}</div></div>`;
+    const used=Number(e.usedLessons)||0;
+    return `<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:7px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${esc(e.packageName)||'—'} <span class="badge b-amber" style="font-size:10px">${esc(e.courseType)||'—'}</span></div><div style="margin-top:3px">剩余 ${lessonQty(e.remainingLessons)}/${lessonQty(e.totalLessons)} 节；已扣 ${lessonQty(used)} 节；有效至 ${esc(e.validUntil)||'—'}；${esc(e.timeBand)||'全天'}；${entitlementStatusText(e)}</div></div>`;
   }).join('');
 }
 function isHistoricalImportedLedgerRow(row){
@@ -875,9 +880,37 @@ function historicalImportedLedgerMonthKey(row){
   if(!/^\d{4}$/.test(year))return '';
   return `${year}-${String(match[1]).padStart(2,'0')}`;
 }
+function importedLedgerMonthlyGroupKey(row){
+  const monthKey=historicalImportedLedgerMonthKey(row);
+  if(!monthKey)return '';
+  return [row.entitlementId,row.purchaseId,row.reason||'',monthKey].join('|');
+}
+function isCurrentImportedLedgerRow(row){
+  return !!(historicalImportedLedgerMonthKey(row)&&String(row?.sourceMonth||'').trim()&&String(row?.seedTag||'').startsWith('mabao-finance-seed-')&&String(row?.studentId||'').trim());
+}
+function filterImportedLedgerRowsForDisplay(rows){
+  const grouped=new Map();
+  const passthrough=[];
+  (rows||[]).forEach(row=>{
+    const key=importedLedgerMonthlyGroupKey(row);
+    if(!key){
+      passthrough.push(row);
+      return;
+    }
+    const list=grouped.get(key)||[];
+    list.push(row);
+    grouped.set(key,list);
+  });
+  const filtered=[...passthrough];
+  grouped.forEach(list=>{
+    const currentRows=list.filter(isCurrentImportedLedgerRow);
+    filtered.push(...(currentRows.length?currentRows:list));
+  });
+  return filtered;
+}
 function dedupeEntitlementLedgerForDisplay(rows){
   const seen=new Set();
-  return (rows||[]).filter(row=>{
+  return filterImportedLedgerRowsForDisplay(rows).filter(row=>{
     const monthKey=historicalImportedLedgerMonthKey(row);
     const key=monthKey
       ? [
@@ -945,10 +978,10 @@ function studentEntitlementLedgerHtml(stu){
   if(!rows.length)return '<div style="color:var(--td);font-size:12px">暂无扣课记录</div>';
   return rows.map(l=>{
     const ent=entMap.get(l.entitlementId)||{};
-    const count=Math.abs(parseInt(l.lessonDelta)||0);
-    const action=(parseInt(l.lessonDelta)||0)>0?'退回':'扣减';
+    const count=Math.abs(Number(l.lessonDelta)||0);
+    const action=(Number(l.lessonDelta)||0)>0?'退回':'扣减';
     const dateText=entitlementLedgerDisplayDate(l);
-    return `<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:7px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${action} ${count} 节 · ${esc(ent.packageName)||'课包'}</div><div style="margin-top:3px">${esc(l.reason)||'—'} · ${dateText||'—'}</div></div>`;
+    return `<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:7px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${action} ${lessonQty(count)} 节 · ${esc(ent.packageName)||'课包'}</div><div style="margin-top:3px">${esc(l.reason)||'—'} · ${dateText||'—'}</div></div>`;
   }).join('');
 }
 function classScheduleSummaryHtml(cls){
