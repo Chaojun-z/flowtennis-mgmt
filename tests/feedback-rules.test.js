@@ -93,7 +93,10 @@ const isolated = rules.filterLoadAllForUser(
     packages: [{ id: 'pkg-1', price: 1000 }],
     purchases: [{ id: 'pur-1', studentId: 'stu-1', amountPaid: 1000, payMethod: '微信', operator: '管理员' }],
     entitlements: [{ id: 'ent-1', studentId: 'stu-1', packageName: '五一私教课包', totalLessons: 5, usedLessons: 1, remainingLessons: 4, amountPaid: 1000 }],
-    entitlementLedger: [{ id: 'led-1', entitlementId: 'ent-1', studentId: 'stu-1', scheduleId: 'sch-1', lessonDelta: -1, operator: '管理员' }],
+    entitlementLedger: [
+      { id: 'led-1', entitlementId: 'ent-1', studentId: 'stu-1', scheduleId: 'sch-1', lessonDelta: -1, operator: '管理员' },
+      { id: 'led-import', entitlementId: 'ent-1', studentId: 'stu-1', scheduleId: '', lessonDelta: -2, operator: '管理员', sourceMonth: '2026-03', importSource: '系统导入', relatedDate: '2026-03-31' }
+    ],
     plans: [{ id: 'plan-1', studentId: 'stu-1', classId: 'class-1' }, { id: 'plan-2', studentId: 'stu-2', classId: 'class-2' }],
     schedule: [{ id: 'sch-1', coach: '朝珺', studentIds: ['stu-1'], classId: 'class-1' }, { id: 'sch-2', coach: '其他教练', studentIds: ['stu-2'], classId: 'class-2' }],
     coaches: [{ id: 'coach-1', name: '朝珺' }, { id: 'coach-2', name: '其他教练' }],
@@ -113,5 +116,6 @@ assert.deepStrictEqual(isolated.purchases, [], 'coach load-all should not expose
 assert.deepStrictEqual(isolated.entitlements.map(x=>x.id), ['ent-1'], 'coach load-all should expose safe entitlement summary');
 assert.strictEqual(isolated.entitlements[0].amountPaid, undefined, 'coach entitlement summary should not expose paid amount');
 assert.strictEqual(isolated.entitlementLedger[0].operator, undefined, 'coach entitlement ledger should not expose operator');
+assert.ok(isolated.entitlementLedger.some(x=>x.id==='led-import'), 'coach load-all should retain imported historical consume rows for linked students');
 
 console.log('feedback rules tests passed');

@@ -36,11 +36,11 @@ function getFilteredStudents(){
   });
 }
 function studentCompletedLessonCount(stu){
-  const units=schedules
+  const scheduleUnits=schedules
     .filter(x=>scheduleHasStudent(x,stu))
     .filter(x=>effectiveScheduleStatus(x)==='已结束')
     .reduce((sum,x)=>sum+scheduleLessonUnits(x),0);
-  return lessonUnitsText(units);
+  return lessonUnitsText(scheduleUnits+historicalImportedLessonUnitsForStudent(stu));
 }
 function studentPageTrialConvertedByPurchase(schedule){
   const studentId=parseArr(schedule?.studentIds)[0]||scheduleFeedback(schedule)?.studentId||schedule?.studentId||'';

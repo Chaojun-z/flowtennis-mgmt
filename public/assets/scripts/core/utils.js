@@ -854,6 +854,9 @@ function studentEntitlementSummaryHtml(stu){
     return `<div style="border-top:0.5px solid rgba(180,83,9,.12);padding:7px 0;font-size:12px;color:var(--tb)"><div style="font-weight:700;color:var(--th)">${esc(e.packageName)||'—'} <span class="badge b-amber" style="font-size:10px">${esc(e.courseType)||'—'}</span></div><div style="margin-top:3px">剩余 ${parseInt(e.remainingLessons)||0}/${parseInt(e.totalLessons)||0} 节；已扣 ${used} 节；有效至 ${esc(e.validUntil)||'—'}；${esc(e.timeBand)||'全天'}；${entitlementStatusText(e)}</div></div>`;
   }).join('');
 }
+function isHistoricalImportedLedgerRow(row){
+  return !!row&&!row.scheduleId&&!!row.sourceMonth&&Number(row.lessonDelta)<0;
+}
 function entitlementLedgerSortDate(row){
   return row?.relatedDate||row?.scheduleTime||row?.createdAt||'';
 }
@@ -864,27 +867,68 @@ function entitlementLedgerDisplayDate(row){
 function dedupeEntitlementLedgerForDisplay(rows){
   const seen=new Set();
   return (rows||[]).filter(row=>{
-    const key=[
-      row.entitlementId,
-      row.purchaseId,
-      row.studentId,
-      row.scheduleId||'',
-      row.lessonDelta,
-      row.action||'',
-      row.reason||'',
-      row.relatedDate||'',
-      row.sourceMonth||'',
-      row.sourceSheet||'',
-      row.notes||''
-    ].join('|');
+    const key=isHistoricalImportedLedgerRow(row)
+      ? [
+          row.entitlementId,
+          row.purchaseId,
+          row.studentId,
+          row.lessonDelta,
+          row.action||'',
+          row.reason||'',
+          row.sourceMonth||'',
+          row.sourceSheet||'',
+          row.notes||''
+        ].join('|')
+      : [
+          row.entitlementId,
+          row.purchaseId,
+          row.studentId,
+          row.scheduleId||'',
+          row.lessonDelta,
+          row.action||'',
+          row.reason||'',
+          row.relatedDate||'',
+          row.sourceMonth||'',
+          row.sourceSheet||'',
+          row.notes||''
+        ].join('|');
     if(seen.has(key))return false;
     seen.add(key);
     return true;
   });
 }
+function aggregateHistoricalMonthlyLedgerRows(rows){
+  const monthlyMap=new Map();
+  const result=[];
+  (rows||[]).forEach(row=>{
+    if(!isHistoricalImportedLedgerRow(row)){
+      result.push(row);
+      return;
+    }
+    const key=[row.entitlementId,row.purchaseId,row.studentId,row.reason||'',row.sourceMonth||''].join('|');
+    const current=monthlyMap.get(key);
+    if(!current){
+      monthlyMap.set(key,{...row});
+      return;
+    }
+    const nextDelta=(Number(current.lessonDelta)||0)+(Number(row.lessonDelta)||0);
+    monthlyMap.set(key,{
+      ...current,
+      lessonDelta:nextDelta,
+      relatedDate:String(row.relatedDate||'')>String(current.relatedDate||'')?row.relatedDate:current.relatedDate,
+      createdAt:String(row.createdAt||'')>String(current.createdAt||'')?row.createdAt:current.createdAt
+    });
+  });
+  return [...result,...monthlyMap.values()];
+}
+function historicalImportedLessonUnitsForStudent(stu){
+  return dedupeEntitlementLedgerForDisplay(entitlementLedger.filter(row=>row.studentId===stu?.id))
+    .filter(isHistoricalImportedLedgerRow)
+    .reduce((sum,row)=>sum+Math.abs(Math.min(0,Number(row.lessonDelta)||0)),0);
+}
 function studentEntitlementLedgerHtml(stu){
   const entMap=new Map(entitlements.filter(e=>e.studentId===stu?.id).map(e=>[e.id,e]));
-  const rows=dedupeEntitlementLedgerForDisplay(entitlementLedger.filter(l=>entMap.has(l.entitlementId))).sort((a,b)=>String(entitlementLedgerSortDate(b)||'').localeCompare(String(entitlementLedgerSortDate(a)||''))).slice(0,10);
+  const rows=aggregateHistoricalMonthlyLedgerRows(dedupeEntitlementLedgerForDisplay(entitlementLedger.filter(l=>entMap.has(l.entitlementId)))).sort((a,b)=>String(entitlementLedgerSortDate(b)||'').localeCompare(String(entitlementLedgerSortDate(a)||''))).slice(0,10);
   if(!rows.length)return '<div style="color:var(--td);font-size:12px">暂无扣课记录</div>';
   return rows.map(l=>{
     const ent=entMap.get(l.entitlementId)||{};

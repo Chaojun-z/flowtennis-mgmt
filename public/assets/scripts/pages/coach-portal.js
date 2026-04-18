@@ -253,7 +253,8 @@ function renderMySchedule(){
   }
 }
 function myStudentLessonCount(stu,coach){
-  return lessonUnitsText(sumScheduleLessonUnits(schedules.filter(s=>coachName(s.coach)===coach&&scheduleHasStudent(s,stu)&&effectiveScheduleStatus(s)==='已结束')));
+  const scheduleUnits=sumScheduleLessonUnits(schedules.filter(s=>coachName(s.coach)===coach&&scheduleHasStudent(s,stu)&&effectiveScheduleStatus(s)==='已结束'));
+  return lessonUnitsText(scheduleUnits+historicalImportedLessonUnitsForStudent(stu));
 }
 function myStudentLessonRows(stu,coach){
   return schedules.filter(s=>coachName(s.coach)===coach&&scheduleHasStudent(s,stu)&&s.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));

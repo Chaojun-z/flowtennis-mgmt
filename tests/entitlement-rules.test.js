@@ -4,6 +4,7 @@ const api = require('../api/index.js');
 const rules = api._test;
 
 assert.ok(rules, 'api._test should expose entitlement rule helpers');
+assert.ok(rules.collectMabaoSeedStaleRowIds, 'api._test should expose mabao seed stale row cleanup helper');
 
 const pkg = {
   id: 'pkg-1',
@@ -215,6 +216,20 @@ assert.throws(
   () => rules.validatePurchaseInputForPackage({ ...pkg, status: 'inactive' }, purchase),
   /该课包已停用/,
   'inactive package cannot be newly purchased'
+);
+
+assert.deepStrictEqual(
+  rules.collectMabaoSeedStaleRowIds(
+    [
+      { id: 'seed-ledger-old', seedTag: 'mabao-finance-seed-v7' },
+      { id: 'seed-ledger-keep', seedTag: 'mabao-finance-seed-v8' },
+      { id: 'manual-ledger', seedTag: '' }
+    ],
+    [{ id: 'seed-ledger-keep' }],
+    'mabao-finance-seed-v8'
+  ),
+  ['seed-ledger-old'],
+  'seed bootstrap should clean old mabao finance rows that are no longer in the current seed set'
 );
 
 assert.throws(

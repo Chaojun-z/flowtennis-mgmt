@@ -280,7 +280,7 @@ function coachOpsConsumeRows(){
   const q=String(document.getElementById('coachOpsConsumeSearch')?.value||'').trim().toLowerCase();
   const from=document.getElementById('coachOpsConsumeFrom')?.value||'';
   const to=document.getElementById('coachOpsConsumeTo')?.value||'';
-  return entitlementLedger.filter(row=>{
+  return aggregateHistoricalMonthlyLedgerRows(dedupeEntitlementLedgerForDisplay(entitlementLedger)).filter(row=>{
     if(!coachOpsDateWithinRange(row.relatedDate||row.createdAt,from,to))return false;
     const ent=entitlements.find(e=>e.id===row.entitlementId)||{};
     const purchase=purchases.find(p=>p.id===ent.purchaseId)||{};

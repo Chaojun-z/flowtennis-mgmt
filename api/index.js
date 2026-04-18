@@ -857,8 +857,12 @@ function filterLoadAllForUser(data,user){
   const safeEntitlements=normalized.entitlements.filter(e=>studentIds.has(e.studentId)||entitlementMatchesCoach(e,coachName)).map(e=>({
     id:e.id,studentId:e.studentId,studentName:e.studentName,packageName:e.packageName,courseType:e.courseType,totalLessons:e.totalLessons,usedLessons:e.usedLessons,remainingLessons:e.remainingLessons,validFrom:e.validFrom,validUntil:e.validUntil,timeBand:e.timeBand,status:e.status,ownerCoach:e.ownerCoach,allowedCoaches:parseArr(e.allowedCoaches)
   }));
-  const safeLedger=normalized.entitlementLedger.filter(l=>scheduleIds.has(l.scheduleId)).map(l=>({
-    id:l.id,entitlementId:l.entitlementId,studentId:l.studentId,scheduleId:l.scheduleId,lessonDelta:l.lessonDelta,action:l.action,reason:l.reason,createdAt:l.createdAt
+  const safeLedger=normalized.entitlementLedger.filter(l=>
+    scheduleIds.has(l.scheduleId)||(
+      studentIds.has(l.studentId)&&!l.scheduleId&&!!l.sourceMonth&&Number(l.lessonDelta)<0
+    )
+  ).map(l=>({
+    id:l.id,entitlementId:l.entitlementId,studentId:l.studentId,scheduleId:l.scheduleId,lessonDelta:l.lessonDelta,action:l.action,reason:l.reason,createdAt:l.createdAt,relatedDate:l.relatedDate,sourceMonth:l.sourceMonth,importSource:l.importSource,notes:l.notes
   }));
   return {
     courts:[],
@@ -1076,6 +1080,25 @@ async function putSeedRows(table,rows=[]){
     await Promise.all(rows.slice(i,i+chunkSize).map(row=>put(table,row.id,row)));
   }
 }
+function isMabaoFinanceSeedRow(row){
+  return String(row?.seedTag||'').startsWith('mabao-finance-seed-');
+}
+function collectMabaoSeedStaleRowIds(existingRows=[],seedRows=[],tag=''){
+  const nextIds=new Set((seedRows||[]).map(row=>row.id));
+  return (existingRows||[])
+    .filter(row=>isMabaoFinanceSeedRow(row)&&(!nextIds.has(row.id)||String(row.seedTag||'')!==String(tag||'')))
+    .map(row=>row.id);
+}
+async function replaceMabaoSeedRows(table,seedRows=[],tag=''){
+  const staleIds=collectMabaoSeedStaleRowIds(await scan(table).catch(()=>[]),seedRows,tag);
+  if(staleIds.length)await deleteSeedRows(table,staleIds);
+  await putSeedRows(table,seedRows);
+}
+function hasCurrentMabaoSeedRows(existingRows=[],seedRows=[],tag=''){
+  const seedIds=new Set((seedRows||[]).map(row=>row.id));
+  const existingSeedRows=(existingRows||[]).filter(isMabaoFinanceSeedRow);
+  return existingSeedRows.length===seedRows.length&&existingSeedRows.every(row=>seedIds.has(row.id)&&String(row.seedTag||'')===String(tag||''));
+}
 async function deleteSeedRows(table,ids=[]){
   const chunkSize=20;
   for(let i=0;i<ids.length;i+=chunkSize){
@@ -1085,9 +1108,14 @@ async function deleteSeedRows(table,ids=[]){
 async function isMabaoFinanceSeedCurrent(){
   const tag=mabaoFinanceSeed?.meta?.tag;
   if(!tag)return false;
-  const first=await get(T_PURCHASES,'seed-purchase-001').catch(()=>null);
-  const renewal=await get(T_PURCHASES,'seed-renewal-006').catch(()=>null);
-  if(first?.seedTag!==tag||renewal?.seedTag!==tag)return false;
+  const [purchases,entitlements,ledger]=await Promise.all([
+    scan(T_PURCHASES).catch(()=>[]),
+    scan(T_ENTITLEMENTS).catch(()=>[]),
+    scan(T_ENTITLEMENT_LEDGER).catch(()=>[])
+  ]);
+  if(!hasCurrentMabaoSeedRows(purchases,mabaoFinanceSeed.purchases,tag))return false;
+  if(!hasCurrentMabaoSeedRows(entitlements,mabaoFinanceSeed.entitlements,tag))return false;
+  if(!hasCurrentMabaoSeedRows(ledger,mabaoFinanceSeed.entitlementLedger,tag))return false;
   for(const id of mabaoFinanceSeed?.meta?.deletePurchases||[]){
     const old=await get(T_PURCHASES,id).catch(()=>null);
     if(old)return false;
@@ -1097,14 +1125,15 @@ async function isMabaoFinanceSeedCurrent(){
 async function bootstrapMabaoFinanceSeed(){
   if(!ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP)return;
   if(await isMabaoFinanceSeedCurrent())return;
+  const tag=mabaoFinanceSeed?.meta?.tag||'';
   await deleteSeedRows(T_PURCHASES,mabaoFinanceSeed?.meta?.deletePurchases||[]);
   await deleteSeedRows(T_PACKAGES,mabaoFinanceSeed?.meta?.deletePackages||[]);
-  await putSeedRows(T_STUDENTS,mabaoFinanceSeed.students);
-  await putSeedRows(T_PRODUCTS,mabaoFinanceSeed.products);
-  await putSeedRows(T_PACKAGES,mabaoFinanceSeed.packages);
-  await putSeedRows(T_PURCHASES,mabaoFinanceSeed.purchases);
-  await putSeedRows(T_ENTITLEMENTS,mabaoFinanceSeed.entitlements);
-  await putSeedRows(T_ENTITLEMENT_LEDGER,mabaoFinanceSeed.entitlementLedger);
+  await replaceMabaoSeedRows(T_STUDENTS,mabaoFinanceSeed.students,tag);
+  await replaceMabaoSeedRows(T_PRODUCTS,mabaoFinanceSeed.products,tag);
+  await replaceMabaoSeedRows(T_PACKAGES,mabaoFinanceSeed.packages,tag);
+  await replaceMabaoSeedRows(T_PURCHASES,mabaoFinanceSeed.purchases,tag);
+  await replaceMabaoSeedRows(T_ENTITLEMENTS,mabaoFinanceSeed.entitlements,tag);
+  await replaceMabaoSeedRows(T_ENTITLEMENT_LEDGER,mabaoFinanceSeed.entitlementLedger,tag);
 }
 async function listCampusesWithDefaults(){
   const rows=await getCachedScan(T_CAMPUSES).catch(()=>[]);
@@ -3038,6 +3067,7 @@ module.exports._test={
   assertCanEditPurchaseWithLedger,
   assertScheduleEntitlementRequired,
   scheduleParticipantSummary,
+  collectMabaoSeedStaleRowIds,
   syncEntitlementFromPurchase,
   writePurchaseAndEntitlementAtomic,
   validateEntitlementForSchedule,

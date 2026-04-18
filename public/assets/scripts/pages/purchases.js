@@ -47,7 +47,7 @@ function purchasePackageSnapshotHtml(p){
 }
 function purchaseLedgerHtml(purchaseId){
   const entIds=new Set(entitlements.filter(e=>e.purchaseId===purchaseId).map(e=>e.id));
-  const rows=dedupeEntitlementLedgerForDisplay(entitlementLedger.filter(l=>entIds.has(l.entitlementId))).sort((a,b)=>String(entitlementLedgerSortDate(b)||'').localeCompare(String(entitlementLedgerSortDate(a)||''))).slice(0,10);
+  const rows=aggregateHistoricalMonthlyLedgerRows(dedupeEntitlementLedgerForDisplay(entitlementLedger.filter(l=>entIds.has(l.entitlementId)))).sort((a,b)=>String(entitlementLedgerSortDate(b)||'').localeCompare(String(entitlementLedgerSortDate(a)||''))).slice(0,10);
   if(!rows.length)return '<div class="finput" style="min-height:42px">暂无扣课记录</div>';
   return `<div class="finput" style="min-height:42px;white-space:normal;line-height:1.7">${rows.map(l=>`${(parseInt(l.lessonDelta)||0)>0?'退回':'扣减'} ${Math.abs(parseInt(l.lessonDelta)||0)} 节 · ${esc(l.reason)||'—'} · ${entitlementLedgerDisplayDate(l)}`).join('<br>')}</div>`;
 }

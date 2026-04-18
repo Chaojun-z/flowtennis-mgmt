@@ -142,6 +142,12 @@ assert.match(
 
 assert.match(
   source,
+  /function coachOpsConsumeRows\([\s\S]*aggregateHistoricalMonthlyLedgerRows\(dedupeEntitlementLedgerForDisplay\(entitlementLedger\)\)/,
+  'coach ops consume report should reuse the unified entitlement ledger dedupe and monthly aggregation'
+);
+
+assert.match(
+  source,
   /function exportCoachOpsRevenueCsv\(/,
   'coach ops should expose revenue report export'
 );

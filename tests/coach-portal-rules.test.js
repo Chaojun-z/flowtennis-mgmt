@@ -21,7 +21,10 @@ const data = {
     { id: 'ent-allowed', studentId: 'stu-allowed', ownerCoach: '别人', allowedCoaches: ['朝珺'], packageName: '可上课课包', totalLessons: 6, usedLessons: 1, remainingLessons: 5 },
     { id: 'ent-other', studentId: 'stu-other', ownerCoach: '别人', allowedCoaches: [], packageName: '无关课包', totalLessons: 6, usedLessons: 0, remainingLessons: 6 }
   ],
-  entitlementLedger: [{ id: 'led-1', entitlementId: 'ent-owner', studentId: 'stu-owner', scheduleId: 'sch-x', lessonDelta: -1 }],
+  entitlementLedger: [
+    { id: 'led-1', entitlementId: 'ent-owner', studentId: 'stu-owner', scheduleId: 'sch-x', lessonDelta: -1 },
+    { id: 'led-import', entitlementId: 'ent-owner', studentId: 'stu-owner', scheduleId: '', lessonDelta: -2, sourceMonth: '2026-03', importSource: '系统导入', relatedDate: '2026-03-31' }
+  ],
   plans: [
     { id: 'plan-owner', studentId: 'stu-owner', coach: '朝珺', totalLessons: 10, usedLessons: 2 },
     { id: 'plan-other', studentId: 'stu-other', coach: '别人', totalLessons: 10, usedLessons: 0 }
@@ -49,6 +52,12 @@ assert.deepStrictEqual(
   filtered.entitlements.map(e => e.id).sort(),
   ['ent-allowed', 'ent-owner'],
   'coach should receive package balances for visible package students'
+);
+
+assert.deepStrictEqual(
+  filtered.entitlementLedger.map(row => row.id),
+  ['led-import'],
+  'coach should additionally receive imported historical consume rows for visible students'
 );
 
 assert.strictEqual(

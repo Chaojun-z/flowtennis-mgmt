@@ -129,6 +129,12 @@ assert.match(
 );
 
 assert.match(
+  fnBody('myStudentLessonCount'),
+  /historicalImportedLessonUnitsForStudent/,
+  'coach-side cumulative lesson count should also include imported lesson consumption'
+);
+
+assert.match(
   fnBody('renderMySchedule'),
   /scheduleAbsentText/,
   'coach weekly schedule should show absent count for class schedules'

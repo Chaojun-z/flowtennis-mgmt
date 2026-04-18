@@ -52,6 +52,9 @@ assert.match(source, /function studentLessonRecordHtml\(/, 'student detail shoul
 assert.match(source, /function studentEntitlementLedgerHtml\(/, 'student detail should provide a dedicated lesson charge history helper');
 assert.match(source, /function entitlementLedgerDisplayDate\(/, 'lesson charge history should display the real lesson or month date instead of import time');
 assert.match(source, /dedupeEntitlementLedgerForDisplay/, 'lesson charge history should collapse duplicate ledger rows before display');
+assert.match(source, /function historicalImportedLessonUnitsForStudent\(/, 'student page should expose a historical imported lesson helper');
+assert.match(source, /aggregateHistoricalMonthlyLedgerRows/, 'student consume history should aggregate historical monthly rows before display');
+assert.match(source, /studentCompletedLessonCount[\s\S]*historicalImportedLessonUnitsForStudent/, 'student cumulative lessons should include imported lesson consumption');
 assert.match(source, /教学信息[\s\S]*运营信息[\s\S]*消费与关联信息/, 'student detail should follow the agreed information hierarchy');
 assert.match(source, /上课记录/, 'student detail should provide lesson record history in plain language');
 assert.match(source, /已购课包/, 'student detail should present purchased packages in plain language');
