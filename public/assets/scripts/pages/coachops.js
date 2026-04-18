@@ -198,9 +198,9 @@ function renderCoachOps(){
   const title=document.getElementById('coachOpsViewTitle');
   if(title)title.textContent=mode==='day'?`${range.label} 教练排课（7:00-22:00）`:mode==='week'?`${dateKey(range.start)} 至 ${dateKey(addDays(range.end,-1))} 教练周视图`:`${range.label} 教练月视图`;
   const rows=coachOpsRows();
-  const todayTotal=rows.reduce((n,r)=>n+r.todayRows.length,0);
-  const weekTotal=rows.reduce((n,r)=>n+r.weekRows.length,0);
-  const rangeTotal=rows.reduce((n,r)=>n+r.rangeRows.length,0);
+  const todayTotal=lessonUnitsText(rows.reduce((n,r)=>n+sumScheduleLessonUnits(r.todayRows),0));
+  const weekTotal=lessonUnitsText(rows.reduce((n,r)=>n+sumScheduleLessonUnits(r.weekRows),0));
+  const rangeTotal=lessonUnitsText(rows.reduce((n,r)=>n+sumScheduleLessonUnits(r.rangeRows),0));
   const pending=rows.reduce((n,r)=>n+r.pending,0);
   document.getElementById('coachOpsStats').innerHTML=[
     [mode==='day'?'当日上课':'今日上课',mode==='day'?rangeTotal:todayTotal,'节','si-a'],
@@ -231,7 +231,7 @@ function renderCoachOps(){
     }).join('');
     return `<div class="coach-ops-row"><div class="coach-ops-name">${esc(r.name)}</div><div class="coach-ops-period-line ${mode==='week'?'coach-ops-week':'coach-ops-month'}">${cells}</div></div>`;
   }).join('');
-  document.getElementById('coachOpsTbody').innerHTML=rows.map(r=>`<tr><td><div class="uname">${esc(r.name)}</div></td><td>${r.rangeRows.length} 节</td><td>${r.rangeRows.reduce((n,s)=>n+scheduleDurMin(s),0)} 分钟</td><td><span class="badge ${r.pending?'b-red':'b-green'}">${r.pending}</span></td><td>${distText(r.rangeRows,s=>cn(s.campus))}</td><td>${distText(r.rangeRows,timeBand)}</td><td>${r.conflicts?`<span class="badge b-red">冲突 ${r.conflicts}</span>`:r.risks?`<span class="badge b-amber">跨校区紧 ${r.risks}</span>`:'<span class="badge b-green">正常</span>'}</td></tr>`).join('');
+  document.getElementById('coachOpsTbody').innerHTML=rows.map(r=>`<tr><td><div class="uname">${esc(r.name)}</div></td><td>${lessonUnitsText(sumScheduleLessonUnits(r.rangeRows))} 节</td><td>${r.rangeRows.reduce((n,s)=>n+scheduleDurMin(s),0)} 分钟</td><td><span class="badge ${r.pending?'b-red':'b-green'}">${r.pending}</span></td><td>${distText(r.rangeRows,s=>cn(s.campus))}</td><td>${distText(r.rangeRows,timeBand)}</td><td>${r.conflicts?`<span class="badge b-red">冲突 ${r.conflicts}</span>`:r.risks?`<span class="badge b-amber">跨校区紧 ${r.risks}</span>`:'<span class="badge b-green">正常</span>'}</td></tr>`).join('');
   renderCoachOpsRevenueReport();
   renderCoachOpsConsumeReport();
 }

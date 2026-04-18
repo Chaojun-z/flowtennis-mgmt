@@ -210,6 +210,18 @@ assert.match(
   'coach portal should expose a my-student lesson record helper'
 );
 
+assert.match(
+  fnBody('myStudentLessonCount'),
+  /sumScheduleLessonUnits/,
+  'coach my students cumulative lessons should count lesson units, not schedule rows'
+);
+
+assert.match(
+  fnBody('renderWorkbench'),
+  /sumScheduleLessonUnits/,
+  'coach workbench summary cards should count lesson units, not schedule rows'
+);
+
 assert.doesNotMatch(
   fnBody('renderMyStudents'),
   /累计上课 \$\{myStudentLessonCount/,

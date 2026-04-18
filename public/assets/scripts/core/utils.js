@@ -1,6 +1,17 @@
 function uid(){return 'u'+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
 function durMin(s,e){if(!s||!e)return 0;return Math.round((new Date(e)-new Date(s))/60000)}
 function scheduleDurMin(s){return s?.endTime?durMin(s.startTime,s.endTime):60}
+function scheduleLessonUnits(s){
+  const mins=scheduleDurMin(s);
+  if(mins>0)return Math.max(0,mins/60);
+  const count=Number(s?.lessonCount)||0;
+  return count>0?count:1;
+}
+function sumScheduleLessonUnits(rows=[]){return rows.reduce((sum,s)=>sum+scheduleLessonUnits(s),0)}
+function lessonUnitsText(value){
+  const n=Number(value)||0;
+  return Number.isInteger(n)?String(n):String(Math.round(n*10)/10);
+}
 function fmtDt(s){if(!s)return '—';return s.replace('T',' ').slice(0,16)}
 function dateMs(v){const d=dtObj(v);return d?d.getTime():NaN}
 function courtSortMetric(court,key){
@@ -751,12 +762,26 @@ function studentStatusMeta(stu){
   const recentSchedule=schedules.filter(x=>scheduleHasStudent(x,stu)&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0];
   const lastLesson=recentSchedule?.startTime?.slice(0,10)||'';
   const hasBooking=courtsForStudent(stu).length>0;
-  const hasPackage=entitlements.some(e=>e.studentId===stu?.id&&e.status!=='voided');
+  const hasPackage=studentHasPurchaseOrConsumption(stu);
   if(activeClasses.length||recentSchedule&&((Date.now()-new Date(recentSchedule.startTime))/(86400000)<=30))return {label:'上课中',badge:'b-green'};
   if(hasBooking&&!activeClasses.length&&!lastLesson)return {label:'仅订场',badge:'b-blue'};
   if(lastLesson&&((Date.now()-new Date(lastLesson))/(86400000)>30))return {label:'沉默30天',badge:'b-red'};
-  if(!activeClasses.length&&!hasPackage)return {label:'待转化',badge:'b-amber'};
+  if(studentNeedsConversion(stu))return {label:'待转化',badge:'b-amber'};
   return {label:'无班次',badge:'b-gray'};
+}
+function studentCompletedTrialRows(stu){
+  return schedules.filter(s=>scheduleHasStudent(s,stu)&&scheduleIsTrial(s)&&effectiveScheduleStatus(s)==='已结束');
+}
+function studentHasPurchaseOrConsumption(stu){
+  if(!stu)return false;
+  if(purchases.some(p=>p.status!=='voided'&&String(p.studentId||'')===String(stu.id)))return true;
+  const entRows=entitlements.filter(e=>e.studentId===stu.id&&e.status!=='voided');
+  if(entRows.length)return true;
+  const entIds=new Set(entRows.map(e=>e.id));
+  return entitlementLedger.some(l=>entIds.has(l.entitlementId));
+}
+function studentNeedsConversion(stu){
+  return studentCompletedTrialRows(stu).length>0&&!studentHasPurchaseOrConsumption(stu);
 }
 function studentNoteSummary(stu){
   const note=String(stu?.notes||'').trim();

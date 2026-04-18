@@ -22,7 +22,7 @@ function workbenchScheduleState(schedule,prevSchedule,now){
   return {code:'done',label:'已完成',hint:'课程已结束并完成反馈',priority:5};
 }
 function workbenchMetricHelpHtml(){
-  return `<div class="coach-wb-help-wrap"><button type="button" class="coach-wb-help-btn" aria-label="查看指标口径" onclick="toggleWorkbenchMetricHelp(event)">?</button><div class="coach-wb-help-popover" id="workbenchMetricHelp"><div>本月课时 = 本月已结束课程数</div><div>本周课时 = 本周已结束课程数</div><div>今天课时 = 今天已结束课程数</div><div>本月反馈 = 本月已结束且已填写课后反馈的课程数</div><div>未反馈 = 已结束但未填写反馈的课程数</div><div>本月体验课转化率 = 本月已结束体验课中，后续已购买任意产品的学员占比</div></div></div>`;
+  return `<div class="coach-wb-help-wrap"><button type="button" class="coach-wb-help-btn" aria-label="查看指标口径" onclick="toggleWorkbenchMetricHelp(event)">?</button><div class="coach-wb-help-popover" id="workbenchMetricHelp"><div>本月课时 = 本月已结束课程课时数</div><div>本周课时 = 本周已结束课程课时数</div><div>今天课时 = 今天已结束课程课时数</div><div>本月反馈 = 本月已结束且已填写课后反馈的课程数</div><div>未反馈 = 已结束但未填写反馈的课程数</div><div>本月体验课转化率 = 本月已结束体验课中，后续已购买任意产品的学员占比</div></div></div>`;
 }
 function toggleWorkbenchMetricHelp(event){
   if(event)event.stopPropagation();
@@ -100,12 +100,15 @@ function renderWorkbench(){
   const monthTrialRows=monthEndedRows.filter(s=>scheduleIsTrial(s));
   const monthTrialConverted=monthTrialRows.filter(s=>workbenchTrialConvertedByPurchase(s)).length;
   const monthTrialRate=monthTrialRows.length?Math.round(monthTrialConverted/monthTrialRows.length*100):0;
+  const monthLessonUnits=lessonUnitsText(sumScheduleLessonUnits(monthEndedRows));
+  const weekLessonUnits=lessonUnitsText(sumScheduleLessonUnits(weekEndedRows));
+  const todayLessonUnits=lessonUnitsText(sumScheduleLessonUnits(todayEndedRows));
   const host=document.getElementById('workbenchBody');
   if(!host)return;
   const statsHtml=[
-    ['本月课时',monthEndedRows.length,'节',monthEndedRows.length?`本月已结束 ${monthEndedRows.length} 节`:'本月还没有已结束课程',false],
-    ['本周课时',weekEndedRows.length,'节',weekEndedRows.length?`本周已结束 ${weekEndedRows.length} 节`:'本周还没有已结束课程',false],
-    ['今天课时',todayEndedRows.length,'节',todayEndedRows.length?`今天已结束 ${todayEndedRows.length} 节`:'今天还没有已结束课程',false],
+    ['本月课时',monthLessonUnits,'节',monthEndedRows.length?`本月已结束 ${monthLessonUnits} 节`:'本月还没有已结束课程',false],
+    ['本周课时',weekLessonUnits,'节',weekEndedRows.length?`本周已结束 ${weekLessonUnits} 节`:'本周还没有已结束课程',false],
+    ['今天课时',todayLessonUnits,'节',todayEndedRows.length?`今天已结束 ${todayLessonUnits} 节`:'今天还没有已结束课程',false],
     ['本月反馈',monthFeedbackCount,'节',monthFeedbackCount?`本月已写反馈 ${monthFeedbackCount} 节`:'本月还没有已写反馈',false],
     ['未反馈',pendingFeedbackCount,'节',pendingFeedbackCount?'有已结束课程待补反馈':'已结束课程都已反馈',pendingFeedbackCount>0],
     ['本月体验课转化率',monthTrialRate,'%',monthTrialRows.length?`${monthTrialConverted}/${monthTrialRows.length} 已购买产品`:'本月暂无已结束体验课',false]
@@ -179,7 +182,7 @@ function myStudentLessonRecordHtml(student){
     .sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))
     .slice(0,12);
   if(!rows.length)return '暂无上课记录';
-  return rows.map(s=>`${fmtDt(s.startTime)} · ${myScheduleTypeText(s)} · ${cn(s.campus)||'—'} ${s.venue||''} · ${effectiveScheduleStatus(s)}`).map(esc).join('<br>');
+  return rows.map(s=>`${fmtDt(s.startTime)} · ${myScheduleTypeText(s)} · ${lessonUnitsText(scheduleLessonUnits(s))}节 · ${cn(s.campus)||'—'} ${s.venue||''} · ${effectiveScheduleStatus(s)}`).map(esc).join('<br>');
 }
 function renderMySchedule(){
   const cn2=getMyCoachName();
@@ -250,7 +253,7 @@ function renderMySchedule(){
   }
 }
 function myStudentLessonCount(stu,coach){
-  return schedules.filter(s=>coachName(s.coach)===coach&&scheduleHasStudent(s,stu)&&effectiveScheduleStatus(s)==='已结束').length;
+  return lessonUnitsText(sumScheduleLessonUnits(schedules.filter(s=>coachName(s.coach)===coach&&scheduleHasStudent(s,stu)&&effectiveScheduleStatus(s)==='已结束')));
 }
 function myStudentLessonRows(stu,coach){
   return schedules.filter(s=>coachName(s.coach)===coach&&scheduleHasStudent(s,stu)&&s.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime));
@@ -290,8 +293,8 @@ function renderMyStudents(){
   const substituteStudentCount=myStus.filter(s=>coachName(s.primaryCoach)!==cn2&&myStudentLessonCount(s,cn2)>0).length;
   const endedRows=schedules.filter(s=>coachName(s.coach)===cn2&&effectiveScheduleStatus(s)==='已结束');
   const monthPrefix=today().slice(0,7);
-  const monthLessons=endedRows.filter(s=>String(s.startTime||'').slice(0,7)===monthPrefix).reduce((sum,s)=>sum+(parseInt(s.lessonCount)||0),0);
-  const totalLessons=endedRows.reduce((sum,s)=>sum+(parseInt(s.lessonCount)||0),0);
+  const monthLessons=lessonUnitsText(sumScheduleLessonUnits(endedRows.filter(s=>String(s.startTime||'').slice(0,7)===monthPrefix)));
+  const totalLessons=lessonUnitsText(sumScheduleLessonUnits(endedRows));
   const mobile=document.getElementById('myStudentMobileList');
   document.getElementById('myStudentStats').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">可见学员</div><div class="tms-stat-value">${visibleStudentCount}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">负责学员</div><div class="tms-stat-value">${ownerStudentCount}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">代上学员</div><div class="tms-stat-value">${substituteStudentCount}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">本月 / 累计课时</div><div class="tms-stat-value">${monthLessons}<span>/ ${totalLessons}</span></div></div>`;
   document.getElementById('myStuTbody').innerHTML=myStus.length?myStus.map(s=>{

@@ -36,10 +36,45 @@ function getFilteredStudents(){
   });
 }
 function studentCompletedLessonCount(stu){
-  return schedules
+  const units=schedules
     .filter(x=>scheduleHasStudent(x,stu))
     .filter(x=>effectiveScheduleStatus(x)==='已结束')
-    .reduce((sum,x)=>sum+(parseInt(x.lessonCount)||1),0);
+    .reduce((sum,x)=>sum+scheduleLessonUnits(x),0);
+  return lessonUnitsText(units);
+}
+function studentPageTrialConvertedByPurchase(schedule){
+  const studentId=parseArr(schedule?.studentIds)[0]||scheduleFeedback(schedule)?.studentId||schedule?.studentId||'';
+  const studentName=String(scheduleStudentSummary(schedule)||schedule?.studentName||'').trim();
+  const trialDate=String(schedule?.endTime||schedule?.startTime||'').slice(0,10);
+  if(!trialDate)return false;
+  return purchases.some(p=>{
+    if(p?.status==='voided')return false;
+    const purchaseDate=String(p.purchaseDate||p.createdAt||'').slice(0,10);
+    if(!purchaseDate||purchaseDate<trialDate)return false;
+    if(studentId)return String(p.studentId||'')===studentId;
+    return studentName&&String(p.studentName||'').trim()===studentName;
+  });
+}
+function studentPageStats(base){
+  const now=shanghaiNow();
+  const todayStr=localDateKey(now);
+  const monthKey=todayStr.slice(0,7);
+  const ws=weekStart(now),we=addDays(ws,7);
+  const scopedRows=billableSchedules().filter(s=>campus==='all'||s.campus===campus);
+  const endedRows=scopedRows.filter(s=>{const end=dtObj(s.endTime||s.startTime);return end&&end<=now;});
+  const todayEndedRows=endedRows.filter(s=>String(s.startTime||'').slice(0,10)===todayStr);
+  const weekEndedRows=endedRows.filter(s=>inRange(s.startTime,ws,we));
+  const monthEndedRows=endedRows.filter(s=>String(s.startTime||'').slice(0,7)===monthKey);
+  const monthTrialRows=monthEndedRows.filter(s=>scheduleIsTrial(s));
+  const monthTrialConverted=monthTrialRows.filter(s=>studentPageTrialConvertedByPurchase(s)).length;
+  return {
+    total:base.length,
+    todayLessons:lessonUnitsText(sumScheduleLessonUnits(todayEndedRows)),
+    weekLessons:lessonUnitsText(sumScheduleLessonUnits(weekEndedRows)),
+    monthLessons:lessonUnitsText(sumScheduleLessonUnits(monthEndedRows)),
+    monthTrialRate:monthTrialRows.length?Math.round(monthTrialConverted/monthTrialRows.length*100):0,
+    pendingConversion:base.filter(s=>studentNeedsConversion(s)).length
+  };
 }
 function getStudentDuplicateCandidates(input,editingId=''){
   const name=String(input?.name||'').trim();
@@ -55,11 +90,8 @@ function renderStudents(){
   renderStudentToolbarFilters();
   let list=getFilteredStudents();
   const base=getStudentBaseList();
-  const activeCount=base.filter(s=>studentStatusMeta(s).label==='上课中').length;
-  const convertingCount=base.filter(s=>studentStatusMeta(s).label==='待转化').length;
-  const silentCount=base.filter(s=>studentStatusMeta(s).label==='沉默30天').length;
-  const relationCount=base.filter(s=>studentBookingMembershipSummary(s)!=='未关联').length;
-  document.getElementById('studentStatsRow').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">学员总数</div><div class="tms-stat-value">${base.length}<span>人</span></div><div class="tms-stat-sub">当前校区口径</div></div><div class="tms-stat-card"><div class="tms-stat-label">上课中</div><div class="tms-stat-value">${activeCount}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">待转化</div><div class="tms-stat-value">${convertingCount}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">订场/会员关联</div><div class="tms-stat-value">${relationCount}<span>人</span></div><div class="tms-stat-sub">沉默30天 ${silentCount}</div></div>`;
+  const stats=studentPageStats(base);
+  document.getElementById('studentStatsRow').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">学员总数</div><div class="tms-stat-value">${stats.total}<span>人</span></div><div class="tms-stat-sub">当前校区口径</div></div><div class="tms-stat-card"><div class="tms-stat-label">今日课时</div><div class="tms-stat-value">${stats.todayLessons}<span>节</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">本周课时</div><div class="tms-stat-value">${stats.weekLessons}<span>节</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">本月课时</div><div class="tms-stat-value">${stats.monthLessons}<span>节</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">本月体验课转化率</div><div class="tms-stat-value">${stats.monthTrialRate}<span>%</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">待转化</div><div class="tms-stat-value">${stats.pendingConversion}<span>人</span></div><div class="tms-stat-sub">上过体验课且无购买/消耗</div></div>`;
   const total=list.length,pages=Math.ceil(total/PAGE_SIZE);
   if(stuPage>Math.max(pages,1))stuPage=1;
   const slice=list.slice((stuPage-1)*PAGE_SIZE,stuPage*PAGE_SIZE);
@@ -112,7 +144,7 @@ function studentLessonRecordHtml(stu){
     .sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))
     .slice(0,12);
   if(!rows.length)return '暂无上课记录';
-  return rows.map(s=>`${String(s.startTime||'').replace('T',' ').slice(0,16)} · ${scheduleCourseType(s)} · ${scheduleClassName(s)} · ${s.coach||'—'} · ${cn(s.campus)||'—'} ${s.venue||''} · ${effectiveScheduleStatus(s)}`).map(esc).join('<br>');
+  return rows.map(s=>`${String(s.startTime||'').replace('T',' ').slice(0,16)} · ${scheduleCourseType(s)} · ${scheduleClassName(s)} · ${s.coach||'—'} · ${lessonUnitsText(scheduleLessonUnits(s))}节 · ${cn(s.campus)||'—'} ${s.venue||''} · ${effectiveScheduleStatus(s)}`).map(esc).join('<br>');
 }
 function studentTeachingInfoHtml(stu){
   const status=studentStatusMeta(stu);
@@ -132,7 +164,7 @@ function studentOpsInfoHtml(stu){
 }
 function studentConsumptionInfoHtml(stu){
   const linkedCourts=courtsForStudent(stu);
-  return `<div class="tms-section-header">消费与关联信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">订场 / 会员</label><input class="finput tms-form-control" value="${esc(studentBookingMembershipSummary(stu))}" readonly></div><div class="tms-form-item"><label class="tms-form-label">最近订场</label><input class="finput tms-form-control" value="${latestCourtUseDateForStudent(stu)?daysAgoText(latestCourtUseDateForStudent(stu)):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">订场账户摘要</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentAccountSummaryHtml(stu)}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">会员摘要</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentMembershipSummaryHtml(stu)}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">已购课包</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentEntitlementSummaryHtml(stu)}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">扣课记录</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${studentEntitlementLedgerHtml(stu)}</div></div></div>${linkedCourts.length?`<div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">关联说明</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${esc(linkedCourts.map(c=>c.name).join('、'))}</div></div></div>`:''}`;
+  return `<div class="tms-section-header">消费与关联信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">订场 / 会员</label><input class="finput tms-form-control" value="${esc(studentBookingMembershipSummary(stu))}" readonly></div><div class="tms-form-item"><label class="tms-form-label">最近订场</label><input class="finput tms-form-control" value="${latestCourtUseDateForStudent(stu)?daysAgoText(latestCourtUseDateForStudent(stu)):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">订场账户摘要</label><div class="finput tms-form-control tms-readonly-text">${studentAccountSummaryHtml(stu)}</div><div class="tms-field-help">关联订场账户在「订场/会员」页面编辑用户时选择「关联学员」。</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">会员摘要</label><div class="finput tms-form-control tms-readonly-text">${studentMembershipSummaryHtml(stu)}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">课包购买记录</label><div class="finput tms-form-control tms-readonly-text">${studentEntitlementSummaryHtml(stu)}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">课包消耗记录</label><div class="finput tms-form-control tms-readonly-text">${studentEntitlementLedgerHtml(stu)}</div></div></div>${linkedCourts.length?`<div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">关联说明</label><div class="finput tms-form-control tms-readonly-text">${esc(linkedCourts.map(c=>c.name).join('、'))}</div></div></div>`:''}`;
 }
 function studentLinkedDetailHtml(s,showAccount=true){
   const latest=schedules.filter(x=>scheduleHasStudent(x,s)).sort((a,b)=>new Date(b.startTime||0)-new Date(a.startTime||0))[0];
