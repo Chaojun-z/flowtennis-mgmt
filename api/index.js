@@ -60,7 +60,12 @@ const HOT_SCAN_TABLES=new Map([
 const HOT_GET_TABLES=new Map([
   [T_USERS,{ttlMs:60000}],
   [T_CLASSES,{ttlMs:60000}],
-  [T_ENTITLEMENTS,{ttlMs:60000}]
+  [T_ENTITLEMENTS,{ttlMs:60000}],
+  [T_COURTS,{ttlMs:60000}],
+  [T_MEMBERSHIP_PLANS,{ttlMs:60000}],
+  [T_MEMBERSHIP_ACCOUNTS,{ttlMs:60000}],
+  [T_MEMBERSHIP_ORDERS,{ttlMs:60000}],
+  [T_PRICE_PLANS,{ttlMs:60000}]
 ]);
 const hotScanCache=new Map();
 const hotGetCache=new Map();
@@ -2486,16 +2491,16 @@ function shouldMigrateLegacyCourtFinance(court){
 }
 async function loadCourtDeleteReferenceData(){
   const [membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents]=await Promise.all([
-    scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-    scan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
-    scan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
-    scan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])
+    getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
+    getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
+    getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
+    getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])
   ]);
   return {membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents};
 }
 async function deleteCourtsByIds(ids,data={}){
   const uniqueIds=[...new Set((ids||[]).map(id=>String(id||'').trim()).filter(Boolean))];
-  const courts=await scan(T_COURTS).catch(()=>[]);
+  const courts=await getCachedScan(T_COURTS).catch(()=>[]);
   const courtMap=new Map((courts||[]).map(c=>[String(c.id||''),c]));
   const deleted=[],archived=[],errors=[];
   for(let i=0;i<uniqueIds.length;i+=25){
@@ -2525,12 +2530,12 @@ async function deleteCourtsByIds(ids,data={}){
   return {success:deleted.length,archivedCount:archived.length,failed:errors.length,deleted,archived,errors};
 }
 async function clearAllCourts(){
-  const existing=await scan(T_COURTS);
+  const existing=await getCachedScan(T_COURTS);
   for(let i=0;i<existing.length;i+=20)await Promise.all(existing.slice(i,i+20).map(r=>del(T_COURTS,r.id)));
   return existing.length;
 }
 async function importCourtRows(rows){
-  const schedules=await scan(T_SCHEDULE).catch(()=>[]);
+  const schedules=await getCachedScan(T_SCHEDULE).catch(()=>[]);
   let success=0,failed=0;
   const errors=[];
   for(const row of rows){
@@ -2547,8 +2552,8 @@ async function importCourtRows(rows){
   return {success,failed,errors};
 }
 async function runMembershipReconcile(rows){
-  const accounts=Array.isArray(rows?.accounts)?rows.accounts:await scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]);
-  const courts=Array.isArray(rows?.courts)?rows.courts:await scan(T_COURTS).catch(()=>[]);
+  const accounts=Array.isArray(rows?.accounts)?rows.accounts:await getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]);
+  const courts=Array.isArray(rows?.courts)?rows.courts:await getCachedScan(T_COURTS).catch(()=>[]);
   const result=reconcileMembershipAccounts({accounts,courts});
   const accountMap=new Map((accounts||[]).map(a=>[a.id,a]));
   const changedAccounts=result.accounts.filter(a=>JSON.stringify(a)!==JSON.stringify(accountMap.get(a.id)));
@@ -2732,7 +2737,7 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,await getCachedScan(T_COURTS));
       if(method==='POST'){
         const id=uuidv4();
-        const schedules=await scan(T_SCHEDULE).catch(()=>[]);
+        const schedules=await getCachedScan(T_SCHEDULE).catch(()=>[]);
         const r={...normalizeCourtRecord(body,{schedules}),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
         await put(T_COURTS,id,r);return sendJson(res,r);
       }
@@ -2755,8 +2760,8 @@ module.exports = async (req, res) => {
       if(!sourceCourtId||!targetCourtId)return sendJson(res,{error:'请选择要合并的订场用户'},400);
       if(sourceCourtId===targetCourtId)return sendJson(res,{error:'不能合并到自己'},400);
       const [sourceCourt,targetCourt,membershipRefs]=await Promise.all([
-        get(T_COURTS,sourceCourtId).catch(()=>null),
-        get(T_COURTS,targetCourtId).catch(()=>null),
+        getCachedRow(T_COURTS,sourceCourtId).catch(()=>null),
+        getCachedRow(T_COURTS,targetCourtId).catch(()=>null),
         loadCourtDeleteReferenceData()
       ]);
       if(!sourceCourt)return sendJson(res,{error:'原订场用户不存在'},404);
@@ -2785,7 +2790,7 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const dryRun=body?.dryRun!==false;
-      const rows=await scan(T_COURTS);
+      const rows=await getCachedScan(T_COURTS);
       let changed=0;
       const preview=[];
       for(const row of rows){
@@ -2815,8 +2820,8 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const dryRun=body?.dryRun!==false;
-      const rows=await scan(T_COURTS);
-      const schedules=await scan(T_SCHEDULE).catch(()=>[]);
+      const rows=await getCachedScan(T_COURTS);
+      const schedules=await getCachedScan(T_SCHEDULE).catch(()=>[]);
       let candidates=0,migrated=0,skipped=0;
       const preview=[];
       for(const row of rows){
@@ -2843,7 +2848,7 @@ module.exports = async (req, res) => {
       }
       return sendJson(res,{dryRun,total:rows.length,candidates,migrated,skipped,preview});
     }
-    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const prev=await get(T_COURTS,id).catch(()=>null);const prevHistory=JSON.stringify(normalizeCourtHistory(prev?.history));const nextHistory=JSON.stringify(normalizeCourtHistory(body?.history));const schedules=prevHistory===nextHistory?[]:await scan(T_SCHEDULE).catch(()=>[]);const r={...normalizeCourtRecord(body,{schedules}),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await get(T_COURTS,id).catch(()=>null);if(!court)return sendJson(res,{error:'订场用户不存在'},404);const action=courtDeleteAction(court,await loadCourtDeleteReferenceData());if(action==='delete'){await del(T_COURTS,id);return sendJson(res,{success:true,archived:false});}const now=new Date().toISOString();await put(T_COURTS,id,{...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now});return sendJson(res,{success:true,archived:true});}}
+    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const prev=await getCachedRow(T_COURTS,id).catch(()=>null);const prevHistory=JSON.stringify(normalizeCourtHistory(prev?.history));const nextHistory=JSON.stringify(normalizeCourtHistory(body?.history));const schedules=prevHistory===nextHistory?[]:await getCachedScan(T_SCHEDULE).catch(()=>[]);const r={...normalizeCourtRecord(body,{schedules}),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await getCachedRow(T_COURTS,id).catch(()=>null);if(!court)return sendJson(res,{error:'订场用户不存在'},404);const action=courtDeleteAction(court,await loadCourtDeleteReferenceData());if(action==='delete'){await del(T_COURTS,id);return sendJson(res,{success:true,archived:false});}const now=new Date().toISOString();await put(T_COURTS,id,{...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now});return sendJson(res,{success:true,archived:true});}}
     if(path==='/students'){await init();if(method==='GET')return sendJson(res,await getCachedScan(T_STUDENTS));if(method==='POST'){assertStudentWriteAccess(user);const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
     const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){assertStudentWriteAccess(user);const old=await get(T_STUDENTS,id).catch(()=>null);const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);const studentUpdates=old?await applyStudentIdentityUpdate(old,r):{plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};return sendJson(res,{...r,studentUpdates});}if(method==='DELETE'){assertStudentWriteAccess(user);const [classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_PLANS).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scanFeedbacks().catch(()=>[]),scan(T_PURCHASES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanDeleteStudent(id,{classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger});await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
     if(path==='/init-data'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const ss=body.students||[];for(const s of ss)await put(T_STUDENTS,s.id||uuidv4(),{...s,updatedAt:new Date().toISOString()});return sendJson(res,{success:true,count:ss.length});}
@@ -2862,9 +2867,9 @@ module.exports = async (req, res) => {
     const mpM=path.match(/^\/membership-plans\/(.+)$/);if(mpM){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       const id=mpM[1];
-      if(method==='GET')return sendJson(res,await get(T_MEMBERSHIP_PLANS,id));
-      if(method==='PUT'){const old=await get(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);const r=buildMembershipPlanRecord({...old,...body,id,createdAt:old.createdAt},{id,now:new Date().toISOString()});await put(T_MEMBERSHIP_PLANS,id,r);return sendJson(res,r);}
-      if(method==='DELETE'){const old=await get(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);if(old.status==='active')return sendJson(res,{error:'上架中的会员方案不能删除，请先停售'},400);const orders=await scan(T_MEMBERSHIP_ORDERS).catch(()=>[]);if(orders.some(o=>o.membershipPlanId===id))return sendJson(res,{error:'该会员方案已有购买记录，不能删除，请停用'},400);await del(T_MEMBERSHIP_PLANS,id);return sendJson(res,{success:true});}
+      if(method==='GET')return sendJson(res,await getCachedRow(T_MEMBERSHIP_PLANS,id));
+      if(method==='PUT'){const old=await getCachedRow(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);const r=buildMembershipPlanRecord({...old,...body,id,createdAt:old.createdAt},{id,now:new Date().toISOString()});await put(T_MEMBERSHIP_PLANS,id,r);return sendJson(res,r);}
+      if(method==='DELETE'){const old=await getCachedRow(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);if(old.status==='active')return sendJson(res,{error:'上架中的会员方案不能删除，请先停售'},400);const orders=await getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]);if(orders.some(o=>o.membershipPlanId===id))return sendJson(res,{error:'该会员方案已有购买记录，不能删除，请停用'},400);await del(T_MEMBERSHIP_PLANS,id);return sendJson(res,{success:true});}
     }
     if(path==='/membership-accounts/reconcile'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
@@ -2879,9 +2884,9 @@ module.exports = async (req, res) => {
     const maM=path.match(/^\/membership-accounts\/(.+)$/);if(maM){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       const id=maM[1];
-      if(method==='GET')return sendJson(res,await get(T_MEMBERSHIP_ACCOUNTS,id));
+      if(method==='GET')return sendJson(res,await getCachedRow(T_MEMBERSHIP_ACCOUNTS,id));
       if(method==='PUT'){
-        const old=await get(T_MEMBERSHIP_ACCOUNTS,id).catch(()=>null);
+        const old=await getCachedRow(T_MEMBERSHIP_ACCOUNTS,id).catch(()=>null);
         if(!old)return sendJson(res,{error:'会员账户不存在'},404);
         const now=new Date().toISOString();
         const r={...old,...body,id,updatedAt:now};
@@ -2919,14 +2924,14 @@ module.exports = async (req, res) => {
         const requestReservationKey=reserveRecentMembershipOrderRequest({courtId:body.courtId,membershipPlanId:body.membershipPlanId,purchaseDate,rechargeAmount,requestKey:body.requestKey},now);
         if(!requestReservationKey)return sendJson(res,{error:'检测到重复提交，请勿重复开卡/续充'},409);
         const [court,plan,existingAccountFallback]=await Promise.all([
-          get(T_COURTS,body.courtId).catch(()=>null),
-          get(T_MEMBERSHIP_PLANS,body.membershipPlanId).catch(()=>null),
-          body.membershipAccountId?get(T_MEMBERSHIP_ACCOUNTS,body.membershipAccountId).catch(()=>null):Promise.resolve(null)
+          getCachedRow(T_COURTS,body.courtId).catch(()=>null),
+          getCachedRow(T_MEMBERSHIP_PLANS,body.membershipPlanId).catch(()=>null),
+          body.membershipAccountId?getCachedRow(T_MEMBERSHIP_ACCOUNTS,body.membershipAccountId).catch(()=>null):Promise.resolve(null)
         ]);
         if(!court){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'订场用户不存在'},404);}
         const existingAccount=existingAccountFallback&&existingAccountFallback.courtId===court.id&&existingAccountFallback.status!=='voided'
           ? existingAccountFallback
-          : (await scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])).find(a=>a.courtId===court.id&&a.status!=='voided');
+          : (await getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])).find(a=>a.courtId===court.id&&a.status!=='voided');
         if(!plan){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'会员方案不存在'},404);}
         if(plan.status&&plan.status!=='active'){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'该会员方案已停用'},400);}
         if(plan.saleStartDate&&purchaseDate<plan.saleStartDate){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'未到会员方案售卖时间'},400);}
@@ -2961,9 +2966,9 @@ module.exports = async (req, res) => {
     const moM=path.match(/^\/membership-orders\/(.+)$/);if(moM){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       const id=moM[1];
-      if(method==='GET')return sendJson(res,await get(T_MEMBERSHIP_ORDERS,id));
-      if(method==='PUT'){const old=await get(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员购买记录不存在'},404);const r={...old,...body,id,updatedAt:new Date().toISOString()};await put(T_MEMBERSHIP_ORDERS,id,r);return sendJson(res,r);}
-      if(method==='DELETE'){const old=await get(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(old)await put(T_MEMBERSHIP_ORDERS,id,{...old,status:'voided',voidedAt:new Date().toISOString(),voidedBy:user.name||'',voidReason:body.reason||'会员购买记录作废',updatedAt:new Date().toISOString()});return sendJson(res,{success:true});}
+      if(method==='GET')return sendJson(res,await getCachedRow(T_MEMBERSHIP_ORDERS,id));
+      if(method==='PUT'){const old=await getCachedRow(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员购买记录不存在'},404);const r={...old,...body,id,updatedAt:new Date().toISOString()};await put(T_MEMBERSHIP_ORDERS,id,r);return sendJson(res,r);}
+      if(method==='DELETE'){const old=await getCachedRow(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(old)await put(T_MEMBERSHIP_ORDERS,id,{...old,status:'voided',voidedAt:new Date().toISOString(),voidedBy:user.name||'',voidReason:body.reason||'会员购买记录作废',updatedAt:new Date().toISOString()});return sendJson(res,{success:true});}
     }
     if(path==='/membership-benefit-ledger'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
@@ -2977,11 +2982,11 @@ module.exports = async (req, res) => {
       }
       if(method==='POST'){
         const now=new Date().toISOString();
-        const account=body.membershipAccountId?await get(T_MEMBERSHIP_ACCOUNTS,body.membershipAccountId).catch(()=>null):null;
+        const account=body.membershipAccountId?await getCachedRow(T_MEMBERSHIP_ACCOUNTS,body.membershipAccountId).catch(()=>null):null;
         const operator=body.operator||operatorAccountName(user);
         if(account&&['voided','cleared'].includes(account.status)&&['consume','supplement'].includes(body.action))return sendJson(res,{error:'当前会员状态不可再消耗或补发权益，请先重新开卡'},400);
         if(!body.membershipOrderId&&(body.action==='consume'||parseInt(body.delta)<0)){
-          const [orders,ledger]=await Promise.all([scan(T_MEMBERSHIP_ORDERS).catch(()=>[]),scan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[])]);
+          const [orders,ledger]=await Promise.all([getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[])]);
           const relevantOrders=(orders||[]).filter(order=>order.membershipAccountId===body.membershipAccountId&&order.courtId===body.courtId);
           const needsPlanFallback=relevantOrders.some(order=>{
             const hasBenefitSnapshot=order?.benefitSnapshot&&Object.keys(order.benefitSnapshot).length>0;
@@ -2989,7 +2994,7 @@ module.exports = async (req, res) => {
             const hasLegacyCounts=MEMBERSHIP_BENEFIT_FIELD_MAP.some(({field})=>parseInt(order?.[field])>0);
             return !hasBenefitSnapshot&&!hasPlanSnapshot&&!hasLegacyCounts;
           });
-          const plans=needsPlanFallback?await scan(T_MEMBERSHIP_PLANS).catch(()=>[]):[];
+          const plans=needsPlanFallback?await getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]):[];
           const planMap=new Map((plans||[]).map(plan=>[plan.id,normalizeMembershipPlanViewRecord(plan)]));
           const normalizedOrders=relevantOrders.map(order=>normalizeMembershipOrderViewRecord(order,planMap.get(order.membershipPlanId)||null));
           const rows=allocateMembershipBenefitUsage({
