@@ -11,7 +11,7 @@ let modalCleanupTimer=null;
 let lastDataSyncAt=0,isSyncingAll=false,dataRequestVersion=0;
 let loadedDatasets=new Set();
 const PAGE_DATA_REQUIREMENTS={
-  students:[],
+  students:['campuses','students','classes','schedule','feedbacks','products','courts'],
   classes:['campuses','students','products','classes','schedule','coaches'],
   plans:[],
   schedule:['campuses','students','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products'],
@@ -36,7 +36,7 @@ const PAGE_DATA_REQUIREMENTS={
   myclasses:[]
 };
 const PAGE_DATA_BACKGROUND_REQUIREMENTS={
-  students:['campuses','students','courts','classes','schedule','feedbacks','products'],
+  students:[],
   plans:['campuses','students','classes','plans','products','schedule','courts','entitlements'],
   packages:['packages','products'],
   purchases:['purchases','packages','students','entitlements'],

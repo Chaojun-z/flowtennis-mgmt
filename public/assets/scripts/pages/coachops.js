@@ -44,11 +44,11 @@ function updateCoachOpsDateButton(){
 }
 function closeCoachOpsPicker(){document.getElementById('coachOpsPicker')?.classList.remove('open');}
 function ensureCoachOpsReportDateControls(){
-  const monthStartValue=today().slice(0,8)+'01';
+  const yearStartValue=`${today().slice(0,4)}-01-01`;
   const configs=[
-    ['coachOpsRevenueFromHost','coachOpsRevenueFrom','开始日期',document.getElementById('coachOpsRevenueFrom')?.value||monthStartValue,'renderCoachOpsRevenueReport()'],
+    ['coachOpsRevenueFromHost','coachOpsRevenueFrom','开始日期',document.getElementById('coachOpsRevenueFrom')?.value||yearStartValue,'renderCoachOpsRevenueReport()'],
     ['coachOpsRevenueToHost','coachOpsRevenueTo','结束日期',document.getElementById('coachOpsRevenueTo')?.value||today(),'renderCoachOpsRevenueReport()'],
-    ['coachOpsConsumeFromHost','coachOpsConsumeFrom','开始日期',document.getElementById('coachOpsConsumeFrom')?.value||monthStartValue,'renderCoachOpsConsumeReport()'],
+    ['coachOpsConsumeFromHost','coachOpsConsumeFrom','开始日期',document.getElementById('coachOpsConsumeFrom')?.value||yearStartValue,'renderCoachOpsConsumeReport()'],
     ['coachOpsConsumeToHost','coachOpsConsumeTo','结束日期',document.getElementById('coachOpsConsumeTo')?.value||today(),'renderCoachOpsConsumeReport()']
   ];
   configs.forEach(([hostId,id,label,value,handler])=>{
