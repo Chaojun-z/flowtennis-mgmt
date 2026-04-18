@@ -1035,16 +1035,9 @@ async function ensureDefaultCampuses(){
     if(!ex)await put(T_CAMPUSES,campus.id,{...campus,createdAt:new Date().toISOString()});
   }
 }
-function isAlreadyExistsError(err){
-  return /ConditionCheckFail|EXPECT_NOT_EXIST|already exists|OTSConditionCheckFail/i.test(String(err?.message||err||''));
-}
 async function putSeedRows(table,rows=[]){
   for(const row of rows){
-    try{
-      await putIfAbsent(table,row.id,row);
-    }catch(err){
-      if(!isAlreadyExistsError(err))throw err;
-    }
+    await put(table,row.id,row);
   }
 }
 async function bootstrapMabaoFinanceSeed(){

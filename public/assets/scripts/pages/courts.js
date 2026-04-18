@@ -408,9 +408,10 @@ function renderCourtEmptyText(value){
   const raw=String(value??'').trim();
   return raw&&raw!=='—'?raw:'-';
 }
-function courtDateButtonHtml(id,value,label='年 / 月 / 日'){
+function courtDateButtonHtml(id,value,label='年 / 月 / 日',onchange=''){
   const show=value||label;
-  return `<div class="filter-date-wrap"><button class="coach-date-btn" id="${id}_btn" onclick="toggleGlobalDatePicker(event,'${id}','${id}_btn','${label}')" type="button">${esc(show)}</button><input class="filter-hidden-date" id="${id}" type="date" value="${esc(value||'')}" onchange="syncDateButton('${id}','${id}_btn','${label}')"></div>`;
+  const handler=onchange?`;${onchange}`:'';
+  return `<div class="filter-date-wrap"><button class="coach-date-btn" id="${id}_btn" onclick="toggleGlobalDatePicker(event,'${id}','${id}_btn','${label}')" type="button">${esc(show)}</button><input class="filter-hidden-date" id="${id}" type="date" value="${esc(value||'')}" onchange="syncDateButton('${id}','${id}_btn','${label}')${handler}"></div>`;
 }
 function scheduleDateTimeControls(prefix,value='',label='日期'){
   const raw=String(value||'').trim().replace(' ','T');

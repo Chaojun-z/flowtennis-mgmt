@@ -15,6 +15,9 @@ assert.match(source,/function renderCoachOpsRevenueReport\(/,'finance center sho
 assert.match(source,/function renderCoachOpsConsumeReport\(/,'finance center should reuse consume report renderer');
 assert.match(source,/function renderFinanceSettlementSummary\(/,'finance center should render settlement summary');
 assert.doesNotMatch(source,/id="financeStatsRow"/,'finance center should not keep a duplicated top stats row');
+assert.match(source,/备注[\s\S]*coachOpsRevenueTbody/,'revenue report should expose imported notes');
+assert.match(source,/原因[\s\S]*备注[\s\S]*操作人[\s\S]*coachOpsConsumeTbody/,'consume report should expose imported notes');
+assert.match(source,/courtDateButtonHtml\(id,value,label,handler\)/,'finance date controls should refresh reports after selecting a date');
 assert.match(source,/查看迟到月结/,'finance center should expose late settlement entry');
 
 console.log('finance page view tests passed');

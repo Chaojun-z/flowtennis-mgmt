@@ -263,7 +263,7 @@ function renderCoachOpsRevenueReport(){
     ['售出课时',totalLessons,'节'],
     ['已消课时',usedLessons,'节']
   ].map(([label,val,unit])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${val}${unit?`<span>${unit}</span>`:''}</div></div>`).join('');
-  body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.purchaseDate,false)}</td><td>${renderCourtCellText(row.studentName,false)}</td><td><div class="tms-text-primary">${esc(renderCourtEmptyText(row.packageName))}</div><div class="tms-text-secondary">${esc(renderCourtEmptyText(row.entitlement?.timeBand||row.packageTimeBand||'全天'))}</div></td><td>${renderCourtCellText(row.productName,false)}</td><td>${renderCourtCellText(row.ownerCoach,false)}</td><td>¥${fmt(row.amountPaid)}</td><td>${row.totalLessons||0} 节</td><td>${row.usedLessons||0} 节</td><td>${row.remainingLessons||0} 节</td><td>${row.entitlement?.validFrom||'—'} - ${row.entitlement?.validUntil||'—'}</td><td>${renderCourtCellText(row.payMethod,false)}</td><td><span class="tms-tag ${row.status==='voided'?'tms-tag-tier-slate':'tms-tag-green'}">${purchaseStatusText(row)}</span></td><td class="tms-sticky-r tms-action-cell" style="width:110px;padding-right:20px"><span class="tms-action-link" onclick="openPurchaseDetailModal('${row.id}')">查看</span></td></tr>`).join(''):`<tr><td colspan="13"><div class="empty"><p>暂无收入课时记录</p></div></td></tr>`;
+  body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.purchaseDate,false)}</td><td>${renderCourtCellText(row.studentName,false)}</td><td><div class="tms-text-primary">${esc(renderCourtEmptyText(row.packageName))}</div><div class="tms-text-secondary">${esc(renderCourtEmptyText(row.entitlement?.timeBand||row.packageTimeBand||'全天'))}</div></td><td>${renderCourtCellText(row.productName,false)}</td><td>${renderCourtCellText(row.ownerCoach,false)}</td><td>¥${fmt(row.amountPaid)}</td><td>${row.totalLessons||0} 节</td><td>${row.usedLessons||0} 节</td><td>${row.remainingLessons||0} 节</td><td>${row.entitlement?.validFrom||'—'} - ${row.entitlement?.validUntil||'—'}</td><td>${renderCourtCellText(row.payMethod,false)}</td><td><span class="tms-tag ${row.status==='voided'?'tms-tag-tier-slate':'tms-tag-green'}">${purchaseStatusText(row)}</span></td><td><div class="tms-text-remark" title="${esc(row.notes||'')}">${esc(renderCourtEmptyText(row.notes))}</div></td><td class="tms-sticky-r tms-action-cell" style="width:110px;padding-right:20px"><span class="tms-action-link" onclick="openPurchaseDetailModal('${row.id}')">查看</span></td></tr>`).join(''):`<tr><td colspan="14"><div class="empty"><p>暂无收入课时记录</p></div></td></tr>`;
 }
 function coachOpsConsumeRows(){
   const q=String(document.getElementById('coachOpsConsumeSearch')?.value||'').trim().toLowerCase();
@@ -274,7 +274,7 @@ function coachOpsConsumeRows(){
     const ent=entitlements.find(e=>e.id===row.entitlementId)||{};
     const purchase=purchases.find(p=>p.id===ent.purchaseId)||{};
     const schedule=schedules.find(s=>s.id===row.scheduleId)||{};
-    return searchHit(q,row.reason,row.operator,ent.studentName,ent.packageName,purchase.studentName,schedule.coach,schedule.studentName);
+    return searchHit(q,row.reason,row.notes,row.operator,ent.studentName,ent.packageName,purchase.studentName,schedule.coach,schedule.studentName);
   }).sort((a,b)=>String(b.createdAt||b.relatedDate||'').localeCompare(String(a.createdAt||a.relatedDate||''))).map(row=>{
     const ent=entitlements.find(e=>e.id===row.entitlementId)||{};
     const purchase=purchases.find(p=>p.id===ent.purchaseId)||{};
@@ -284,6 +284,7 @@ function coachOpsConsumeRows(){
       actionLabel:(parseInt(row.lessonDelta)||0)<0?'扣课':'退回',
       studentName:ent.studentName||purchase.studentName||schedule.studentName||'—',
       packageName:ent.packageName||purchase.packageName||'—',
+      notes:row.notes||ent.notes||purchase.notes||'',
       scheduleTime:schedule.startTime||'',
       coach:schedule.coach||purchase.ownerCoach||'—',
       courseType:scheduleCourseType(schedule)||ent.courseType||purchase.courseType||'—'
@@ -304,19 +305,19 @@ function renderCoachOpsConsumeReport(){
     ['退回记录',refundRows.length,'条'],
     ['异常风险',rows.filter(row=>!row.scheduleId).length,'条']
   ].map(([label,val,unit])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${val}<span>${unit}</span></div></div>`).join('');
-  body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${fmtDt(row.createdAt||row.relatedDate)}</td><td><span class="tms-tag ${row.actionLabel==='扣课'?'tms-tag-tier-gold':'tms-tag-tier-slate'}">${row.actionLabel}</span></td><td>${renderCourtCellText(row.studentName,false)}</td><td>${renderCourtCellText(row.packageName,false)}</td><td>${Math.abs(parseInt(row.lessonDelta)||0)} 节</td><td>${renderCourtCellText(row.scheduleTime?fmtDt(row.scheduleTime):'—',false)}</td><td>${renderCourtCellText(row.coach,false)}</td><td>${renderCourtCellText(row.courseType,false)}</td><td>${renderCourtCellText(row.reason,false)}</td><td>${renderCourtCellText(row.operator,false)}</td><td class="tms-sticky-r tms-action-cell" style="width:100px;padding-right:20px">${row.scheduleId?`<span class="tms-action-link" onclick="openScheduleDetail('${row.scheduleId}')">排课</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="11"><div class="empty"><p>暂无消课记录</p></div></td></tr>`;
+  body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${fmtDt(row.createdAt||row.relatedDate)}</td><td><span class="tms-tag ${row.actionLabel==='扣课'?'tms-tag-tier-gold':'tms-tag-tier-slate'}">${row.actionLabel}</span></td><td>${renderCourtCellText(row.studentName,false)}</td><td>${renderCourtCellText(row.packageName,false)}</td><td>${Math.abs(parseInt(row.lessonDelta)||0)} 节</td><td>${renderCourtCellText(row.scheduleTime?fmtDt(row.scheduleTime):'—',false)}</td><td>${renderCourtCellText(row.coach,false)}</td><td>${renderCourtCellText(row.courseType,false)}</td><td>${renderCourtCellText(row.reason,false)}</td><td><div class="tms-text-remark" title="${esc(row.notes||'')}">${esc(renderCourtEmptyText(row.notes))}</div></td><td>${renderCourtCellText(row.operator,false)}</td><td class="tms-sticky-r tms-action-cell" style="width:100px;padding-right:20px">${row.scheduleId?`<span class="tms-action-link" onclick="openScheduleDetail('${row.scheduleId}')">排课</span>`:'—'}</td></tr>`).join(''):`<tr><td colspan="12"><div class="empty"><p>暂无消课记录</p></div></td></tr>`;
 }
 function exportCoachOpsRevenueCsv(){
   const rows=coachOpsRevenueRows();
-  let csv='支付日期,学员,售卖课包,课程产品,主归属教练,实收金额,总课时,已消课时,剩余课时,有效开始,有效结束,支付方式,状态\n';
-  csv+=rows.map(row=>[row.purchaseDate||'',row.studentName||'',row.packageName||'',row.productName||'',row.ownerCoach||'',Number(row.amountPaid)||0,row.totalLessons||0,row.usedLessons||0,row.remainingLessons||0,row.entitlement?.validFrom||'',row.entitlement?.validUntil||'',row.payMethod||'',purchaseStatusText(row)].join(',')).join('\n');
+  let csv='支付日期,学员,售卖课包,课程产品,主归属教练,实收金额,总课时,已消课时,剩余课时,有效开始,有效结束,支付方式,状态,备注\n';
+  csv+=rows.map(row=>[row.purchaseDate||'',row.studentName||'',row.packageName||'',row.productName||'',row.ownerCoach||'',Number(row.amountPaid)||0,row.totalLessons||0,row.usedLessons||0,row.remainingLessons||0,row.entitlement?.validFrom||'',row.entitlement?.validUntil||'',row.payMethod||'',purchaseStatusText(row),'"'+String(row.notes||'').replace(/"/g,'""')+'"'].join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FlowTennis_收入课时表_'+today()+'.csv';a.click();toast('导出成功','success');
 }
 function exportCoachOpsConsumeCsv(){
   const rows=coachOpsConsumeRows();
-  let csv='流水时间,类型,学员,课包,课时变动,排课时间,教练,课程类型,原因,操作人\n';
-  csv+=rows.map(row=>[fmtDt(row.createdAt||row.relatedDate),row.actionLabel,row.studentName||'',row.packageName||'',Math.abs(parseInt(row.lessonDelta)||0),row.scheduleTime?fmtDt(row.scheduleTime):'',row.coach||'',row.courseType||'','"'+String(row.reason||'').replace(/"/g,'""')+'"',row.operator||''].join(',')).join('\n');
+  let csv='流水时间,类型,学员,课包,课时变动,排课时间,教练,课程类型,原因,备注,操作人\n';
+  csv+=rows.map(row=>[fmtDt(row.createdAt||row.relatedDate),row.actionLabel,row.studentName||'',row.packageName||'',Math.abs(parseInt(row.lessonDelta)||0),row.scheduleTime?fmtDt(row.scheduleTime):'',row.coach||'',row.courseType||'','"'+String(row.reason||'').replace(/"/g,'""')+'"','"'+String(row.notes||'').replace(/"/g,'""')+'"',row.operator||''].join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FlowTennis_消课记录_'+today()+'.csv';a.click();toast('导出成功','success');
 }

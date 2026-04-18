@@ -5,7 +5,7 @@
       "Sheet1",
       "课时统计"
     ],
-    "tag": "mabao-finance-seed-v1",
+    "tag": "mabao-finance-seed-v2",
     "generatedAt": "2026-04-18T00:00:00.000Z"
   },
   "students": [
@@ -27,7 +27,7 @@
       "phone": "",
       "campus": "mabao",
       "primaryCoach": "chaojun",
-      "notes": "每周三 12-13点",
+      "notes": "每周三 12-13点；每周四20-21点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -38,7 +38,7 @@
       "phone": "",
       "campus": "mabao",
       "primaryCoach": "chaojun",
-      "notes": "每周三 12-13点",
+      "notes": "每周三 12-13点；每周四19-20点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -71,7 +71,7 @@
       "phone": "",
       "campus": "mabao",
       "primaryCoach": "晓哲教练",
-      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）",
+      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）；固定周四上午10点上课",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -82,7 +82,7 @@
       "phone": "",
       "campus": "mabao",
       "primaryCoach": "Siren",
-      "notes": "固定周一+周三16点30分-17点30分",
+      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -115,7 +115,7 @@
       "phone": "",
       "campus": "mabao",
       "primaryCoach": "晓哲教练",
-      "notes": "每周六10-11点30分",
+      "notes": "每周六10-11点30分；每周六10-11点半",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -126,7 +126,7 @@
       "phone": "",
       "campus": "mabao",
       "primaryCoach": "Siren",
-      "notes": "周五 19-20点",
+      "notes": "周五 19-20点；每周一+周五 19-20点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -137,7 +137,7 @@
       "phone": "",
       "campus": "mabao",
       "primaryCoach": "Siren",
-      "notes": "周一+周五 16-18点",
+      "notes": "周一+周五 16-18点；有单独的课时统计表",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -572,7 +572,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "认识朱局，父亲消防局，走优惠黄金500/小时",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -596,7 +596,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周三 12-13点；每周四20-21点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -620,7 +620,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周三 12-13点；每周四19-20点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -644,7 +644,7 @@
       ],
       "maxStudents": 2,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "放假非黄和日常训练黄金，身边有朋友可以推荐，走新客优惠非黄10和黄金10",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -692,7 +692,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）；固定周四上午10点上课",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -716,7 +716,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -740,7 +740,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "固定周四13-14点上课",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -764,7 +764,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周五15-16点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -788,7 +788,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周六10-11点30分；每周六10-11点半",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -812,7 +812,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周五 19-20点；每周一+周五 19-20点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -836,7 +836,7 @@
       ],
       "maxStudents": 2,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周一+周五 16-18点；有单独的课时统计表",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -860,7 +860,7 @@
       ],
       "maxStudents": 2,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周一 16-18点 + 周五朗茶校区",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1100,7 +1100,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周三中午12-13点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1196,7 +1196,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周三17点30-18点30",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1220,7 +1220,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周三18点30-19点30",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1268,7 +1268,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周二16-17点 + 每周六10-11点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1316,7 +1316,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周三19点30-20点30分、周日9-10",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1340,7 +1340,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周二上午10-11点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1388,7 +1388,7 @@
       ],
       "maxStudents": 2,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "周日10-11点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1412,7 +1412,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周四12点30分-13点30分",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1436,7 +1436,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周五18-19点",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1460,7 +1460,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "按照约定好的时间来上课",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1508,7 +1508,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "每周一19-20点+每周五18-19点，赠送一节私教课+一次陪打（不包含场地费）",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1556,7 +1556,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "网球协会会长推荐",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1604,7 +1604,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "和李鹏昊是朋友",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1628,7 +1628,7 @@
       ],
       "maxStudents": 1,
       "status": "active",
-      "notes": "由马坡财务历史表导入",
+      "notes": "和袁博是朋友",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     }
@@ -1716,7 +1716,7 @@
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
-      "notes": "每周三 12-13点",
+      "notes": "每周三 12-13点；每周四20-21点",
       "createdAt": "2026-01-06T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1759,7 +1759,7 @@
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
-      "notes": "每周三 12-13点",
+      "notes": "每周三 12-13点；每周四19-20点",
       "createdAt": "2026-01-06T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1888,7 +1888,7 @@
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
-      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）",
+      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）；固定周四上午10点上课",
       "createdAt": "2026-01-15T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -1931,7 +1931,7 @@
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
-      "notes": "固定周一+周三16点30分-17点30分",
+      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
       "createdAt": "2026-01-19T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -2060,7 +2060,7 @@
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
-      "notes": "每周六10-11点30分",
+      "notes": "每周六10-11点30分；每周六10-11点半",
       "createdAt": "2026-01-22T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -2103,7 +2103,7 @@
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
-      "notes": "周五 19-20点",
+      "notes": "周五 19-20点；每周一+周五 19-20点",
       "createdAt": "2026-01-24T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -2146,7 +2146,7 @@
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
-      "notes": "周一+周五 16-18点",
+      "notes": "周一+周五 16-18点；有单独的课时统计表",
       "createdAt": "2025-01-01T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
@@ -2784,15 +2784,15 @@
       "campusIds": [
         "mabao"
       ],
-      "usageStartDate": "3月12",
+      "usageStartDate": "2026-03-12",
       "usageEndDate": "",
-      "purchaseDate": "3月12",
+      "purchaseDate": "2026-03-12",
       "amountPaid": 5000,
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
       "notes": "周三17点30-18点30",
-      "createdAt": "3月12T10:00:00.000Z",
+      "createdAt": "2026-03-12T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
     {
@@ -2827,15 +2827,15 @@
       "campusIds": [
         "mabao"
       ],
-      "usageStartDate": "3月12",
+      "usageStartDate": "2026-03-12",
       "usageEndDate": "",
-      "purchaseDate": "3月12",
+      "purchaseDate": "2026-03-12",
       "amountPaid": 5000,
       "payMethod": "转账",
       "operator": "系统导入",
       "status": "active",
       "notes": "周三18点30-19点30",
-      "createdAt": "3月12T10:00:00.000Z",
+      "createdAt": "2026-03-12T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
     {
@@ -3602,6 +3602,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "认识朱局，父亲消防局，走优惠黄金500/小时",
       "status": "active",
       "createdAt": "2025-12-30T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3637,6 +3638,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周三 12-13点；每周四20-21点",
       "status": "active",
       "createdAt": "2026-01-06T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3672,6 +3674,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周三 12-13点；每周四19-20点",
       "status": "active",
       "createdAt": "2026-01-06T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3707,6 +3710,7 @@
         "mabao"
       ],
       "maxStudents": 2,
+      "notes": "放假非黄和日常训练黄金，身边有朋友可以推荐，走新客优惠非黄10和黄金10",
       "status": "active",
       "createdAt": "2026-01-10T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3742,6 +3746,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-01-12T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3777,6 +3782,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）；固定周四上午10点上课",
       "status": "depleted",
       "createdAt": "2026-01-15T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3812,6 +3818,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
       "status": "depleted",
       "createdAt": "2026-01-19T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3847,6 +3854,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "固定周四13-14点上课",
       "status": "active",
       "createdAt": "2026-01-21T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3882,6 +3890,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周五15-16点",
       "status": "active",
       "createdAt": "2026-01-22T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3917,6 +3926,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周六10-11点30分；每周六10-11点半",
       "status": "active",
       "createdAt": "2026-01-22T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3952,6 +3962,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "周五 19-20点；每周一+周五 19-20点",
       "status": "active",
       "createdAt": "2026-01-24T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -3987,6 +3998,7 @@
         "mabao"
       ],
       "maxStudents": 2,
+      "notes": "周一+周五 16-18点；有单独的课时统计表",
       "status": "active",
       "createdAt": "2025-01-01T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4022,6 +4034,7 @@
         "mabao"
       ],
       "maxStudents": 2,
+      "notes": "周一 16-18点 + 周五朗茶校区",
       "status": "active",
       "createdAt": "2025-01-01T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4057,6 +4070,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-01-31T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4092,6 +4106,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-02-06T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4127,6 +4142,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-02-01T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4162,6 +4178,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-01-01T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4197,6 +4214,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-02-01T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4232,6 +4250,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-02-11T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4267,6 +4286,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-02-11T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4302,6 +4322,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-02-27T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4337,6 +4358,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-03-02T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4372,6 +4394,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周三中午12-13点",
       "status": "active",
       "createdAt": "2026-03-02T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4407,6 +4430,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-03-04T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4442,6 +4466,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-03-08T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4477,6 +4502,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-03-09T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4494,9 +4520,9 @@
       "totalLessons": 10,
       "usedLessons": 2,
       "remainingLessons": 8,
-      "validFrom": "3月12",
+      "validFrom": "2026-03-12",
       "validUntil": "",
-      "usageStartDate": "3月12",
+      "usageStartDate": "2026-03-12",
       "usageEndDate": "",
       "dailyTimeWindows": [],
       "timeBand": "全天",
@@ -4512,8 +4538,9 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "周三17点30-18点30",
       "status": "active",
-      "createdAt": "3月12T10:00:00.000Z",
+      "createdAt": "2026-03-12T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
     {
@@ -4529,9 +4556,9 @@
       "totalLessons": 10,
       "usedLessons": 2,
       "remainingLessons": 8,
-      "validFrom": "3月12",
+      "validFrom": "2026-03-12",
       "validUntil": "",
-      "usageStartDate": "3月12",
+      "usageStartDate": "2026-03-12",
       "usageEndDate": "",
       "dailyTimeWindows": [],
       "timeBand": "全天",
@@ -4547,8 +4574,9 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "周三18点30-19点30",
       "status": "active",
-      "createdAt": "3月12T10:00:00.000Z",
+      "createdAt": "2026-03-12T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
     {
@@ -4582,6 +4610,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-03-16T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4617,6 +4646,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周二16-17点 + 每周六10-11点",
       "status": "active",
       "createdAt": "2026-03-17T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4652,6 +4682,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-03-18T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4687,6 +4718,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "周三19点30-20点30分、周日9-10",
       "status": "active",
       "createdAt": "2026-03-20T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4722,6 +4754,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周二上午10-11点",
       "status": "active",
       "createdAt": "2026-03-24T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4757,6 +4790,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-03-25T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4792,6 +4826,7 @@
         "mabao"
       ],
       "maxStudents": 2,
+      "notes": "周日10-11点",
       "status": "active",
       "createdAt": "2026-03-28T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4827,6 +4862,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周四12点30分-13点30分",
       "status": "active",
       "createdAt": "2026-04-03T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4862,6 +4898,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周五18-19点",
       "status": "active",
       "createdAt": "2026-04-05T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4897,6 +4934,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "按照约定好的时间来上课",
       "status": "active",
       "createdAt": "2026-04-05T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4932,6 +4970,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-04-05T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -4967,6 +5006,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "每周一19-20点+每周五18-19点，赠送一节私教课+一次陪打（不包含场地费）",
       "status": "active",
       "createdAt": "2026-04-05T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -5002,6 +5042,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-04-06T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -5037,6 +5078,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "网球协会会长推荐",
       "status": "active",
       "createdAt": "2026-04-08T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -5072,6 +5114,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "",
       "status": "active",
       "createdAt": "2026-04-09T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -5107,6 +5150,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "和李鹏昊是朋友",
       "status": "active",
       "createdAt": "2026-04-15T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -5142,6 +5186,7 @@
         "mabao"
       ],
       "maxStudents": 1,
+      "notes": "和袁博是朋友",
       "status": "active",
       "createdAt": "2026-04-17T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
@@ -5155,6 +5200,7 @@
       "scheduleId": "",
       "lessonDelta": -5,
       "reason": "历史导入 1月消课",
+      "notes": "认识朱局，父亲消防局，走优惠黄金500/小时",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5166,6 +5212,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 2月消课",
+      "notes": "认识朱局，父亲消防局，走优惠黄金500/小时",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5177,6 +5224,7 @@
       "scheduleId": "",
       "lessonDelta": -5,
       "reason": "历史导入 3月消课",
+      "notes": "认识朱局，父亲消防局，走优惠黄金500/小时",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5188,6 +5236,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 1月消课",
+      "notes": "每周三 12-13点；每周四20-21点",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5199,6 +5248,7 @@
       "scheduleId": "",
       "lessonDelta": -1,
       "reason": "历史导入 2月消课",
+      "notes": "每周三 12-13点；每周四20-21点",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5210,6 +5260,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 3月消课",
+      "notes": "每周三 12-13点；每周四20-21点",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5221,6 +5272,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 1月消课",
+      "notes": "每周三 12-13点；每周四19-20点",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5232,6 +5284,7 @@
       "scheduleId": "",
       "lessonDelta": -1,
       "reason": "历史导入 2月消课",
+      "notes": "每周三 12-13点；每周四19-20点",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5243,6 +5296,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 3月消课",
+      "notes": "每周三 12-13点；每周四19-20点",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5254,6 +5308,7 @@
       "scheduleId": "",
       "lessonDelta": -1,
       "reason": "历史导入 3月消课",
+      "notes": "放假非黄和日常训练黄金，身边有朋友可以推荐，走新客优惠非黄10和黄金10",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5265,6 +5320,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 1月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5276,6 +5332,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 1月消课",
+      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）；固定周四上午10点上课",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5287,6 +5344,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 2月消课",
+      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）；固定周四上午10点上课",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5298,6 +5356,7 @@
       "scheduleId": "",
       "lessonDelta": -8,
       "reason": "历史导入 3月消课",
+      "notes": "周三12-13点+周四10-11点30分上课（3月7日 赠送五节专项课）；固定周四上午10点上课",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5309,6 +5368,7 @@
       "scheduleId": "",
       "lessonDelta": -1,
       "reason": "历史导入 1月消课",
+      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5320,6 +5380,7 @@
       "scheduleId": "",
       "lessonDelta": -4,
       "reason": "历史导入 2月消课",
+      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5331,6 +5392,7 @@
       "scheduleId": "",
       "lessonDelta": -6,
       "reason": "历史导入 3月消课",
+      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5342,6 +5404,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 3月消课",
+      "notes": "固定周四13-14点上课",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5353,6 +5416,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 1月消课",
+      "notes": "每周五15-16点",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5364,6 +5428,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 2月消课",
+      "notes": "每周五15-16点",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5375,6 +5440,7 @@
       "scheduleId": "",
       "lessonDelta": -4,
       "reason": "历史导入 3月消课",
+      "notes": "每周五15-16点",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5386,6 +5452,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 1月消课",
+      "notes": "每周六10-11点30分；每周六10-11点半",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5397,6 +5464,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 2月消课",
+      "notes": "每周六10-11点30分；每周六10-11点半",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5408,6 +5476,7 @@
       "scheduleId": "",
       "lessonDelta": -6,
       "reason": "历史导入 3月消课",
+      "notes": "每周六10-11点30分；每周六10-11点半",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5419,6 +5488,7 @@
       "scheduleId": "",
       "lessonDelta": -4,
       "reason": "历史导入 3月消课",
+      "notes": "周五 19-20点；每周一+周五 19-20点",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5430,6 +5500,7 @@
       "scheduleId": "",
       "lessonDelta": -1,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5441,6 +5512,7 @@
       "scheduleId": "",
       "lessonDelta": -1,
       "reason": "历史导入 2月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5452,6 +5524,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5463,6 +5536,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 2月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5474,6 +5548,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5485,6 +5560,7 @@
       "scheduleId": "",
       "lessonDelta": -5,
       "reason": "历史导入 1月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-01-28T20:00:00.000Z",
       "relatedDate": "2026-01-28"
@@ -5496,6 +5572,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5507,6 +5584,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 2月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5518,6 +5596,7 @@
       "scheduleId": "",
       "lessonDelta": -5,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5529,6 +5608,7 @@
       "scheduleId": "",
       "lessonDelta": -4,
       "reason": "历史导入 2月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-02-28T20:00:00.000Z",
       "relatedDate": "2026-02-28"
@@ -5540,6 +5620,7 @@
       "scheduleId": "",
       "lessonDelta": -4,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5551,6 +5632,7 @@
       "scheduleId": "",
       "lessonDelta": -5,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5562,6 +5644,7 @@
       "scheduleId": "",
       "lessonDelta": -4,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5573,6 +5656,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 3月消课",
+      "notes": "每周三中午12-13点",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5584,6 +5668,7 @@
       "scheduleId": "",
       "lessonDelta": -7,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5595,6 +5680,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5606,6 +5692,7 @@
       "scheduleId": "",
       "lessonDelta": -4,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5617,6 +5704,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 3月消课",
+      "notes": "周三17点30-18点30",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5628,6 +5716,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 3月消课",
+      "notes": "周三18点30-19点30",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5639,6 +5728,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5650,6 +5740,7 @@
       "scheduleId": "",
       "lessonDelta": -5,
       "reason": "历史导入 3月消课",
+      "notes": "每周二16-17点 + 每周六10-11点",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5661,6 +5752,7 @@
       "scheduleId": "",
       "lessonDelta": -3,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5672,6 +5764,7 @@
       "scheduleId": "",
       "lessonDelta": -1,
       "reason": "历史导入 3月消课",
+      "notes": "周三19点30-20点30分、周日9-10",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5683,6 +5776,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 3月消课",
+      "notes": "每周二上午10-11点",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
@@ -5694,6 +5788,7 @@
       "scheduleId": "",
       "lessonDelta": -2,
       "reason": "历史导入 3月消课",
+      "notes": "",
       "operator": "系统导入",
       "createdAt": "2026-03-28T20:00:00.000Z",
       "relatedDate": "2026-03-28"
