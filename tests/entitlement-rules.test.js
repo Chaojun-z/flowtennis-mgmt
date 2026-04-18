@@ -370,6 +370,27 @@ assert.strictEqual(
 );
 
 assert.deepStrictEqual(
+  rules.diffScheduleEntitlementDeltas(
+    [{ entitlementId: 'ent-1', delta: 2 }],
+    [{ entitlementId: 'ent-1', delta: 2 }]
+  ),
+  { returns: [], consumes: [] },
+  'unchanged schedule entitlement should not write duplicate return and consume ledger rows'
+);
+
+assert.deepStrictEqual(
+  rules.diffScheduleEntitlementDeltas(
+    [{ entitlementId: 'ent-old', delta: 1 }],
+    [{ entitlementId: 'ent-new', delta: 1 }]
+  ),
+  {
+    returns: [{ entitlementId: 'ent-old', delta: 1 }],
+    consumes: [{ entitlementId: 'ent-new', delta: 1 }]
+  },
+  'changed schedule entitlement should return old package and consume new package'
+);
+
+assert.deepStrictEqual(
   rules.syncEntitlementFromPurchase(
     { ...pkg, id: 'pkg-2', name: '新课包', lessons: 8, usageEndDate: '2026-08-01' },
     { ...purchase, id: 'pur-1', packageId: 'pkg-2', packageName: '新课包', purchaseDate: '2026-05-03' },

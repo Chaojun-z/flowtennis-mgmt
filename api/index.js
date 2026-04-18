@@ -701,6 +701,28 @@ function assertScheduleEditableAfterFeedback(oldRec,nextRec,feedbacks){
 function scheduleEntitlementDelta(rec){
   return scheduleEntitlementDeltas(rec)[0]||null;
 }
+function diffScheduleEntitlementDeltas(oldDeltas=[],nextDeltas=[]){
+  const keyOf=d=>`${d.entitlementId}|${parseInt(d.delta)||0}`;
+  const nextCounts=new Map();
+  nextDeltas.forEach(d=>nextCounts.set(keyOf(d),(nextCounts.get(keyOf(d))||0)+1));
+  const returns=[];
+  oldDeltas.forEach(d=>{
+    const key=keyOf(d);
+    const count=nextCounts.get(key)||0;
+    if(count>0)nextCounts.set(key,count-1);
+    else returns.push(d);
+  });
+  const oldCounts=new Map();
+  oldDeltas.forEach(d=>oldCounts.set(keyOf(d),(oldCounts.get(keyOf(d))||0)+1));
+  const consumes=[];
+  nextDeltas.forEach(d=>{
+    const key=keyOf(d);
+    const count=oldCounts.get(key)||0;
+    if(count>0)oldCounts.set(key,count-1);
+    else consumes.push(d);
+  });
+  return {returns,consumes};
+}
 async function assertScheduleEntitlementCapacity(nextRec,oldRec){
   const nextDeltas=scheduleEntitlementDeltas(nextRec);
   if(!nextDeltas.length)return null;
@@ -2863,8 +2885,9 @@ module.exports = async (req, res) => {
           const changed=[];
           const entitlementChanged=await timed('schedule update entitlement writes',async()=>{
             const rows=[];
-            for(const oldEntDelta of oldEntDeltas){rows.push(await applyEntitlementDelta(oldEntDelta.entitlementId,id,oldEntDelta.delta,'return','编辑排课退回旧权益',user));appliedEntitlements.push({entitlementId:oldEntDelta.entitlementId,delta:-oldEntDelta.delta,action:'rollback',reason:'编辑排课失败重新扣旧权益'});}
-            for(const nextEntDelta of nextEntDeltas){rows.push(await applyEntitlementDelta(nextEntDelta.entitlementId,id,-nextEntDelta.delta,'consume','编辑排课消课',user));appliedEntitlements.push({entitlementId:nextEntDelta.entitlementId,delta:nextEntDelta.delta,action:'rollback',reason:'编辑排课失败退回新权益'});}
+            const entDiff=diffScheduleEntitlementDeltas(oldEntDeltas,nextEntDeltas);
+            for(const oldEntDelta of entDiff.returns){rows.push(await applyEntitlementDelta(oldEntDelta.entitlementId,id,oldEntDelta.delta,'return','编辑排课退回旧权益',user));appliedEntitlements.push({entitlementId:oldEntDelta.entitlementId,delta:-oldEntDelta.delta,action:'rollback',reason:'编辑排课失败重新扣旧权益'});}
+            for(const nextEntDelta of entDiff.consumes){rows.push(await applyEntitlementDelta(nextEntDelta.entitlementId,id,-nextEntDelta.delta,'consume','编辑排课消课',user));appliedEntitlements.push({entitlementId:nextEntDelta.entitlementId,delta:nextEntDelta.delta,action:'rollback',reason:'编辑排课失败退回新权益'});}
             return rows;
           });
           await timed('schedule update lesson writes',async()=>{
@@ -3022,6 +3045,7 @@ module.exports._test={
   scheduleEntitlementDeltas,
   resolveScheduleEntitlementDeltas,
   applyEntitlementLessonDelta,
+  diffScheduleEntitlementDeltas,
   assertScheduleEditableAfterFeedback,
   isScheduleInsideDailyTimeWindows,
   scheduleEntitlementDelta,
