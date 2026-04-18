@@ -1097,6 +1097,57 @@ function importedLedgerMonthKey(row){
 function isImportedMonthlyLedgerRow(row){
   return !!importedLedgerMonthKey(row);
 }
+function importedLedgerDuplicateKey(row){
+  const monthKey=importedLedgerMonthKey(row);
+  if(!monthKey)return '';
+  return [
+    row.entitlementId,
+    row.purchaseId,
+    row.studentId,
+    Number(row.lessonDelta)||0,
+    row.action||'',
+    row.reason||'',
+    monthKey,
+    row.sourceSheet||'',
+    row.notes||''
+  ].join('|');
+}
+function importedLedgerRowScore(row){
+  return [
+    String(row?.sourceMonth||'').trim()?1:0,
+    isMabaoFinanceSeedRow(row)?1:0,
+    String(row?.relatedDate||''),
+    String(row?.createdAt||'')
+  ];
+}
+function compareImportedLedgerRowScore(a,b){
+  const as=importedLedgerRowScore(a),bs=importedLedgerRowScore(b);
+  for(let i=0;i<as.length;i++){
+    if(as[i]===bs[i])continue;
+    return as[i]>bs[i]?1:-1;
+  }
+  return 0;
+}
+function collectDuplicateImportedLedgerIds(existingRows=[]){
+  const keepers=new Map();
+  const removeIds=[];
+  (existingRows||[]).forEach(row=>{
+    const key=importedLedgerDuplicateKey(row);
+    if(!key)return;
+    const current=keepers.get(key);
+    if(!current){
+      keepers.set(key,row);
+      return;
+    }
+    if(compareImportedLedgerRowScore(row,current)>0){
+      removeIds.push(current.id);
+      keepers.set(key,row);
+      return;
+    }
+    removeIds.push(row.id);
+  });
+  return [...new Set(removeIds.filter(Boolean))];
+}
 function collectMabaoSeedStaleRowIds(existingRows=[],seedRows=[],tag=''){
   const nextIds=new Set((seedRows||[]).map(row=>row.id));
   return (existingRows||[])
@@ -1124,9 +1175,17 @@ async function replaceMabaoSeedLedgerRows(seedRows=[],tag=''){
   const existingRows=await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]);
   const staleIds=collectMabaoSeedStaleRowIds(existingRows,seedRows,tag);
   const replacementIds=collectMabaoSeedImportedLedgerReplacementIds(existingRows,seedRows);
-  const removeIds=[...new Set([...staleIds,...replacementIds])];
+  const duplicateIds=collectDuplicateImportedLedgerIds(existingRows);
+  const removeIds=[...new Set([...staleIds,...replacementIds,...duplicateIds])];
   if(removeIds.length)await deleteSeedRows(T_ENTITLEMENT_LEDGER,removeIds);
   await putSeedRows(T_ENTITLEMENT_LEDGER,seedRows);
+}
+async function repairImportedLedgerDuplicates(){
+  const existingRows=await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]);
+  const duplicateIds=collectDuplicateImportedLedgerIds(existingRows);
+  if(!duplicateIds.length)return 0;
+  await deleteSeedRows(T_ENTITLEMENT_LEDGER,duplicateIds);
+  return duplicateIds.length;
 }
 function hasCurrentMabaoSeedRows(existingRows=[],seedRows=[],tag=''){
   const seedIds=new Set((seedRows||[]).map(row=>row.id));
@@ -1214,6 +1273,11 @@ async function init(){
       const stepStartedAt=Date.now();
       await bootstrapMabaoFinanceSeed();
       console.log(`[api-init] bootstrapMabaoFinanceSeed done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
+    }
+    {
+      const stepStartedAt=Date.now();
+      const repairedCount=await repairImportedLedgerDuplicates();
+      console.log(`[api-init] repairImportedLedgerDuplicates done ${Date.now()-stepStartedAt}ms, removed ${repairedCount} rows (total ${Date.now()-startedAt}ms)`);
     }
     inited=true;
     if(ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP){
@@ -3104,6 +3168,7 @@ module.exports._test={
   scheduleParticipantSummary,
   collectMabaoSeedStaleRowIds,
   collectMabaoSeedImportedLedgerReplacementIds,
+  collectDuplicateImportedLedgerIds,
   syncEntitlementFromPurchase,
   writePurchaseAndEntitlementAtomic,
   validateEntitlementForSchedule,

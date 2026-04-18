@@ -6,6 +6,7 @@ const rules = api._test;
 assert.ok(rules, 'api._test should expose entitlement rule helpers');
 assert.ok(rules.collectMabaoSeedStaleRowIds, 'api._test should expose mabao seed stale row cleanup helper');
 assert.ok(rules.collectMabaoSeedImportedLedgerReplacementIds, 'api._test should expose imported ledger replacement cleanup helper');
+assert.ok(rules.collectDuplicateImportedLedgerIds, 'api._test should expose generic duplicate imported ledger cleanup helper');
 
 const pkg = {
   id: 'pkg-1',
@@ -248,6 +249,20 @@ assert.deepStrictEqual(
   ),
   ['legacy-month-1', 'legacy-month-2'],
   'seed bootstrap should replace old imported monthly ledger rows for the same seeded purchase even when those rows were written without seedTag'
+);
+
+assert.deepStrictEqual(
+  rules.collectDuplicateImportedLedgerIds(
+    [
+      { id: 'legacy-1', entitlementId: 'ent-1', purchaseId: 'pur-1', studentId: 'stu-1', scheduleId: '', lessonDelta: -5, reason: '历史导入 1月消课', relatedDate: '2026-01-28', sourceMonth: '', notes: '固定周六', seedTag: '' },
+      { id: 'seed-1', entitlementId: 'ent-1', purchaseId: 'pur-1', studentId: 'stu-1', scheduleId: '', lessonDelta: -5, reason: '历史导入 1月消课', relatedDate: '2026-01-31', sourceMonth: '2026-01', notes: '固定周六', seedTag: 'mabao-finance-seed-v8' },
+      { id: 'legacy-2', entitlementId: 'ent-1', purchaseId: 'pur-1', studentId: 'stu-1', scheduleId: '', lessonDelta: -2, reason: '历史导入 2月消课', relatedDate: '2026-02-28', sourceMonth: '', notes: '固定周六', seedTag: '' },
+      { id: 'manual-adjust', entitlementId: 'ent-1', purchaseId: 'pur-1', studentId: 'stu-1', scheduleId: '', lessonDelta: -1, reason: '人工补扣', relatedDate: '2026-02-28', sourceMonth: '', notes: '异常处理', seedTag: '' },
+      { id: 'different-delta', entitlementId: 'ent-1', purchaseId: 'pur-1', studentId: 'stu-1', scheduleId: '', lessonDelta: -1, reason: '历史导入 1月消课', relatedDate: '2026-01-31', sourceMonth: '', notes: '固定周六', seedTag: '' }
+    ]
+  ),
+  ['legacy-1'],
+  'generic imported ledger cleanup should drop only true duplicate historical month rows and keep non-duplicate adjustments'
 );
 
 assert.throws(
