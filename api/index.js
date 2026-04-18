@@ -1083,16 +1083,50 @@ async function putSeedRows(table,rows=[]){
 function isMabaoFinanceSeedRow(row){
   return String(row?.seedTag||'').startsWith('mabao-finance-seed-');
 }
+function importedLedgerMonthKey(row){
+  const sourceMonth=String(row?.sourceMonth||'').trim();
+  if(sourceMonth)return sourceMonth;
+  if(row?.scheduleId||Number(row?.lessonDelta)>=0)return '';
+  const reason=String(row?.reason||'').trim();
+  const match=reason.match(/^历史导入\s*(\d{1,2})月消课$/);
+  if(!match)return '';
+  const year=String(row?.relatedDate||row?.createdAt||'').slice(0,4);
+  if(!/^\d{4}$/.test(year))return '';
+  return `${year}-${String(match[1]).padStart(2,'0')}`;
+}
+function isImportedMonthlyLedgerRow(row){
+  return !!importedLedgerMonthKey(row);
+}
 function collectMabaoSeedStaleRowIds(existingRows=[],seedRows=[],tag=''){
   const nextIds=new Set((seedRows||[]).map(row=>row.id));
   return (existingRows||[])
     .filter(row=>isMabaoFinanceSeedRow(row)&&(!nextIds.has(row.id)||String(row.seedTag||'')!==String(tag||'')))
     .map(row=>row.id);
 }
+function collectMabaoSeedImportedLedgerReplacementIds(existingRows=[],seedRows=[]){
+  const seedKeys=new Set((seedRows||[]).map(row=>{
+    const monthKey=importedLedgerMonthKey(row);
+    if(!monthKey)return '';
+    return [row.entitlementId,row.purchaseId,row.studentId,monthKey].join('|');
+  }).filter(Boolean));
+  if(!seedKeys.size)return [];
+  return (existingRows||[])
+    .filter(row=>!isMabaoFinanceSeedRow(row)&&isImportedMonthlyLedgerRow(row))
+    .filter(row=>seedKeys.has([row.entitlementId,row.purchaseId,row.studentId,importedLedgerMonthKey(row)].join('|')))
+    .map(row=>row.id);
+}
 async function replaceMabaoSeedRows(table,seedRows=[],tag=''){
   const staleIds=collectMabaoSeedStaleRowIds(await scan(table).catch(()=>[]),seedRows,tag);
   if(staleIds.length)await deleteSeedRows(table,staleIds);
   await putSeedRows(table,seedRows);
+}
+async function replaceMabaoSeedLedgerRows(seedRows=[],tag=''){
+  const existingRows=await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]);
+  const staleIds=collectMabaoSeedStaleRowIds(existingRows,seedRows,tag);
+  const replacementIds=collectMabaoSeedImportedLedgerReplacementIds(existingRows,seedRows);
+  const removeIds=[...new Set([...staleIds,...replacementIds])];
+  if(removeIds.length)await deleteSeedRows(T_ENTITLEMENT_LEDGER,removeIds);
+  await putSeedRows(T_ENTITLEMENT_LEDGER,seedRows);
 }
 function hasCurrentMabaoSeedRows(existingRows=[],seedRows=[],tag=''){
   const seedIds=new Set((seedRows||[]).map(row=>row.id));
@@ -1116,6 +1150,7 @@ async function isMabaoFinanceSeedCurrent(){
   if(!hasCurrentMabaoSeedRows(purchases,mabaoFinanceSeed.purchases,tag))return false;
   if(!hasCurrentMabaoSeedRows(entitlements,mabaoFinanceSeed.entitlements,tag))return false;
   if(!hasCurrentMabaoSeedRows(ledger,mabaoFinanceSeed.entitlementLedger,tag))return false;
+  if(collectMabaoSeedImportedLedgerReplacementIds(ledger,mabaoFinanceSeed.entitlementLedger).length)return false;
   for(const id of mabaoFinanceSeed?.meta?.deletePurchases||[]){
     const old=await get(T_PURCHASES,id).catch(()=>null);
     if(old)return false;
@@ -1133,7 +1168,7 @@ async function bootstrapMabaoFinanceSeed(){
   await replaceMabaoSeedRows(T_PACKAGES,mabaoFinanceSeed.packages,tag);
   await replaceMabaoSeedRows(T_PURCHASES,mabaoFinanceSeed.purchases,tag);
   await replaceMabaoSeedRows(T_ENTITLEMENTS,mabaoFinanceSeed.entitlements,tag);
-  await replaceMabaoSeedRows(T_ENTITLEMENT_LEDGER,mabaoFinanceSeed.entitlementLedger,tag);
+  await replaceMabaoSeedLedgerRows(mabaoFinanceSeed.entitlementLedger,tag);
 }
 async function listCampusesWithDefaults(){
   const rows=await getCachedScan(T_CAMPUSES).catch(()=>[]);
@@ -3068,6 +3103,7 @@ module.exports._test={
   assertScheduleEntitlementRequired,
   scheduleParticipantSummary,
   collectMabaoSeedStaleRowIds,
+  collectMabaoSeedImportedLedgerReplacementIds,
   syncEntitlementFromPurchase,
   writePurchaseAndEntitlementAtomic,
   validateEntitlementForSchedule,

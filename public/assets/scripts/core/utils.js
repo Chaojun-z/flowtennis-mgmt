@@ -855,7 +855,7 @@ function studentEntitlementSummaryHtml(stu){
   }).join('');
 }
 function isHistoricalImportedLedgerRow(row){
-  return !!row&&!row.scheduleId&&!!row.sourceMonth&&Number(row.lessonDelta)<0;
+  return !!historicalImportedLedgerMonthKey(row);
 }
 function entitlementLedgerSortDate(row){
   return row?.relatedDate||row?.scheduleTime||row?.createdAt||'';
@@ -864,10 +864,22 @@ function entitlementLedgerDisplayDate(row){
   const raw=entitlementLedgerSortDate(row);
   return raw?String(raw).slice(0,16).replace('T',' '):'-';
 }
+function historicalImportedLedgerMonthKey(row){
+  const sourceMonth=String(row?.sourceMonth||'').trim();
+  if(sourceMonth)return sourceMonth;
+  if(row?.scheduleId||Number(row?.lessonDelta)>=0)return '';
+  const reason=String(row?.reason||'').trim();
+  const match=reason.match(/^历史导入\s*(\d{1,2})月消课$/);
+  if(!match)return '';
+  const year=String(row?.relatedDate||row?.createdAt||'').slice(0,4);
+  if(!/^\d{4}$/.test(year))return '';
+  return `${year}-${String(match[1]).padStart(2,'0')}`;
+}
 function dedupeEntitlementLedgerForDisplay(rows){
   const seen=new Set();
   return (rows||[]).filter(row=>{
-    const key=isHistoricalImportedLedgerRow(row)
+    const monthKey=historicalImportedLedgerMonthKey(row);
+    const key=monthKey
       ? [
           row.entitlementId,
           row.purchaseId,
@@ -875,7 +887,7 @@ function dedupeEntitlementLedgerForDisplay(rows){
           row.lessonDelta,
           row.action||'',
           row.reason||'',
-          row.sourceMonth||'',
+          monthKey,
           row.sourceSheet||'',
           row.notes||''
         ].join('|')
@@ -901,14 +913,15 @@ function aggregateHistoricalMonthlyLedgerRows(rows){
   const monthlyMap=new Map();
   const result=[];
   (rows||[]).forEach(row=>{
-    if(!isHistoricalImportedLedgerRow(row)){
+    const monthKey=historicalImportedLedgerMonthKey(row);
+    if(!monthKey){
       result.push(row);
       return;
     }
-    const key=[row.entitlementId,row.purchaseId,row.studentId,row.reason||'',row.sourceMonth||''].join('|');
+    const key=[row.entitlementId,row.purchaseId,row.studentId,row.reason||'',monthKey].join('|');
     const current=monthlyMap.get(key);
     if(!current){
-      monthlyMap.set(key,{...row});
+      monthlyMap.set(key,{...row,sourceMonth:row.sourceMonth||monthKey});
       return;
     }
     const nextDelta=(Number(current.lessonDelta)||0)+(Number(row.lessonDelta)||0);
@@ -923,7 +936,7 @@ function aggregateHistoricalMonthlyLedgerRows(rows){
 }
 function historicalImportedLessonUnitsForStudent(stu){
   return dedupeEntitlementLedgerForDisplay(entitlementLedger.filter(row=>row.studentId===stu?.id))
-    .filter(isHistoricalImportedLedgerRow)
+    .filter(row=>!!historicalImportedLedgerMonthKey(row))
     .reduce((sum,row)=>sum+Math.abs(Math.min(0,Number(row.lessonDelta)||0)),0);
 }
 function studentEntitlementLedgerHtml(stu){

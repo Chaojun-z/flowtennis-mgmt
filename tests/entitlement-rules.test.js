@@ -5,6 +5,7 @@ const rules = api._test;
 
 assert.ok(rules, 'api._test should expose entitlement rule helpers');
 assert.ok(rules.collectMabaoSeedStaleRowIds, 'api._test should expose mabao seed stale row cleanup helper');
+assert.ok(rules.collectMabaoSeedImportedLedgerReplacementIds, 'api._test should expose imported ledger replacement cleanup helper');
 
 const pkg = {
   id: 'pkg-1',
@@ -230,6 +231,23 @@ assert.deepStrictEqual(
   ),
   ['seed-ledger-old'],
   'seed bootstrap should clean old mabao finance rows that are no longer in the current seed set'
+);
+
+assert.deepStrictEqual(
+  rules.collectMabaoSeedImportedLedgerReplacementIds(
+    [
+      { id: 'legacy-month-1', entitlementId: 'seed-entitlement-001', purchaseId: 'seed-purchase-001', studentId: 'seed-student-001', scheduleId: '', lessonDelta: -5, reason: '历史导入 1月消课', relatedDate: '2026-01-28', sourceMonth: '', seedTag: '' },
+      { id: 'legacy-month-2', entitlementId: 'seed-entitlement-001', purchaseId: 'seed-purchase-001', studentId: 'seed-student-001', scheduleId: '', lessonDelta: -2, reason: '历史导入 2月消课', relatedDate: '2026-02-28', sourceMonth: '', seedTag: '' },
+      { id: 'manual-adjust', entitlementId: 'seed-entitlement-001', purchaseId: 'seed-purchase-001', studentId: 'seed-student-001', scheduleId: '', lessonDelta: -1, reason: '人工补扣', relatedDate: '2026-03-28', sourceMonth: '', seedTag: '' },
+      { id: 'other-student', entitlementId: 'seed-entitlement-999', purchaseId: 'seed-purchase-999', studentId: 'seed-student-999', scheduleId: '', lessonDelta: -5, reason: '历史导入 1月消课', relatedDate: '2026-01-31', sourceMonth: '', seedTag: '' }
+    ],
+    [
+      { id: 'seed-ledger-001-01-1', entitlementId: 'seed-entitlement-001', purchaseId: 'seed-purchase-001', studentId: 'seed-student-001', scheduleId: '', lessonDelta: -5, reason: '历史导入 1月消课', sourceMonth: '2026-01', seedTag: 'mabao-finance-seed-v8' },
+      { id: 'seed-ledger-001-02-1', entitlementId: 'seed-entitlement-001', purchaseId: 'seed-purchase-001', studentId: 'seed-student-001', scheduleId: '', lessonDelta: -2, reason: '历史导入 2月消课', sourceMonth: '2026-02', seedTag: 'mabao-finance-seed-v8' }
+    ]
+  ),
+  ['legacy-month-1', 'legacy-month-2'],
+  'seed bootstrap should replace old imported monthly ledger rows for the same seeded purchase even when those rows were written without seedTag'
 );
 
 assert.throws(

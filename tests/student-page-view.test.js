@@ -51,6 +51,8 @@ assert.match(source, /function studentConsumptionInfoHtml\(/, 'student detail sh
 assert.match(source, /function studentLessonRecordHtml\(/, 'student detail should expose a dedicated lesson record helper');
 assert.match(source, /function studentEntitlementLedgerHtml\(/, 'student detail should provide a dedicated lesson charge history helper');
 assert.match(source, /function entitlementLedgerDisplayDate\(/, 'lesson charge history should display the real lesson or month date instead of import time');
+assert.match(source, /function historicalImportedLedgerMonthKey\(/, 'lesson charge history should infer monthly import identity from sourceMonth or reason text');
+assert.match(source, /reason\.match\(\s*\/\^历史导入\\s\*\(\\d\{1,2\}\)月消课\$\/\s*\)/, 'lesson charge history should fall back to parsing month from reason text when sourceMonth is missing');
 assert.match(source, /dedupeEntitlementLedgerForDisplay/, 'lesson charge history should collapse duplicate ledger rows before display');
 assert.match(source, /function historicalImportedLessonUnitsForStudent\(/, 'student page should expose a historical imported lesson helper');
 assert.match(source, /aggregateHistoricalMonthlyLedgerRows/, 'student consume history should aggregate historical monthly rows before display');
