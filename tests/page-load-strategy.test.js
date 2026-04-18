@@ -19,5 +19,6 @@ assert.match(fnBody('goPage'), /if\(!skipRender\)loadPageDataAndRender\(pg,\{qui
 assert.doesNotMatch(fnBody('loadPageBackgroundDatasets'), /for\(const name of names\)/, 'background page datasets should not load one by one');
 assert.match(fnBody('loadPageBackgroundDatasets'), /Promise\.allSettled\(names\.map/, 'background page datasets should load in parallel');
 assert.match(html, /if\(path==='\/page-data\/plans'&&method==='GET'\)/, 'api should expose an aggregated plans page endpoint');
+assert.match(html, /if\(path==='\/page-data\/purchases'&&method==='GET'\)/, 'api should expose an aggregated purchases page endpoint');
 
 console.log('page load strategy tests passed');

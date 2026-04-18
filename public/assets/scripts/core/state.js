@@ -41,7 +41,7 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   students:['classes','schedule','feedbacks','products','courts'],
   plans:['plansPage'],
   packages:['packages','products'],
-  purchases:['purchases','packages','students','entitlements'],
+  purchases:['purchasesPage'],
   finance:['campuses','students','schedule','entitlements','entitlementLedger','coaches','products','purchases','packages'],
   courts:['campuses','students','courts','membershipAccounts','coaches','pricePlans'],
   memberships:['campuses','students','courts','membershipAccounts','coaches'],
@@ -71,6 +71,7 @@ const DATASET_LOADERS={
   campuses:()=>apiCall('GET','/campuses'),
   feedbacks:()=>apiCall('GET','/feedbacks')
   ,plansPage:()=>apiCall('GET','/page-data/plans')
+  ,purchasesPage:()=>apiCall('GET','/page-data/purchases')
 };
 function datasetCacheKey(name){
   return DATA_CACHE_PREFIX+(currentUser?.id||'anon')+'_'+name;
@@ -177,6 +178,14 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
       setDatasetValue('courts',data.courts||[]);
       setDatasetValue('entitlements',data.entitlements||[]);
       loadedDatasets.add('plansPage');
+      return;
+    }
+    if(name==='purchasesPage'){
+      setDatasetValue('purchases',data.purchases||[]);
+      setDatasetValue('packages',data.packages||[]);
+      setDatasetValue('students',data.students||[]);
+      setDatasetValue('entitlements',data.entitlements||[]);
+      loadedDatasets.add('purchasesPage');
       return;
     }
     setDatasetValue(name,data);
