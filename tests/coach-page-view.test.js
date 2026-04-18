@@ -23,7 +23,7 @@ assert.match(html, /id="page-myschedule"[\s\S]*id="myScheduleWeekSection"/, 'my 
 assert.doesNotMatch(html, /id="myScheduleStats"|id="mySchedulePrimarySection"|id="myScheduleSideSection"|id="myMobileSchedule"/, 'my schedule should remove the duplicate stat and list areas');
 assert.match(fnBody('renderMySchedule'), /本周总览/, 'my schedule should label the week overview as a secondary section');
 assert.match(fnBody('renderMySchedule'), /slice\(11,16\)\}\$\{s\.endTime\?' - '\+s\.endTime\.slice\(11,16\)/, 'my schedule week cards should render the time range');
-assert.match(fnBody('renderMySchedule'), /scheduleCourseType\(s\).*cn\(s\.campus\).*scheduleFeedbackLabel\(s\)/s, 'my schedule week cards should show course type, campus, and feedback');
+assert.match(fnBody('renderMySchedule'), /scheduleCourseType\(s\).*scheduleLocationText\(s\).*scheduleFeedbackLabel\(s\)/s, 'my schedule week cards should show course type, location, and feedback');
 assert.match(pagesCss, /#page-coaches \.tms-table\s*\{[^}]*min-width:1000px/s, 'coach table should not inherit the wide court table min width');
 assert.match(pagesCss, /#page-coaches \.tms-table-wrapper\s*\{[^}]*max-height:calc\(100vh - 190px\)/s, 'coach table should use more vertical space before scrolling');
 assert.match(pagesCss, /\.tms-dropdown-menu[^}]*overscroll-behavior:contain/s, 'dropdown scrolling should not drag the modal or page behind it');

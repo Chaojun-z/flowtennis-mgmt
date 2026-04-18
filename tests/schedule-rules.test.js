@@ -18,6 +18,15 @@ assert.strictEqual(
 
 assert.strictEqual(
   rules.effectiveScheduleStatus(
+    { status: '已下课', endTime: '2026-04-11 10:00' },
+    new Date('2026-04-11T10:01:00')
+  ),
+  '已结束',
+  'legacy or user-facing 已下课 status should normalize to ended'
+);
+
+assert.strictEqual(
+  rules.effectiveScheduleStatus(
     { status: '已取消', endTime: '2026-04-11 10:00' },
     new Date('2026-04-11T10:01:00')
   ),
@@ -289,6 +298,37 @@ assert.throws(
   ),
   /场地.*已被占用/,
   'legacy venue names should be normalized before conflict checks'
+);
+
+assert.throws(
+  () => rules.validateScheduleConflicts(
+    {
+      id: 'new-external',
+      startTime: '2026-04-11 10:30',
+      endTime: '2026-04-11 11:30',
+      coach: '李教练',
+      campus: '__external__',
+      venue: '奥森网球中心 · A1',
+      locationType: 'external',
+      externalVenueName: '奥森网球中心',
+      studentIds: ['stu-2'],
+      status: '已排课'
+    },
+    [{
+      id: 'old-external',
+      startTime: '2026-04-11 10:00',
+      endTime: '2026-04-11 11:00',
+      coach: '王教练',
+      campus: '__external__',
+      venue: '奥森网球中心 · A1',
+      locationType: 'external',
+      externalVenueName: '奥森网球中心',
+      studentIds: ['stu-1'],
+      status: '已排课'
+    }]
+  ),
+  /场地.*已被占用/,
+  'external venues should still participate in venue conflict checks'
 );
 
 assert.doesNotThrow(

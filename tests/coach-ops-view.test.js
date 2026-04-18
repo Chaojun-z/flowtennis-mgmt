@@ -44,10 +44,10 @@ assert.match(
   'schedule modal should capture cancellation reason'
 );
 
-assert.match(
+assert.doesNotMatch(
   source,
   /id="sch_notifyStatus"/,
-  'schedule modal should capture notification status'
+  'schedule modal should not expose notification status before notification exists'
 );
 
 assert.match(

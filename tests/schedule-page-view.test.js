@@ -14,19 +14,25 @@ function fnBody(name){
   return source.slice(start, next === -1 ? source.length : next);
 }
 
-assert.match(source, /function scheduleConfirmRuleMeta\(/, 'schedule page should expose a confirm-rule helper');
 assert.match(source, /function buildRepeatScheduleSeeds\(/, 'schedule page should expose a repeat schedule helper');
 assert.match(fnBody('openScheduleModal'), /sch_repeatEnabled/, 'schedule modal should allow enabling repeat scheduling');
 assert.match(fnBody('openScheduleModal'), /每周重复/, 'schedule modal should describe weekly repeat scheduling');
-assert.match(fnBody('openScheduleModal'), /确认规则/, 'schedule modal should show the confirm rule in plain language');
 assert.match(fnBody('openScheduleModal'), /教练迟到免费/, 'schedule modal should support marking coach-late free lessons');
 assert.match(fnBody('openScheduleModal'), /教练承担场地费/, 'schedule modal should capture coach late field fee');
-assert.match(fnBody('scheduleSaveConfirmText'), /确认截止/, 'schedule save confirm copy should show the confirm deadline');
 assert.match(fnBody('scheduleSaveConfirmText'), /迟到免费/, 'schedule save confirm copy should show coach-late free status');
 assert.match(fnBody('saveSchedule'), /buildRepeatScheduleSeeds\(/, 'saving schedules should fan out repeat seeds when enabled');
 assert.match(fnBody('saveSchedule'), /coachLateFree/, 'saving schedules should persist coach late fields');
-assert.match(fnBody('openScheduleDetail'), /确认规则/, 'schedule detail should show the applied confirm rule');
 assert.match(fnBody('openScheduleDetail'), /教练迟到处理/, 'schedule detail should show coach late settlement info');
+assert.match(source, /function scheduleLocationText\(/, 'schedule page should centralize location display');
+assert.match(fnBody('openScheduleModal'), /地点类型[\s\S]*自有校区[\s\S]*外部场馆/, 'schedule modal should support own campus and external venue location types');
+assert.match(fnBody('openScheduleModal'), /sch_externalVenueName[\s\S]*sch_externalAddress/, 'external venue schedules should capture venue name and optional address');
+assert.match(fnBody('openScheduleModal'), /更多设置[\s\S]*每周重复[\s\S]*教练迟到处理/, 'low-frequency schedule fields should be folded into advanced settings');
+assert.doesNotMatch(fnBody('openScheduleModal'), /通知状态|确认状态|确认规则/, 'schedule modal should remove fake notification and confirmation fields');
+assert.doesNotMatch(fnBody('scheduleSaveConfirmText'), /确认规则|确认截止|通知：/, 'schedule save confirm copy should not show fake notification rules');
+assert.doesNotMatch(fnBody('openScheduleDetail'), /通知 \/ 确认|确认规则/, 'schedule detail should not show fake notification rules');
+assert.match(fnBody('scheduleStatusLabel'), /已结束[\s\S]*已下课/, 'schedule ended status should display as 已下课');
+assert.match(fnBody('renderSchedule'), /scheduleStatusLabel/, 'schedule list should render user-facing status text');
+assert.match(source, /<th style="width:104px;padding-left:20px">日期<\/th><th style="width:112px">上课时间<\/th><th style="width:72px">时长<\/th><th style="width:150px">校区\/场地<\/th><th style="width:88px">教练<\/th><th style="width:150px">学员<\/th><th style="width:84px">课程类型<\/th><th style="width:72px">反馈<\/th><th style="width:88px">状态<\/th><th class="tms-sticky-r" style="width:160px/, 'schedule table should use tighter practical column widths');
 assert.match(source, /function openCoachLateSettlementModal\(/, 'schedule page should expose coach late settlement modal');
 assert.match(source, /迟到月结/, 'schedule page should expose coach late monthly settlement entry');
 assert.doesNotMatch(source, /id="page-schedule"[\s\S]*?openCoachLateSettlementModal\(\)[\s\S]*?id="page-coachops"/, 'late monthly settlement should not be a primary schedule-table action');

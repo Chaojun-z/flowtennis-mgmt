@@ -443,6 +443,10 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .modal.modal-court textarea.tms-form-control{height:auto;min-height:62px;padding:10px 12px}
 .modal.modal-court .coach-date-btn,.modal.modal-court .tms-dropdown.tms-dropdown-form .tms-dropdown-display{height:38px;font-size:13px;font-weight:400}
 .modal.modal-court .coach-date-btn{background:#FDF7F2;box-shadow:none}
+.schedule-advanced{border:1px solid #D9D0C7;border-radius:10px;padding:0 14px;margin:4px 0 16px;background:rgba(253,247,242,.55)}
+.schedule-advanced summary{cursor:pointer;height:42px;display:flex;align-items:center;font-size:13px;color:#5C4D43;font-weight:600}
+.schedule-advanced[open]{padding-bottom:14px}
+.schedule-action-cell{white-space:nowrap}
 .modal.modal-court .tms-record-add-box .tms-form-row{gap:12px;flex-wrap:wrap}
 .modal.modal-court .tms-record-add-box .tms-dropdown-display,.modal.modal-court .tms-record-add-box .tms-form-control{font-size:12px}
 .modal.modal-court .tms-checkbox-matrix{font-size:10px}

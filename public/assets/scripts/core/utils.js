@@ -43,6 +43,7 @@ function shanghaiNow(){
 }
 function effectiveScheduleStatus(s,now=new Date()){
   const status=s?.status||'已排课';
+  if(status==='已下课')return '已结束';
   if(status==='已取消'||status==='已结束')return status;
   const end=s?.endTime?dtObj(s.endTime):null;
   return status==='已排课'&&end&&end<now?'已结束':status;
