@@ -64,6 +64,7 @@ const HOT_GET_TABLES=new Map([
 ]);
 const hotScanCache=new Map();
 const hotGetCache=new Map();
+let importedLedgerRepairChecked=false;
 
 let tsClient;
 function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
@@ -1186,6 +1187,16 @@ async function repairImportedLedgerDuplicates(){
   if(!duplicateIds.length)return 0;
   await deleteSeedRows(T_ENTITLEMENT_LEDGER,duplicateIds);
   return duplicateIds.length;
+}
+async function maybeRepairImportedLedgerDuplicates(){
+  if(importedLedgerRepairChecked)return 0;
+  importedLedgerRepairChecked=true;
+  try{
+    return await repairImportedLedgerDuplicates();
+  }catch(err){
+    importedLedgerRepairChecked=false;
+    throw err;
+  }
 }
 function hasCurrentMabaoSeedRows(existingRows=[],seedRows=[],tag=''){
   const seedIds=new Set((seedRows||[]).map(row=>row.id));
@@ -2525,6 +2536,7 @@ module.exports = async (req, res) => {
     if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
       await init();
+      await maybeRepairImportedLedgerDuplicates();
       const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
         timed('load-all scan courts',()=>scan(T_COURTS)),
         timed('load-all scan students',()=>scan(T_STUDENTS)),
