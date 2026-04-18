@@ -860,7 +860,7 @@ function filterLoadAllForUser(data,user){
   }));
   const safeLedger=normalized.entitlementLedger.filter(l=>
     scheduleIds.has(l.scheduleId)||(
-      studentIds.has(l.studentId)&&!l.scheduleId&&!!l.sourceMonth&&Number(l.lessonDelta)<0
+      studentIds.has(l.studentId)&&!l.scheduleId&&!!importedLedgerMonthKey(l)&&Number(l.lessonDelta)<0
     )
   ).map(l=>({
     id:l.id,entitlementId:l.entitlementId,studentId:l.studentId,scheduleId:l.scheduleId,lessonDelta:l.lessonDelta,action:l.action,reason:l.reason,createdAt:l.createdAt,relatedDate:l.relatedDate,sourceMonth:l.sourceMonth,importSource:l.importSource,notes:l.notes
@@ -872,7 +872,7 @@ function filterLoadAllForUser(data,user){
     packages:[],
     purchases:[],
     entitlements:safeEntitlements,
-    entitlementLedger:safeLedger,
+    entitlementLedger:normalizeEntitlementLedgerRowsForView(safeLedger),
     membershipPlans:[],
     membershipAccounts:[],
     membershipOrders:[],
@@ -1148,6 +1148,64 @@ function collectDuplicateImportedLedgerIds(existingRows=[]){
     removeIds.push(row.id);
   });
   return [...new Set(removeIds.filter(Boolean))];
+}
+function normalizeEntitlementLedgerRowsForView(rows=[]){
+  const deduped=[];
+  const seen=new Set();
+  for(const row of rows||[]){
+    const monthKey=importedLedgerMonthKey(row);
+    const key=monthKey
+      ? [
+          row.entitlementId,
+          row.purchaseId,
+          row.studentId,
+          Number(row.lessonDelta)||0,
+          row.action||'',
+          row.reason||'',
+          monthKey,
+          row.sourceSheet||'',
+          row.notes||''
+        ].join('|')
+      : [
+          row.entitlementId,
+          row.purchaseId,
+          row.studentId,
+          row.scheduleId||'',
+          Number(row.lessonDelta)||0,
+          row.action||'',
+          row.reason||'',
+          row.relatedDate||'',
+          row.sourceMonth||'',
+          row.sourceSheet||'',
+          row.notes||''
+        ].join('|');
+    if(seen.has(key))continue;
+    seen.add(key);
+    deduped.push(row);
+  }
+  const monthlyMap=new Map();
+  const result=[];
+  for(const row of deduped){
+    const monthKey=importedLedgerMonthKey(row);
+    if(!monthKey){
+      result.push(row);
+      continue;
+    }
+    const key=[row.entitlementId,row.purchaseId,row.studentId,row.reason||'',monthKey].join('|');
+    const current=monthlyMap.get(key);
+    if(!current){
+      monthlyMap.set(key,{...row,sourceMonth:row.sourceMonth||monthKey});
+      continue;
+    }
+    monthlyMap.set(key,{
+      ...current,
+      lessonDelta:(Number(current.lessonDelta)||0)+(Number(row.lessonDelta)||0),
+      relatedDate:String(row.relatedDate||'')>String(current.relatedDate||'')?row.relatedDate:current.relatedDate,
+      createdAt:String(row.createdAt||'')>String(current.createdAt||'')?row.createdAt:current.createdAt,
+      sourceMonth:current.sourceMonth||monthKey
+    });
+  }
+  return [...result,...monthlyMap.values()];
 }
 function collectMabaoSeedStaleRowIds(existingRows=[],seedRows=[],tag=''){
   const nextIds=new Set((seedRows||[]).map(row=>row.id));
@@ -2570,7 +2628,7 @@ module.exports = async (req, res) => {
         packages:Array.isArray(packages)?packages:[],
         purchases:Array.isArray(purchases)?purchases:[],
         entitlements:Array.isArray(entitlements)?entitlements:[],
-        entitlementLedger:Array.isArray(entitlementLedger)?entitlementLedger:[],
+        entitlementLedger:normalizeEntitlementLedgerRowsForView(Array.isArray(entitlementLedger)?entitlementLedger:[]),
         membershipPlans:normalizedMembershipPlans,
         membershipAccounts:Array.isArray(reconciled.accounts)?reconciled.accounts:[],
         membershipOrders:normalizedMembershipOrders,
@@ -2918,7 +2976,7 @@ module.exports = async (req, res) => {
     }
     if(path==='/entitlement-ledger'){
       await init();
-      if(method==='GET')return sendJson(res,await getCachedScan(T_ENTITLEMENT_LEDGER).catch(()=>[]));
+      if(method==='GET')return sendJson(res,normalizeEntitlementLedgerRowsForView(await getCachedScan(T_ENTITLEMENT_LEDGER).catch(()=>[])));
     }
     if(path==='/entitlements'){await init();if(method==='GET'){const rows=await getCachedScan(T_ENTITLEMENTS).catch(()=>[]);const sid=query.get('studentId')||'';return sendJson(res,sid?rows.filter(e=>e.studentId===sid):rows);}}
     if(path==='/entitlements/recommend'&&method==='POST'){await init();const rows=(await getCachedScan(T_ENTITLEMENTS).catch(()=>[])).filter(e=>parseArr(body.studentIds).includes(e.studentId));return sendJson(res,recommendEntitlements(rows,body));}

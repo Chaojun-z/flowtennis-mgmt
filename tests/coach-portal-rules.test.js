@@ -23,7 +23,8 @@ const data = {
   ],
   entitlementLedger: [
     { id: 'led-1', entitlementId: 'ent-owner', studentId: 'stu-owner', scheduleId: 'sch-x', lessonDelta: -1 },
-    { id: 'led-import', entitlementId: 'ent-owner', studentId: 'stu-owner', scheduleId: '', lessonDelta: -2, sourceMonth: '2026-03', importSource: '系统导入', relatedDate: '2026-03-31' }
+    { id: 'led-import', entitlementId: 'ent-owner', studentId: 'stu-owner', scheduleId: '', lessonDelta: -2, sourceMonth: '2026-03', importSource: '系统导入', reason: '历史导入 3月消课', relatedDate: '2026-03-31' },
+    { id: 'led-import-legacy', entitlementId: 'ent-owner', studentId: 'stu-owner', scheduleId: '', lessonDelta: -2, importSource: '系统导入', reason: '历史导入 3月消课', relatedDate: '2026-03-28' }
   ],
   plans: [
     { id: 'plan-owner', studentId: 'stu-owner', coach: '朝珺', totalLessons: 10, usedLessons: 2 },
@@ -57,7 +58,7 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(
   filtered.entitlementLedger.map(row => row.id),
   ['led-import'],
-  'coach should additionally receive imported historical consume rows for visible students'
+  'coach should additionally receive imported historical consume rows for visible students and collapse duplicate historical month rows before returning them'
 );
 
 assert.strictEqual(
