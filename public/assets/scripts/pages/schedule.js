@@ -360,12 +360,12 @@ function scheduleRemainingLessons(s){
   return Math.max(0,(parseInt(cls.totalLessons)||0)-(parseInt(cls.usedLessons)||0));
 }
 const FEEDBACK_POSTER_TEMPLATES={
-  blueGreenDiagonal:{name:'蓝绿对角',type:'diagonalSplit',bg1:'#1F4287',bg2:'#278EA5',ink:'#FFFFFF',muted:'rgba(255,255,255,0.7)',accent:'#BCE84A',soft:'rgba(255,255,255,0.08)'},
-  minimalDarkGreen:{name:'极简墨绿',type:'cleanSilhouette',bg1:'#F4F6F8',bg2:'#F4F6F8',ink:'#143D30',muted:'#76948A',accent:'#8DC63F',soft:'#FFFFFF'},
-  retroCourt:{name:'对角球场',type:'split',bg1:'#1E3D33',bg2:'#B35432',ink:'#1E3D33',muted:'#6D827A',accent:'#B35432',soft:'#F9F8F6'},
-  blueprintBlue:{name:'线框蓝图',type:'wireframe',bg1:'#12355B',bg2:'#0D2744',ink:'#FFFFFF',muted:'rgba(255,255,255,0.6)',accent:'#D4F02E',soft:'rgba(0,0,0,0.3)'},
-  minimalRacket:{name:'极简白框',type:'minimal',bg1:'#2F74B4',bg2:'#2F74B4',ink:'#12355B',muted:'#82A9CE',accent:'#D4F02E',soft:'rgba(255,255,255,0.95)'},
-  activeGreen:{name:'活力绿(缝线)',type:'sport',bg1:'#064E3B',bg2:'#022C22',ink:'#F8FAFC',muted:'#6EE7B7',accent:'#10B981',soft:'rgba(255,255,255,0.08)'}
+  blueGreenDiagonal:{name:'蓝绿对角',type:'diagonalSplit',bg1:'#1F4287',bg2:'#278EA5',ink:'#FFFFFF',muted:'rgba(255,255,255,0.7)',accent:'#BCE84A',soft:'rgba(255,255,255,0.08)',cardTitle:'#BCE84A',highlight:'#BCE84A',nameColor:'#FFFFFF',subColor:'rgba(255,255,255,0.7)'},
+  minimalDarkGreen:{name:'极简墨绿',type:'cleanSilhouette',bg1:'#F4F6F8',bg2:'#F4F6F8',ink:'#143D30',muted:'#76948A',accent:'#8DC63F',soft:'#FFFFFF',cardTitle:'#143D30',highlight:'#8DC63F',nameColor:'#143D30',subColor:'#76948A'},
+  retroCourt:{name:'对角球场',type:'split',bg1:'#1E3D33',bg2:'#B35432',ink:'#1E3D33',muted:'#6D827A',accent:'#B35432',soft:'#F9F8F6',cardTitle:'#B35432',highlight:'#B35432',nameColor:'#F9F8F6',subColor:'rgba(249,248,246,0.7)'},
+  blueprintBlue:{name:'线框蓝图',type:'wireframe',bg1:'#12355B',bg2:'#0D2744',ink:'#FFFFFF',muted:'rgba(255,255,255,0.6)',accent:'#D4F02E',soft:'rgba(0,0,0,0.3)',cardTitle:'#D4F02E',highlight:'#D4F02E',nameColor:'#FFFFFF',subColor:'rgba(255,255,255,0.6)'},
+  minimalRacket:{name:'极简白框',type:'minimal',bg1:'#2F74B4',bg2:'#2F74B4',ink:'#12355B',muted:'#82A9CE',accent:'#D4F02E',soft:'rgba(255,255,255,0.95)',cardTitle:'#2F74B4',highlight:'#2F74B4',nameColor:'#FFFFFF',subColor:'#82A9CE'},
+  activeGreen:{name:'活力绿(缝线)',type:'sport',bg1:'#064E3B',bg2:'#022C22',ink:'#F8FAFC',muted:'#6EE7B7',accent:'#10B981',soft:'rgba(255,255,255,0.08)',cardTitle:'#10B981',highlight:'#10B981',nameColor:'#F8FAFC',subColor:'#6EE7B7'}
 };
 let feedbackPosterState=null;
 function feedbackPosterData(schedule,feedback){
@@ -385,29 +385,85 @@ function posterDrawSpacedText(ctx,text,x,y,spacing){
   let currentX=x;
   Array.from(text||'').forEach(ch=>{ctx.fillText(ch,currentX,y);currentX+=ctx.measureText(ch).width+spacing;});
 }
-function posterTextLines(ctx,text,maxWidth,maxLines){
-  const lines=[];
-  String(text||'—').split('\n').forEach(part=>{
-    let line='';
-    Array.from(part||' ').forEach(ch=>{
-      const next=line+ch;
-      if(ctx.measureText(next).width>maxWidth&&line){lines.push(line);line=ch;}
-      else line=next;
-    });
-    lines.push(line);
-  });
-  if(lines.length>maxLines){
-    const kept=lines.slice(0,maxLines);
-    while(kept[kept.length-1]&&ctx.measureText(kept[kept.length-1]+'…').width>maxWidth)kept[kept.length-1]=kept[kept.length-1].slice(0,-1);
-    kept[kept.length-1]=(kept[kept.length-1]||'').replace(/[，。；、\s]*$/,'')+'…';
-    return kept;
+function posterDisplayDate(dateText){
+  const raw=String(dateText||'').trim();
+  const m=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(!m)return raw||today();
+  return `${m[1]}年${parseInt(m[2],10)}月${parseInt(m[3],10)}日`;
+}
+function posterEscapeRegExp(text){
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+}
+function posterPushAutoGroups(groups,text){
+  if(!text)return;
+  const keywords=['回合对打','连续对打','10 多拍','10多拍','非常了不起','稳定','进步','节奏','重心','脚步','发力','引拍','击球点'];
+  const pattern=new RegExp(`(${keywords.map(posterEscapeRegExp).join('|')})`,'g');
+  String(text).split(pattern).filter(Boolean).forEach(part=>groups.push({text:part,highlight:keywords.includes(part)}));
+}
+function posterTextGroups(text){
+  const raw=String(text||'—');
+  const groups=[];
+  let i=0;
+  while(i<raw.length){
+    if(raw[i]==='【'){
+      const end=raw.indexOf('】',i+1);
+      if(end>-1){groups.push({text:raw.slice(i+1,end),highlight:true});i=end+1;continue;}
+    }
+    if(raw[i]==='*'){
+      const end=raw.indexOf('*',i+1);
+      if(end>-1){groups.push({text:raw.slice(i+1,end),highlight:true});i=end+1;continue;}
+    }
+    let next=raw.length;
+    const bracket=raw.indexOf('【',i+1);
+    const star=raw.indexOf('*',i+1);
+    if(bracket>-1)next=Math.min(next,bracket);
+    if(star>-1)next=Math.min(next,star);
+    posterPushAutoGroups(groups,raw.slice(i,next));
+    i=next;
   }
-  return lines;
+  return groups.length?groups:[{text:'—',highlight:false}];
+}
+function posterContentFont(ctx,isHighlight){
+  ctx.font=`${isHighlight?'600':'400'} 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif`;
+}
+function posterTextLines(ctx,text,maxWidth,maxLines){
+  const lines=[[]];
+  posterTextGroups(text).forEach(group=>{
+    posterContentFont(ctx,group.highlight);
+    Array.from(group.text||'').forEach(ch=>{
+      if(ch==='\n'){lines.push([]);return;}
+      const width=ctx.measureText(ch).width;
+      let line=lines[lines.length-1];
+      const lineWidth=line.reduce((sum,item)=>sum+item.width,0);
+      if(line.length&&lineWidth+width>maxWidth){lines.push([]);line=lines[lines.length-1];}
+      line.push({ch,highlight:group.highlight,width});
+    });
+  });
+  let kept=lines.filter(line=>line.length);
+  if(!kept.length)kept=[[{ch:'—',highlight:false,width:ctx.measureText('—').width}]];
+  if(kept.length>maxLines){
+    kept=kept.slice(0,maxLines);
+    const last=kept[kept.length-1];
+    posterContentFont(ctx,false);
+    const dotsWidth=ctx.measureText('…').width;
+    while(last.length&&last.reduce((sum,item)=>sum+item.width,0)+dotsWidth>maxWidth)last.pop();
+    while(last.length&&/[，。；、\s]/.test(last[last.length-1].ch))last.pop();
+    last.push({ch:'…',highlight:false,width:dotsWidth});
+  }
+  return kept.map(line=>{
+    const groups=[];
+    line.forEach(item=>{
+      const last=groups[groups.length-1];
+      if(last&&last.highlight===item.highlight)last.text+=item.ch;
+      else groups.push({text:item.ch,highlight:item.highlight});
+    });
+    return groups;
+  });
 }
 function posterDrawTextBlock(ctx,tpl,label,text,x,y,w,maxLines){
   ctx.font='400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
   const lines=posterTextLines(ctx,text,w,maxLines);
-  const paddingTop=32,paddingBottom=54,titleSpace=48,lineHeight=46;
+  const paddingTop=32,paddingBottom=54,titleSpace=52,lineHeight=48;
   const contentHeight=(lines.length>0?lines.length-1:0)*lineHeight;
   const boxHeight=paddingTop+titleSpace+contentHeight+paddingBottom;
   const boxY=y-paddingTop-24;
@@ -430,12 +486,18 @@ function posterDrawTextBlock(ctx,tpl,label,text,x,y,w,maxLines){
   }else if(tpl.type==='magazine'){
     ctx.fillStyle=tpl.ink;ctx.fillRect(x-24,y-22,4,boxHeight-paddingTop+4);
   }
-  ctx.fillStyle=tpl.accent;
+  ctx.fillStyle=tpl.cardTitle||tpl.accent;
   ctx.font='800 22px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
   ctx.fillText(label,x,y);
-  ctx.fillStyle=tpl.ink;
-  ctx.font='400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
-  lines.forEach((line,i)=>ctx.fillText(line,x,y+titleSpace+i*lineHeight));
+  lines.forEach((lineGroups,i)=>{
+    let currentX=x;
+    lineGroups.forEach(group=>{
+      posterContentFont(ctx,group.highlight);
+      ctx.fillStyle=group.highlight?(tpl.highlight||tpl.accent):tpl.ink;
+      ctx.fillText(group.text,currentX,y+titleSpace+i*lineHeight);
+      currentX+=ctx.measureText(group.text).width;
+    });
+  });
   ctx.restore();
   return boxHeight+28;
 }
@@ -473,27 +535,34 @@ function drawFeedbackPoster(canvas,data,templateKey='blueGreenDiagonal'){
     ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=14;ctx.beginPath();ctx.arc(750,1000,450,Math.PI,Math.PI*1.5);ctx.stroke();ctx.beginPath();ctx.arc(0,300,400,0,Math.PI*.5);ctx.stroke();
   }
   ctx.restore();
-  if(tpl.type==='popart'){ctx.fillStyle=tpl.muted;ctx.font='900 34px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';ctx.fillText('网球兄弟',64,94);}
-  if(tpl.type==='flatPopBlue'){ctx.save();ctx.shadowColor='#0A2E7A';ctx.shadowBlur=0;ctx.shadowOffsetX=5;ctx.shadowOffsetY=5;}
-  if(tpl.type==='cleanSilhouette')ctx.fillStyle=tpl.accent;
-  ctx.font='900 34px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';ctx.fillText('网球兄弟',60,90);
-  ctx.fillStyle=tpl.type==='wireframe'?tpl.soft:tpl.muted;ctx.font='600 20px -apple-system,BlinkMacSystemFont,sans-serif';posterDrawSpacedText(ctx,'TRAINING REPORT',60,125,2);
-  ctx.fillStyle=tpl.ink;ctx.font='900 68px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';ctx.fillText(data.studentName||'学员',60,240);
-  if(tpl.type==='flatPopBlue')ctx.restore();
-  ctx.fillStyle=tpl.type==='cleanSilhouette'?tpl.muted:tpl.accent;ctx.font='700 26px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText(data.date||'',60,290);
-  if(!['sport','popart','flatPopBlue','diagonalSplit'].includes(tpl.type)){ctx.fillStyle=tpl.muted;ctx.globalAlpha=.3;ctx.fillRect(60,330,630,2);ctx.globalAlpha=1;}
-  let currentY=410;
+  const nameStr=data.studentName||'学员';
+  ctx.fillStyle=tpl.nameColor||tpl.ink;
+  ctx.font='900 68px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText(nameStr,60,140);
+  const nameWidth=ctx.measureText(nameStr).width;
+  ctx.fillStyle=tpl.subColor||tpl.muted;
+  ctx.font='600 32px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
+  ctx.fillText('训练反馈',Math.min(60+nameWidth+16,560),140);
+  ctx.fillStyle=tpl.type==='cleanSilhouette'?(tpl.subColor||tpl.muted):tpl.accent;
+  ctx.font='700 26px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
+  ctx.fillText(`上课日期：${posterDisplayDate(data.date)}`,60,195);
+  if(!['sport','diagonalSplit','split'].includes(tpl.type)){ctx.fillStyle=tpl.subColor||tpl.muted;ctx.globalAlpha=.3;ctx.fillRect(60,235,630,2);ctx.globalAlpha=1;}
+  let currentY=320;
   const contentWidth=570;
   currentY+=posterDrawTextBlock(ctx,tpl,'今天练习了',data.practicedToday,90,currentY,contentWidth,4);
   currentY+=posterDrawTextBlock(ctx,tpl,'练习情况',data.knowledgePoint,90,currentY,contentWidth,5);
   posterDrawTextBlock(ctx,tpl,'下次练习',data.nextTraining,90,currentY,contentWidth,4);
-  ctx.fillStyle=tpl.type==='wireframe'?tpl.soft:tpl.muted;ctx.font='500 24px -apple-system,BlinkMacSystemFont,sans-serif';ctx.fillText('Coach',60,1220);
-  ctx.fillStyle=tpl.ink;ctx.font='900 36px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';ctx.fillText(data.coach||'教练',60,1265);
+  ctx.fillStyle=tpl.nameColor||tpl.ink;
+  ctx.font='900 34px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('网球兄弟',60,1235);
+  ctx.fillStyle=tpl.subColor||tpl.muted;
+  ctx.font='500 18px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
+  ctx.fillText('用网球向生活发出邀请',60,1270);
   ctx.save();ctx.fillStyle=tpl.accent;
-  if(tpl.type==='sport'||tpl.type==='brushSplash'){ctx.beginPath();ctx.moveTo(630,1265);ctx.lineTo(690,1265);ctx.lineTo(670,1235);ctx.fill();}
+  if(tpl.type==='sport'){ctx.beginPath();ctx.moveTo(630,1270);ctx.lineTo(690,1270);ctx.lineTo(670,1240);ctx.fill();}
   else if(tpl.type==='magazine'){ctx.fillRect(640,1255,50,6);}
   else if(tpl.type==='popart'||tpl.type==='flatPopBlue'){ctx.fillRect(650,1245,16,16);}
-  else{ctx.beginPath();ctx.arc(670,1255,10,0,Math.PI*2);ctx.fill();}
+  else{ctx.beginPath();ctx.arc(670,1260,10,0,Math.PI*2);ctx.fill();}
   ctx.restore();
 }
 function feedbackPosterFilename(){
