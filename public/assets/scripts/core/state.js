@@ -43,8 +43,8 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   packages:['packages','products'],
   purchases:['purchasesPage'],
   finance:['campuses','students','schedule','entitlements','entitlementLedger','coaches','products','purchases','packages'],
-  courts:['campuses','students','courts','membershipAccounts','coaches','pricePlans'],
-  memberships:['campuses','students','courts','membershipAccounts','coaches'],
+  courts:['courtsPage'],
+  memberships:['membershipsPage'],
   workbench:['workbenchPage'],
   myschedule:['campuses','students','classes','schedule','feedbacks'],
   mystudents:['campuses','students','classes','schedule','feedbacks','entitlements'],
@@ -72,6 +72,8 @@ const DATASET_LOADERS={
   feedbacks:()=>apiCall('GET','/feedbacks')
   ,plansPage:()=>apiCall('GET','/page-data/plans')
   ,purchasesPage:()=>apiCall('GET','/page-data/purchases')
+  ,courtsPage:()=>apiCall('GET','/page-data/courts')
+  ,membershipsPage:()=>apiCall('GET','/page-data/memberships')
   ,workbenchPage:()=>apiCall('GET','/page-data/workbench')
 };
 function datasetCacheKey(name){
@@ -187,6 +189,29 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
       setDatasetValue('students',data.students||[]);
       setDatasetValue('entitlements',data.entitlements||[]);
       loadedDatasets.add('purchasesPage');
+      return;
+    }
+    if(name==='courtsPage'){
+      setDatasetValue('campuses',data.campuses||[]);
+      setDatasetValue('students',data.students||[]);
+      setDatasetValue('courts',data.courts||[]);
+      setDatasetValue('membershipAccounts',data.membershipAccounts||[]);
+      setDatasetValue('coaches',data.coaches||[]);
+      setDatasetValue('pricePlans',data.pricePlans||[]);
+      loadedDatasets.add('courtsPage');
+      return;
+    }
+    if(name==='membershipsPage'){
+      setDatasetValue('campuses',data.campuses||[]);
+      setDatasetValue('students',data.students||[]);
+      setDatasetValue('courts',data.courts||[]);
+      setDatasetValue('membershipAccounts',data.membershipAccounts||[]);
+      setDatasetValue('membershipOrders',data.membershipOrders||[]);
+      setDatasetValue('membershipBenefitLedger',data.membershipBenefitLedger||[]);
+      setDatasetValue('membershipAccountEvents',data.membershipAccountEvents||[]);
+      setDatasetValue('membershipPlans',data.membershipPlans||[]);
+      setDatasetValue('coaches',data.coaches||[]);
+      loadedDatasets.add('membershipsPage');
       return;
     }
     if(name==='workbenchPage'){

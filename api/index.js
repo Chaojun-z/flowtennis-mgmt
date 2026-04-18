@@ -2934,6 +2934,35 @@ module.exports = async (req, res) => {
       ]);
       return sendJson(res,{purchases,packages,students,entitlements});
     }
+    if(path==='/page-data/courts'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.all([
+        listCampusesWithDefaults(),
+        getCachedScan(T_STUDENTS).catch(()=>[]),
+        getCachedScan(T_COURTS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
+        getCachedScan(T_COACHES).catch(()=>[]),
+        getCachedScan(T_PRICE_PLANS).catch(()=>[])
+      ]);
+      return sendJson(res,{campuses,students,courts,membershipAccounts,coaches,pricePlans});
+    }
+    if(path==='/page-data/memberships'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const [campuses,students,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,membershipPlans,coaches]=await Promise.all([
+        listCampusesWithDefaults(),
+        getCachedScan(T_STUDENTS).catch(()=>[]),
+        getCachedScan(T_COURTS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]),
+        getCachedScan(T_COACHES).catch(()=>[])
+      ]);
+      return sendJson(res,{campuses,students,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,membershipPlans,coaches});
+    }
     if(path==='/page-data/workbench'&&method==='GET'){
       await init();
       const [campuses,students,classes,schedule,feedbacks]=await Promise.all([
