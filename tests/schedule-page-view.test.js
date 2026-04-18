@@ -24,7 +24,10 @@ assert.match(fnBody('saveSchedule'), /buildRepeatScheduleSeeds\(/, 'saving sched
 assert.match(fnBody('saveSchedule'), /coachLateFree/, 'saving schedules should persist coach late fields');
 assert.match(fnBody('openScheduleDetail'), /教练迟到处理/, 'schedule detail should show coach late settlement info');
 assert.match(source, /function scheduleLocationText\(/, 'schedule page should centralize location display');
-assert.match(fnBody('openScheduleModal'), /地点类型[\s\S]*自有校区[\s\S]*外部场馆/, 'schedule modal should support own campus and external venue location types');
+assert.match(fnBody('openScheduleModal'), /地点类型[\s\S]*校区内[\s\S]*校区外/, 'schedule modal should support in-campus and off-campus lesson location types');
+assert.match(fnBody('openScheduleModal'), /schedule-time-course-row[\s\S]*schedule-time-field[\s\S]*sch_courseType/, 'schedule modal should keep time controls compact beside course type');
+assert.match(fnBody('openScheduleModal'), /schedule-location-row[\s\S]*sch_locationType[\s\S]*sch_ownLocationRow[\s\S]*sch_campus[\s\S]*sch_venue/, 'own campus location fields should sit on one row with location type');
+assert.match(fnBody('openScheduleModal'), /schedule-location-row[\s\S]*sch_locationType[\s\S]*sch_externalLocationRow[\s\S]*sch_externalVenueName[\s\S]*sch_externalCourtName[\s\S]*sch_externalNotes/, 'external location fields should sit on one row with location type');
 assert.match(fnBody('openScheduleModal'), /人和课程[\s\S]*关联班次[\s\S]*本次参与人[\s\S]*上课信息[\s\S]*上课日期与时间[\s\S]*课程类型[\s\S]*教练[\s\S]*消课节数[\s\S]*扣减课包[\s\S]*地点/, 'schedule modal should follow the simplified create/edit flow');
 assert.match(fnBody('openScheduleModal'), /上课日期与时间[\s\S]*课程类型[\s\S]*每周重复/, 'weekly repeat should stay with lesson time settings');
 assert.match(fnBody('openScheduleModal'), /sch_externalVenueName[\s\S]*sch_externalCourtName[\s\S]*sch_externalNotes/, 'external venue schedules should capture venue, court, and notes');

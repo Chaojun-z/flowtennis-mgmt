@@ -352,8 +352,10 @@ function toggleCourtDropdown(id,event){
     const menu=dropdown.querySelector('.tms-dropdown-menu');
     if(menu){
       const rect=dropdown.getBoundingClientRect();
-      const spaceBelow=window.innerHeight-rect.bottom;
-      const spaceAbove=rect.top;
+      const container=dropdown.closest('.mbody');
+      const containerRect=container?container.getBoundingClientRect():{top:0,bottom:window.innerHeight};
+      const spaceBelow=Math.min(window.innerHeight,containerRect.bottom)-rect.bottom;
+      const spaceAbove=rect.top-Math.max(0,containerRect.top);
       const menuHeight=Math.min(menu.scrollHeight||0,250);
       if(spaceBelow<menuHeight+12&&spaceAbove>spaceBelow)dropdown.classList.add('open-upward');
     }
@@ -420,7 +422,7 @@ function scheduleDateTimeControls(prefix,value='',label='日期'){
   return `<div class="court-date-row"><div style="flex:1">${courtDateButtonHtml(prefix+'_date',datePart,label)}</div><div style="width:132px">${renderCourtDropdownHtml(prefix+'_time','时间',getCourtTimeOptions(timePart||'08:00'),timePart||'08:00',true,'refreshSchEntitlementOptions')}</div></div>`;
 }
 function scheduleTimeRangeControls(dateValue='',startValue='09:00',endValue='10:00'){
-  return `<div class="court-date-row"><div style="flex:1 1 220px;min-width:220px">${courtDateButtonHtml('sch_date',dateValue,'上课日期')}</div><div style="flex:0 0 132px;width:132px">${renderCourtDropdownHtml('sch_startTime','开始时间',getCourtTimeOptions(startValue||'09:00'),startValue||'09:00',true,'refreshSchEntitlementOptions')}</div><div style="flex:0 0 auto;align-self:center;color:#8C7B6E;font-size:12px;white-space:nowrap">至</div><div style="flex:0 0 132px;width:132px">${renderCourtDropdownHtml('sch_endTime','结束时间',getCourtTimeOptions(endValue||'10:00'),endValue||'10:00',true,'refreshSchEntitlementOptions')}</div></div>`;
+  return `<div class="court-date-row schedule-time-range"><div style="flex:0 0 184px;width:184px">${courtDateButtonHtml('sch_date',dateValue,'上课日期')}</div><div style="flex:0 0 116px;width:116px">${renderCourtDropdownHtml('sch_startTime','开始时间',getCourtTimeOptions(startValue||'09:00'),startValue||'09:00',true,'refreshSchEntitlementOptions')}</div><div style="flex:0 0 auto;align-self:center;color:#8C7B6E;font-size:12px;white-space:nowrap">至</div><div style="flex:0 0 116px;width:116px">${renderCourtDropdownHtml('sch_endTime','结束时间',getCourtTimeOptions(endValue||'10:00'),endValue||'10:00',true,'refreshSchEntitlementOptions')}</div></div>`;
 }
 function scheduleComposeDateTime(dateId,timeId){
   const date=document.getElementById(dateId)?.value||'';

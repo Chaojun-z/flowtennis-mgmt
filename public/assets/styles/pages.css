@@ -463,6 +463,14 @@ tbody tr:last-child td{border-bottom:none}tbody tr{transition:background .1s}tbo
 .modal.modal-court .tms-checkbox-matrix .tms-checkbox-wrap,.modal.modal-court .tms-checkbox-matrix .tms-checkbox-wrap span{font-size:10px;font-weight:400}
 .modal.modal-court .court-date-row{display:flex;align-items:center;gap:12px;flex-wrap:nowrap}
 .modal.modal-court .court-date-row > *{min-width:0}
+.modal.modal-court .schedule-time-course-row{align-items:flex-end;gap:18px}
+.modal.modal-court .schedule-time-field{flex:0 0 452px;min-width:0}
+.modal.modal-court .schedule-course-field{flex:1;min-width:180px}
+.modal.modal-court .schedule-time-range{gap:8px}
+.modal.modal-court .schedule-location-row{align-items:flex-end;gap:14px}
+.modal.modal-court .schedule-location-type{flex:0 0 190px;min-width:0}
+.modal.modal-court .schedule-location-fields{display:flex;gap:14px;flex:1;min-width:0}
+.modal.modal-court .schedule-location-fields .tms-form-item{flex:1;min-width:0}
 .choice-grid{display:flex;flex-wrap:wrap;gap:8px}
 .choice-wrap{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
 .choice-wrap .choice-tag{flex:0 0 auto}

@@ -11,6 +11,9 @@ function fnBody(name){
   return html.slice(start, next === -1 ? html.length : next);
 }
 
+assert.match(fnBody('toggleCourtDropdown'), /const container=dropdown\.closest\('\.mbody'\)/, 'dropdown opening direction should account for modal body clipping');
+assert.match(fnBody('toggleCourtDropdown'), /containerRect\.bottom/, 'dropdown should compare available space against the modal scroll body');
+assert.match(fnBody('toggleCourtDropdown'), /spaceBelow<menuHeight\+12&&spaceAbove>spaceBelow/, 'dropdown should open upward when modal space below is too small');
 assert.match(pagesCss, /\.tms-stats-row\s*\{/, 'court page should define scoped tms stats styles');
 assert.match(pagesCss, /\.tms-table-card\s*\{/, 'court page should define scoped tms table card styles');
 assert.match(pagesCss, /\.tms-mini-bar\s*\{/, 'court page should define scoped tms mini bar styles');

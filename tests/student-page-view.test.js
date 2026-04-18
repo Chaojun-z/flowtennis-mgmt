@@ -2,6 +2,14 @@ const assert = require('assert');
 const { appSource: source } = require('./helpers/read-index-bundle');
 
 assert.match(source, /function renderScheduleStudentPicker/, 'schedule modal should provide a dedicated student picker helper');
+assert.match(source, /function scheduleSelectedStudentHomeCampusMeta/, 'schedule modal should derive the selected student home campus');
+assert.match(source, /id="sch_homeCampusSummary"/, 'schedule modal should show selected student home campus separately from lesson location');
+assert.match(source, /function syncScheduleHomeCampusFromStudents/, 'schedule modal should sync home campus after student selection changes');
+assert.match(source, /function scheduleSelectedStudentCoachMeta/, 'schedule modal should derive the selected student primary coach');
+assert.match(source, /function syncScheduleProfileFromStudents/, 'schedule modal should sync selected student coach and campus defaults');
+assert.match(source, /setCourtDropdownValue\('sch_coach',meta\.coach,meta\.coach\)/, 'schedule modal should default coach from selected student profile');
+assert.match(source, /上课校区 \*/, 'schedule own-location field should be labelled as lesson campus, not student home campus');
+assert.match(source, /校区内[\s\S]*校区外/, 'schedule location type copy should separate in-campus and off-campus lessons');
 assert.match(source, /id="sch_stuSearch"/, 'schedule modal should provide a searchable student input');
 assert.match(source, /id="sch_stuPicker"/, 'schedule modal should provide a student library picker');
 assert.doesNotMatch(source, /id="sch_stuName"[^>]*placeholder="选班次自动填入"/, 'schedule modal should not use free text student input as the formal selector');
@@ -66,6 +74,8 @@ assert.match(source, /课包消耗记录/, 'student detail should label package 
 assert.match(source, /关联订场账户在「订场\/会员」页面编辑用户时选择「关联学员」/, 'student detail should explain where to link booking accounts');
 assert.doesNotMatch(source, /function openStudentModal[\s\S]*studentLinkedDetailHtml\(s\)/, 'student edit modal should not embed linked detail summary anymore');
 assert.match(source, /function openStudentModal[\s\S]*姓名 \*[\s\S]*手机号[\s\S]*负责教练[\s\S]*学员类型[\s\S]*来源[\s\S]*活动范围[\s\S]*所在校区[\s\S]*备注/, 'student edit modal should keep base profile fields and expose primary coach');
+assert.match(source, /const campusOptions=studentCampusOptions\(\);/, 'student edit modal should build campus options through the shared student helper');
+assert.match(source, /function studentCampusOptions\(/, 'student edit modal should expose all loaded campuses through a helper');
 assert.match(source, /renderCourtDropdownHtml\('s_primaryCoach'/, 'student edit modal should provide a primary coach selector');
 assert.match(source, /const data=\{name,phone,primaryCoach:/, 'student save should submit primary coach');
 assert.match(source, /function openStudentModal[\s\S]*setCourtModalFrame\(/, 'student edit modal should reuse the booking-style modal shell');
