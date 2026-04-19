@@ -53,6 +53,17 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   mystudents:['campuses','students','classes','schedule','feedbacks','entitlements'],
   myclasses:['students','classes','products']
 };
+const PERFORMANCE_PAGE_DATA_GUARD={
+  students:['entitlements','entitlementLedger','classes','schedule','feedbacks','products','courts'],
+  workbench:['workbenchPage']
+};
+function assertPageDataPerformanceGuard(){
+  Object.entries(PERFORMANCE_PAGE_DATA_GUARD).forEach(([page,expected])=>{
+    const actual=PAGE_DATA_BACKGROUND_REQUIREMENTS[page]||[];
+    if(actual.join('|')!==expected.join('|'))throw new Error('页面加载策略被改动：'+page);
+  });
+}
+assertPageDataPerformanceGuard();
 const DATASET_LOADERS={
   courts:()=>apiCall('GET','/courts'),
   students:()=>apiCall('GET','/students'),
@@ -374,9 +385,8 @@ async function loadAll(){
   const loading=document.getElementById('pageLoading');
   if(loading)loading.classList.add('show');
   try{
-    const data=await apiCall('GET','/load-all');
     if(requestVersion!==dataRequestVersion)return;
-    applyLoadedData(data);
+    await ensureDatasetsByName(Object.keys(DATASET_LOADERS),{force:true});
     buildCampusTabs();
     renderAll();
   }catch(e){

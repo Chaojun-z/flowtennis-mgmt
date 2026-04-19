@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const apiSource = fs.readFileSync(path.join(__dirname, '../api/index.js'), 'utf8');
+const stateSource = fs.readFileSync(path.join(__dirname, '../public/assets/scripts/core/state.js'), 'utf8');
 
 assert.match(apiSource, /const ENABLE_RUNTIME_TABLE_ENSURE = process\.env\.ENABLE_RUNTIME_TABLE_ENSURE === 'true';/, 'api should expose a dedicated runtime table ensure switch');
 assert.match(apiSource, /const ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP = process\.env\.ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP === 'true';/, 'finance seed bootstrap should be opt-in only');
@@ -18,5 +19,9 @@ assert.match(apiSource, /console\.log\(`\[api-init\] ensureDefaultCampuses done 
 assert.match(apiSource, /console\.log\(`\[api-init\] bootstrapMabaoFinanceSeed done \$\{Date\.now\(\)-stepStartedAt\}ms \(total \$\{Date\.now\(\)-startedAt\}ms\)`\);/, 'init should log the finance seed step duration');
 assert.match(apiSource, /if\(path==='\/load-all'&&method==='GET'\)\{[\s\S]*await maybeRepairImportedLedgerDuplicates\(\);[\s\S]*timed\('load-all scan entitlement ledger'/s, 'load-all should trigger imported ledger repair before scanning data so hot instances also self-heal');
 assert.match(apiSource, /console\.log\(`\[api-init\] prewarmHotScanCache dispatched \$\{Date\.now\(\)-stepStartedAt\}ms \(total \$\{Date\.now\(\)-startedAt\}ms\)`\);/, 'init should log when cache prewarm is dispatched');
+assert.doesNotMatch(stateSource, /load-all/, 'front-end page loading should not fall back to the heavy load-all endpoint');
+assert.match(stateSource, /const PERFORMANCE_PAGE_DATA_GUARD=\{[\s\S]*students:\['entitlements','entitlementLedger','classes','schedule','feedbacks','products','courts'\][\s\S]*workbench:\['workbenchPage'\][\s\S]*\};/, 'page data performance guard should lock the current lazy-loading strategy');
+assert.match(stateSource, /function assertPageDataPerformanceGuard\(\)/, 'state should expose a local guard against page-loading regressions');
+assert.match(stateSource, /assertPageDataPerformanceGuard\(\);[\s\S]*const DATASET_LOADERS=/, 'page-loading guard should run before dataset loaders are used');
 
 console.log('init performance guard tests passed');

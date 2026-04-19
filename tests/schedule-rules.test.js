@@ -132,6 +132,54 @@ assert.deepStrictEqual(
   'schedule subscribe message should build the mini program template payload'
 );
 
+assert.deepStrictEqual(
+  rules.buildScheduleNotificationUpdate(
+    { id: 'sch-notify-1', notifyStatus: '未通知', notificationLogs: [] },
+    { sent: true, userId: 'coach-user' },
+    'schedule_created',
+    '2026-04-20T10:00:00.000Z'
+  ),
+  {
+    notifyStatus: '已通知教练',
+    lastNotifyAt: '2026-04-20T10:00:00.000Z',
+    lastNotifyError: '',
+    notificationLogs: [{
+      type: 'schedule_created',
+      status: 'sent',
+      channel: 'wechat_subscribe',
+      targetUserId: 'coach-user',
+      reason: '',
+      error: '',
+      createdAt: '2026-04-20T10:00:00.000Z'
+    }]
+  },
+  'successful schedule notification should create an auditable notification log'
+);
+
+assert.deepStrictEqual(
+  rules.buildScheduleNotificationUpdate(
+    { id: 'sch-notify-2', notifyStatus: '未通知', notificationLogs: [] },
+    { skipped: true, reason: 'missing_openid' },
+    'schedule_created',
+    '2026-04-20T10:05:00.000Z'
+  ),
+  {
+    notifyStatus: '通知失败',
+    lastNotifyAt: '2026-04-20T10:05:00.000Z',
+    lastNotifyError: 'missing_openid',
+    notificationLogs: [{
+      type: 'schedule_created',
+      status: 'failed',
+      channel: 'wechat_subscribe',
+      targetUserId: '',
+      reason: 'missing_openid',
+      error: '',
+      createdAt: '2026-04-20T10:05:00.000Z'
+    }]
+  },
+  'skipped schedule notification should still leave a failure reason for traceability'
+);
+
 const reminderRows = [
   { id: 'prev-cross', coach: '朝珺', startTime: '2026-04-20 09:00', endTime: '2026-04-20 10:00', campus: 'mabao', venue: '1号场', status: '已排课' },
   { id: 'due-cross', coach: '朝珺', startTime: '2026-04-20 11:00', endTime: '2026-04-20 12:00', campus: 'shunyi', venue: '2号场', courseType: '私教课', studentName: '小鹿', status: '已排课' },

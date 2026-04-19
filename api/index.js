@@ -1024,6 +1024,26 @@ async function notifyCoachScheduleCreated(schedule){
   await sendWechatSubscribeMessage(message);
   return {sent:true,userId:recipient.id};
 }
+function buildScheduleNotificationUpdate(schedule,result={},type='schedule_created',now=new Date().toISOString()){
+  const sent=!!result.sent;
+  const reason=String(result.reason||'').trim();
+  const error=String(result.error||'').trim();
+  const log={
+    type,
+    status:sent?'sent':'failed',
+    channel:'wechat_subscribe',
+    targetUserId:String(result.userId||'').trim(),
+    reason,
+    error,
+    createdAt:now
+  };
+  return {
+    notifyStatus:sent?'已通知教练':'通知失败',
+    lastNotifyAt:now,
+    lastNotifyError:sent?'':(error||reason||'通知失败'),
+    notificationLogs:[...parseArr(schedule?.notificationLogs),log]
+  };
+}
 function collectCourseReminderCandidates(rows=[],now=new Date()){
   const nowMs=now instanceof Date?now.getTime():dateMs(now);
   const minMs=nowMs+45*60000;
@@ -1852,6 +1872,14 @@ function normalizeFinancePriceSnapshot(row){
     memberDiscount:normalizeMoney(row.memberDiscount||1)||1
   };
 }
+function courtFinanceRevenueBucket(row){
+  if(row?.category==='内部占用')return '内部占用';
+  if(row?.category!=='订场')return '';
+  const method=String(row?.payMethod||'').trim();
+  if(method==='储值扣款')return '储值扣款';
+  if(method==='代用户订场')return '代用户订场';
+  return '现场收款';
+}
 function normalizeCourtHistory(history){
   if(!Array.isArray(history))return[];
   return history.map((h)=> {
@@ -1859,14 +1887,21 @@ function normalizeCourtHistory(history){
     const amountRaw=normalizeMoney(priced.amount);
     const type=h.type||'消费';
     const payMethod=h.payMethod||(type==='消费'&&amountRaw<0?'储值扣款':'');
+    const revenueBucket=courtFinanceRevenueBucket({...priced,type,payMethod});
+    const isInternalOccupancy=type==='消费'&&priced.category==='内部占用';
+    const recordedAt=String(priced.recordedAt||priced.createdAt||'').trim();
+    const occurredDate=String(priced.occurredDate||priced.date||'').slice(0,10);
     return {
       ...priced,
       type,
       payMethod,
       category:priced.category||'其他',
       studentId:priced.studentId||'',
-      amount:Math.abs(amountRaw),
-      bonusAmount:normalizeMoney(priced.bonusAmount)
+      amount:isInternalOccupancy?0:Math.abs(amountRaw),
+      bonusAmount:normalizeMoney(priced.bonusAmount),
+      ...(occurredDate&&recordedAt?{occurredDate}:{}),
+      ...(recordedAt?{recordedAt}:{}),
+      ...(revenueBucket?{revenueBucket}:{})
     };
   });
 }
@@ -1889,6 +1924,7 @@ function computeCourtFinance(input){
   for(const h of history){
     const amount=normalizeMoney(h.amount);
     const bonus=normalizeMoney(h.bonusAmount);
+    if(h.type==='消费'&&h.category==='内部占用')continue;
     if(amount<=0)throw new Error('流水金额必须大于0');
     if(h.type==='充值'){
       totals.totalDeposit+=amount;
@@ -1940,6 +1976,25 @@ function computeCourtFinance(input){
   }
   Object.keys(totals).forEach(k=>{totals[k]=Math.round(totals[k]*100)/100;});
   return totals;
+}
+function summarizeCourtFinanceRevenue(input){
+  const history=normalizeCourtHistory(input?.history||[]);
+  const summary={storedValueBooking:0,onsiteBooking:0,proxyBooking:0,internalOccupancyCount:0,internalOccupancyAmount:0};
+  for(const h of history){
+    if(h.type!=='消费')continue;
+    const amount=normalizeMoney(h.amount);
+    if(h.category==='内部占用'){
+      summary.internalOccupancyCount+=1;
+      continue;
+    }
+    if(h.category!=='订场')continue;
+    const bucket=h.revenueBucket||courtFinanceRevenueBucket(h);
+    if(bucket==='储值扣款')summary.storedValueBooking+=amount;
+    else if(bucket==='代用户订场')summary.proxyBooking+=amount;
+    else summary.onsiteBooking+=amount;
+  }
+  Object.keys(summary).forEach(k=>{summary[k]=Math.round(summary[k]*100)/100;});
+  return summary;
 }
 function classStatusToPlanStatus(status){
   return status==='已取消'?'已取消':status==='已结课'?'已结课':'active';
@@ -3279,6 +3334,8 @@ module.exports = async (req, res) => {
           const entitlements=entitlementChanged.filter(Boolean).map(x=>x.entitlement);
           const entitlementLedger=entitlementChanged.filter(Boolean).map(x=>x.ledger);
           const notification=await notifyCoachScheduleCreated(r).catch(err=>({sent:false,error:err.message}));
+          Object.assign(r,buildScheduleNotificationUpdate(r,notification,'schedule_created',new Date().toISOString()));
+          await put(T_SCHEDULE,id,r);
           return sendJson(res,{schedule:r,warnings:risk.warnings||[],...(lessonUpdate||{}),entitlements,entitlementLedger,entitlement:entitlements[0]||null,ledger:entitlementLedger[0]||null,notification});
         }catch(err){
           await del(T_SCHEDULE,id).catch(()=>null);
@@ -3523,11 +3580,13 @@ module.exports._test={
   extractWechatAccessToken,
   findWechatScheduleRecipient,
   buildScheduleSubscribeMessage,
+  buildScheduleNotificationUpdate,
   collectCourseReminderCandidates,
   buildCourseReminderSubscribeMessage,
   normalizeVenue,
   rangesOverlap,
   computeCourtFinance,
+  summarizeCourtFinanceRevenue,
   normalizePricePlan,
   assertPricePlanInput,
   quoteVenuePrice,

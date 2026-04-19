@@ -1,7 +1,7 @@
 const assert = require('assert');
 const api = require('../api/index.js');
 
-const { computeCourtFinance, normalizeCourtRecord, buildLegacyCourtOpeningHistory } = api._test;
+const { computeCourtFinance, normalizeCourtRecord, buildLegacyCourtOpeningHistory, summarizeCourtFinanceRevenue } = api._test;
 
 const recharge = {
   id: 'r1',
@@ -235,6 +235,7 @@ assert.deepStrictEqual(
     channel: '',
     channelOrderNo: '',
     redeemCode: '',
+    revenueBucket: '现场收款',
     studentId: '',
     bonusAmount: 0,
     campus: '',
@@ -242,6 +243,41 @@ assert.deepStrictEqual(
     overrideReason: ''
   },
   'booking finance row should preserve price snapshot fields'
+);
+
+const datedBooking = normalizeCourtRecord({
+  name: '日期口径',
+  history: [{
+    id: 'dated-booking-1',
+    date: '2026-04-20',
+    createdAt: '2026-04-21T09:30:00.000Z',
+    type: '消费',
+    category: '订场',
+    payMethod: '代用户订场',
+    amount: 220
+  }]
+});
+assert.strictEqual(datedBooking.history[0].occurredDate, '2026-04-20', 'finance rows should expose the real occurrence date');
+assert.strictEqual(datedBooking.history[0].recordedAt, '2026-04-21T09:30:00.000Z', 'finance rows should expose the system entry time');
+assert.strictEqual(datedBooking.history[0].revenueBucket, '代用户订场', 'finance rows should classify proxy booking income');
+
+assert.deepStrictEqual(
+  summarizeCourtFinanceRevenue({
+    history: [
+      { id: 'stored', date: '2026-04-20', type: '消费', category: '订场', payMethod: '储值扣款', amount: 100 },
+      { id: 'onsite', date: '2026-04-20', type: '消费', category: '订场', payMethod: '微信', amount: 200 },
+      { id: 'proxy', date: '2026-04-20', type: '消费', category: '订场', payMethod: '代用户订场', amount: 300 },
+      { id: 'internal', date: '2026-04-20', type: '消费', category: '内部占用', payMethod: '其他', amount: 1 }
+    ]
+  }),
+  {
+    storedValueBooking: 100,
+    onsiteBooking: 200,
+    proxyBooking: 300,
+    internalOccupancyCount: 1,
+    internalOccupancyAmount: 0
+  },
+  'court finance should expose booking income buckets and internal occupancy usage'
 );
 
 assert.throws(
