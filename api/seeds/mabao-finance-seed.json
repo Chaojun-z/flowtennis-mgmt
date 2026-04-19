@@ -1194,6 +1194,58 @@
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
     {
+      "id": "seed-renewal-007",
+      "studentId": "seed-student-007",
+      "studentName": "丫丫",
+      "studentPhone": "",
+      "packageId": "seed-package-youth-1v1-10",
+      "packageName": "青少年1v1 10节课包",
+      "productId": "seed-product-youth-1v1",
+      "productName": "青少年1v1私教课",
+      "courseType": "私教课",
+      "packageLessons": 10,
+      "packagePrice": 4000,
+      "priceSource": "package",
+      "priceSourceId": "seed-package-youth-1v1-10",
+      "priceSourceName": "青少年1v1 10节课包",
+      "systemAmount": 0,
+      "finalAmount": 4000,
+      "priceOverridden": true,
+      "overrideReason": "历史导入价",
+      "coachPriceName": "Siren",
+      "coachPriceSnapshot": {
+        "coachName": "Siren",
+        "source": "历史导入",
+        "amountPaid": 4000,
+        "lessonCount": 10
+      },
+      "packageTimeBand": "全天",
+      "dailyTimeWindows": [],
+      "coachIds": [],
+      "coachNames": [
+        "Siren"
+      ],
+      "ownerCoach": "Siren",
+      "allowedCoaches": [
+        "Siren"
+      ],
+      "campusIds": [
+        "mabao"
+      ],
+      "usageStartDate": "2026-03-31",
+      "usageEndDate": "",
+      "purchaseDate": "2026-03-31",
+      "amountPaid": 4000,
+      "payMethod": "转账",
+      "operator": "系统导入",
+      "status": "active",
+      "sourceType": "renewal",
+      "seedTag": "mabao-finance-seed-v8",
+      "notes": "丫丫爸爸小程序续费10节非黄课包",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "updatedAt": "2026-04-18T00:00:00.000Z"
+    },
+    {
       "id": "seed-purchase-008",
       "studentId": "seed-student-008",
       "studentName": "润瑾",
@@ -3500,7 +3552,7 @@
       "productName": "青少年1v1私教课",
       "courseType": "私教课",
       "totalLessons": 10,
-      "usedLessons": 11,
+      "usedLessons": 10,
       "remainingLessons": 0,
       "validFrom": "2026-01-19",
       "validUntil": "",
@@ -3525,6 +3577,44 @@
       "sourceType": "initial",
       "seedTag": "mabao-finance-seed-v8",
       "createdAt": "2026-01-19T10:00:00.000Z",
+      "updatedAt": "2026-04-18T00:00:00.000Z"
+    },
+    {
+      "id": "seed-renewal-entitlement-007",
+      "studentId": "seed-student-007",
+      "studentName": "丫丫",
+      "purchaseId": "seed-renewal-007",
+      "packageId": "seed-package-youth-1v1-10",
+      "packageName": "青少年1v1 10节课包",
+      "productId": "seed-product-youth-1v1",
+      "productName": "青少年1v1私教课",
+      "courseType": "私教课",
+      "totalLessons": 10,
+      "usedLessons": 1,
+      "remainingLessons": 9,
+      "validFrom": "2026-03-31",
+      "validUntil": "",
+      "usageStartDate": "2026-03-31",
+      "usageEndDate": "",
+      "dailyTimeWindows": [],
+      "timeBand": "全天",
+      "coachIds": [],
+      "coachNames": [
+        "Siren"
+      ],
+      "ownerCoach": "Siren",
+      "allowedCoaches": [
+        "Siren"
+      ],
+      "campusIds": [
+        "mabao"
+      ],
+      "maxStudents": 1,
+      "notes": "丫丫爸爸小程序续费10节非黄课包",
+      "status": "active",
+      "sourceType": "renewal",
+      "seedTag": "mabao-finance-seed-v8",
+      "createdAt": "2026-03-31T10:00:00.000Z",
       "updatedAt": "2026-04-18T00:00:00.000Z"
     },
     {
@@ -5319,14 +5409,14 @@
     },
     {
       "id": "seed-ledger-007-03-2",
-      "entitlementId": "seed-entitlement-007",
-      "purchaseId": "seed-purchase-007",
+      "entitlementId": "seed-renewal-entitlement-007",
+      "purchaseId": "seed-renewal-007",
       "scheduleId": "",
       "studentId": "seed-student-007",
       "lessonDelta": -1,
       "action": "consume",
       "reason": "历史导入 3月消课",
-      "notes": "固定周一+周三16点30分-17点30分；小程序后台购买10课时",
+      "notes": "丫丫爸爸小程序续费10节非黄课包",
       "operator": "系统导入",
       "createdAt": "2026-04-18T00:00:00.000Z",
       "relatedDate": "2026-03-31",
