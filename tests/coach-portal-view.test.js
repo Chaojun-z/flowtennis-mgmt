@@ -211,6 +211,12 @@ assert.match(
 );
 
 assert.match(
+  fnBody('renderMyStudents'),
+  /const myStus=students\.filter\(s=>coachName\(s\.primaryCoach\)===cn2\|\|myStudentLessonCount\(s,cn2\)>0\)/,
+  'coach my students should render only assigned students or students actually taught by the coach'
+);
+
+assert.match(
   source,
   /function myStudentLessonRecordHtml\(/,
   'coach portal should expose a my-student lesson record helper'

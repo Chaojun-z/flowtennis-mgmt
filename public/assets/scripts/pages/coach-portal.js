@@ -299,7 +299,7 @@ function myStudentEntitlementProgress(stu){
 function renderMyStudents(){
   const cn2=getMyCoachName();
   const myCls=classes.filter(c=>c.coach===cn2);
-  const myStus=students;
+  const myStus=students.filter(s=>coachName(s.primaryCoach)===cn2||myStudentLessonCount(s,cn2)>0);
   const visibleStudentCount=myStus.length;
   const ownerStudentCount=myStus.filter(s=>coachName(s.primaryCoach)===cn2).length;
   const substituteStudentCount=myStus.filter(s=>coachName(s.primaryCoach)!==cn2&&myStudentLessonCount(s,cn2)>0).length;

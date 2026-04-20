@@ -1088,6 +1088,29 @@ function courtFinanceLocal(c){
   Object.keys(t).forEach(k=>t[k]=Math.round(t[k]*100)/100);
   return t;
 }
+function courtFinanceRevenueSummaryLocal(c){
+  const hist=normalizeCourtHistoryLocal(c?.history);
+  const t={storedValueBooking:0,onsiteBooking:0,proxyBooking:0,internalOccupancyCount:0,internalOccupancyAmount:0,cashReceived:0,confirmedRevenue:0,pendingRevenue:0,bookingUsageAmount:0,paidBookingCount:0};
+  hist.forEach(h=>{
+    if(!['消费','退款','冲正'].includes(h.type))return;
+    const category=String(h.category||'');
+    const payMethod=String(h.payMethod||'').trim();
+    if(category.includes('内部占用')){if(h.type==='消费')t.internalOccupancyCount+=1;return;}
+    if(!category.includes('订场'))return;
+    const amount=parseFloat(h.amount)||0;
+    const signed=h.type==='消费'?amount:-amount;
+    if(h.type==='消费')t.paidBookingCount+=1;
+    if(payMethod==='储值扣款')t.storedValueBooking+=signed;
+    else if(payMethod==='代用户订场')t.proxyBooking+=signed;
+    else t.onsiteBooking+=signed;
+  });
+  t.cashReceived=t.onsiteBooking+t.proxyBooking;
+  t.confirmedRevenue=t.storedValueBooking+t.onsiteBooking;
+  t.pendingRevenue=t.proxyBooking;
+  t.bookingUsageAmount=t.storedValueBooking+t.onsiteBooking+t.proxyBooking;
+  Object.keys(t).forEach(k=>t[k]=Math.round(t[k]*100)/100);
+  return t;
+}
 function membershipBookingCount(court){
   return normalizeCourtHistoryLocal(court?.history).filter(h=>h.type==='消费'&&String(h.payMethod||'').trim()==='储值扣款'&&String(h.category||'').includes('订场')).length;
 }

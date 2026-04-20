@@ -84,7 +84,7 @@ assert.match(html, /id="courtBatchDelBtn"[^>]*style="display:none"/, 'court batc
 assert.match(html, /function updateCourtBatchButton\([\s\S]*btn\.style\.display=selectedCourtIds\.size\?'inline-flex':'none'/, 'court batch delete button should only show when rows are selected');
 assert.match(html, /function renderCourtEmptyText\(/, 'court page should centralize empty dash rendering');
 assert.match(html, /return raw&&raw!=='—'\?raw:'-';/, 'court list empty cells should convert long dashes to short dashes');
-assert.match(html, /renderCourtDropdownHtml\('nrPayMethod'[\s\S]*'储值扣款',true,'updateCourtFinancePreview'\)/, 'court booking payment should default to stored-value deduction');
+assert.match(html, /renderCourtDropdownHtml\('nrPayMethod'[\s\S]*'储值扣款',true,'onCourtFinanceSceneChange'\)/, 'court booking payment should default to stored-value deduction');
 assert.doesNotMatch(fnBody('saveCourt'), /confirm\(/, 'court save should not use browser confirm');
 assert.doesNotMatch(fnBody('saveCourtFinanceRecord'), /confirm\(/, 'court finance save should not use browser confirm');
 assert.doesNotMatch(fnBody('renderCourts'), /低余额/, 'court stats should not show low balance text');
@@ -104,6 +104,10 @@ assert.match(fnBody('renderCourtFinanceFields'), /const isInternal=type==='消�
 assert.match(fnBody('courtFinanceLocal'), /const isInternal=String\(h\.category\|\|''\)\.includes\('内部占用'\);/, 'court finance summary should detect internal occupancy rows');
 assert.match(fnBody('courtFinanceLocal'), /else if\(h\.type==='消费'\)\{if\(isInternal\)return;/, 'internal occupancy should not count as direct income or spending totals');
 assert.match(fnBody('courtFinanceConfirmText'), /内部占用/, 'court finance confirm copy should explain internal occupancy');
+assert.match(html, /function courtFinanceRevenueSummaryLocal\(/, 'court page should expose local booking income confirmation summary');
+assert.match(fnBody('courtFinanceRevenueSummaryLocal'), /confirmedRevenue=t\.storedValueBooking\+t\.onsiteBooking/, 'court finance summary should separate confirmed booking revenue');
+assert.match(fnBody('courtFinanceRevenueSummaryLocal'), /pendingRevenue=t\.proxyBooking/, 'court finance summary should separate proxy booking as pending revenue');
+assert.match(fnBody('openCourtFinanceModal'), /确认订场收入[\s\S]*本次实收\/现金流入[\s\S]*待确认\/代用户订场[\s\S]*内部占用次数/, 'court finance modal should show booking income confirmation buckets');
 assert.match(fnBody('runBatchDeleteCourts'), /隐藏/, 'batch delete result should explain hidden archived courts');
 assert.match(fnBody('renderCourts'), /class="tms-court-row-main"[\s\S]*class="tms-checkbox court-row-cb"/, 'court name cell should separate checkbox and name for easier text selection');
 assert.match(fnBody('renderCourts'), /\$\{esc\(courtDisplayName\(u\)\)\}/, 'court rows should render the display-name helper instead of raw names');

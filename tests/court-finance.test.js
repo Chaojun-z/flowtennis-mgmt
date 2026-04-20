@@ -275,9 +275,39 @@ assert.deepStrictEqual(
     onsiteBooking: 200,
     proxyBooking: 300,
     internalOccupancyCount: 1,
-    internalOccupancyAmount: 0
+    internalOccupancyAmount: 0,
+    cashReceived: 500,
+    confirmedRevenue: 300,
+    pendingRevenue: 300,
+    bookingUsageAmount: 600,
+    paidBookingCount: 3
   },
-  'court finance should expose booking income buckets and internal occupancy usage'
+  'court finance should expose booking income confirmation buckets and internal occupancy usage'
+);
+
+assert.deepStrictEqual(
+  summarizeCourtFinanceRevenue({
+    history: [
+      { id: 'stored', date: '2026-04-20', type: '消费', category: '订场', payMethod: '储值扣款', amount: 100 },
+      { id: 'onsite', date: '2026-04-20', type: '消费', category: '订场', payMethod: '微信', amount: 200 },
+      { id: 'proxy', date: '2026-04-20', type: '消费', category: '订场', payMethod: '代用户订场', amount: 300 },
+      { id: 'onsite-refund', date: '2026-04-20', type: '退款', category: '订场', payMethod: '微信', amount: 50 },
+      { id: 'proxy-reversal', date: '2026-04-20', type: '冲正', category: '订场', payMethod: '代用户订场', amount: 80 }
+    ]
+  }),
+  {
+    storedValueBooking: 100,
+    onsiteBooking: 150,
+    proxyBooking: 220,
+    internalOccupancyCount: 0,
+    internalOccupancyAmount: 0,
+    cashReceived: 370,
+    confirmedRevenue: 250,
+    pendingRevenue: 220,
+    bookingUsageAmount: 470,
+    paidBookingCount: 3
+  },
+  'court finance confirmation buckets should offset booking refunds and reversals'
 );
 
 assert.throws(

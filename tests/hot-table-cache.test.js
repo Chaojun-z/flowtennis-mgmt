@@ -12,10 +12,11 @@ assert.match(apiSource, /function invalidateHotScanCache\(t\)/, 'api should expo
 assert.match(apiSource, /function invalidateHotGetCache\(t,id\)/, 'api should expose row cache invalidation');
 assert.match(apiSource, /if\(HOT_SCAN_TABLES\.has\(t\)\)invalidateHotScanCache\(t\);/, 'writes should invalidate hot table cache');
 assert.match(apiSource, /if\(HOT_GET_TABLES\.has\(t\)\)invalidateHotGetCache\(t,id\);/, 'writes should invalidate hot row cache');
-assert.match(apiSource, /if\(path==='\/students'\)\{await init\(\);if\(method==='GET'\)return sendJson\(res,await getCachedScan\(T_STUDENTS\)\);/, 'students list should use cached scan');
+assert.match(apiSource, /if\(path==='\/students'\)\{await init\(\);if\(method==='GET'\)\{const rows=await getCachedScan\(T_STUDENTS\);/, 'students list should use cached scan');
+assert.match(apiSource, /if\(user\.role==='admin'\)return sendJson\(res,rows\);[\s\S]*filterLoadAllForUser\(\{students:rows,schedule,classes\},user\)\.students/, 'coach students list should filter cached scan results');
 assert.match(apiSource, /if\(path==='\/courts'\)\{[\s\S]*if\(method==='GET'\)return sendJson\(res,await getCachedScan\(T_COURTS\)\);/, 'courts list should use cached scan');
-assert.match(apiSource, /if\(path==='\/schedule'\)\{[\s\S]*if\(method==='GET'\)return sendJson\(res,await getCachedScan\(T_SCHEDULE\)\);/, 'schedule list should use cached scan');
-assert.match(apiSource, /if\(path==='\/classes'\)\{await init\(\);if\(method==='GET'\)return sendJson\(res,await getCachedScan\(T_CLASSES\)\);/, 'classes list should use cached scan');
+assert.match(apiSource, /if\(path==='\/schedule'\)\{[\s\S]*if\(method==='GET'\)\{const rows=await getCachedScan\(T_SCHEDULE\);/, 'schedule list should use cached scan');
+assert.match(apiSource, /if\(path==='\/classes'\)\{await init\(\);if\(method==='GET'\)\{const rows=await getCachedScan\(T_CLASSES\);/, 'classes list should use cached scan');
 assert.match(apiSource, /if\(path==='\/coaches'\)\{if\(user\.role!=='admin'\)return sendJson\(res,\{error:'无权限'\},403\);await init\(\);if\(method==='GET'\)return sendJson\(res,await getCachedScan\(T_COACHES\)\);/, 'coaches list should use cached scan');
 assert.match(apiSource, /async function listCampusesWithDefaults\(\)\{[\s\S]*const rows=await getCachedScan\(T_CAMPUSES\)\.catch\(\(\)=>\[\]\);[\s\S]*return rows\.length\?rows:DEFAULT_CAMPUSES;/, 'campuses should read through cached scan with default fallback');
 assert.match(apiSource, /if\(path==='\/campuses'\)\{await init\(\);if\(method==='GET'\)return sendJson\(res,await listCampusesWithDefaults\(\)\);/, 'campuses list should use cached scan via the default-aware helper');

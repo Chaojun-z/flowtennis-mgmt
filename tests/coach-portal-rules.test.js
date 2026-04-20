@@ -17,6 +17,7 @@ const data = {
     { id: 'sch-2', coach: '别人', studentIds: ['stu-other'], status: '已结束', startTime: '2026-04-01 10:00', endTime: '2026-04-01 11:00' }
   ],
   entitlements: [
+    { id: 'ent-primary', studentId: 'stu-primary', ownerCoach: '别人', allowedCoaches: [], packageName: '负责学员课包', totalLessons: 10, usedLessons: 3, remainingLessons: 7 },
     { id: 'ent-owner', studentId: 'stu-owner', ownerCoach: '朝珺', allowedCoaches: [], packageName: '主归属课包', totalLessons: 10, usedLessons: 2, remainingLessons: 8 },
     { id: 'ent-allowed', studentId: 'stu-allowed', ownerCoach: '别人', allowedCoaches: ['朝珺'], packageName: '可上课课包', totalLessons: 6, usedLessons: 1, remainingLessons: 5 },
     { id: 'ent-other', studentId: 'stu-other', ownerCoach: '别人', allowedCoaches: [], packageName: '无关课包', totalLessons: 6, usedLessons: 0, remainingLessons: 6 }
@@ -45,26 +46,26 @@ const visibleStudentIds = filtered.students.map(s => s.id).sort();
 
 assert.deepStrictEqual(
   visibleStudentIds,
-  ['stu-allowed', 'stu-owner', 'stu-primary', 'stu-taught'],
-  'coach should see assigned, taught, owner-package and allowed-package students only'
+  ['stu-primary', 'stu-taught'],
+  'coach should see only assigned students and students they have actually taught'
 );
 
 assert.deepStrictEqual(
   filtered.entitlements.map(e => e.id).sort(),
-  ['ent-allowed', 'ent-owner'],
-  'coach should receive package balances for visible package students'
+  ['ent-primary'],
+  'coach should receive package balances only for visible students'
 );
 
 assert.deepStrictEqual(
   filtered.entitlementLedger.map(row => row.id),
-  ['led-import'],
-  'coach should additionally receive imported historical consume rows for visible students and collapse duplicate historical month rows before returning them'
+  [],
+  'coach should not receive imported consume rows for students visible only by package ownership'
 );
 
 assert.strictEqual(
   filtered.plans.some(p => p.id === 'plan-owner'),
-  true,
-  'coach should receive learning plans for visible package students'
+  false,
+  'coach should not receive learning plans for students visible only by package ownership'
 );
 
 console.log('coach portal rules tests passed');
