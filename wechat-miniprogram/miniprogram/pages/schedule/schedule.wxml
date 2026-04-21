@@ -1,0 +1,37 @@
+<view class="schedule-page">
+  <view wx:if="{{loading}}" class="state-text">课表加载中...</view>
+
+  <view wx:elif="{{error}}" class="empty-box">
+    <text class="empty-title">{{error}}</text>
+    <button class="primary-btn" bindtap="openWebview">进入完整教练端</button>
+  </view>
+
+  <block wx:else>
+    <view class="top-bar">
+      <view>
+        <text class="page-title">我的课表</text>
+        <text class="page-subtitle">{{weekTitle}}</text>
+      </view>
+      <button class="small-btn" bindtap="openWebview">完整工作台</button>
+    </view>
+
+    <view class="week-actions">
+      <button class="week-btn" bindtap="prevWeek">上一周</button>
+      <button class="week-btn" bindtap="goCurrentWeek">回到本周</button>
+      <button class="week-btn" bindtap="nextWeek">下一周</button>
+    </view>
+
+    <view class="day-list">
+      <view wx:for="{{days}}" wx:key="key" class="day-section">
+        <view class="day-title">{{item.label}}</view>
+        <view wx:if="{{!item.items.length}}" class="day-empty">当天暂无课程</view>
+        <view wx:for="{{item.items}}" wx:for-item="course" wx:key="id" class="course-card" data-id="{{course.id}}" bindtap="openDetail">
+          <view class="course-time">{{course.timeText}}</view>
+          <view class="course-title">{{course.title}}</view>
+          <view class="course-meta">{{course.studentText}}</view>
+          <view class="course-meta">{{course.locationText}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

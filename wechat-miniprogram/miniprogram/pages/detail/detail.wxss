@@ -1,0 +1,90 @@
+page {
+  background: #a46f42;
+}
+
+.detail-page {
+  min-height: 100vh;
+  padding: 40rpx 32rpx;
+  box-sizing: border-box;
+  color: #2e241c;
+}
+
+.detail-header {
+  margin-bottom: 28rpx;
+}
+
+.detail-title {
+  display: block;
+  color: #fffaf3;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.detail-subtitle {
+  display: block;
+  margin-top: 10rpx;
+  color: rgba(255, 250, 243, .75);
+  font-size: 28rpx;
+}
+
+.detail-card {
+  padding: 32rpx;
+  border-radius: 8px;
+  background: #fffaf3;
+}
+
+.detail-row {
+  display: flex;
+  gap: 24rpx;
+  padding: 22rpx 0;
+  border-bottom: 1px solid #eadfd5;
+}
+
+.detail-row:last-child {
+  border-bottom: 0;
+}
+
+.detail-label {
+  flex: 0 0 110rpx;
+  color: #8d8178;
+  font-size: 26rpx;
+}
+
+.detail-value {
+  flex: 1;
+  color: #2e241c;
+  font-size: 28rpx;
+  line-height: 1.45;
+}
+
+.primary-btn,
+.plain-btn {
+  margin-top: 24rpx;
+  border-radius: 8px;
+  font-size: 30rpx;
+}
+
+.primary-btn {
+  background: #c97824;
+  color: #ffffff;
+}
+
+.plain-btn {
+  background: #fffaf3;
+  color: #8a562c;
+}
+
+.state-text {
+  padding: 80rpx 0;
+  color: #fffaf3;
+  text-align: center;
+  font-size: 30rpx;
+}
+
+.error-text {
+  display: block;
+  color: #6f6258;
+  font-size: 28rpx;
+  line-height: 1.6;
+  text-align: center;
+}

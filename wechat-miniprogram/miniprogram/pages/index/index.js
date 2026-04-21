@@ -1,7 +1,7 @@
 const { SCHEDULE_TEMPLATE_ID, COURSE_REMINDER_TEMPLATE_ID } = require('../../config');
 
 function enterCoachPortal() {
-  wx.navigateTo({ url: '/pages/webview/webview' });
+  wx.navigateTo({ url: '/pages/schedule/schedule' });
 }
 
 Page({

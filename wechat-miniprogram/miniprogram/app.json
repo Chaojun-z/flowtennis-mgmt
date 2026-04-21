@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/schedule/schedule",
+    "pages/detail/detail",
     "pages/webview/webview"
   ],
   "window": {

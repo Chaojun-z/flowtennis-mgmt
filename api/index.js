@@ -988,13 +988,18 @@ function findWechatScheduleRecipient(schedule,users=[]){
     return coachName&&String(u.coachName||u.name||'').trim()===coachName;
   })||null;
 }
+function findWechatUserByOpenId(users=[],openid=''){
+  const key=String(openid||'').trim();
+  if(!key)return null;
+  return (users||[]).find(u=>String(u?.wechatOpenId||'').trim()===key)||null;
+}
 function buildScheduleSubscribeMessage({templateId,openid,schedule}){
   const start=String(schedule?.startTime||'').trim();
   const scheduleId=encodeURIComponent(String(schedule?.id||''));
   return {
     touser:openid,
     template_id:templateId,
-    page:`pages/webview/webview${scheduleId?`?scheduleId=${scheduleId}`:''}`,
+    page:`pages/detail/detail${scheduleId?`?scheduleId=${scheduleId}`:''}`,
     data:{
       thing1:{value:truncateWechatValue(schedule?.courseType||'课程')},
       time2:{value:start},
@@ -1066,7 +1071,7 @@ function buildCourseReminderSubscribeMessage({templateId,openid,schedule,crossCa
   return {
     touser:openid,
     template_id:templateId,
-    page:`pages/webview/webview${scheduleId?`?scheduleId=${scheduleId}`:''}`,
+    page:`pages/detail/detail${scheduleId?`?scheduleId=${scheduleId}`:''}`,
     data:{
       thing1:{value:truncateWechatValue(crossCampus?'跨校区，请预留通勤时间':'即将上课，请提前准备')},
       time2:{value:String(schedule?.startTime||'').trim()},
@@ -2854,6 +2859,18 @@ module.exports = async (req, res) => {
       return sendJson(res,await sendCourseReminders());
     }
     if(path==='/auth/login'&&method==='POST'){const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await getCachedRow(T_USERS,username);if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});}
+    if(path==='/auth/wechat-login'&&method==='POST'){
+      const code=String(body.code||'').trim();
+      if(!code)return sendJson(res,{error:'缺少微信登录凭证'},400);
+      const session=await fetchWechatSession(code);
+      const openid=extractWechatOpenId(session);
+      const account=findWechatUserByOpenId(await getCachedScan(T_USERS).catch(()=>[]),openid);
+      if(!account)return sendJson(res,{error:'微信未绑定教练账号，请先进入完整教练端登录绑定'},404);
+      const payload=mergeStoredAuthUser(null,account);
+      try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}
+      const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});
+      return sendJson(res,{token,user:payload});
+    }
     let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
     const storedAuthUser=await getCachedRow(T_USERS,user.id).catch(()=>null);
     user=mergeStoredAuthUser(user,storedAuthUser);
@@ -3597,6 +3614,7 @@ module.exports._test={
   buildWechatAccessTokenUrl,
   extractWechatAccessToken,
   findWechatScheduleRecipient,
+  findWechatUserByOpenId,
   buildScheduleSubscribeMessage,
   buildScheduleNotificationUpdate,
   collectCourseReminderCandidates,

@@ -1,0 +1,131 @@
+page {
+  background: #a46f42;
+}
+
+.schedule-page {
+  min-height: 100vh;
+  padding: 32rpx;
+  box-sizing: border-box;
+  color: #2e241c;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.page-title {
+  display: block;
+  color: #fffaf3;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.page-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  color: rgba(255, 250, 243, .75);
+  font-size: 24rpx;
+}
+
+.small-btn,
+.week-btn,
+.primary-btn {
+  border-radius: 8px;
+  background: #fffaf3;
+  color: #8a562c;
+  font-size: 26rpx;
+}
+
+.small-btn {
+  min-width: 180rpx;
+  margin: 0;
+}
+
+.week-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.week-btn {
+  margin: 0;
+}
+
+.day-section {
+  margin-bottom: 20rpx;
+}
+
+.day-title {
+  margin: 0 0 12rpx;
+  color: #fffaf3;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.day-empty,
+.course-card,
+.empty-box {
+  border-radius: 8px;
+  background: #fffaf3;
+}
+
+.day-empty {
+  padding: 24rpx;
+  color: #8d8178;
+  font-size: 26rpx;
+}
+
+.course-card {
+  padding: 28rpx;
+  margin-bottom: 14rpx;
+}
+
+.course-time {
+  color: #a45f24;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.course-title {
+  margin-top: 10rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+}
+
+.course-meta {
+  margin-top: 8rpx;
+  color: #6f6258;
+  font-size: 26rpx;
+  line-height: 1.45;
+}
+
+.state-text {
+  padding: 80rpx 0;
+  color: #fffaf3;
+  text-align: center;
+  font-size: 30rpx;
+}
+
+.empty-box {
+  padding: 40rpx;
+  margin-top: 120rpx;
+}
+
+.empty-title {
+  display: block;
+  color: #6f6258;
+  font-size: 28rpx;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.primary-btn {
+  margin-top: 32rpx;
+  background: #c97824;
+  color: #ffffff;
+}

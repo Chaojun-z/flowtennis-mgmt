@@ -1,0 +1,41 @@
+<view class="detail-page">
+  <view wx:if="{{loading}}" class="state-text">课程详情加载中...</view>
+
+  <view wx:elif="{{error}}" class="detail-card">
+    <text class="error-text">{{error}}</text>
+    <button class="primary-btn" bindtap="openWebview">进入完整教练端</button>
+  </view>
+
+  <block wx:else>
+    <view class="detail-header">
+      <text class="detail-title">课程详情</text>
+      <text class="detail-subtitle">{{course.timeText}}</text>
+    </view>
+
+    <view class="detail-card">
+      <view class="detail-row">
+        <text class="detail-label">课程</text>
+        <text class="detail-value">{{course.title}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">学员</text>
+        <text class="detail-value">{{course.studentText}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">地点</text>
+        <text class="detail-value">{{course.locationText}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">教练</text>
+        <text class="detail-value">{{course.coach || '待确认'}}</text>
+      </view>
+      <view class="detail-row">
+        <text class="detail-label">状态</text>
+        <text class="detail-value">{{course.statusText}}</text>
+      </view>
+    </view>
+
+    <button class="primary-btn" bindtap="backToSchedule">返回课表</button>
+    <button class="plain-btn" bindtap="openWebview">完整工作台</button>
+  </block>
+</view>

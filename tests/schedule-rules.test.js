@@ -121,7 +121,7 @@ assert.deepStrictEqual(
   {
     touser: 'openid-1',
     template_id: 'tpl-1',
-    page: 'pages/webview/webview?scheduleId=sch-1',
+    page: 'pages/detail/detail?scheduleId=sch-1',
     data: {
       thing1: { value: '私教课' },
       time2: { value: '2026-04-20 16:00' },
@@ -204,7 +204,7 @@ assert.deepStrictEqual(
   {
     touser: 'openid-1',
     template_id: 'reminder-tpl',
-    page: 'pages/webview/webview?scheduleId=due-cross',
+    page: 'pages/detail/detail?scheduleId=due-cross',
     data: {
       thing1: { value: '跨校区，请预留通勤时间' },
       time2: { value: '2026-04-20 11:00' },
