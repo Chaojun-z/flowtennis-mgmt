@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/course-reminders",
-      "schedule": "*/15 * * * *"
-    }
-  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" }
   ]
