@@ -58,7 +58,8 @@ function renderMatchFinanceStats(rows){
     ['异常',`¥${fmt(s.abnormal)}`],
     ['退款',`¥${fmt(s.refunded)}`]
   ].map(([label,value])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${value}</div></div>`).join('')+
-    `<div class="tms-stat-card" style="cursor:pointer" onclick="openMatchCourtFinanceLedger()"><div class="tms-stat-label">约球订场总账</div><div class="tms-stat-value">查看</div></div>`;
+    `<div class="tms-stat-card" style="cursor:pointer" onclick="openMatchCourtFinanceLedger()"><div class="tms-stat-label">约球订场总账</div><div class="tms-stat-value">查看</div></div>`+
+    `<div class="tms-stat-card" style="cursor:pointer" onclick="openMatchDailyFinanceReport()"><div class="tms-stat-label">约球日结</div><div class="tms-stat-value">对账</div></div>`;
 }
 async function openMatchCourtFinanceLedger(){
   try{
@@ -66,6 +67,19 @@ async function openMatchCourtFinanceLedger(){
     openCourtFinanceModal('match-court-finance');
   }catch(e){
     toast('总账打开失败：'+e.message,'error');
+  }
+}
+async function openMatchDailyFinanceReport(){
+  try{
+    const date=new Date().toISOString().slice(0,10);
+    const report=await apiCall('GET',`/admin/matches/finance-daily?date=${date}`);
+    const s=report.summary||{};
+    const body=`<div class="tms-section-header" style="margin-top:0;">${esc(report.date||date)} 约球日结</div><div class="tms-stats-row">${[
+      ['应收',s.receivable],['已收',s.paid],['待收',s.pending],['减免',s.waived],['异常',s.abnormal],['退款',s.refunded],['总账净额',s.ledgerNet],['差额',s.diff]
+    ].map(([label,value])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">¥${fmt(value||0)}</div></div>`).join('')}</div><div style="font-size:12px;color:var(--ts);line-height:1.6">差额 = 系统应计净额 - 场地财务总账净额；必须为 0 才能日结。</div>`;
+    setCourtModalFrame('约球财务日结',body,`<button class="tms-btn tms-btn-primary" onclick="closeModal()">关闭</button>`,'modal-wide');
+  }catch(e){
+    toast('日结加载失败：'+e.message,'error');
   }
 }
 function matchTimeText(row){

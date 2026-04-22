@@ -2618,6 +2618,59 @@ function summarizeCourtFinanceRevenue(input){
   Object.keys(summary).forEach(k=>{summary[k]=Math.round(summary[k]*100)/100;});
   return summary;
 }
+function isoDateKey(value){
+  const raw=String(value||'').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(raw))return raw.slice(0,10);
+  const ms=Date.parse(raw);
+  return Number.isNaN(ms)?'':new Date(ms).toISOString().slice(0,10);
+}
+function matchFinanceRowDate(row){
+  const rawPrimary=String(row.occurredDate||row.date||'').trim();
+  const primary=/^\d{4}-\d{2}-\d{2}/.test(rawPrimary)?isoDateKey(rawPrimary):'';
+  if(primary)return primary;
+  return isoDateKey(row.recordedAt||row.createdAt);
+}
+function buildMatchFinanceDailyReport({date=new Date().toISOString().slice(0,10),feeSplits=[],financeHistory=[]}={}){
+  const target=isoDateKey(date)||new Date().toISOString().slice(0,10);
+  const summary={receivable:0,paid:0,pending:0,waived:0,abnormal:0,refunded:0,ledgerIncome:0,ledgerRefund:0,ledgerNet:0,expectedNet:0,diff:0};
+  const splitRows=(feeSplits||[]).filter(row=>isoDateKey(row.updatedAt||row.updatedat||row.paidAt||row.paidat||row.createdAt||row.createdat)===target);
+  for(const split of splitRows){
+    const amount=normalizeMoney(split.amount);
+    const paidAmount=normalizeMoney(split.paidAmount||split.paidamount||amount);
+    const status=split.payStatus||split.paystatus||'pending';
+    summary.receivable+=amount;
+    if(status==='paid'||status==='refunded')summary.paid+=paidAmount;
+    else if(status==='waived')summary.waived+=amount;
+    else if(status==='abnormal'||status==='bad_debt')summary.abnormal+=amount;
+    else summary.pending+=amount;
+  }
+  const ledgerRows=normalizeCourtHistory(financeHistory).filter(row=>row.sourceCategory==='约球订场'&&row.category==='订场'&&matchFinanceRowDate(row)===target);
+  for(const row of ledgerRows){
+    const amount=normalizeMoney(row.amount);
+    if(row.type==='消费')summary.ledgerIncome+=amount;
+    if(row.type==='退款')summary.ledgerRefund+=amount;
+  }
+  summary.refunded=summary.ledgerRefund;
+  summary.ledgerNet=summary.ledgerIncome-summary.ledgerRefund;
+  summary.expectedNet=summary.paid-summary.refunded;
+  summary.diff=summary.expectedNet-summary.ledgerNet;
+  Object.keys(summary).forEach(key=>summary[key]=Math.round(summary[key]*100)/100);
+  return {date:target,summary,feeSplits:splitRows,ledgerRows};
+}
+async function getMatchFinanceDailyReportForAdmin(date=new Date().toISOString().slice(0,10)){
+  const pool=getMatchSqlPool();
+  const target=isoDateKey(date)||new Date().toISOString().slice(0,10);
+  const splits=await pool.query(`
+    SELECT s.*,u.nickName,u.phone,p.title,p.startTime,p.venueName
+    FROM match_fee_splits s
+    LEFT JOIN match_users u ON u.id=s.userId
+    LEFT JOIN match_posts p ON p.id=s.matchId
+    WHERE DATE(COALESCE(s.updatedAt,s.paidAt,s.createdAt))=$1::date
+    ORDER BY s.updatedAt DESC
+  `,[target]);
+  const financeAccount=await getCachedRow(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID).catch(()=>null);
+  return buildMatchFinanceDailyReport({date:target,feeSplits:splits.rows,financeHistory:financeAccount?.history||[]});
+}
 function matchClockText(value){
   const raw=String(value||'');
   if(!raw)return '';
@@ -3718,6 +3771,10 @@ module.exports = async (req, res) => {
       requireAdminUser(user);
       return sendJson(res,{items:await listAdminMatches()});
     }
+    if(path==='/admin/matches/finance-daily'&&method==='GET'){
+      requireMatchAdminPermission(user,'match_finance');
+      return sendJson(res,await getMatchFinanceDailyReportForAdmin(query.get('date')||new Date().toISOString().slice(0,10)));
+    }
     const adminBookingM=path.match(/^\/admin\/matches\/([^/]+)\/booking$/);
     if(adminBookingM&&method==='POST'){
       requireMatchAdminPermission(user,'match_ops');
@@ -4499,6 +4556,7 @@ module.exports._test={
   rangesOverlap,
   computeCourtFinance,
   summarizeCourtFinanceRevenue,
+  buildMatchFinanceDailyReport,
   buildMatchCourtFinanceHistoryRow,
   buildMatchCourtFinanceRefundRow,
   normalizePricePlan,
@@ -4589,6 +4647,7 @@ module.exports._test={
   ,notifyMatchUsers
   ,syncMatchFeeSplitToCourtFinance
   ,syncMatchFeeSplitRefundToCourtFinance
+  ,getMatchFinanceDailyReportForAdmin
   ,getCourtRecordForTest
   ,removeMatchCourtFinanceRowsForTest
 };

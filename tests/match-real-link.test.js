@@ -40,6 +40,10 @@ async function main() {
   const pool = rules.getMatchSqlPool();
   await cleanup(pool);
   try {
+    const dandan = { id: 'chendand', role: 'editor', name: '陈丹丹' };
+    assert.doesNotThrow(() => rules.requireMatchAdminPermission(dandan, 'match_ops'), 'dandan should have match ops permission');
+    assert.doesNotThrow(() => rules.requireMatchAdminPermission(dandan, 'match_finance'), 'dandan should have match finance permission');
+
     for (const [id, phone] of [
       [ids.creator, '13800000001'],
       [ids.userA, '13800000002'],
@@ -71,25 +75,25 @@ async function main() {
     assert.equal(afterRegister.currentHeadcount, 2, 'headcount should come from registered rows');
     assert.equal(afterRegister.viewerJoined, true, 'viewer registration should be reflected');
 
-    await rules.adminBookMatch(match.id, 'dandan', {
+    await rules.adminBookMatch(match.id, dandan.id, {
       venueNameFinal: '马坡网球馆',
       courtNo: '3',
       finalCourtFee: 500,
       bookingStatus: 'booked'
     });
 
-    await rules.adminHandleBookedWithdrawal(match.id, ids.userB, 'dandan', {
+    await rules.adminHandleBookedWithdrawal(match.id, ids.userB, dandan.id, {
       financialResponsibility: 'charge',
       reason: '临时退赛，仍需 AA'
     });
 
     await pool.query("INSERT INTO match_attendance(id,matchId,userId,selfStatus,creatorStatus,finalStatus,updatedAt) VALUES($1,$2,$3,'pending','attended','attended',NOW())", [`${prefix}-att-a`, match.id, ids.userA]);
-    await rules.generateMatchFeeLedger(match.id, 'dandan');
+    await rules.generateMatchFeeLedger(match.id, dandan.id);
     const splits = await pool.query('SELECT userId,amount,payStatus FROM match_fee_splits WHERE matchId=$1 ORDER BY userId', [match.id]);
     assert.deepEqual(splits.rows.map(row => Number(row.amount)).sort((a, b) => b - a), [250, 250], 'AA should include charged booked withdrawal and stay balanced');
     assert.equal(splits.rows.reduce((sum, row) => sum + Number(row.amount), 0), 500, 'split total should equal final court fee');
 
-    const paid = await rules.markMatchFeeSplit(match.id, ids.userA, 'dandan', { payStatus: 'paid' });
+    const paid = await rules.markMatchFeeSplit(match.id, ids.userA, dandan.id, { payStatus: 'paid' });
     assert.equal(paid.financeSync.synced, true, 'paid split should sync into court finance ledger');
 
     const financeAccount = await rules.getCourtRecordForTest('match-court-finance');
@@ -101,11 +105,11 @@ async function main() {
     assert.equal(Number(financeRow.amount), 250);
 
     await assert.rejects(
-      () => rules.markMatchFeeSplit(match.id, ids.userA, 'dandan', { payStatus: 'refunded' }),
+      () => rules.markMatchFeeSplit(match.id, ids.userA, dandan.id, { payStatus: 'refunded' }),
       /请填写原因/,
       'refund should require operator reason'
     );
-    const refunded = await rules.markMatchFeeSplit(match.id, ids.userA, 'dandan', { payStatus: 'refunded', note: '测试退款' });
+    const refunded = await rules.markMatchFeeSplit(match.id, ids.userA, dandan.id, { payStatus: 'refunded', note: '测试退款' });
     assert.equal(refunded.financeSync.synced, true, 'refunded split should sync refund into court finance ledger');
     const financeAfterRefund = await rules.getCourtRecordForTest('match-court-finance');
     const refundRow = (financeAfterRefund.history || []).find(row => row.matchId === match.id && row.matchUserId === ids.userA && row.type === '退款');
@@ -113,6 +117,10 @@ async function main() {
     assert.equal(refundRow.category, '订场');
     assert.equal(refundRow.sourceCategory, '约球订场');
     assert.equal(Number(refundRow.amount), 250);
+
+    const dailyReport = await rules.getMatchFinanceDailyReportForAdmin(new Date().toISOString().slice(0, 10));
+    assert.equal(dailyReport.summary.diff, 0, 'dandan daily finance report should reconcile with court ledger');
+    assert.ok(dailyReport.summary.receivable >= 500, 'dandan daily report should include generated AA receivable');
 
     const raceMatch = await rules.createMatchForUser(ids.creator, {
       title: `${prefix} 并发抢位`,

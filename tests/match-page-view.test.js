@@ -31,6 +31,9 @@ assert.match(page, /\/registrations\/\$\{userId\}\/withdrawal/, 'booked withdraw
 assert.match(page, /约球订场收入/, 'match page should explain paid AA syncs into court finance');
 assert.match(page, /'refunded'/, 'fee split modal should support refund status');
 assert.match(page, /约球订场总账/, 'match page should provide a match booking ledger entry');
+assert.match(page, /约球日结/, 'match page should provide a daily reconciliation report entry');
+assert.match(page, /\/admin\/matches\/finance-daily/, 'match page should load finance daily report API');
+assert.match(page, /差额/, 'match daily report should expose reconciliation diff');
 assert.match(page, /matchFeeNote/, 'fee split updates should collect note for risky statuses');
 assert.match(page, /请填写原因/, 'fee split refunds and exceptions should require reason on admin page');
 assert.match(page, /function openMatchLogModal\(/, 'match page should show operation logs');

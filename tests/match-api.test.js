@@ -22,6 +22,7 @@ assert.ok(rules.requireMatchAdminPermission, 'api._test should expose match perm
 assert.ok(rules.buildMatchCourtFinanceHistoryRow, 'api._test should expose match court finance row builder');
 assert.ok(rules.buildMatchCourtFinanceRefundRow, 'api._test should expose match court finance refund row builder');
 assert.ok(rules.assertMatchFeeSplitUpdateInput, 'api._test should expose match fee update validation');
+assert.ok(rules.buildMatchFinanceDailyReport, 'api._test should expose match finance daily report builder');
 
 for (const table of [
   'match_users',
@@ -51,6 +52,7 @@ assert.match(migration, /financialResponsibility/, 'registrations should persist
 assert.match(apiSource, /syncMatchFeeSplitToCourtFinance/, 'paid match fee splits should sync into court finance ledger');
 assert.match(apiSource, /syncMatchFeeSplitRefundToCourtFinance/, 'refunded match fee splits should sync refund into court finance ledger');
 assert.match(apiSource, /match-court-finance/, 'match finance should use a dedicated court finance account');
+assert.match(apiSource, /\/admin\/matches\/finance-daily/, 'API should expose match finance daily report endpoint');
 assert.match(apiSource, /path==='\/my-matches'/, 'API should expose my matches endpoint');
 assert.match(apiSource, /path==='\/match-profile'/, 'API should expose match profile endpoint');
 assert.match(apiSource, /path==='\/match-profile\/phone'/, 'API should expose match phone endpoint');
@@ -247,5 +249,30 @@ assert.throws(() => rules.assertMatchFeeSplitUpdateInput({ payStatus: 'abnormal'
 assert.throws(() => rules.assertMatchFeeSplitUpdateInput({ payStatus: 'refunded' }), /请填写原因/);
 assert.equal(rules.assertMatchFeeSplitUpdateInput({ payStatus: 'paid' }).payStatus, 'paid');
 assert.equal(rules.assertMatchFeeSplitUpdateInput({ payStatus: 'refunded', note: '重复收款退回' }).note, '重复收款退回');
+
+const dailyReport = rules.buildMatchFinanceDailyReport({
+  date: '2026-04-22',
+  feeSplits: [
+    { id: 'split-1', matchId: 'm1', userId: 'u1', amount: 125, paidAmount: 125, payStatus: 'paid', updatedAt: '2026-04-22T10:00:00.000Z' },
+    { id: 'split-2', matchId: 'm1', userId: 'u2', amount: 125, paidAmount: 0, payStatus: 'pending', updatedAt: '2026-04-22T10:00:00.000Z' },
+    { id: 'split-3', matchId: 'm2', userId: 'u3', amount: 80, paidAmount: 0, payStatus: 'waived', updatedAt: '2026-04-22T10:00:00.000Z' },
+    { id: 'split-4', matchId: 'm3', userId: 'u4', amount: 60, paidAmount: 0, payStatus: 'abnormal', updatedAt: '2026-04-22T10:00:00.000Z' }
+  ],
+  financeHistory: [
+    { id: 'income-1', type: '消费', category: '订场', sourceCategory: '约球订场', amount: 125, occurredDate: 'Wed Apr 22', createdAt: '2026-04-22T11:00:00.000Z', matchFeeSplitId: 'split-1' },
+    { id: 'refund-1', type: '退款', category: '订场', sourceCategory: '约球订场', amount: 25, occurredDate: '2026-04-22', matchFeeSplitId: 'split-1' }
+  ]
+});
+assert.equal(dailyReport.summary.receivable, 390);
+assert.equal(dailyReport.summary.paid, 125);
+assert.equal(dailyReport.summary.pending, 125);
+assert.equal(dailyReport.summary.waived, 80);
+assert.equal(dailyReport.summary.abnormal, 60);
+assert.equal(dailyReport.summary.refunded, 25);
+assert.equal(dailyReport.summary.ledgerIncome, 125);
+assert.equal(dailyReport.summary.ledgerRefund, 25);
+assert.equal(dailyReport.summary.ledgerNet, 100);
+assert.equal(dailyReport.summary.expectedNet, 100);
+assert.equal(dailyReport.summary.diff, 0);
 
 console.log('match-api rules ok');
