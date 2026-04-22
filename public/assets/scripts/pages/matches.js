@@ -1,4 +1,20 @@
 // ===== 约球管理 =====
+function onMatchFilterChange(){renderMatches();}
+function renderMatchToolbarFilters(){
+  const statusValue=document.getElementById('matchStatusFilter')?.value||'';
+  const statusOptions=[
+    {value:'',label:'全部状态'},
+    {value:'open',label:'招募中'},
+    {value:'full',label:'已满员'},
+    {value:'booked',label:'已订场'},
+    {value:'attendance_pending',label:'待确认到场'},
+    {value:'fee_pending',label:'待确认费用'},
+    {value:'settled',label:'已结清'},
+    {value:'cancelled',label:'已取消'}
+  ];
+  const host=document.getElementById('matchStatusFilterHost');
+  if(host)host.innerHTML=renderCourtDropdownHtml('matchStatusFilter','全部状态',statusOptions,statusValue,false,'onMatchFilterChange');
+}
 async function loadMatches(force=false){
   try{
     await ensureDatasetsByName(['matchesPage'],{force});
@@ -13,6 +29,7 @@ function matchRowText(row){
 }
 function renderMatches(){
   const host=document.getElementById('matchTbody');if(!host)return;
+  renderMatchToolbarFilters();
   const q=String(document.getElementById('matchSearch')?.value||'').trim().toLowerCase();
   const status=document.getElementById('matchStatusFilter')?.value||'';
   const rows=(matches||[]).filter(row=>(!status||row.status===status)&&(!q||matchRowText(row).includes(q)));

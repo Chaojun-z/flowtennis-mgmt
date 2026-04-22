@@ -10,6 +10,7 @@ assert.match(html, /goPage\('matches'/, 'sidebar should expose match management'
 assert.match(html, /id="page-matches"/, 'admin should include match page section');
 assert.match(html, /id="matchFinanceStats"/, 'match page should expose finance stats row');
 assert.match(html, /id="matchTbody"/, 'match page should include a table body');
+assert.match(html, /id="matchStatusFilterHost"/, 'match page should mount status filter through shared filter host');
 assert.match(html, /assets\/scripts\/pages\/matches\.js/, 'index should load match page script');
 assert.match(state, /matches:\['matchesPage'\]/, 'match page should load match API data');
 assert.match(state, /matchesPage:\(\)=>apiCall\('GET','\/admin\/matches'\)/, 'match dataset loader should call admin match API');
@@ -17,8 +18,11 @@ assert.match(state, /if\(pg==='matches'\)renderMatches\(\);/, 'router should ren
 
 const page = fs.readFileSync(path.join(root, 'public', 'assets', 'scripts', 'pages', 'matches.js'), 'utf8');
 assert.match(page, /function renderMatches\(/, 'match page should render match rows');
+assert.match(page, /function renderMatchToolbarFilters\(/, 'match page should render toolbar filters with shared dropdown UI');
 assert.match(page, /function matchFinanceSummary\(/, 'match page should compute finance summary');
 assert.match(page, /function renderMatchFinanceStats\(/, 'match page should render finance summary cards');
+assert.match(page, /renderCourtDropdownHtml\('matchStatusFilter','全部状态'/, 'match page should use shared dropdown component for status filter');
+assert.match(page, /onMatchFilterChange/, 'match page should rerender from shared filter change handler');
 assert.match(page, /待收/, 'match finance stats should expose pending amount');
 assert.match(page, /异常/, 'match finance stats should expose abnormal amount');
 assert.match(page, /function openMatchBookingModal\(/, 'match page should support booking action');

@@ -283,16 +283,7 @@
             </svg>
             <input type="text" class="tms-search-input" id="matchSearch" placeholder="搜索标题、场馆、报名人" oninput="renderMatches()">
           </div>
-          <select class="finput tms-form-control" id="matchStatusFilter" onchange="renderMatches()" style="width:150px">
-            <option value="">全部状态</option>
-            <option value="open">招募中</option>
-            <option value="full">已满员</option>
-            <option value="booked">已订场</option>
-            <option value="attendance_pending">待确认到场</option>
-            <option value="fee_pending">待确认费用</option>
-            <option value="settled">已结清</option>
-            <option value="cancelled">已取消</option>
-          </select>
+          <div id="matchStatusFilterHost"></div>
         </div>
         <div class="tms-toolbar-right">
           <button class="tms-btn tms-btn-ghost" onclick="loadMatches(true)">刷新</button>
