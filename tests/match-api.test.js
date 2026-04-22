@@ -53,6 +53,8 @@ assert.match(apiSource, /syncMatchFeeSplitToCourtFinance/, 'paid match fee split
 assert.match(apiSource, /syncMatchFeeSplitRefundToCourtFinance/, 'refunded match fee splits should sync refund into court finance ledger');
 assert.match(apiSource, /match-court-finance/, 'match finance should use a dedicated court finance account');
 assert.match(apiSource, /\/admin\/matches\/finance-daily/, 'API should expose match finance daily report endpoint');
+assert.match(apiSource, /\/admin\/matches\/settings/, 'API should expose match settings admin endpoint');
+assert.match(apiSource, /path==='\/match-settings'/, 'API should expose mini match settings endpoint');
 assert.match(apiSource, /path==='\/my-matches'/, 'API should expose my matches endpoint');
 assert.match(apiSource, /path==='\/match-profile'/, 'API should expose match profile endpoint');
 assert.match(apiSource, /path==='\/match-profile\/phone'/, 'API should expose match phone endpoint');
@@ -77,6 +79,7 @@ assert.match(apiSource, /operationLogs/, 'admin match list should include operat
 assert.match(apiSource, /match_operation_logs ORDER BY createdAt DESC/, 'admin match list should load latest operation logs');
 assert.match(apiSource, /MATCH_WECHAT_TEMPLATE_ID/, 'match notifications should have a dedicated template id env');
 assert.match(apiSource, /notifyMatchUsers/, 'match operations should trigger subscribe notification helper');
+assert.match(apiSource, /运营接管/, 'match operations should record admin takeover behavior');
 
 assert.throws(() => rules.assertMatchPostInput({}), /请填写标题/);
 assert.throws(() => rules.assertMatchPostInput({

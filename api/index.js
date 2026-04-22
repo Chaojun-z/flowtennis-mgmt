@@ -25,11 +25,12 @@ const MATCH_WECHAT_TEMPLATE_ID = process.env.MATCH_WECHAT_TEMPLATE_ID;
 const MATCH_DATABASE_URL = process.env.MATCH_DATABASE_URL || process.env.DATABASE_URL;
 const MATCH_CREATOR_CONFIRM_DEADLINE_HOURS = 12;
 
-const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
+const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans',T_MATCH_SETTINGS='ft_match_settings';
 const MATCH_COURT_FINANCE_ACCOUNT_ID='match-court-finance';
+const MATCH_SETTINGS_ROW_ID='match-launch-settings';
 const MATCH_SQL_TABLES=['match_users','match_posts','match_registrations','match_attendance','match_bookings','match_fee_records','match_fee_splits','match_operation_logs'];
 const MEMBERSHIP_TABLES=[T_MEMBERSHIP_PLANS,T_MEMBERSHIP_ACCOUNTS,T_MEMBERSHIP_ORDERS,T_MEMBERSHIP_BENEFIT_LEDGER,T_MEMBERSHIP_ACCOUNT_EVENTS];
-const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_CLASS_NOS,T_PRICE_PLANS,...MEMBERSHIP_TABLES];
+const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_CLASS_NOS,T_PRICE_PLANS,T_MATCH_SETTINGS,...MEMBERSHIP_TABLES];
 const TEST_DATA_RESET_TABLES=[
   T_COURTS,
   T_STUDENTS,
@@ -1808,13 +1809,29 @@ async function registerMatchUser(matchId,userId){
     return {id,currentHeadcount:nextCount,status:nextStatus};
   });
 }
-function toMatchView(row,registrations=[],viewerId='',feeSplits=[],viewerAttendance=null){
-  const active=(registrations||[]).filter(r=>String(r.registrationstatus||r.registrationStatus)==='registered');
+function buildMatchStatusHint({match,registrations=[],attendanceRows=[],feeRecord=null}={}){
+  const activeRegs=(registrations||[]).filter(row=>String(row.registrationstatus||row.registrationStatus)==='registered');
+  const confirmedCount=(attendanceRows||[]).filter(row=>['attended','absent'].includes(row.finalstatus||row.finalStatus)).length;
+  const feeGenerated=!!feeRecord;
+  const deadlineMs=creatorAttendanceDeadline(match);
+  const status=deriveMatchStatus(match);
+  if(feeGenerated)return {attendanceLocked:true,needsOperatorTakeover:false,creatorConfirmDeadlineAt:Number.isFinite(deadlineMs)?new Date(deadlineMs).toISOString():'',statusHintText:'AA 已生成，到场名单已锁定'};
+  if(['attendance_pending','playing','booked'].includes(status)&&Number.isFinite(deadlineMs)&&Date.now()>deadlineMs)return {attendanceLocked:false,needsOperatorTakeover:true,creatorConfirmDeadlineAt:new Date(deadlineMs).toISOString(),statusHintText:'发起者超时未确认，请联系运营接管'};
+  if(['attendance_pending','playing','booked'].includes(status)&&confirmedCount<activeRegs.length)return {attendanceLocked:false,needsOperatorTakeover:false,creatorConfirmDeadlineAt:Number.isFinite(deadlineMs)?new Date(deadlineMs).toISOString():'',statusHintText:`待确认到场 ${confirmedCount}/${activeRegs.length}`};
+  if(status==='fee_pending')return {attendanceLocked:false,needsOperatorTakeover:false,creatorConfirmDeadlineAt:Number.isFinite(deadlineMs)?new Date(deadlineMs).toISOString():'',statusHintText:'到场已确认，待生成或确认 AA'};
+  if(status==='settled')return {attendanceLocked:true,needsOperatorTakeover:false,creatorConfirmDeadlineAt:Number.isFinite(deadlineMs)?new Date(deadlineMs).toISOString():'',statusHintText:'AA 已结清'};
+  return {attendanceLocked:false,needsOperatorTakeover:false,creatorConfirmDeadlineAt:Number.isFinite(deadlineMs)?new Date(deadlineMs).toISOString():'',statusHintText:''};
+}
+function toMatchView(row,registrations=[],viewerId='',feeSplits=[],viewerAttendance=null,attendanceRows=[],feeRecord=null){
+  const attendanceByUser=new Map((attendanceRows||[]).map(item=>[String(item.userid||item.userId),item]));
+  const mappedRegistrations=(registrations||[]).map(item=>({...item,finalAttendanceStatus:attendanceByUser.get(String(item.userid||item.userId))?.finalstatus||attendanceByUser.get(String(item.userid||item.userId))?.finalStatus||''}));
+  const active=(mappedRegistrations||[]).filter(r=>String(r.registrationstatus||r.registrationStatus)==='registered');
   const viewerRegistration=(registrations||[]).find(r=>String(r.userid||r.userId)===String(viewerId));
   const finalFee=normalizeMoney(row.finalcourtfee||row.finalCourtFee);
   const activeCount=active.length;
   const viewerFeeSplit=(feeSplits||[]).find(row=>String(row.userid||row.userId)===String(viewerId))||null;
   const viewerFinalAttendanceStatus=viewerAttendance?.finalstatus||viewerAttendance?.finalStatus||'';
+  const statusMeta=buildMatchStatusHint({match:row,registrations:mappedRegistrations,attendanceRows,feeRecord});
   return {
     id:row.id,
     creatorUserId:row.creatoruserid||row.creatorUserId,
@@ -1837,6 +1854,10 @@ function toMatchView(row,registrations=[],viewerId='',feeSplits=[],viewerAttenda
     viewerIsCreator:String(row.creatoruserid||row.creatorUserId)===String(viewerId),
     viewerRegistrationStatus:viewerRegistration?.registrationstatus||viewerRegistration?.registrationStatus||'',
     viewerFinalAttendanceStatus,
+    creatorConfirmDeadlineAt:statusMeta.creatorConfirmDeadlineAt,
+    needsOperatorTakeover:statusMeta.needsOperatorTakeover,
+    attendanceLocked:statusMeta.attendanceLocked,
+    statusHintText:statusMeta.statusHintText,
     aaDisplayText:finalFee>0&&activeCount>0?`AA 约 ${Math.ceil(finalFee/activeCount)} 元/人`:'AA 待定',
     viewerFeeSplit,
     offlinePaymentText:viewerFeeSplit&&String(viewerFeeSplit.paystatus||viewerFeeSplit.payStatus)==='pending'?'请线下联系运营收款，付款后由管理端确认':'',
@@ -1873,6 +1894,30 @@ function assertMatchFeeSplitUpdateInput(input={}){
   if(['waived','refunded','bad_debt','abnormal'].includes(payStatus)&&!note)throw new Error('请填写原因');
   const paidAmount=input.paidAmount==null?null:normalizeMoney(input.paidAmount);
   return {payStatus,paidAmount,note};
+}
+function defaultMatchSettings(){
+  return {
+    operatorWechatId:String(process.env.MATCH_OPERATOR_WECHAT_ID||'').trim(),
+    operatorPaymentQr:String(process.env.MATCH_OPERATOR_PAYMENT_QR||'').trim(),
+    creatorConfirmDeadlineHours:MATCH_CREATOR_CONFIRM_DEADLINE_HOURS
+  };
+}
+async function getMatchSettings(){
+  await mkTable(T_MATCH_SETTINGS);
+  const stored=await get(T_MATCH_SETTINGS,MATCH_SETTINGS_ROW_ID).catch(()=>null);
+  return {...defaultMatchSettings(),...(stored||{})};
+}
+async function saveMatchSettings(input={},operatorId=''){
+  const current=await getMatchSettings();
+  const next={
+    ...current,
+    operatorWechatId:String(input.operatorWechatId??current.operatorWechatId??'').trim(),
+    operatorPaymentQr:String(input.operatorPaymentQr??current.operatorPaymentQr??'').trim(),
+    updatedAt:new Date().toISOString(),
+    updatedBy:String(operatorId||'').trim()
+  };
+  await put(T_MATCH_SETTINGS,MATCH_SETTINGS_ROW_ID,next);
+  return next;
 }
 function resolveFinalAttendanceStatus(row){
   if(row?.creatorStatus==='attended'||row?.creatorstatus==='attended')return 'attended';
@@ -1916,12 +1961,14 @@ async function getMatchForViewer(matchId,viewerId){
   const pool=getMatchSqlPool();
   const match=await pool.query('SELECT * FROM match_posts WHERE id=$1',[matchId]);
   if(!match.rows[0])return null;
-  const [regs,splits,attendance]=await Promise.all([
+  const [regs,splits,attendance,feeRecord]=await Promise.all([
     pool.query('SELECT r.*,u.nickName,u.avatarUrl,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId WHERE r.matchId=$1',[matchId]),
     pool.query('SELECT * FROM match_fee_splits WHERE matchId=$1',[matchId]),
-    pool.query('SELECT * FROM match_attendance WHERE matchId=$1 AND userId=$2 LIMIT 1',[matchId,viewerId])
+    pool.query('SELECT * FROM match_attendance WHERE matchId=$1',[matchId]),
+    pool.query('SELECT * FROM match_fee_records WHERE matchId=$1 LIMIT 1',[matchId])
   ]);
-  return toMatchView(match.rows[0],regs.rows,viewerId,splits.rows,attendance.rows[0]||null);
+  const viewerAttendance=attendance.rows.find(row=>String(row.userid||row.userId)===String(viewerId))||null;
+  return toMatchView(match.rows[0],regs.rows,viewerId,splits.rows,viewerAttendance,attendance.rows,feeRecord.rows[0]||null);
 }
 async function createMatchForUser(userId,input){
   const row=assertMatchPostInput(input);
@@ -1984,13 +2031,14 @@ async function cancelRegistrationForUser(matchId,userId){
 }
 async function listAdminMatches(){
   const pool=getMatchSqlPool();
-  const [matches,registrations,bookings,fees,splits,logs]=await Promise.all([
+  const [matches,registrations,bookings,fees,splits,logs,attendance]=await Promise.all([
     pool.query('SELECT * FROM match_posts ORDER BY startTime DESC'),
     pool.query('SELECT r.*,u.nickName,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId'),
     pool.query('SELECT * FROM match_bookings ORDER BY createdAt DESC'),
     pool.query('SELECT * FROM match_fee_records ORDER BY createdAt DESC'),
     pool.query('SELECT s.*,u.nickName,u.phone FROM match_fee_splits s LEFT JOIN match_users u ON u.id=s.userId ORDER BY s.createdAt ASC'),
-    pool.query('SELECT * FROM match_operation_logs ORDER BY createdAt DESC')
+    pool.query('SELECT * FROM match_operation_logs ORDER BY createdAt DESC'),
+    pool.query('SELECT * FROM match_attendance')
   ]);
   const regsByMatch=new Map();
   for(const row of registrations.rows){
@@ -2009,7 +2057,12 @@ async function listAdminMatches(){
     const key=String(row.matchid||row.matchId);
     logsByMatch.set(key,[...(logsByMatch.get(key)||[]),row]);
   }
-  return matches.rows.map(row=>({...toMatchView(row,regsByMatch.get(String(row.id))||[],''),booking:bookingByMatch.get(String(row.id))||null,feeRecord:feeByMatch.get(String(row.id))||null,feeSplits:feeSplitsByMatch.get(String(row.id))||[],operationLogs:logsByMatch.get(String(row.id))||[]}));
+  const attendanceByMatch=new Map();
+  for(const row of attendance.rows){
+    const key=String(row.matchid||row.matchId);
+    attendanceByMatch.set(key,[...(attendanceByMatch.get(key)||[]),row]);
+  }
+  return matches.rows.map(row=>({...toMatchView(row,regsByMatch.get(String(row.id))||[], '', feeSplitsByMatch.get(String(row.id))||[], null, attendanceByMatch.get(String(row.id))||[], feeByMatch.get(String(row.id))||null),booking:bookingByMatch.get(String(row.id))||null,feeRecord:feeByMatch.get(String(row.id))||null,feeSplits:feeSplitsByMatch.get(String(row.id))||[],operationLogs:logsByMatch.get(String(row.id))||[]}));
 }
 async function adminBookMatch(matchId,operatorId,input){
   const booking=assertMatchBookingInput(input);
@@ -2035,6 +2088,8 @@ async function confirmMatchAttendance(matchId,operatorId,items=[]){
     const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
     const match=matchRes.rows[0];
     if(!match)throw new Error('球局不存在');
+    const feeRecordRes=await client.query('SELECT id FROM match_fee_records WHERE matchId=$1 LIMIT 1',[matchId]);
+    if(feeRecordRes.rowCount>0)throw new Error('已生成AA，不能再修改到场名单');
     for(const item of items){
       const userId=String(item.userId||'').trim();
       if(!userId)continue;
@@ -2047,7 +2102,7 @@ async function confirmMatchAttendance(matchId,operatorId,items=[]){
       );
     }
     await client.query("UPDATE match_posts SET status='fee_pending',updatedAt=NOW() WHERE id=$1",[matchId]);
-    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'attendance_confirm',JSON.stringify(match),JSON.stringify(items)]);
+    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'attendance_takeover',JSON.stringify(match),JSON.stringify({label:'运营接管',items})]);
     return {success:true,status:'fee_pending'};
   });
 }
@@ -3771,6 +3826,10 @@ module.exports = async (req, res) => {
         return sendJson(res,await updateMatchProfile(matchUser.id,{phone}));
       }catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
+    if(path==='/match-settings'&&method==='GET'){
+      requireMatchUser(req);
+      return sendJson(res,await getMatchSettings());
+    }
     if(path==='/match-attendance/creator-confirm'&&method==='POST'){
       const matchUser=requireMatchUser(req);
       try{return sendJson(res,await creatorConfirmMatchAttendance(body.matchId,matchUser.id,body.registrationId,body.finalAttendanceStatus));}
@@ -3792,6 +3851,14 @@ module.exports = async (req, res) => {
     if(path==='/admin/matches'&&method==='GET'){
       requireAdminUser(user);
       return sendJson(res,{items:await listAdminMatches()});
+    }
+    if(path==='/admin/matches/settings'&&method==='GET'){
+      requireMatchAdminPermission(user,'match_ops');
+      return sendJson(res,await getMatchSettings());
+    }
+    if(path==='/admin/matches/settings'&&method==='POST'){
+      requireMatchAdminPermission(user,'match_ops');
+      return sendJson(res,await saveMatchSettings(body,user.id));
     }
     if(path==='/admin/matches/finance-daily'&&method==='GET'){
       requireMatchAdminPermission(user,'match_finance');
@@ -4642,6 +4709,8 @@ module.exports._test={
   ,assertMatchBookingInput
   ,assertBookedWithdrawalInput
   ,assertMatchFeeSplitUpdateInput
+  ,getMatchSettings
+  ,saveMatchSettings
   ,resolveFinalAttendanceStatus
   ,buildMatchFeeLedger
   ,creatorAttendanceDeadline

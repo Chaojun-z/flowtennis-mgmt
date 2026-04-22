@@ -36,6 +36,9 @@ assert.match(page, /约球订场收入/, 'match page should explain paid AA sync
 assert.match(page, /'refunded'/, 'fee split modal should support refund status');
 assert.match(page, /约球订场总账/, 'match page should provide a match booking ledger entry');
 assert.match(page, /约球日结/, 'match page should provide a daily reconciliation report entry');
+assert.match(page, /约球设置/, 'match page should provide a settings entry');
+assert.match(page, /运营接管/, 'match page should expose operator takeover action');
+assert.match(page, /\/admin\/matches\/settings/, 'match page should save settings through admin API');
 assert.match(page, /\/admin\/matches\/finance-daily/, 'match page should load finance daily report API');
 assert.match(page, /差额/, 'match daily report should expose reconciliation diff');
 assert.match(page, /matchFeeNote/, 'fee split updates should collect note for risky statuses');
