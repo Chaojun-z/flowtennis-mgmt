@@ -13,7 +13,14 @@ Page({
   data: {
     webViewUrl: WEB_VIEW_URL
   },
-  onLoad(options) {
+  onLoad(options = {}) {
+    if (options.fallback !== '1') {
+      const target = options.scheduleId
+        ? `/pages/detail/detail?scheduleId=${encodeURIComponent(options.scheduleId)}`
+        : '/pages/schedule/schedule';
+      wx.redirectTo({ url: target });
+      return;
+    }
     wx.login({
       success: (res) => {
         if (!res.code) return;

@@ -107,14 +107,14 @@ function buildTimetableDays(schedule = [], weekOffset = 0, now = new Date()) {
 
 function clockMinutes(value) {
   const date = parseDate(value);
-  return date ? date.getHours() * 60 + date.getMinutes() : 7 * 60;
+  return date ? date.getHours() * 60 + date.getMinutes() : 0;
 }
 
 function classBlockStyle(item) {
   const hourHeight = 150;
   const start = clockMinutes(item.startTime);
   const end = clockMinutes(item.endTime);
-  const top = Math.max(0, Math.round(((start - 7 * 60) / 60) * hourHeight));
+  const top = Math.max(0, Math.round((start / 60) * hourHeight));
   const height = Math.max(128, Math.round(((Math.max(end, start + 60) - start) / 60) * hourHeight) - 4);
   return { top, height };
 }

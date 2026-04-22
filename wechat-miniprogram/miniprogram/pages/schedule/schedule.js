@@ -1,11 +1,11 @@
 const { loginWithWechat, loadCoachWorkbench, saveCoachFeedback, USER_KEY } = require('../../utils/api');
 const { buildWeekDays, formatScheduleItem, weekRangeText, buildTimetableDays, classBlockStyle, workbenchTodoState } = require('../../utils/schedule');
 
-const timetableHours = Array.from({ length: 16 }, (_, i) => `${String(i + 7).padStart(2, '0')}:00`);
+const timetableHours = Array.from({ length: 25 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const avatarClasses = ['avatar-warm', 'avatar-teal', 'avatar-green', 'avatar-purple'];
-const TIMETABLE_START_HOUR = 7;
+const TIMETABLE_START_HOUR = 0;
 const TIMETABLE_HOUR_HEIGHT_RPX = 150;
-const TIMETABLE_DAY_WIDTH_RPX = 240;
+const TIMETABLE_DAY_WIDTH_RPX = 228;
 
 function coachDisplayName(name = '') {
   const trimmed = String(name || '').trim();
@@ -26,6 +26,12 @@ function dashboardCourseTag(item = {}) {
   if (item.isTrial || /体验/.test(text)) return { text, className: 'is-trial' };
   if (/小班/.test(text)) return { text, className: 'is-group' };
   return { text, className: 'is-private' };
+}
+
+function timetableAccentClass(className = '') {
+  if (className === 'is-trial') return 'tt-course-trial';
+  if (className === 'is-group') return 'tt-course-group';
+  return 'tt-course-private';
 }
 
 function statusClass(item) {
@@ -57,8 +63,20 @@ function adaptSchedule(raw = [], feedbacks = []) {
 function decorateTimetableDays(days = []) {
   return days.map((item) => ({
     ...item,
+    displayDate: item.isToday ? String(item.date || '').replace('日', '').replace(/^0/, '') : item.date,
     headClass: item.isToday ? 'tt-day-head-active' : '',
-    columnClass: item.isToday ? 'tt-day-column-active' : ''
+    columnClass: item.isToday ? 'tt-day-column-active' : '',
+    items: (item.items || []).map((course) => {
+      const tag = dashboardCourseTag(course);
+      const todo = workbenchTodoState(course);
+      return {
+        ...course,
+        courseTagText: tag.text,
+        courseTagClass: tag.className,
+        accentClass: timetableAccentClass(tag.className),
+        todoLabel: todo ? todo.label : ''
+      };
+    })
   }));
 }
 
@@ -107,10 +125,10 @@ function buildWeekTodoGroups(days = [], now = new Date()) {
 
 function buildReminderItems({ todayCount = 0, nextClass = null, todoCount = 0, pendingCount = 0 }) {
   const items = [];
-  if (todayCount > 0) items.push({ label: '今日', value: `${todayCount} 节`, itemClass: '' });
-  if (nextClass) items.push({ label: '下一节', value: `${nextClass.timeText} · ${nextClass.locationText}`, itemClass: '' });
-  if (todoCount > 0) items.push({ label: '本周待办', value: `${todoCount} 节`, itemClass: '' });
-  if (pendingCount > 0) items.push({ label: '待反馈', value: `${pendingCount} 节`, itemClass: 'is-danger' });
+  if (todoCount > 0 || pendingCount > 0) {
+    items.push({ label: '本周待办', value: todoCount, unit: '节', itemClass: '' });
+    items.push({ label: '待反馈', value: pendingCount, unit: '节', itemClass: 'is-danger' });
+  }
   return items;
 }
 
@@ -121,6 +139,7 @@ function buildWeekTodoCards(groups = []) {
       ...item,
       weekdayText,
       dateText,
+      metaText: `${item.shortLocation || item.locationText || ''} | ${item.student || item.studentText || ''}`,
       courseTagText: dashboardCourseTag(item).text,
       courseTagClass: dashboardCourseTag(item).className,
       showFeedbackAction: item.todoLabel === '待反馈'
@@ -1112,6 +1131,8 @@ Page({
       timetableTabClass: activeTab === 'timetable' ? 'active' : '',
       studentsTabClass: activeTab === 'students' ? 'active' : '',
       shiftsTabClass: activeTab === 'shifts' ? 'active' : ''
+    }, () => {
+      if (activeTab === 'timetable') this.renderWeek();
     });
   },
 
@@ -1378,6 +1399,6 @@ Page({
   stopMove() {},
 
   openWebview() {
-    wx.navigateTo({ url: '/pages/webview/webview' });
+    wx.navigateTo({ url: '/pages/webview/webview?fallback=1' });
   }
 });

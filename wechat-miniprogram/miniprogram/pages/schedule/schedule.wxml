@@ -36,11 +36,15 @@
         </view>
 
         <view wx:if="{{reminderItems.length}}" class="reminder-bar">
-          <text class="summary-icon">ⓘ</text>
+          <view class="summary-icon">
+            <view class="summary-icon-dot"></view>
+            <text>i</text>
+          </view>
           <view class="reminder-list">
             <view wx:for="{{reminderItems}}" wx:key="label" class="reminder-chip {{item.itemClass}}">
               <text>{{item.label}}</text>
-              <text>{{item.value}}</text>
+              <text class="reminder-value">{{item.value}}</text>
+              <text>{{item.unit}}</text>
             </view>
           </view>
         </view>
@@ -63,8 +67,11 @@
                 <text class="today-lesson-time">{{item.timeText}}</text>
                 <text class="today-course-pill {{item.courseTagClass}}">{{item.courseTagText}}</text>
               </view>
-              <view class="today-lesson-location schedule-location">{{item.loc}}</view>
-              <view class="today-lesson-student">{{item.student}}</view>
+              <view class="today-lesson-meta schedule-location">
+                <text>{{item.loc}}</text>
+                <text class="today-lesson-separator">|</text>
+                <text>{{item.student}}</text>
+              </view>
             </view>
             <button class="today-detail-btn" data-id="{{item.id}}" bindtap="openDetail">查看详情</button>
           </view>
@@ -89,7 +96,11 @@
                 <text class="week-task-time">{{item.timeText}}</text>
                 <text class="today-course-pill {{item.courseTagClass}}">{{item.courseTagText}}</text>
               </view>
-              <view class="week-task-location">{{item.shortLocation}}</view>
+              <view class="week-task-location">
+                <text>{{item.student}}</text>
+                <text class="week-task-separator">|</text>
+                <text>{{item.shortLocation}}</text>
+              </view>
               <view class="week-task-divider"></view>
               <view class="week-task-actions">
                 <button class="week-task-outline" data-id="{{item.id}}" bindtap="openDetail">查看详情</button>
@@ -108,21 +119,21 @@
         <view class="top-title">我的课表</view>
         <view class="week-toolbar">
           <view class="week-switch">
-            <button class="switch-btn" bindtap="prevWeek">‹</button>
+            <button class="switch-btn switch-prev" bindtap="prevWeek"></button>
             <text class="week-range">{{weekRange}}</text>
-            <button class="switch-btn" bindtap="nextWeek">›</button>
+            <button class="switch-btn switch-next" bindtap="nextWeek"></button>
           </view>
           <button class="back-week-btn" bindtap="goCurrentWeek">回到本周</button>
         </view>
       </view>
 
-      <scroll-view scroll-y class="timetable-scroll-y" scroll-top="{{timetableScrollTop}}">
-        <scroll-view scroll-x class="timetable-scroll" scroll-left="{{timetableScrollLeft}}">
+      <scroll-view scroll-x scroll-y class="timetable-scroll" scroll-top="{{timetableScrollTop}}" scroll-left="{{timetableScrollLeft}}" enhanced show-scrollbar="{{false}}">
+        <view class="timetable-panel">
           <view class="tt-header">
             <view class="tt-time-corner"></view>
             <view wx:for="{{timetableDays}}" wx:key="key" class="tt-day-head {{item.headClass}}">
               <text class="tt-day-name">{{item.name}}</text>
-              <text class="tt-day-date">{{item.date}}</text>
+              <text class="tt-day-date {{item.isToday ? 'tt-day-date-dot' : ''}}">{{item.displayDate}}</text>
             </view>
           </view>
 
@@ -136,16 +147,18 @@
               <view wx:for="{{timetableDays}}" wx:key="key" class="tt-day-column {{item.columnClass}}">
                 <view wx:for="{{timetableHours}}" wx:key="*this" class="tt-grid-hour"></view>
                 <view wx:if="{{!item.items.length}}" class="tt-empty">暂无课程</view>
-                <view wx:for="{{item.items}}" wx:for-item="course" wx:key="id" class="tt-course" style="{{course.blockStyle}}" data-id="{{course.id}}" bindtap="openDetail">
-                  <view class="tt-course-top"><text>{{course.timeText}}</text><text>{{course.type}}</text></view>
-                  <view class="tt-course-name">{{course.student}}</view>
+                <view wx:for="{{item.items}}" wx:for-item="course" wx:key="id" class="tt-course {{course.accentClass}}" style="{{course.blockStyle}}" data-id="{{course.id}}" bindtap="openDetail">
+                  <view class="tt-course-top"><text>{{course.timeText}}</text><text>{{course.courseTagText}}</text></view>
+                  <view class="tt-course-name-row">
+                    <text class="tt-course-name">{{course.student}}</text>
+                    <text wx:if="{{course.todoLabel}}" class="tt-course-status">{{course.todoLabel}}</text>
+                  </view>
                   <view class="tt-course-meta">{{course.loc}}</view>
-                  <view class="tt-course-foot">反馈: {{course.status}}</view>
                 </view>
               </view>
             </view>
           </view>
-        </scroll-view>
+        </view>
       </scroll-view>
     </view>
 

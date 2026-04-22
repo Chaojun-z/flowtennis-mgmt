@@ -34,7 +34,7 @@ Page({
   },
 
   openWebview() {
-    const suffix = this.data.scheduleId ? `?scheduleId=${encodeURIComponent(this.data.scheduleId)}` : '';
+    const suffix = this.data.scheduleId ? `?fallback=1&scheduleId=${encodeURIComponent(this.data.scheduleId)}` : '?fallback=1';
     wx.navigateTo({ url: `/pages/webview/webview${suffix}` });
   }
 });

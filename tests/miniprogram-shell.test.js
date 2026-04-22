@@ -53,9 +53,16 @@ assert.doesNotMatch(scheduleWxml, /coach-task-panel/, 'native workbench should n
 assert.match(scheduleWxml, /wx:if="\{\{reminderItems\.length\}\}"/, 'native workbench summary should only render when there are reminders');
 assert.match(scheduleWxml, /metric-primary/, 'native workbench should use a consumer-style highlighted metric card');
 assert.match(scheduleWxml, /schedule-location/, 'native workbench lesson cards should make location easy to scan');
+assert.match(scheduleWxml, /reminder-value/, 'native workbench reminder numbers should be styled separately');
+assert.match(scheduleWxml, /today-lesson-separator/, 'native workbench today card should render location and student on one SVG-style meta row');
+assert.match(scheduleWxml, /week-task-location[\s\S]*item\.student[\s\S]*week-task-separator[\s\S]*item\.shortLocation/, 'native workbench weekly todo card should render student before location like the SVG');
 assert.match(scheduleWxml, /scroll-top="\{\{timetableScrollTop\}\}"/, 'native timetable should support vertical auto positioning');
 assert.match(scheduleWxml, /scroll-left="\{\{timetableScrollLeft\}\}"/, 'native timetable should support horizontal auto positioning to today');
-assert.match(scheduleWxml, /currentTimeText/, 'native timetable should render a dynamic current-time marker instead of a hardcoded label');
+assert.match(scheduleWxml, /scroll-x scroll-y class="timetable-scroll"/, 'native timetable should use one native two-axis scroll for smoother movement');
+assert.match(scheduleWxml, /tt-now-line[\s\S]*currentTimeText/, 'native timetable should render the current-time marker');
+assert.match(scheduleWxml, /tt-day-date-dot/, 'native timetable should render the active day as a round date marker');
+assert.match(scheduleWxml, /tt-course-status/, 'native timetable course cards should render pending status as a compact badge');
+assert.doesNotMatch(scheduleWxml, /反馈:/, 'native timetable course cards should not show the old feedback prefix');
 assert.match(scheduleWxml, /feedbackHasSaved && !feedbackEditing[\s\S]*生成海报[\s\S]*编辑反馈/, 'saved feedback sheet should show poster and edit actions');
 assert.match(scheduleWxml, /wx:else[\s\S]*取消[\s\S]*保存反馈/, 'unsaved feedback sheet should show cancel and save actions');
 assert.match(scheduleWxml, /data-field="practicedToday"[\s\S]*data-field="knowledgePoint"[\s\S]*data-field="nextTraining"/, 'feedback sheet should bind all three feedback fields');
@@ -94,9 +101,17 @@ assert.match(scheduleJs, /formatStudentClassTime[\s\S]*endText[\s\S]*`\$\{dateTe
 assert.match(scheduleJs, /timetableScrollTop/, 'mini program schedule page should compute a vertical scroll position for the timetable');
 assert.match(scheduleJs, /timetableScrollLeft/, 'mini program schedule page should compute a horizontal scroll position for the timetable');
 assert.match(scheduleJs, /currentTimeText/, 'mini program schedule page should compute the current-time marker text');
+assert.match(scheduleJs, /Array\.from\(\{\s*length:\s*25\s*\}[\s\S]*String\(i\)\.padStart\(2,\s*'0'\)/, 'mini program timetable should expose a 00:00-24:00 time axis');
+assert.match(scheduleJs, /TIMETABLE_START_HOUR\s*=\s*0/, 'mini program current-time marker should use a midnight-based timetable axis');
 assert.match(scheduleJs, /lastScheduleId:\s*lastClass && lastClass\.id/, 'mini program students should still carry their latest class id for summaries');
+assert.match(scheduleJs, /\/pages\/webview\/webview\?fallback=1/, 'schedule fallback button should mark deliberate web-view entry');
 
 const scheduleUtils = require('../wechat-miniprogram/miniprogram/utils/schedule');
+assert.strictEqual(
+  scheduleUtils.classBlockStyle({ startTime: '2026-04-22 09:00', endTime: '2026-04-22 10:00' }).top,
+  1350,
+  'timetable course blocks should be positioned from 00:00'
+);
 const todoNow = new Date('2026-04-21T12:00:00+08:00');
 assert.strictEqual(
   scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已排课' }, todoNow).label,
@@ -122,12 +137,15 @@ assert.strictEqual(
 const detailWxml = readText('wechat-miniprogram/miniprogram/pages/detail/detail.wxml');
 assert.match(detailWxml, /课程详情/, 'native detail page should render course detail content');
 assert.match(detailWxml, /返回课表/, 'native detail page should let coaches return to schedule');
+const detailJs = readText('wechat-miniprogram/miniprogram/pages/detail/detail.js');
+assert.match(detailJs, /fallback=1/, 'detail fallback button should mark deliberate web-view entry');
 
 const webviewWxml = readText('wechat-miniprogram/miniprogram/pages/webview/webview.wxml');
 assert.match(webviewWxml, /<web-view\s+src="\{\{webViewUrl\}\}"/, 'web-view page should render the PWA through web-view');
 
 const webviewJs = readText('wechat-miniprogram/miniprogram/pages/webview/webview.js');
 assert.match(webviewJs, /WEB_VIEW_URL/, 'web-view page should read the PWA URL from config');
+assert.match(webviewJs, /options\.fallback !== '1'[\s\S]*wx\.redirectTo/, 'web-view page should redirect accidental opens back to native pages');
 assert.doesNotMatch(webviewJs, /https:\/\/[^'"]+/, 'web-view page should not hardcode the business domain');
 assert.match(webviewJs, /wx\.login/, 'web-view page should request a mini program login code');
 assert.match(webviewJs, /wechatCode/, 'web-view page should pass the mini program login code into the web-view URL');
@@ -158,6 +176,30 @@ assert.match(miniApiJs, /request\('\/feedbacks'/, 'mini program feedback save sh
 
 const scheduleWxss = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.wxss');
 assert.match(scheduleWxss, /\.dashboard-top\s*\{[\s\S]*background:\s*linear-gradient\(135deg,\s*#2b3a55 0%,\s*#1e2a38 100%\)/i, 'mini program workbench should use the SVG dark header gradient');
+assert.match(scheduleWxss, /\.dashboard-top\s*\{[\s\S]*height:\s*230px;/, 'dashboard header should use the requested 230px height');
+assert.match(scheduleWxss, /\.dashboard-hero\s*\{[\s\S]*padding:\s*122px 32rpx 0;/, 'dashboard coach header should stop with the avatar bottom 20px above the metric card');
+assert.match(scheduleWxss, /\.coach-title\s*\{[\s\S]*font-size:\s*20px;[\s\S]*font-weight:\s*700;/, 'dashboard coach title should use the requested 20px bold token');
+assert.match(scheduleWxss, /\.coach-subtitle\s*\{[\s\S]*color:\s*#ffffff;[\s\S]*font-size:\s*13px;[\s\S]*font-weight:\s*400;/i, 'dashboard coach subtitle should use the requested white 13px regular token');
+assert.match(scheduleWxss, /\.coach-avatar\s*\{[\s\S]*width:\s*48px;[\s\S]*height:\s*48px;[\s\S]*border:\s*2px solid rgba\(255,\s*255,\s*255,\s*0\.2\);[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.1\);[\s\S]*font-size:\s*14px;[\s\S]*font-weight:\s*700;/i, 'dashboard coach avatar should match the requested 48px token');
+assert.match(scheduleWxss, /\.coach-arrow\s*\{[\s\S]*width:\s*8px;[\s\S]*height:\s*4px;/, 'dashboard coach dropdown icon should use the requested 8x4 size');
+assert.match(scheduleWxss, /\.dashboard-shell\s*\{[\s\S]*margin-top:\s*-40px;/, 'dashboard metric card should overlap the header by 40px');
+assert.match(scheduleWxss, /\.mini-metrics\s*\{[\s\S]*height:\s*170px;[\s\S]*padding:\s*16px;[\s\S]*gap:\s*6px;/, 'dashboard metric shell should match the requested 361x170 token with 16px padding and 6px gap');
+assert.match(scheduleWxss, /\.mini-metric\s*\{[\s\S]*height:\s*66px;[\s\S]*padding:\s*16px;/, 'dashboard metric cells should match the requested 104x66 token');
+assert.match(scheduleWxss, /\.reminder-bar\s*\{[\s\S]*height:\s*38px;[\s\S]*margin-top:\s*12px;[\s\S]*border:\s*0\.8px solid #e2e8f0;/i, 'dashboard reminder bar should match the requested size and border token');
+assert.match(scheduleWxss, /\.reminder-bar \.summary-icon\s*\{[\s\S]*width:\s*12px;[\s\S]*height:\s*12px;/, 'dashboard reminder icon should use the requested 12x12 size');
+assert.match(scheduleWxss, /\.today-lesson-card\s*\{[\s\S]*height:\s*84px;/, 'dashboard today course card should match the requested 84px height');
+assert.match(scheduleWxss, /\.week-task-card\s*\{[\s\S]*width:\s*361px;[\s\S]*height:\s*130px;/, 'dashboard week todo card should match the requested 361x130 size');
+assert.match(scheduleWxss, /\.week-task-accent\s*\{[\s\S]*width:\s*4px;[\s\S]*height:\s*38px;[\s\S]*background:\s*#94a3b8;[\s\S]*transform:\s*translateY\(-20px\);/i, 'dashboard week todo card should use the requested left gray bar');
+assert.doesNotMatch(scheduleWxss.match(/\.week-task-accent\s*\{[^}]*\}/)[0], /margin-left:/, 'dashboard week todo gray bar should sit flush against the card edge');
+assert.match(scheduleWxss, /\.week-task-date\s*\{[\s\S]*transform:\s*translateY\(6px\);/, 'dashboard week todo date should align with the status tag');
+assert.match(scheduleWxss, /\.week-task-status\s*\{[\s\S]*transform:\s*translateY\(10px\);/, 'dashboard week todo status should use the requested vertical offset');
+assert.match(scheduleWxss, /\.week-task-time-row\s*\{[\s\S]*transform:\s*translateY\(-2px\);/, 'dashboard week todo time row should use the requested vertical offset');
+assert.match(scheduleWxss, /\.week-task-location\s*\{[\s\S]*transform:\s*translateY\(-7px\);/, 'dashboard week todo meta row should use the requested vertical offset');
+assert.match(scheduleWxss, /\.week-task-divider\s*\{[\s\S]*width:\s*325px;[\s\S]*height:\s*1px;[\s\S]*margin-top:\s*8px;[\s\S]*transform:\s*translateY\(-6px\);/, 'dashboard week todo divider should match requested size and spacing');
+assert.match(scheduleWxss, /\.week-task-actions\s*\{[\s\S]*transform:\s*translateY\(-8px\);/, 'dashboard week todo actions should use the requested vertical offset');
+assert.match(scheduleWxss, /\.week-task-outline\s*\{[\s\S]*width:\s*70px;[\s\S]*height:\s*28px;[\s\S]*border:\s*1px solid #e2e8f0;/i, 'dashboard week todo outline button should match requested token');
+assert.match(scheduleWxss, /\.week-task-status\s*\{[\s\S]*width:\s*48px;[\s\S]*height:\s*24px;[\s\S]*background:\s*#fef3c7;/i, 'dashboard pending feedback tag should match requested token');
+assert.match(scheduleWxss, /\.today-course-pill\s*\{[\s\S]*width:\s*44px;[\s\S]*height:\s*18px;[\s\S]*border-radius:\s*4px;/, 'dashboard course type tags should use the requested 44x18 4px-radius token');
 assert.match(scheduleWxss, /\.dashboard-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/, 'mini program workbench should use a fixed three-column grid like the SVG');
 assert.match(scheduleWxss, /\.today-lesson-card\s*\{[\s\S]*border-radius:\s*34rpx;/, 'mini program today lesson card should use the larger rounded card style');
 assert.match(scheduleWxss, /\.tabbar\s*\{[\s\S]*background:\s*#fff;/, 'mini program tabbar should stay white like the SVG bottom bar');
@@ -167,6 +209,25 @@ assert.match(scheduleWxss, /\.tab-grid-icon\s*\{[\s\S]*width:\s*36rpx;[\s\S]*hei
 assert.match(scheduleWxss, /\.tab-list-icon\s*\{[\s\S]*width:\s*42rpx;[\s\S]*height:\s*34rpx;/, 'class list icon should use a narrower visual size');
 assert.match(scheduleWxss, /\.tab-item\.active \.tab-grid-icon view\s*\{[\s\S]*background:\s*#2b3a55;/, 'active workbench icon should render as solid blocks');
 assert.match(scheduleWxss, /\.tab-item:not\(\.active\) \.tab-grid-icon view\s*\{[\s\S]*border:\s*3rpx solid #94a3b8;/, 'inactive workbench icon should render as outline blocks');
+assert.match(scheduleWxss, /\.timetable-top\s*\{[\s\S]*height:\s*190px;[\s\S]*padding:\s*124px 16px 0;[\s\S]*background:\s*linear-gradient\(135deg,\s*#2b3a55 0%,\s*#1e2a38 100%\)/i, 'timetable top should match the requested dark header shell');
+assert.match(scheduleWxss, /\.week-switch\s*\{[\s\S]*width:\s*160px;[\s\S]*height:\s*36px;[\s\S]*border:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.1\);[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.15\);/i, 'timetable week switch should match the SVG 160x36 translucent pill');
+assert.match(scheduleWxss, /\.week-switch\s*\{[^}]*gap:\s*20px;/, 'timetable week switch should keep 20px spacing around the date text');
+assert.match(scheduleWxss, /\.switch-btn\s*\{[\s\S]*width:\s*6px;[\s\S]*height:\s*8px;/, 'timetable switch arrows should use the requested 6x8 size');
+assert.match(scheduleWxss, /\.week-range\s*\{[\s\S]*font-size:\s*15px;[\s\S]*font-weight:\s*500;/, 'timetable week range text should use 15px medium');
+assert.match(scheduleWxss, /\.back-week-btn\s*\{[\s\S]*width:\s*80px;[\s\S]*height:\s*36px;[\s\S]*font-size:\s*13px;[\s\S]*font-weight:\s*500;/, 'timetable back-to-week button should match the SVG token');
+assert.match(scheduleWxss, /\.timetable-scroll\s*\{[\s\S]*border-top-left-radius:\s*40rpx;[\s\S]*border-top-right-radius:\s*40rpx;/, 'timetable grid should sit in the SVG rounded white panel');
+assert.match(scheduleWxss, /\.tt-header\s*\{[\s\S]*position:\s*sticky;/, 'timetable header should stay fixed during vertical scrolling');
+assert.match(scheduleWxss, /\.tt-time-axis\s*\{[\s\S]*position:\s*sticky;[\s\S]*left:\s*0;/, 'timetable time axis should stay fixed during horizontal scrolling');
+assert.match(scheduleWxss, /\.tt-hour-cell text\s*\{[\s\S]*color:\s*#94a3b8;[\s\S]*font-size:\s*11px;[\s\S]*font-weight:\s*400;/i, 'timetable time axis should use the requested 11px regular token');
+assert.match(scheduleWxss, /\.tt-day-name\s*\{[\s\S]*color:\s*#64748b;[\s\S]*font-size:\s*13px;[\s\S]*font-weight:\s*400;/i, 'timetable weekday names should use the SVG header typography');
+assert.match(scheduleWxss, /\.tt-day-date\s*\{[\s\S]*font-size:\s*11px;[\s\S]*font-weight:\s*400;/, 'timetable day dates should use 11px regular');
+assert.match(scheduleWxss, /\.tt-day-date-dot\s*\{[\s\S]*width:\s*22px;[\s\S]*height:\s*22px;[\s\S]*background:\s*#2b3a55;[\s\S]*font-size:\s*11px;[\s\S]*font-weight:\s*700;/, 'active timetable day should use the SVG dark 22px circular date marker');
+assert.match(scheduleWxml, /tt-day-date[\s\S]*item\.displayDate/, 'active timetable date should render the mapped display date without the trailing day suffix');
+assert.match(scheduleJs, /displayDate:\s*item\.isToday[\s\S]*replace\('日', ''\)/, 'timetable day data should strip the active date suffix');
+assert.doesNotMatch(scheduleJs, /onTimetableScrollX/, 'timetable should avoid JS scroll syncing that causes horizontal lag');
+assert.match(scheduleJs, /activeTab === 'timetable'[\s\S]*this\.renderWeek\(\)/, 'timetable tab should refresh current-time positioning when opened');
+assert.match(scheduleWxss, /\.tt-now-line\s*\{[\s\S]*background:\s*#ef4444;/i, 'timetable should show the requested current-time marker');
+assert.match(scheduleWxss, /\.tt-course::before\s*\{[\s\S]*width:\s*8rpx;[\s\S]*background:\s*var\(--course-accent\);/, 'timetable course cards should use the SVG left accent bar');
 assert.match(scheduleWxss, /\.detail-sheet-body\s*\{[\s\S]*background:\s*#f8fafc;/, 'detail sheet body should use slate-50 background');
 assert.match(scheduleWxml, /enhanced show-scrollbar="\{\{false\}\}"/, 'detail sheet scroll view should hide the native right scrollbar');
 assert.match(scheduleWxss, /\.detail-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 296rpx\);/, 'detail sheet should move 60px lower than the previous top position');
