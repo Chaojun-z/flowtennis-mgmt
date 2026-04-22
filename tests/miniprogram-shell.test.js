@@ -35,6 +35,46 @@ assert.match(indexJs, /pages\/schedule\/schedule/, 'index page should navigate i
 const scheduleWxml = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.wxml');
 assert.match(scheduleWxml, /本周|下周/, 'native schedule page should provide week navigation');
 assert.match(scheduleWxml, /bindtap="openDetail"/, 'native schedule cards should open native detail');
+assert.match(scheduleWxml, /今日排课/, 'native workbench should keep the today schedule section');
+assert.match(scheduleWxml, /本周待办/, 'native workbench should also show a weekly todo section');
+assert.match(scheduleWxml, /今日课程[\s\S]*本周课时[\s\S]*本月课时[\s\S]*本月反馈[\s\S]*未反馈[\s\S]*体验转化/, 'native workbench should keep the six original web metrics in the requested order');
+assert.doesNotMatch(scheduleWxml, /coach-task-panel/, 'native workbench should not show a separate large task card above the summary');
+assert.match(scheduleWxml, /wx:if="\{\{reminderItems\.length\}\}"/, 'native workbench summary should only render when there are reminders');
+assert.match(scheduleWxml, /metric-primary/, 'native workbench should use a consumer-style highlighted metric card');
+assert.match(scheduleWxml, /schedule-location/, 'native workbench lesson cards should make location easy to scan');
+
+const scheduleJs = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.js');
+assert.match(scheduleJs, /weekTodoGroups/, 'native workbench should prepare grouped weekly todo data');
+assert.match(scheduleJs, /dashboardClasses,\s*weekTodoGroups/, 'native week render should expose both today cards and weekly todo groups');
+assert.match(scheduleJs, /reminderItems/, 'native workbench should prepare compact reminder chips');
+assert.doesNotMatch(scheduleJs, /const studentsList = \[/, 'mini program students should not stay on hardcoded local list data');
+assert.doesNotMatch(scheduleJs, /const shiftsList = \[/, 'mini program classes should not stay on hardcoded local list data');
+assert.match(scheduleJs, /onShow\(\)\s*\{[\s\S]*this\.load\(/, 'mini program schedule page should refresh when returning to the page');
+assert.match(scheduleJs, /onPullDownRefresh\(\)\s*\{[\s\S]*this\.load\(/, 'mini program schedule page should support pull-down refresh');
+assert.match(scheduleJs, /saveCoachFeedback/, 'mini program schedule page should expose a real feedback save action');
+
+const scheduleUtils = require('../wechat-miniprogram/miniprogram/utils/schedule');
+const todoNow = new Date('2026-04-21T12:00:00+08:00');
+assert.strictEqual(
+  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已排课' }, todoNow).label,
+  '待上课',
+  'future active courses should be weekly todos'
+);
+assert.strictEqual(
+  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已排课' }, todoNow).label,
+  '待反馈',
+  'ended courses without feedback should become feedback todos'
+);
+assert.strictEqual(
+  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已排课', hasFeedback: true }, todoNow),
+  null,
+  'ended courses with feedback should not remain weekly todos'
+);
+assert.strictEqual(
+  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已取消' }, todoNow),
+  null,
+  'cancelled courses should not appear as weekly todos'
+);
 
 const detailWxml = readText('wechat-miniprogram/miniprogram/pages/detail/detail.wxml');
 assert.match(detailWxml, /课程详情/, 'native detail page should render course detail content');
@@ -68,5 +108,9 @@ const apiServerJs = readText('api/index.js');
 assert.match(apiServerJs, /\/auth\/wechat-login/, 'API should support mini program login by bound openid');
 assert.match(apiServerJs, /findWechatUserByOpenId/, 'API should find the bound coach account by openid');
 assert.match(apiServerJs, /pages\/detail\/detail/, 'subscribe messages should deep link to native course detail');
+
+const miniApiJs = readText('wechat-miniprogram/miniprogram/utils/api.js');
+assert.match(miniApiJs, /function saveCoachFeedback/, 'mini program API helper should provide feedback save');
+assert.match(miniApiJs, /request\('\/feedbacks'/, 'mini program feedback save should call the feedback API');
 
 console.log('miniprogram shell tests passed');

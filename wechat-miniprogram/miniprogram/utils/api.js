@@ -50,9 +50,18 @@ function loadCoachWorkbench() {
   return request('/page-data/workbench');
 }
 
+function saveCoachFeedback(payload = {}) {
+  const feedbackId = payload.id || '';
+  if (feedbackId) {
+    return request(`/feedbacks/${feedbackId}`, { method: 'PUT', data: payload });
+  }
+  return request('/feedbacks', { method: 'POST', data: payload });
+}
+
 module.exports = {
   loginWithWechat,
   loadCoachWorkbench,
+  saveCoachFeedback,
   request,
   TOKEN_KEY,
   USER_KEY
