@@ -141,9 +141,10 @@
             <view class="tt-time-axis">
               <view wx:for="{{timetableHours}}" wx:key="*this" class="tt-hour-cell"><text>{{item}}</text></view>
             </view>
+            <view wx:if="{{isCurrentWeek}}" class="tt-now-label" style="{{timetableNowLineStyle}}"><text>{{currentTimeText}}</text></view>
 
             <view class="tt-day-columns">
-              <view wx:if="{{isCurrentWeek}}" class="tt-now-line" style="{{timetableNowLineStyle}}"><text>{{currentTimeText}}</text></view>
+              <view wx:if="{{isCurrentWeek}}" class="tt-now-line" style="{{timetableNowLineStyle}}"></view>
               <view wx:for="{{timetableDays}}" wx:key="key" class="tt-day-column {{item.columnClass}}">
                 <view wx:for="{{timetableHours}}" wx:key="*this" class="tt-grid-hour"></view>
                 <view wx:if="{{!item.items.length}}" class="tt-empty">暂无课程</view>

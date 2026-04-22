@@ -1216,10 +1216,15 @@ button::after {
   background: rgba(239, 68, 68, 0.95);
 }
 
-.tt-now-line text {
+.tt-now-label {
   position: absolute;
-  left: -66px;
-  top: -14px;
+  left: 6px;
+  z-index: 40;
+  transform: translateY(-14px);
+}
+
+.tt-now-label text {
+  display: block;
   width: 61px;
   height: 28px;
   border-radius: 999px;
