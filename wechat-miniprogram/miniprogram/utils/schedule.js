@@ -45,6 +45,23 @@ function formatScheduleItem(item) {
   };
 }
 
+function hasScheduleFeedback(item = {}) {
+  return !!(item.hasFeedback || item.feedbackId || item.feedbackAt || item.feedbackStatus === '已反馈');
+}
+
+function workbenchTodoState(item = {}, now = new Date()) {
+  if (item.status === '已取消') return null;
+  const start = parseDate(item.startTime);
+  const end = parseDate(item.endTime || item.startTime);
+  if (start && start > now) {
+    return { code: 'upcoming', label: '待上课', className: 'tag-green' };
+  }
+  if (end && end <= now && !hasScheduleFeedback(item)) {
+    return { code: 'feedback', label: '待反馈', className: 'tag-danger' };
+  }
+  return null;
+}
+
 function buildWeekDays(schedule = [], weekOffset = 0, now = new Date()) {
   const weekStart = addDays(startOfWeek(now), weekOffset * 7);
   const weekEnd = addDays(weekStart, 7);
@@ -112,5 +129,6 @@ module.exports = {
   classBlockStyle,
   findSchedule,
   formatScheduleItem,
+  workbenchTodoState,
   weekRangeText
 };

@@ -228,6 +228,36 @@ function findFeedbackByScheduleId(feedbacks = [], scheduleId = '') {
   return (feedbacks || []).find(item => String(item.scheduleId) === String(scheduleId)) || null;
 }
 
+function feedbackFormFromRecord(feedback = null) {
+  return {
+    practicedToday: feedback ? (feedback.practicedToday || feedback.focus || feedback.performance || '') : '',
+    knowledgePoint: feedback ? (feedback.knowledgePoint || feedback.problems || '') : '',
+    nextTraining: feedback ? (feedback.nextTraining || feedback.nextAdvice || '') : ''
+  };
+}
+
+function feedbackCountsOf(form = {}) {
+  return {
+    practicedToday: String(form.practicedToday || '').length,
+    knowledgePoint: String(form.knowledgePoint || '').length,
+    nextTraining: String(form.nextTraining || '').length
+  };
+}
+
+function feedbackContextParts(item = {}) {
+  return [
+    item.student || item.studentText,
+    [item.campus, item.venue || item.loc || item.locationText].filter(Boolean).join('·'),
+    item.type || item.title
+  ].filter(Boolean);
+}
+
+function posterDateText(item = {}) {
+  const start = parseLocalDate(item.startTime);
+  if (!start) return String(item.timeText || '').split(' ')[0] || '待确认';
+  return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日`;
+}
+
 function formatDetailDateTime(item = {}) {
   const start = parseLocalDate(item.startTime);
   const end = parseLocalDate(item.endTime);
@@ -317,10 +347,13 @@ function buildDetailData(selectedClass, context = {}) {
     currentFeedback && currentFeedback.summary,
     currentFeedback && currentFeedback.practicedToday
   ), true);
+  if (feedbackSummary.isEmpty) feedbackSummary.text = '待填写反馈';
   const previousFeedbackSummary = buildNoticeField(firstNonEmpty(
     previousFeedback && previousFeedback.summary,
     previousFeedback && previousFeedback.practicedToday
   ), true);
+  const hasNoticeContent = !studentRemark.isEmpty || !historyIssue.isEmpty || !focusNote.isEmpty;
+  const hasFeedbackContent = !!currentFeedback || !feedbackSummary.isEmpty || !previousFeedbackSummary.isEmpty;
   return {
     scheduleId: selectedClass.id,
     hasFeedback: !!currentFeedback,
@@ -341,14 +374,527 @@ function buildDetailData(selectedClass, context = {}) {
     notices: {
       studentRemark,
       historyIssue,
-      focusNote
+      focusNote,
+      sectionClass: hasNoticeContent ? 'is-filled' : 'is-empty-state'
     },
     feedback: {
       consumedLessons,
       remainingLessons,
       summary: feedbackSummary,
-      history: previousFeedbackSummary
+      history: previousFeedbackSummary,
+      sectionClass: hasFeedbackContent ? 'is-filled' : 'is-empty-state'
     }
+  };
+}
+
+function formatStudentClassTime(item = {}) {
+  const start = parseLocalDate(item.startTime);
+  if (!start) return item.timeText || '暂无记录';
+  const end = parseLocalDate(item.endTime);
+  const dateText = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+  const startText = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+  const endText = end ? `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}` : '';
+  return endText ? `${dateText} ${startText}-${endText}` : `${dateText} ${startText}`;
+}
+
+const FEEDBACK_POSTER_TEMPLATES = {
+  blueGreenDiagonal: { name: '蓝绿对角', type: 'diagonalSplit', bg1: '#1F4287', bg2: '#278EA5', ink: '#FFFFFF', muted: 'rgba(255,255,255,0.7)', accent: '#BCE84A', soft: 'rgba(255,255,255,0.08)', cardTitle: '#BCE84A', highlight: '#BCE84A', nameColor: '#FFFFFF', subColor: 'rgba(255,255,255,0.7)' },
+  minimalDarkGreen: { name: '极简墨绿', type: 'cleanSilhouette', bg1: '#F4F6F8', bg2: '#F4F6F8', ink: '#143D30', muted: '#76948A', accent: '#8DC63F', soft: '#FFFFFF', cardTitle: '#143D30', highlight: '#8DC63F', nameColor: '#143D30', subColor: '#76948A' },
+  retroCourt: { name: '对角球场', type: 'split', bg1: '#1E3D33', bg2: '#B35432', ink: '#1E3D33', muted: '#6D827A', accent: '#B35432', soft: '#F9F8F6', cardTitle: '#B35432', highlight: '#B35432', nameColor: '#F9F8F6', subColor: 'rgba(249,248,246,0.7)' },
+  blueprintBlue: { name: '线框蓝图', type: 'wireframe', bg1: '#12355B', bg2: '#0D2744', ink: '#FFFFFF', muted: 'rgba(255,255,255,0.6)', accent: '#D4F02E', soft: 'rgba(0,0,0,0.3)', cardTitle: '#D4F02E', highlight: '#D4F02E', nameColor: '#FFFFFF', subColor: 'rgba(255,255,255,0.6)' },
+  minimalRacket: { name: '极简白框', type: 'minimal', bg1: '#2F74B4', bg2: '#2F74B4', ink: '#12355B', muted: '#82A9CE', accent: '#D4F02E', soft: 'rgba(255,255,255,0.95)', cardTitle: '#2F74B4', highlight: '#2F74B4', nameColor: '#FFFFFF', subColor: '#82A9CE' },
+  activeGreen: { name: '活力绿(缝线)', type: 'sport', bg1: '#064E3B', bg2: '#022C22', ink: '#F8FAFC', muted: '#6EE7B7', accent: '#10B981', soft: 'rgba(255,255,255,0.08)', cardTitle: '#10B981', highlight: '#10B981', nameColor: '#F8FAFC', subColor: '#6EE7B7' }
+};
+
+const POSTER_STYLE_OPTIONS = Object.keys(FEEDBACK_POSTER_TEMPLATES).map(key => ({
+  key,
+  name: FEEDBACK_POSTER_TEMPLATES[key].name
+}));
+
+function posterRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function posterDisplayDate(dateText) {
+  const raw = String(dateText || '').trim();
+  const m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!m) return raw || '待确认';
+  return `${m[1]}年${parseInt(m[2], 10)}月${parseInt(m[3], 10)}日`;
+}
+
+function posterEscapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function posterPushAutoGroups(groups, text) {
+  if (!text) return;
+  const keywords = ['回合对打', '连续对打', '10 多拍', '10多拍', '非常了不起', '稳定', '进步', '节奏', '重心', '脚步', '发力', '引拍', '击球点'];
+  const pattern = new RegExp(`(${keywords.map(posterEscapeRegExp).join('|')})`, 'g');
+  String(text).split(pattern).filter(Boolean).forEach(part => groups.push({ text: part, highlight: keywords.includes(part) }));
+}
+
+function posterTextGroups(text) {
+  const raw = String(text || '—');
+  const groups = [];
+  let i = 0;
+  while (i < raw.length) {
+    if (raw[i] === '【') {
+      const end = raw.indexOf('】', i + 1);
+      if (end > -1) {
+        groups.push({ text: raw.slice(i + 1, end), highlight: true });
+        i = end + 1;
+        continue;
+      }
+    }
+    if (raw[i] === '*') {
+      const end = raw.indexOf('*', i + 1);
+      if (end > -1) {
+        groups.push({ text: raw.slice(i + 1, end), highlight: true });
+        i = end + 1;
+        continue;
+      }
+    }
+    let next = raw.length;
+    const bracket = raw.indexOf('【', i + 1);
+    const star = raw.indexOf('*', i + 1);
+    if (bracket > -1) next = Math.min(next, bracket);
+    if (star > -1) next = Math.min(next, star);
+    posterPushAutoGroups(groups, raw.slice(i, next));
+    i = next;
+  }
+  return groups.length ? groups : [{ text: '—', highlight: false }];
+}
+
+function posterContentFont(ctx, isHighlight) {
+  ctx.font = `${isHighlight ? '600' : '400'} 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif`;
+}
+
+function posterTextLines(ctx, text, maxWidth, maxLines) {
+  const lines = [[]];
+  posterTextGroups(text).forEach(group => {
+    posterContentFont(ctx, group.highlight);
+    Array.from(group.text || '').forEach(ch => {
+      if (ch === '\n') {
+        lines.push([]);
+        return;
+      }
+      const width = ctx.measureText(ch).width;
+      let line = lines[lines.length - 1];
+      const lineWidth = line.reduce((sum, item) => sum + item.width, 0);
+      if (line.length && lineWidth + width > maxWidth) {
+        lines.push([]);
+        line = lines[lines.length - 1];
+      }
+      line.push({ ch, highlight: group.highlight, width });
+    });
+  });
+  let kept = lines.filter(line => line.length);
+  if (!kept.length) kept = [[{ ch: '—', highlight: false, width: ctx.measureText('—').width }]];
+  if (kept.length > maxLines) {
+    kept = kept.slice(0, maxLines);
+    const last = kept[kept.length - 1];
+    posterContentFont(ctx, false);
+    const dotsWidth = ctx.measureText('…').width;
+    while (last.length && last.reduce((sum, item) => sum + item.width, 0) + dotsWidth > maxWidth) last.pop();
+    while (last.length && /[，。；、\s]/.test(last[last.length - 1].ch)) last.pop();
+    last.push({ ch: '…', highlight: false, width: dotsWidth });
+  }
+  return kept.map(line => {
+    const groups = [];
+    line.forEach(item => {
+      const last = groups[groups.length - 1];
+      if (last && last.highlight === item.highlight) last.text += item.ch;
+      else groups.push({ text: item.ch, highlight: item.highlight });
+    });
+    return groups;
+  });
+}
+
+function posterDrawTextBlock(ctx, tpl, label, text, x, y, w, maxLines) {
+  ctx.font = '400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  const lines = posterTextLines(ctx, text, w, maxLines);
+  const paddingTop = 32;
+  const paddingBottom = 54;
+  const titleSpace = 52;
+  const lineHeight = 48;
+  const boxHeight = paddingTop + titleSpace + (lines.length > 0 ? lines.length - 1 : 0) * lineHeight + paddingBottom;
+  const boxY = y - paddingTop - 24;
+  ctx.save();
+  if (tpl.type === 'diagonalSplit') {
+    posterRoundRect(ctx, x - 20, boxY, w + 40, boxHeight, 16);
+    ctx.fillStyle = tpl.soft;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else if (tpl.type === 'cleanSilhouette') {
+    ctx.shadowColor = 'rgba(20, 61, 48, 0.08)';
+    ctx.shadowBlur = 15;
+    ctx.shadowOffsetY = 8;
+    posterRoundRect(ctx, x - 20, boxY, w + 40, boxHeight, 16);
+    ctx.fillStyle = tpl.soft;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = 'rgba(20, 61, 48, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  } else if (tpl.type === 'sport') {
+    ctx.save();
+    posterRoundRect(ctx, x - 20, boxY, w + 40, boxHeight, 12);
+    ctx.fillStyle = tpl.soft;
+    ctx.fill();
+    ctx.clip();
+    ctx.fillStyle = tpl.accent;
+    ctx.fillRect(x - 20, boxY, 8, boxHeight);
+    ctx.restore();
+  } else if (tpl.type === 'split' || tpl.type === 'minimal') {
+    if (tpl.type === 'split') {
+      ctx.shadowColor = 'rgba(0,0,0,0.1)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+    }
+    posterRoundRect(ctx, x - 30, boxY, w + 60, boxHeight, 16);
+    ctx.fillStyle = tpl.soft;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+  } else if (tpl.type === 'wireframe') {
+    posterRoundRect(ctx, x - 20, boxY, w + 40, boxHeight, 12);
+    ctx.fillStyle = tpl.soft;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  ctx.fillStyle = tpl.cardTitle || tpl.accent;
+  ctx.font = '800 22px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText(label, x, y);
+  lines.forEach((lineGroups, i) => {
+    let currentX = x;
+    lineGroups.forEach(group => {
+      posterContentFont(ctx, group.highlight);
+      ctx.fillStyle = group.highlight ? (tpl.highlight || tpl.accent) : tpl.ink;
+      ctx.fillText(group.text, currentX, y + titleSpace + i * lineHeight);
+      currentX += ctx.measureText(group.text).width;
+    });
+  });
+  ctx.restore();
+  return boxHeight + 28;
+}
+
+function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
+  const tpl = FEEDBACK_POSTER_TEMPLATES[templateKey] || FEEDBACK_POSTER_TEMPLATES.blueGreenDiagonal;
+  const ctx = canvas.getContext('2d');
+  canvas.width = 750;
+  canvas.height = 1334;
+  const grad = ctx.createLinearGradient(0, 0, 0, 1334);
+  grad.addColorStop(0, tpl.bg1);
+  grad.addColorStop(1, tpl.bg2);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 750, 1334);
+  ctx.save();
+  if (tpl.type === 'diagonalSplit') {
+    ctx.fillStyle = tpl.accent;
+    ctx.beginPath();
+    ctx.moveTo(0, 950);
+    ctx.lineTo(750, 1100);
+    ctx.lineTo(750, 1334);
+    ctx.lineTo(0, 1334);
+    ctx.fill();
+    ctx.strokeStyle = '#4A8DB7';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.ellipse(650, 450, 160, 220, Math.PI / 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(560, 630);
+    ctx.lineTo(460, 830);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(74, 141, 183, 0.4)';
+    for (let i = 500; i < 800; i += 25) {
+      ctx.beginPath();
+      ctx.moveTo(i, 200);
+      ctx.lineTo(i - 100, 700);
+      ctx.stroke();
+    }
+  } else if (tpl.type === 'cleanSilhouette') {
+    ctx.strokeStyle = tpl.ink;
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.ellipse(650, 1150, 200, 260, -Math.PI / 6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(550, 1350);
+    ctx.lineTo(450, 1550);
+    ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(20, 61, 48, 0.3)';
+    for (let i = 500; i < 900; i += 20) {
+      ctx.beginPath();
+      ctx.moveTo(i, 900);
+      ctx.lineTo(i - 150, 1400);
+      ctx.stroke();
+    }
+    for (let i = 900; i < 1400; i += 20) {
+      ctx.beginPath();
+      ctx.moveTo(400, i);
+      ctx.lineTo(900, i - 150);
+      ctx.stroke();
+    }
+    ctx.fillStyle = tpl.accent;
+    ctx.beginPath();
+    ctx.arc(150, 1100, 45, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(120, 1100, 30, -Math.PI / 3, Math.PI / 3);
+    ctx.stroke();
+  } else if (tpl.type === 'split') {
+    ctx.fillStyle = tpl.bg2;
+    ctx.beginPath();
+    ctx.moveTo(0, 1334);
+    ctx.lineTo(750, 1334);
+    ctx.lineTo(750, 450);
+    ctx.lineTo(0, 950);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 18;
+    ctx.beginPath();
+    ctx.moveTo(-50, 983);
+    ctx.lineTo(800, 416);
+    ctx.stroke();
+    ctx.fillStyle = '#D4F02E';
+    ctx.beginPath();
+    ctx.arc(580, 430, 70, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(540, 430, 40, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+  } else if (tpl.type === 'wireframe') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 750; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, 1334);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 1334; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(750, i);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.ellipse(600, 300, 220, 280, Math.PI * 0.1, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(500, 560);
+    ctx.lineTo(300, 1000);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(560, 580);
+    ctx.lineTo(360, 1030);
+    ctx.stroke();
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetX = 10;
+    ctx.shadowOffsetY = 10;
+    ctx.fillStyle = tpl.accent;
+    ctx.beginPath();
+    ctx.arc(480, 380, 50, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+  } else if (tpl.type === 'minimal') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.ellipse(375, 450, 280, 350, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    for (let i = 120; i < 650; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(i, 110);
+      ctx.lineTo(i, 790);
+      ctx.stroke();
+    }
+    for (let i = 120; i < 800; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(110, i);
+      ctx.lineTo(640, i);
+      ctx.stroke();
+    }
+    ctx.fillStyle = tpl.accent;
+    ctx.beginPath();
+    ctx.arc(375, 200, 55, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (tpl.type === 'sport') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(750, 1000, 450, Math.PI, Math.PI * 1.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 300, 400, 0, Math.PI * 0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+  const nameStr = data.studentName || '学员';
+  ctx.fillStyle = tpl.nameColor || tpl.ink;
+  ctx.font = '900 68px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText(nameStr, 60, 140);
+  const nameWidth = ctx.measureText(nameStr).width;
+  ctx.fillStyle = tpl.subColor || tpl.muted;
+  ctx.font = '600 32px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
+  ctx.fillText('训练反馈', Math.min(60 + nameWidth + 16, 560), 140);
+  ctx.fillStyle = tpl.type === 'cleanSilhouette' ? (tpl.subColor || tpl.muted) : tpl.accent;
+  ctx.font = '700 26px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
+  ctx.fillText(`上课日期：${posterDisplayDate(data.date)}`, 60, 195);
+  if (!['sport', 'diagonalSplit', 'split'].includes(tpl.type)) {
+    ctx.fillStyle = tpl.subColor || tpl.muted;
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(60, 235, 630, 2);
+    ctx.globalAlpha = 1;
+  }
+  let currentY = 320;
+  const contentWidth = 570;
+  currentY += posterDrawTextBlock(ctx, tpl, '今天练习了', data.practicedToday, 90, currentY, contentWidth, 4);
+  currentY += posterDrawTextBlock(ctx, tpl, '练习情况', data.knowledgePoint, 90, currentY, contentWidth, 5);
+  posterDrawTextBlock(ctx, tpl, '下次练习', data.nextTraining, 90, currentY, contentWidth, 4);
+  ctx.fillStyle = tpl.nameColor || tpl.ink;
+  ctx.font = '900 34px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.fillText('网球兄弟', 60, 1235);
+  ctx.fillStyle = tpl.subColor || tpl.muted;
+  ctx.font = '500 18px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
+  ctx.fillText('用网球向生活发出邀请', 60, 1270);
+  ctx.save();
+  ctx.fillStyle = tpl.accent;
+  if (tpl.type === 'sport') {
+    ctx.beginPath();
+    ctx.moveTo(630, 1270);
+    ctx.lineTo(690, 1270);
+    ctx.lineTo(670, 1240);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.arc(670, 1260, 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function feedbackPosterDataForMini(schedule = {}, form = {}) {
+  const startText = String(schedule.startTime || '').slice(0, 10);
+  return {
+    studentName: schedule.student || schedule.studentText || '学员',
+    date: startText || posterDateText(schedule),
+    coach: schedule.coach || currentCoachName() || '教练',
+    practicedToday: form.practicedToday || '—',
+    knowledgePoint: form.knowledgePoint || '—',
+    nextTraining: form.nextTraining || '—'
+  };
+}
+
+function studentScheduleStatusMeta(item = {}) {
+  if (String(item.status || '') === '已取消') return { text: '已取消', className: 'detail-tag-muted' };
+  const end = parseLocalDate(item.endTime || item.startTime);
+  if (end && end <= new Date()) return { text: '已结束', className: 'detail-tag-muted' };
+  return { text: '待上课', className: 'detail-tag-success' };
+}
+
+function studentScheduleMeta(item = {}, linkedClass = null) {
+  return [
+    item.student || item.studentText,
+    item.venue || item.loc || item.locationText,
+    item.lessonCount ? `共 ${item.lessonCount} 节` : ''
+  ].filter(Boolean).join('｜') || (linkedClass && (linkedClass.className || linkedClass.classNo)) || '暂无记录';
+}
+
+function buildStudentDetailData(student, context = {}) {
+  if (!student) return null;
+  const classes = Array.isArray(context.classes) ? context.classes : [];
+  const schedule = Array.isArray(context.schedule) ? context.schedule : [];
+  const coachName = String(context.coachName || '').trim();
+  const relatedClasses = classes.filter(item => studentIdsOf(item).includes(student.id));
+  const relatedSchedule = schedule.filter(item => {
+    const ids = studentIdsOf(item);
+    return ids.includes(student.id) || (!ids.length && String(item.student || item.studentName || '').trim() === String(student.name || '').trim());
+  });
+  const activeClass = relatedClasses.find(item => String(item.status || '') !== '已结束' && String(item.status || '') !== '已取消') || relatedClasses[0] || null;
+  const validSchedule = relatedSchedule.filter(item => String(item.status || '') !== '已取消');
+  const now = new Date();
+  const pastSchedule = validSchedule.filter(item => {
+    const end = parseLocalDate(item.endTime || item.startTime);
+    return end && end <= now;
+  });
+  const latestClass = pastSchedule
+    .slice()
+    .sort((a, b) => String(b.startTime || '').localeCompare(String(a.startTime || '')))[0] || null;
+  const totalLessons = parseInt(activeClass && activeClass.totalLessons, 10) || 0;
+  const usedLessons = parseInt(activeClass && activeClass.usedLessons, 10) || 0;
+  const latestCourseTag = latestClass ? dashboardCourseTag(latestClass) : { text: '', className: '' };
+  const latestStatus = latestClass ? studentScheduleStatusMeta(latestClass) : { text: '', className: '' };
+  const ownerCoach = firstNonEmpty(student.ownerCoach, student.primaryCoach, activeClass && activeClass.coach);
+  const responsibleCoach = firstNonEmpty(student.primaryCoach, activeClass && activeClass.coach, coachName);
+  const campus = firstNonEmpty(
+    student.campus,
+    student.campusName,
+    student.primaryCampus,
+    latestClass && latestClass.campus,
+    activeClass && activeClass.campus
+  );
+  const remark = firstNonEmpty(student.remark, student.studentRemark, student.note, student.notes);
+  return {
+    studentId: student.id,
+    basic: {
+      name: student.name || '未命名学员',
+      phone: firstNonEmpty(student.phone, student.mobile, student.phoneNumber) || '暂无记录',
+      phoneEmpty: !firstNonEmpty(student.phone, student.mobile, student.phoneNumber),
+      type: firstNonEmpty(student.studentType, student.type, student.category, '成人'),
+      campus: campus || '暂无记录',
+      campusEmpty: !campus
+    },
+    summary: {
+      coach: responsibleCoach || '暂无记录',
+      owner: ownerCoach || '未设置',
+      className: firstNonEmpty(activeClass && activeClass.className, activeClass && activeClass.classNo) || '暂无记录',
+      classEmpty: !activeClass,
+      lastClass: latestClass ? formatStudentClassTime(latestClass) : '暂无记录',
+      lastClassEmpty: !latestClass,
+      cumulative: `${validSchedule.length} 节`,
+      packageProgress: totalLessons ? `${usedLessons}/${totalLessons}` : '暂无记录',
+      packageEmpty: !totalLessons
+    },
+    remark: {
+      text: remark || '暂无记录',
+      isEmpty: !remark
+    },
+    latest: latestClass ? {
+      scheduleId: latestClass.id,
+      time: formatStudentClassTime(latestClass),
+      courseType: latestCourseTag.text,
+      courseTypeClass: latestCourseTag.className === 'is-trial' ? 'detail-tag-trial' : 'detail-tag-private',
+      status: latestStatus.text,
+      statusClass: latestStatus.className,
+      meta: studentScheduleMeta(latestClass, activeClass)
+    } : null,
+    hasLatest: !!latestClass
   };
 }
 
@@ -424,22 +970,33 @@ Page({
     studentStats: { visibleCount: 0, ownerCount: 0 },
     shiftsList: [],
     shiftStats: { totalCount: 0, activeCount: 0, totalLessons: 0, usedLessons: 0, remainingLessons: 0 },
-    feedbackForm: { practicedToday: '' },
+    feedbackForm: feedbackFormFromRecord(),
+    feedbackCounts: feedbackCountsOf(),
+    feedbackHasSaved: false,
+    feedbackEditing: false,
+    feedbackFocusedField: '',
+    feedbackContextParts: [],
+    posterDate: '',
     savingFeedback: false,
     stats: { month: 0, week: 0, today: 0, feedback: 0, pending: 0, conversion: '0%', nextTime: '暂无', nextText: '暂无', todo: 0 },
     selectedClass: null,
     selectedClassDetail: null,
+    selectedStudentDetail: null,
     showDetail: false,
     showFeedback: false,
     showPoster: false,
+    showStudentDetail: false,
     detailSheetClass: '',
     feedbackSheetClass: '',
+    posterSheetClass: '',
+    studentDetailSheetClass: '',
     dashboardTabClass: 'active',
     timetableTabClass: '',
     studentsTabClass: '',
     shiftsTabClass: '',
     posterStyle: '蓝绿对角',
-    posterStyles: ['蓝绿对角', '极简墨绿', '对角球场', '线框蓝图', '极简白框', '活力绿']
+    posterTemplateKey: 'blueGreenDiagonal',
+    posterStyles: POSTER_STYLE_OPTIONS
   },
 
   onLoad() {
@@ -584,7 +1141,25 @@ Page({
         coachName: currentCoachName()
       }),
       showDetail: true,
+      showStudentDetail: false,
+      studentDetailSheetClass: '',
       detailSheetClass: 'sheet-show'
+    });
+  },
+
+  openStudentDetail(event) {
+    const id = event.currentTarget.dataset.id;
+    if (!id) return;
+    const student = this.data.studentsRaw.find(item => String(item.id) === String(id));
+    if (!student) return;
+    this.setData({
+      selectedStudentDetail: buildStudentDetailData(student, {
+        classes: this.data.classesRaw,
+        schedule: this.data.schedule,
+        coachName: currentCoachName()
+      }),
+      showStudentDetail: true,
+      studentDetailSheetClass: 'sheet-show'
     });
   },
 
@@ -593,24 +1168,38 @@ Page({
       showDetail: false,
       showFeedback: false,
       showPoster: false,
+      showStudentDetail: false,
       detailSheetClass: '',
       feedbackSheetClass: '',
-      feedbackForm: { practicedToday: '' },
-      selectedClassDetail: null
+      posterSheetClass: '',
+      studentDetailSheetClass: '',
+      feedbackForm: feedbackFormFromRecord(),
+      feedbackCounts: feedbackCountsOf(),
+      feedbackHasSaved: false,
+      feedbackEditing: false,
+      feedbackFocusedField: '',
+      feedbackContextParts: [],
+      posterDate: '',
+      selectedClassDetail: null,
+      selectedStudentDetail: null
     });
   },
 
   openFeedback() {
     if (!this.data.selectedClass) return;
     const currentFeedback = findFeedbackByScheduleId(this.data.feedbacks, this.data.selectedClass.id);
+    const feedbackForm = feedbackFormFromRecord(currentFeedback);
     this.setData({
       showDetail: false,
       showFeedback: true,
       detailSheetClass: '',
       feedbackSheetClass: 'sheet-show',
-      feedbackForm: {
-        practicedToday: currentFeedback ? (currentFeedback.practicedToday || '') : ''
-      }
+      feedbackForm,
+      feedbackCounts: feedbackCountsOf(feedbackForm),
+      feedbackHasSaved: !!currentFeedback,
+      feedbackEditing: false,
+      feedbackFocusedField: '',
+      feedbackContextParts: feedbackContextParts(this.data.selectedClass)
     });
   },
 
@@ -620,34 +1209,59 @@ Page({
     const selectedClass = this.data.schedule.find(item => String(item.id) === String(id));
     if (selectedClass) {
       const currentFeedback = findFeedbackByScheduleId(this.data.feedbacks, selectedClass.id);
+      const feedbackForm = feedbackFormFromRecord(currentFeedback);
       this.setData({
         selectedClass,
         showDetail: false,
         showFeedback: true,
         detailSheetClass: '',
         feedbackSheetClass: 'sheet-show',
-        feedbackForm: {
-          practicedToday: currentFeedback ? (currentFeedback.practicedToday || '') : ''
-        }
+        feedbackForm,
+        feedbackCounts: feedbackCountsOf(feedbackForm),
+        feedbackHasSaved: !!currentFeedback,
+        feedbackEditing: false,
+        feedbackFocusedField: '',
+        feedbackContextParts: feedbackContextParts(selectedClass)
       });
     }
   },
 
+  onFeedbackFocus(event) {
+    this.setData({ feedbackFocusedField: event.currentTarget.dataset.field || '' });
+  },
+
+  onFeedbackBlur() {
+    this.setData({ feedbackFocusedField: '' });
+  },
+
   onFeedbackInput(event) {
+    const field = event.currentTarget.dataset.field || 'practicedToday';
+    const feedbackForm = {
+      ...this.data.feedbackForm,
+      [field]: event.detail.value
+    };
     this.setData({
-      feedbackForm: {
-        ...this.data.feedbackForm,
-        practicedToday: event.detail.value
-      }
+      feedbackForm,
+      feedbackCounts: feedbackCountsOf(feedbackForm)
     });
+  },
+
+  editFeedback() {
+    this.setData({ feedbackEditing: true, feedbackFocusedField: '' });
   },
 
   async saveFeedback() {
     const selectedClass = this.data.selectedClass;
     if (!selectedClass || this.data.savingFeedback) return;
     const practicedToday = String(this.data.feedbackForm.practicedToday || '').trim();
+    const knowledgePoint = String(this.data.feedbackForm.knowledgePoint || '').trim();
+    const nextTraining = String(this.data.feedbackForm.nextTraining || '').trim();
     if (!practicedToday) {
       wx.showToast({ title: '请填写今天练习了', icon: 'none' });
+      return;
+    }
+    if (!nextTraining) {
+      wx.showToast({ title: '请填写下次练习', icon: 'none' });
       return;
     }
     const currentFeedback = findFeedbackByScheduleId(this.data.feedbacks, selectedClass.id);
@@ -665,7 +1279,9 @@ Page({
         venue: selectedClass.venue || selectedClass.loc || '',
         lessonCount: selectedClass.lessonCount || 1,
         isTrial: !!selectedClass.isTrial,
-        practicedToday
+        practicedToday,
+        knowledgePoint,
+        nextTraining
       });
       wx.showToast({ title: '反馈已保存', icon: 'success' });
       this.closeSheets();
@@ -678,15 +1294,85 @@ Page({
   },
 
   openPoster() {
-    this.setData({ showPoster: true });
+    this.setData({
+      showFeedback: false,
+      showPoster: true,
+      feedbackSheetClass: '',
+      posterSheetClass: 'sheet-show',
+      posterDate: posterDateText(this.data.selectedClass || {}),
+      posterTemplateKey: this.data.posterTemplateKey || 'blueGreenDiagonal'
+    });
+    setTimeout(() => this.renderFeedbackPosterCanvas(), 80);
   },
 
   closePoster() {
-    this.setData({ showPoster: false });
+    this.setData({
+      showPoster: false,
+      showFeedback: true,
+      posterSheetClass: '',
+      feedbackSheetClass: 'sheet-show'
+    });
   },
 
   selectPosterStyle(event) {
-    this.setData({ posterStyle: event.currentTarget.dataset.style });
+    const key = event.currentTarget.dataset.key || 'blueGreenDiagonal';
+    const tpl = FEEDBACK_POSTER_TEMPLATES[key] || FEEDBACK_POSTER_TEMPLATES.blueGreenDiagonal;
+    this.setData({ posterTemplateKey: key, posterStyle: tpl.name });
+    this.renderFeedbackPosterCanvas();
+  },
+
+  renderFeedbackPosterCanvas() {
+    const query = wx.createSelectorQuery().in(this);
+    query.select('#feedbackPosterCanvas').fields({ node: true, size: true }).exec((res) => {
+      const canvas = res && res[0] && res[0].node;
+      if (!canvas) return;
+      drawFeedbackPoster(
+        canvas,
+        feedbackPosterDataForMini(this.data.selectedClass || {}, this.data.feedbackForm || {}),
+        this.data.posterTemplateKey || 'blueGreenDiagonal'
+      );
+    });
+  },
+
+  createPosterTempFile(callback) {
+    const query = wx.createSelectorQuery().in(this);
+    query.select('#feedbackPosterCanvas').fields({ node: true, size: true }).exec((res) => {
+      const canvas = res && res[0] && res[0].node;
+      if (!canvas) {
+        wx.showToast({ title: '海报生成失败', icon: 'none' });
+        return;
+      }
+      wx.canvasToTempFilePath({
+        canvas,
+        fileType: 'png',
+        quality: 1,
+        success: result => callback(result.tempFilePath),
+        fail: () => wx.showToast({ title: '海报生成失败', icon: 'none' })
+      });
+    });
+  },
+
+  savePosterToAlbum() {
+    this.createPosterTempFile((path) => {
+      wx.saveImageToPhotosAlbum({
+        filePath: path,
+        success: () => wx.showToast({ title: '已保存', icon: 'success' }),
+        fail: () => wx.showToast({ title: '保存失败，请检查相册权限', icon: 'none' })
+      });
+    });
+  },
+
+  sharePosterToStudent() {
+    this.createPosterTempFile((path) => {
+      if (wx.showShareImageMenu) {
+        wx.showShareImageMenu({
+          path,
+          fail: () => wx.showToast({ title: '分享失败', icon: 'none' })
+        });
+        return;
+      }
+      wx.showToast({ title: '当前微信版本不支持直接发送', icon: 'none' });
+    });
   },
 
   stopMove() {},
