@@ -159,7 +159,7 @@
           <view class="students-summary-block"><text class="students-number">{{studentStats.ownerCount}}</text><text class="students-caption">负责学员</text></view>
         </view>
         <view class="student-list">
-        <view wx:for="{{studentsList}}" wx:key="id" class="student-card">
+        <view wx:for="{{studentsList}}" wx:key="id" class="student-card" data-id="{{item.lastScheduleId}}" bindtap="openDetail">
           <view class="student-avatar {{item.avatarClass}}">{{item.avatarText}}</view>
           <view class="student-main">
             <view class="student-row">
@@ -214,12 +214,14 @@
     <view class="tabbar">
       <view class="tab-item {{dashboardTabClass}}" data-tab="dashboard" bindtap="switchTab">
         <view class="tab-icon tab-grid-icon">
-          <text></text><text></text><text></text><text></text>
+          <view></view><view></view><view></view><view></view>
         </view>
         <text>工作台</text>
       </view>
       <view class="tab-item {{timetableTabClass}}" data-tab="timetable" bindtap="switchTab">
         <view class="tab-icon tab-calendar-icon">
+          <view class="tab-calendar-bind is-left"></view>
+          <view class="tab-calendar-bind is-right"></view>
           <view class="tab-calendar-head"></view>
           <view class="tab-calendar-body"></view>
         </view>
@@ -234,10 +236,11 @@
       </view>
       <view class="tab-item {{shiftsTabClass}}" data-tab="shifts" bindtap="switchTab">
         <view class="tab-icon tab-list-icon">
-          <text></text><text></text><text></text>
+          <view></view><view></view><view></view>
         </view>
         <text>我的班次</text>
       </view>
+      <view class="tab-home-indicator"></view>
     </view>
 
     <view wx:if="{{showDetail || showFeedback}}" class="mask" catchtouchmove="stopMove" bindtap="closeSheets"></view>
@@ -351,7 +354,7 @@
         </view>
       </scroll-view>
       <view class="detail-sheet-actions">
-        <button class="detail-sheet-btn is-ghost" bindtap="closeSheets">关闭</button>
+        <button class="detail-sheet-btn is-ghost" bindtap="closeSheets">返回</button>
         <button class="detail-sheet-btn is-primary" bindtap="openFeedback">{{selectedClassDetail.actionText}}</button>
       </view>
     </view>

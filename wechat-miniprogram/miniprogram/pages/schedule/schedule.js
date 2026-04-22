@@ -178,6 +178,7 @@ function buildStudentCards(students = [], classes = [], schedule = [], coachName
       cumulative: validSchedule.length,
       packageText: totalLessons ? `${usedLessons}/${totalLessons}` : '',
       showPackage: !!totalLessons,
+      lastScheduleId: lastClass && lastClass.id,
       lastClassText: formatMonthDay(lastClass && lastClass.startTime),
       showLastClass: !!lastClass
     };
