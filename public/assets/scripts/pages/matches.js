@@ -16,6 +16,7 @@ function renderMatches(){
   const q=String(document.getElementById('matchSearch')?.value||'').trim().toLowerCase();
   const status=document.getElementById('matchStatusFilter')?.value||'';
   const rows=(matches||[]).filter(row=>(!status||row.status===status)&&(!q||matchRowText(row).includes(q)));
+  renderMatchFinanceStats(rows);
   host.innerHTML=rows.map(row=>{
     const regs=Array.isArray(row.registrations)?row.registrations:[];
     const actions=[
@@ -23,10 +24,40 @@ function renderMatches(){
       `<span class="tms-action-link" onclick="openMatchWithdrawalModal('${row.id}')">退赛</span>`,
       `<span class="tms-action-link" onclick="openMatchAttendanceModal('${row.id}')">到场</span>`,
       `<span class="tms-action-link" onclick="confirmMatchFees('${row.id}')">生成AA</span>`,
-      `<span class="tms-action-link" onclick="openMatchFeeModal('${row.id}')">收款</span>`
+      `<span class="tms-action-link" onclick="openMatchFeeModal('${row.id}')">收款</span>`,
+      `<span class="tms-action-link" onclick="openMatchLogModal('${row.id}')">日志</span>`
     ].join('');
     return `<tr><td style="padding-left:20px"><div class="tms-cell-main">${esc(row.title||'-')}</div><div class="tms-cell-sub">${esc(row.matchType||'')}</div></td><td>${renderCourtCellText(matchTimeText(row),false)}</td><td>${renderCourtCellText(row.booking?.venueNameFinal||row.venueName||'待定')}</td><td><div class="tms-cell-text">${row.currentHeadcount||0}/${row.targetHeadcount||0}</div></td><td><span class="tms-tag">${esc(row.statusText||row.status||'-')}</span></td><td><div class="tms-cell-text">¥${fmt(row.estimatedCourtFee||0)}</div></td><td><div class="tms-cell-text">¥${fmt(row.booking?.finalcourtfee||row.booking?.finalCourtFee||row.finalCourtFee||0)}</div></td><td><div class="tms-cell-text" style="white-space:normal;line-height:1.55;min-width:220px">${esc(regs.map(r=>r.nickName||r.phone||r.userId).join('；')||'-')}</div></td><td class="tms-sticky-r tms-action-cell" style="width:220px;padding-right:20px;text-align:right">${actions}</td></tr>`;
   }).join('')||'<tr><td colspan="9"><div class="empty"><p>暂无约球数据</p></div></td></tr>';
+}
+function matchFinanceSummary(rows){
+  const summary={receivable:0,paid:0,pending:0,waived:0,abnormal:0,refunded:0};
+  (rows||[]).forEach(row=>{
+    (Array.isArray(row.feeSplits)?row.feeSplits:[]).forEach(split=>{
+      const amount=Number(split.amount)||0;
+      const status=split.payStatus||split.paystatus||'pending';
+      summary.receivable+=amount;
+      if(status==='paid')summary.paid+=amount;
+      else if(status==='waived')summary.waived+=amount;
+      else if(status==='abnormal'||status==='bad_debt')summary.abnormal+=amount;
+      else if(status==='refunded')summary.refunded+=amount;
+      else summary.pending+=amount;
+    });
+  });
+  Object.keys(summary).forEach(key=>summary[key]=Math.round(summary[key]*100)/100);
+  return summary;
+}
+function renderMatchFinanceStats(rows){
+  const host=document.getElementById('matchFinanceStats');if(!host)return;
+  const s=matchFinanceSummary(rows);
+  host.innerHTML=[
+    ['应收',`¥${fmt(s.receivable)}`],
+    ['已收',`¥${fmt(s.paid)}`],
+    ['待收',`¥${fmt(s.pending)}`],
+    ['减免',`¥${fmt(s.waived)}`],
+    ['异常',`¥${fmt(s.abnormal)}`],
+    ['退款',`¥${fmt(s.refunded)}`]
+  ].map(([label,value])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${value}</div></div>`).join('');
 }
 function matchTimeText(row){
   const start=String(row.startTime||'').replace('T',' ').slice(0,16);
@@ -97,4 +128,19 @@ async function updateMatchFeeSplit(matchId,userId,payStatus){
     await loadMatches(true);
     openMatchFeeModal(matchId);
   }catch(e){toast('更新失败：'+e.message,'error');}
+}
+function matchLogActionText(action){
+  return ({booking:'订场',attendance_confirm:'确认到场',fee_generate:'生成AA',fee_split_update:'收款更新',booked_withdrawal:'已订场退赛',match_cancel:'取消球局',match_update:'修改球局',notify_failed:'通知失败'}[action]||action||'-');
+}
+function openMatchLogModal(id){
+  const row=(matches||[]).find(x=>x.id===id);if(!row)return;
+  const operationLogs=Array.isArray(row.operationLogs)?row.operationLogs:[];
+  const body=`<div class="tms-section-header" style="margin-top:0;">操作日志</div><div class="tms-table-card" style="margin-bottom:0"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="padding-left:20px;width:150px">时间</th><th style="width:120px">动作</th><th style="width:120px">操作人</th><th>内容</th></tr></thead><tbody>${operationLogs.map(log=>`<tr><td style="padding-left:20px">${renderCourtCellText(String(log.createdAt||log.createdat||'').replace('T',' ').slice(0,16),false)}</td><td>${renderCourtCellText(matchLogActionText(log.action),false)}</td><td>${renderCourtCellText(log.operatorId||log.operatorid,false)}</td><td><div class="tms-text-remark" style="white-space:normal;line-height:1.55">${esc(matchLogSummary(log))}</div></td></tr>`).join('')||'<tr><td colspan="4"><div class="empty"><p>暂无操作日志</p></div></td></tr>'}</tbody></table></div></div>`;
+  setCourtModalFrame('约球操作日志',body,`<button class="tms-btn tms-btn-primary" onclick="closeModal()">关闭</button>`,'modal-wide');
+}
+function matchLogSummary(log){
+  const after=log.after||log.afterjson||'';
+  if(!after)return '-';
+  if(typeof after==='string')return after.length>120?after.slice(0,120)+'...':after;
+  return JSON.stringify(after);
 }

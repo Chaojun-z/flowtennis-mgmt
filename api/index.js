@@ -1958,12 +1958,13 @@ async function cancelRegistrationForUser(matchId,userId){
 }
 async function listAdminMatches(){
   const pool=getMatchSqlPool();
-  const [matches,registrations,bookings,fees,splits]=await Promise.all([
+  const [matches,registrations,bookings,fees,splits,logs]=await Promise.all([
     pool.query('SELECT * FROM match_posts ORDER BY startTime DESC'),
     pool.query('SELECT r.*,u.nickName,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId'),
     pool.query('SELECT * FROM match_bookings ORDER BY createdAt DESC'),
     pool.query('SELECT * FROM match_fee_records ORDER BY createdAt DESC'),
-    pool.query('SELECT s.*,u.nickName,u.phone FROM match_fee_splits s LEFT JOIN match_users u ON u.id=s.userId ORDER BY s.createdAt ASC')
+    pool.query('SELECT s.*,u.nickName,u.phone FROM match_fee_splits s LEFT JOIN match_users u ON u.id=s.userId ORDER BY s.createdAt ASC'),
+    pool.query('SELECT * FROM match_operation_logs ORDER BY createdAt DESC')
   ]);
   const regsByMatch=new Map();
   for(const row of registrations.rows){
@@ -1977,7 +1978,12 @@ async function listAdminMatches(){
     const key=String(row.matchid||row.matchId);
     feeSplitsByMatch.set(key,[...(feeSplitsByMatch.get(key)||[]),row]);
   }
-  return matches.rows.map(row=>({...toMatchView(row,regsByMatch.get(String(row.id))||[],''),booking:bookingByMatch.get(String(row.id))||null,feeRecord:feeByMatch.get(String(row.id))||null,feeSplits:feeSplitsByMatch.get(String(row.id))||[]}));
+  const logsByMatch=new Map();
+  for(const row of logs.rows){
+    const key=String(row.matchid||row.matchId);
+    logsByMatch.set(key,[...(logsByMatch.get(key)||[]),row]);
+  }
+  return matches.rows.map(row=>({...toMatchView(row,regsByMatch.get(String(row.id))||[],''),booking:bookingByMatch.get(String(row.id))||null,feeRecord:feeByMatch.get(String(row.id))||null,feeSplits:feeSplitsByMatch.get(String(row.id))||[],operationLogs:logsByMatch.get(String(row.id))||[]}));
 }
 async function adminBookMatch(matchId,operatorId,input){
   const booking=assertMatchBookingInput(input);

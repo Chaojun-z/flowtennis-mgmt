@@ -62,6 +62,8 @@ assert.match(apiSource, /path==='\/match-players'/, 'API should expose match pla
 assert.match(apiSource, /viewerFeeSplit/, 'match detail should include viewer fee split');
 assert.match(apiSource, /offlinePaymentText/, 'match detail should include offline payment text');
 assert.match(apiSource, /feeSplitsByMatch/, 'admin match list should include fee splits');
+assert.match(apiSource, /operationLogs/, 'admin match list should include operation logs');
+assert.match(apiSource, /match_operation_logs ORDER BY createdAt DESC/, 'admin match list should load latest operation logs');
 assert.match(apiSource, /MATCH_WECHAT_TEMPLATE_ID/, 'match notifications should have a dedicated template id env');
 assert.match(apiSource, /notifyMatchUsers/, 'match operations should trigger subscribe notification helper');
 
