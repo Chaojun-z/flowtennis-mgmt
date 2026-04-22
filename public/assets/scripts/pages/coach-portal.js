@@ -66,9 +66,9 @@ function workbenchSection(title,rows,buttonText,now,meta={}){
     const stateClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':state.code==='done'?'is-done':'is-normal';
     const badgeClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':state.code==='done'?'is-done':'is-normal';
     const alertText=state.code==='travel'?'⚠️ 跨校区，建议立即出发换场':state.code==='live'?'课程正在进行中':state.code==='pending'?'已下课，待填写反馈':(s.notes||'');
-    const primaryLabel=state.code==='pending'?'填写反馈':state.code==='done'&&hasScheduleFeedback(s)?'查看反馈':state.code==='live'?'查看进度':state.code==='later'?'查看反馈':'查看详情';
+    const primaryLabel=state.code==='pending'?'填写反馈':state.code==='done'&&hasScheduleFeedback(s)?'查看反馈':state.code==='live'?'查看进度':'查看详情';
     const primaryClass=state.code==='pending'?'is-warning':(state.code==='live'||state.code==='upcoming')?'is-primary':'';
-    const primaryAction=state.code==='pending'||(state.code==='done'&&hasScheduleFeedback(s))||state.code==='later'?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
+    const primaryAction=state.code==='pending'||(state.code==='done'&&hasScheduleFeedback(s))?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
     const alertHtml=alertText?`<div class="coach-wb-row4"><div class="coach-wb-alert">${esc(alertText)}</div></div>`:'';
     return `<div class="coach-wb-card ${stateClass}"><div class="coach-wb-card-body"><div class="coach-wb-row1"><div class="coach-wb-time">${s.startTime.slice(11,16)}${s.endTime?` - ${s.endTime.slice(11,16)}`:''}</div><div class="coach-wb-badge ${badgeClass}">${state.label}</div></div><div class="coach-wb-name">${esc(scheduleStudentSummary(s))}</div><div class="coach-wb-row3"><span class="coach-wb-tag is-${typeClass}">${esc(courseType)}</span><span>${esc(scheduleLocationText(s))}</span></div>${alertHtml}</div><div class="coach-wb-card-footer"><button class="coach-wb-action" onclick="openScheduleDetail('${s.id}')">查看详情</button><button class="coach-wb-action ${primaryClass}" onclick="${primaryAction}">${primaryLabel}</button></div></div>`;
   }).join('');
@@ -131,9 +131,9 @@ function renderWorkbench(){
       const isAlertWarn=state.code==='travel'||state.code==='live'||state.code==='pending';
       const alertWarnText=state.code==='travel'?'⚠️ 跨校区，建议立即出发换场':state.code==='live'?'课程正在进行中':state.code==='pending'?'已下课，待填写反馈':'';
       const alertHtml=isAlertWarn&&alertWarnText?`<div class="coach-wb-row4"><div class="coach-wb-alert is-alert-warn">${esc(alertWarnText)}</div></div>`:s.notes?`<div class="coach-wb-row4"><div class="coach-wb-alert is-alert-note">${esc(s.notes)}</div></div>`:'';
-      const primaryLabel=state.code==='pending'?'填写反馈':state.code==='done'&&hasScheduleFeedback(s)?'查看反馈':state.code==='live'?'查看进度':state.code==='later'?'查看反馈':'查看详情';
+      const primaryLabel=state.code==='pending'?'填写反馈':state.code==='done'&&hasScheduleFeedback(s)?'查看反馈':state.code==='live'?'查看进度':'查看详情';
       const primaryClass=state.code==='pending'?'is-warning':(state.code==='live'||state.code==='upcoming')?'is-primary':'';
-      const primaryAction=state.code==='pending'||(state.code==='done'&&hasScheduleFeedback(s))||state.code==='later'?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
+      const primaryAction=state.code==='pending'||(state.code==='done'&&hasScheduleFeedback(s))?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
       return `<div class="coach-wb-card ${stateClass}"><div class="coach-wb-card-body"><div class="coach-wb-row1"><div class="coach-wb-time">${s.startTime.slice(11,16)}${s.endTime?` - ${s.endTime.slice(11,16)}`:''}</div><div class="coach-wb-badge ${badgeClass}">${state.label}</div></div><div class="coach-wb-name">${esc(scheduleStudentSummary(s))}</div><div class="coach-wb-row3"><span class="coach-wb-tag is-${typeClass}">${esc(courseType)}</span><span>${esc(scheduleLocationText(s))}</span></div>${alertHtml}</div><div class="coach-wb-card-footer"><button class="coach-wb-action" onclick="openScheduleDetail('${s.id}')">查看详情</button><button class="coach-wb-action ${primaryClass}" onclick="${primaryAction}">${primaryLabel}</button></div></div>`;
     }).join('');
     const emptyTip=dayRows.length?'':isToday?'<div class="workbench-empty">今天暂无课程</div>':'';

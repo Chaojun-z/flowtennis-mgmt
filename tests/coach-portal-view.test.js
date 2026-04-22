@@ -80,6 +80,18 @@ assert.match(
   'coach workbench cards should use the gemini-style course card structure'
 );
 
+assert.doesNotMatch(
+  fnBody('workbenchSection'),
+  /state\.code==='later'\?'查看反馈'/,
+  'future coach workbench courses should not label the primary action as feedback'
+);
+
+assert.doesNotMatch(
+  fnBody('workbenchSection'),
+  /state\.code==='pending'\|\|\(state\.code==='done'&&hasScheduleFeedback\(s\)\)\|\|state\.code==='later'\?`openFeedbackModal\('\$\{s\.id\}'\)`/,
+  'future coach workbench courses should not jump into the feedback modal'
+);
+
 assert.match(
   fnBody('workbenchScheduleState'),
   /跨校区提醒：/,
