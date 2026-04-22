@@ -2674,6 +2674,21 @@ async function syncMatchFeeSplitToCourtFinance(matchId,userId,operatorId){
   await put(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID,next);
   return {synced:true,historyId:row.id};
 }
+async function getCourtRecordForTest(id){
+  return getCachedRow(T_COURTS,id);
+}
+async function removeMatchCourtFinanceRowsForTest(matchIdPrefix){
+  const account=await getCachedRow(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID).catch(()=>null);
+  if(!account)return {removed:0};
+  const history=normalizeCourtHistory(account.history);
+  const nextHistory=history.filter(row=>!String(row.matchId||'').startsWith(String(matchIdPrefix||'')));
+  const removed=history.length-nextHistory.length;
+  if(removed>0){
+    const next=normalizeCourtRecord({...account,history:nextHistory,updatedAt:new Date().toISOString()});
+    await put(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID,next);
+  }
+  return {removed};
+}
 function classStatusToPlanStatus(status){
   return status==='已取消'?'已取消':status==='已结课'?'已结课':'active';
 }
@@ -4512,4 +4527,6 @@ module.exports._test={
   ,buildMatchSubscribeMessage
   ,notifyMatchUsers
   ,syncMatchFeeSplitToCourtFinance
+  ,getCourtRecordForTest
+  ,removeMatchCourtFinanceRowsForTest
 };
