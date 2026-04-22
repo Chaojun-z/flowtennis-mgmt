@@ -16,12 +16,14 @@ const ENABLE_TABLE_BOOTSTRAP = process.env.ENABLE_TABLE_BOOTSTRAP === 'true';
 const ENABLE_RUNTIME_TABLE_ENSURE = process.env.ENABLE_RUNTIME_TABLE_ENSURE === 'true';
 const ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP = process.env.ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP === 'true';
 const ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP = process.env.ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP === 'true';
+const DEFAULT_ADMIN_BOOTSTRAP_PASSWORD = process.env.DEFAULT_ADMIN_BOOTSTRAP_PASSWORD || '';
 const WECHAT_MINIPROGRAM_APPID = process.env.WECHAT_MINIPROGRAM_APPID || 'wx7acb7603ee803923';
 const WECHAT_MINIPROGRAM_SECRET = process.env.WECHAT_MINIPROGRAM_SECRET;
 const WECHAT_SCHEDULE_TEMPLATE_ID = process.env.WECHAT_SCHEDULE_TEMPLATE_ID;
 const WECHAT_COURSE_REMINDER_TEMPLATE_ID = process.env.WECHAT_COURSE_REMINDER_TEMPLATE_ID;
 const MATCH_WECHAT_TEMPLATE_ID = process.env.MATCH_WECHAT_TEMPLATE_ID;
 const MATCH_DATABASE_URL = process.env.MATCH_DATABASE_URL || process.env.DATABASE_URL;
+const MATCH_CREATOR_CONFIRM_DEADLINE_HOURS = 12;
 
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
 const MATCH_COURT_FINANCE_ACCOUNT_ID='match-court-finance';
@@ -1302,8 +1304,9 @@ const DEFAULT_CAMPUSES=[
 ];
 async function bootstrapDefaultUsers(){
   if(!ENABLE_DEFAULT_USER_BOOTSTRAP)return;
+  if(!DEFAULT_ADMIN_BOOTSTRAP_PASSWORD)throw new Error('ENABLE_DEFAULT_USER_BOOTSTRAP=true 时必须配置 DEFAULT_ADMIN_BOOTSTRAP_PASSWORD');
   const us=[{id:'admin',name:'管理员',role:'admin',username:'admin'},{id:'baiyangj',name:'白杨静',role:'editor',username:'baiyangj'},{id:'chendand',name:'陈丹丹',role:'editor',username:'chendand'},{id:'yuekez',name:'岳克舟',role:'editor',username:'yuekez'},{id:'zhoux',name:'周欣',role:'editor',username:'zhoux'},{id:'sunmingy',name:'孙明玥',role:'editor',username:'sunmingy'}];
-  const h=await bcrypt.hash('wqxd2026',10);
+  const h=await bcrypt.hash(DEFAULT_ADMIN_BOOTSTRAP_PASSWORD,10);
   for(const u of us){
     const ex=await get(T_USERS,u.id).catch(()=>null);
     if(!ex)await put(T_USERS,u.id,{...u,password:h,createdAt:new Date().toISOString()});
@@ -1724,7 +1727,19 @@ function assertMatchPostInput(input){
   const endMs=dateMs(input.endTime);
   if(!Number.isFinite(startMs))throw new Error('请选择开始时间');
   if(!Number.isFinite(endMs)||endMs<=startMs)throw new Error('结束时间必须晚于开始时间');
-  return {...input,title,matchType,targetHeadcount,ntrpMin,ntrpMax,estimatedCourtFee,status:input.status||'open'};
+  const venueName=String(input.venueName||'').trim();
+  const venueAddress=String(input.venueAddress||'').trim();
+  const venueLatitude=Number(input.venueLatitude);
+  const venueLongitude=Number(input.venueLongitude);
+  if(!venueName||!venueAddress||!Number.isFinite(venueLatitude)||!Number.isFinite(venueLongitude))throw new Error('请选择球场');
+  if(dateKey(input.startTime)!==dateKey(input.endTime))throw new Error('约球时间不能跨天');
+  return {...input,title,matchType,targetHeadcount,ntrpMin,ntrpMax,estimatedCourtFee,venueName,venueAddress,venueLatitude,venueLongitude,status:input.status||'open'};
+}
+function creatorAttendanceDeadline(match){
+  const endTime=match?.endtime||match?.endTime||match?.starttime||match?.startTime;
+  const endMs=dateMs(endTime);
+  if(!Number.isFinite(endMs))return NaN;
+  return endMs+MATCH_CREATOR_CONFIRM_DEADLINE_HOURS*60*60*1000;
 }
 function normalizeMatchType(value){
   const raw=String(value||'').trim();
@@ -2055,23 +2070,6 @@ async function adminHandleBookedWithdrawal(matchId,userId,operatorId,input={}){
     return {success:true,financialResponsibility:withdrawal.financialResponsibility};
   });
 }
-async function selfConfirmMatchAttendance(matchId,userId){
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    const status=deriveMatchStatus(match);
-    if(!['booked','playing','attendance_pending'].includes(status))throw new Error('当前还不能确认到场');
-    if(dateMs(match.starttime||match.startTime)>Date.now())throw new Error('未到开始时间');
-    const reg=await client.query("SELECT id FROM match_registrations WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered'",[matchId,userId]);
-    if(reg.rowCount<=0)throw new Error('未报名，不能确认到场');
-    await client.query(
-      "INSERT INTO match_attendance(id,matchId,userId,selfStatus,creatorStatus,finalStatus,updatedAt) VALUES($1,$2,$3,'attended','pending','pending',NOW()) ON CONFLICT(matchId,userId) DO UPDATE SET selfStatus='attended',updatedAt=NOW()",
-      [uuidv4(),matchId,userId]
-    );
-    return {success:true,selfStatus:'attended'};
-  });
-}
 async function creatorConfirmMatchAttendance(matchId,creatorUserId,registrationId,finalStatus){
   if(!['attended','absent'].includes(finalStatus))throw new Error('到场状态不正确');
   return withMatchSqlTransaction(async(client)=>{
@@ -2079,9 +2077,16 @@ async function creatorConfirmMatchAttendance(matchId,creatorUserId,registrationI
     const match=matchRes.rows[0];
     if(!match)throw new Error('球局不存在');
     if(String(match.creatoruserid||match.creatorUserId)!==String(creatorUserId))throw new Error('只有发起者可确认');
+    const status=deriveMatchStatus(match);
+    if(!['booked','playing','attendance_pending','fee_pending'].includes(status))throw new Error('当前还不能确认到场');
+    if(dateMs(match.starttime||match.startTime)>Date.now())throw new Error('未到开始时间');
+    if(Number.isFinite(creatorAttendanceDeadline(match))&&Date.now()>creatorAttendanceDeadline(match))throw new Error('已超过发起者确认时限，请联系运营处理');
+    const feeRecordRes=await client.query('SELECT id FROM match_fee_records WHERE matchId=$1 LIMIT 1',[matchId]);
+    if(feeRecordRes.rowCount>0||['fee_pending','settled'].includes(String(match.status||'')))throw new Error('已生成AA，不能再修改到场名单');
     const reg=await client.query('SELECT * FROM match_registrations WHERE id=$1 AND matchId=$2',[registrationId,matchId]);
     const row=reg.rows[0];
     if(!row)throw new Error('报名记录不存在');
+    if(String(row.registrationstatus||row.registrationStatus)!=='registered')throw new Error('仅可确认有效报名用户');
     await client.query(
       "INSERT INTO match_attendance(id,matchId,userId,selfStatus,creatorStatus,finalStatus,updatedAt) VALUES($1,$2,$3,'pending',$4,$4,NOW()) ON CONFLICT(matchId,userId) DO UPDATE SET creatorStatus=$4,finalStatus=$4,updatedAt=NOW()",
       [uuidv4(),matchId,row.userid||row.userId,finalStatus]
@@ -2097,8 +2102,16 @@ async function generateMatchFeeLedger(matchId,operatorId,{chargeAbsentUserIds=[]
     if(!match)throw new Error('球局不存在');
     const bookingRes=await client.query("SELECT * FROM match_bookings WHERE matchId=$1 AND bookingStatus='booked' ORDER BY createdAt DESC LIMIT 1",[matchId]);
     const finalCourtFee=bookingRes.rows[0]?.finalcourtfee||bookingRes.rows[0]?.finalCourtFee||match.finalcourtfee||match.finalCourtFee;
+    const activeRegsRes=await client.query("SELECT * FROM match_registrations WHERE matchId=$1 AND registrationStatus='registered'",[matchId]);
     const attendanceRes=await client.query('SELECT * FROM match_attendance WHERE matchId=$1',[matchId]);
     const chargeWithdrawalRes=await client.query("SELECT userId FROM match_registrations WHERE matchId=$1 AND registrationStatus='cancelled' AND financialResponsibility='charge'",[matchId]);
+    const attendanceByUser=new Map(attendanceRes.rows.map(row=>[String(row.userid||row.userId),row]));
+    const unconfirmed=activeRegsRes.rows.some(row=>{
+      const attendance=attendanceByUser.get(String(row.userid||row.userId));
+      const confirmed=attendance&&(attendance.finalstatus||attendance.finalStatus);
+      return !['attended','absent'].includes(confirmed);
+    });
+    if(unconfirmed)throw new Error('请先完成全部到场确认，再生成AA');
     const ledger=buildMatchFeeLedger({
       matchId,
       estimatedCourtFee:match.estimatedcourtfee||match.estimatedCourtFee,
@@ -2146,17 +2159,21 @@ async function markMatchFeeSplit(matchId,userId,operatorId,input={}){
   return result;
 }
 function buildMatchProfileStats({createdMatches=[],joinedMatches=[],attendanceRows=[],feeSplits=[]}={}){
-  const settledAttendance=(attendanceRows||[]).filter(row=>(row.matchStatus||row.matchstatus)==='settled'&&['attended','absent'].includes(row.finalStatus||row.finalstatus));
-  const attended=settledAttendance.filter(row=>(row.finalStatus||row.finalstatus)==='attended').length;
-  const attendanceRate=settledAttendance.length?Math.round(attended*100/settledAttendance.length):0;
+  const confirmedAttendance=(attendanceRows||[]).filter(row=>{
+    const finalStatus=row.finalStatus||row.finalstatus;
+    const matchStatus=row.matchStatus||row.matchstatus;
+    return ['attended','absent'].includes(finalStatus)&&matchStatus!=='cancelled';
+  });
+  const attended=confirmedAttendance.filter(row=>(row.finalStatus||row.finalstatus)==='attended').length;
+  const attendanceRate=confirmedAttendance.length?Math.round(attended*100/confirmedAttendance.length):0;
   return {
     createdCount:(createdMatches||[]).length,
     joinedCount:(joinedMatches||[]).length,
     matchCreatedCount:(createdMatches||[]).length,
     matchJoinedCount:(joinedMatches||[]).length,
-    matchCompletedCount:settledAttendance.length,
+    matchCompletedCount:confirmedAttendance.length,
     attendanceRate,
-    attendanceRateText:settledAttendance.length?`${attendanceRate}%`:'暂无记录',
+    attendanceRateText:confirmedAttendance.length?`${attendanceRate}%`:'暂无记录',
     totalFeeAmount:(feeSplits||[]).reduce((sum,row)=>sum+normalizeMoney(row.amount),0)
   };
 }
@@ -4627,6 +4644,7 @@ module.exports._test={
   ,assertMatchFeeSplitUpdateInput
   ,resolveFinalAttendanceStatus
   ,buildMatchFeeLedger
+  ,creatorAttendanceDeadline
   ,listMatchesForViewer
   ,getMatchForViewer
   ,createMatchForUser
@@ -4637,7 +4655,6 @@ module.exports._test={
   ,adminBookMatch
   ,confirmMatchAttendance
   ,adminHandleBookedWithdrawal
-  ,selfConfirmMatchAttendance
   ,creatorConfirmMatchAttendance
   ,generateMatchFeeLedger
   ,markMatchFeeSplit

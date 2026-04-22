@@ -62,6 +62,8 @@ async function main() {
       endTime: futureDate(4),
       venueName: '马坡网球馆',
       venueAddress: '马坡',
+      venueLatitude: 40.123,
+      venueLongitude: 116.654,
       ntrpMin: 2.5,
       ntrpMax: 3.5,
       genderPreference: '不限',
@@ -87,8 +89,19 @@ async function main() {
       reason: '临时退赛，仍需 AA'
     });
 
+    await assert.rejects(
+      () => rules.generateMatchFeeLedger(match.id, dandan.id),
+      /请先完成全部到场确认，再生成AA/,
+      'AA generation should wait until every active registration is confirmed'
+    );
     await pool.query("INSERT INTO match_attendance(id,matchId,userId,selfStatus,creatorStatus,finalStatus,updatedAt) VALUES($1,$2,$3,'pending','attended','attended',NOW())", [`${prefix}-att-a`, match.id, ids.userA]);
     await rules.generateMatchFeeLedger(match.id, dandan.id);
+    const regA = await pool.query("SELECT id FROM match_registrations WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered' LIMIT 1", [match.id, ids.userA]);
+    await assert.rejects(
+      () => rules.creatorConfirmMatchAttendance(match.id, ids.creator, regA.rows[0].id, 'absent'),
+      /已生成AA，不能再修改到场名单/,
+      'creator should not be able to change attendance after AA generation'
+    );
     const splits = await pool.query('SELECT userId,amount,payStatus FROM match_fee_splits WHERE matchId=$1 ORDER BY userId', [match.id]);
     assert.deepEqual(splits.rows.map(row => Number(row.amount)).sort((a, b) => b - a), [250, 250], 'AA should include charged booked withdrawal and stay balanced');
     assert.equal(splits.rows.reduce((sum, row) => sum + Number(row.amount), 0), 500, 'split total should equal final court fee');
@@ -130,6 +143,8 @@ async function main() {
       endTime: futureDate(5),
       venueName: '马坡网球馆',
       venueAddress: '马坡',
+      venueLatitude: 40.123,
+      venueLongitude: 116.654,
       ntrpMin: 2.5,
       ntrpMax: 3.5,
       genderPreference: '不限',
