@@ -95,18 +95,67 @@ assert.deepStrictEqual(
     monthFinishedLessonUnits: 12,
     weekFinishedLessonUnits: 5,
     todayFinishedLessonUnits: 2,
+    monthFeedbackCount: 4,
     pendingFeedbackCount: 3,
+    monthTrialLessonCount: 2,
     trialConversionRate: 50
   }),
   {
     monthFinishedLessonUnits: 12,
     weekFinishedLessonUnits: 5,
     todayFinishedLessonUnits: 2,
+    monthFeedbackCount: 4,
     pendingFeedbackCount: 3,
+    monthTrialLessonCount: 2,
     trialConversionRate: 50
   },
   'workbench stats helper should keep the standard backend contract'
 );
+
+assert.deepStrictEqual(
+  rules.buildWorkbenchStats({
+    now: new Date('2026-04-23T12:00:00+08:00'),
+    schedule: [
+      { id: 's1', startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已结束', lessonCount: 1 },
+      { id: 's2', startTime: '2026-04-22 09:00', endTime: '2026-04-22 11:00', status: '已结束', lessonCount: 2 },
+      { id: 's3', startTime: '2026-04-01 09:00', endTime: '2026-04-01 10:00', status: '已取消', lessonCount: 1 }
+    ],
+    feedbacks: [{ scheduleId: 's1' }]
+  }),
+  {
+    monthFinishedLessonUnits: 3,
+    weekFinishedLessonUnits: 3,
+    todayFinishedLessonUnits: 0,
+    monthFeedbackCount: 1,
+    pendingFeedbackCount: 1,
+    monthTrialLessonCount: 0,
+    trialConversionRate: 0
+  },
+  'workbench stats helper should calculate month feedback count from ended schedules with feedback records'
+);
+
+{
+  const scoped = rules.filterLoadAllForUser(
+    {
+      schedule: [
+        { id: 's1', coachId: 'legacy-coach-id', coach: '朝珺', startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已结束', lessonCount: 1 },
+        { id: 's2', coachId: 'other-coach-id', coach: '其他教练', startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已结束', lessonCount: 1 }
+      ],
+      feedbacks: [{ id: 'f1', scheduleId: 's1' }]
+    },
+    { role: 'editor', id: 'chaojun', coachId: 'chaojun', coachName: '朝珺', name: '朝珺' }
+  );
+  assert.deepStrictEqual(
+    scoped.schedule.map(item => item.id),
+    ['s1'],
+    'coach-scoped mini program data should fall back to coach name when legacy schedule coachId differs'
+  );
+  assert.deepStrictEqual(
+    scoped.feedbacks.map(item => item.id),
+    ['f1'],
+    'coach-scoped mini program feedbacks should follow the recovered schedule rows'
+  );
+}
 
 assert.deepStrictEqual(
   rules.resolveWorkbenchState(
@@ -348,6 +397,18 @@ assert.strictEqual(
   rules.findWechatScheduleRecipient({ coach: '朝珺' }, [{ id: 'coach-user', role: 'editor', coachName: '朝珺' }]),
   null,
   'schedule notification should skip coaches without openid'
+);
+
+assert.deepStrictEqual(
+  rules.findWechatUserByOpenId(
+    [
+      { id: 'admin-user', role: 'admin', wechatOpenId: 'same-openid' },
+      { id: 'coach-user', role: 'editor', coachName: '朝珺', wechatOpenId: 'same-openid' }
+    ],
+    'same-openid'
+  ),
+  { id: 'coach-user', role: 'editor', coachName: '朝珺', wechatOpenId: 'same-openid' },
+  'mini program wechat login should prefer the bound coach account when the same openid was previously bound to admin'
 );
 
 assert.deepStrictEqual(

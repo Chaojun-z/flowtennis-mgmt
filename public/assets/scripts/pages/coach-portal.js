@@ -96,7 +96,7 @@ function renderWorkbench(){
     ['本月课时',lessonUnitsText(coachWorkbenchStats.monthFinishedLessonUnits||0),'节','以后端统计为准',false],
     ['本周课时',lessonUnitsText(coachWorkbenchStats.weekFinishedLessonUnits||0),'节','以后端统计为准',false],
     ['今天课时',lessonUnitsText(coachWorkbenchStats.todayFinishedLessonUnits||0),'节','以后端统计为准',false],
-    ['本月反馈','-','节','统计口径已统一到后端',false],
+    ['本月反馈',coachWorkbenchStats.monthFeedbackCount||0,'节','以后端统计为准',false],
     ['未反馈',coachWorkbenchStats.pendingFeedbackCount||0,'节','以后端统计为准',(coachWorkbenchStats.pendingFeedbackCount||0)>0],
     ['本月体验课转化率',coachWorkbenchStats.trialConversionRate||0,'%', '以后端统计为准',false]
   ].map(([label,val,u,sub,accent])=>`<div class="coach-wb-stat-card"><div class="coach-wb-stat-label">${label}</div><div class="coach-wb-stat-value"${accent?' style="color:#8C4A32;"':''}>${val}<span>${u}</span></div><div class="coach-wb-stat-sub">${sub}</div></div>`).join('');

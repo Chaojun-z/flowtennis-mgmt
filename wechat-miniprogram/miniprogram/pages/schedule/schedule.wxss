@@ -273,10 +273,12 @@ page {
 }
 
 .reminder-value {
-  margin-left: 8rpx;
-  margin-right: 2rpx;
   color: #0f172a;
   font-weight: 700;
+}
+
+.conversion-unit {
+  font-size: 13px;
 }
 
 .reminder-chip.is-danger .reminder-value {
@@ -3738,6 +3740,16 @@ button::after {
 
 .loading-shell-pulse {
   animation: loadingPulse 1.4s ease-in-out infinite;
+}
+
+.tab-loading {
+  min-height: 100vh;
+  padding-top: 220rpx;
+  color: #94a3b8;
+  font-size: 28rpx;
+  text-align: center;
+  background: #f4f6f9;
+  box-sizing: border-box;
 }
 
 @keyframes loadingPulse {

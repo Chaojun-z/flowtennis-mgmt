@@ -27,6 +27,9 @@
       </label>
     </checkbox-group>
 
-    <button class="login-btn" loading="{{loggingIn}}" bindtap="submitLogin">登录</button>
+    <button class="login-btn" bindtap="submitLogin">
+      <view wx:if="{{loggingIn}}" class="login-spinner"></view>
+      <text>登录</text>
+    </button>
   </view>
 </view>

@@ -3,7 +3,8 @@
 
   <view wx:elif="{{error}}" class="detail-card">
     <text class="error-text">{{error}}</text>
-    <button class="primary-btn" bindtap="openWebview">进入完整教练端</button>
+    <button class="primary-btn" bindtap="load">重新加载</button>
+    <button class="plain-btn" bindtap="backToSchedule">返回课表</button>
   </view>
 
   <block wx:else>
@@ -36,6 +37,5 @@
     </view>
 
     <button class="primary-btn" bindtap="backToSchedule">返回课表</button>
-    <button class="plain-btn" bindtap="openWebview">完整工作台</button>
   </block>
 </view>

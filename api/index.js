@@ -306,14 +306,18 @@ function buildWorkbenchStats(input={}){
     Object.prototype.hasOwnProperty.call(input,'monthFinishedLessonUnits')
     ||Object.prototype.hasOwnProperty.call(input,'weekFinishedLessonUnits')
     ||Object.prototype.hasOwnProperty.call(input,'todayFinishedLessonUnits')
+    ||Object.prototype.hasOwnProperty.call(input,'monthFeedbackCount')
     ||Object.prototype.hasOwnProperty.call(input,'pendingFeedbackCount')
+    ||Object.prototype.hasOwnProperty.call(input,'monthTrialLessonCount')
     ||Object.prototype.hasOwnProperty.call(input,'trialConversionRate')
   ){
     return {
       monthFinishedLessonUnits:parseLessonValue(input.monthFinishedLessonUnits),
       weekFinishedLessonUnits:parseLessonValue(input.weekFinishedLessonUnits),
       todayFinishedLessonUnits:parseLessonValue(input.todayFinishedLessonUnits),
+      monthFeedbackCount:parseInt(input.monthFeedbackCount,10)||0,
       pendingFeedbackCount:parseInt(input.pendingFeedbackCount,10)||0,
+      monthTrialLessonCount:parseInt(input.monthTrialLessonCount,10)||0,
       trialConversionRate:parseLessonValue(input.trialConversionRate)
     };
   }
@@ -341,7 +345,9 @@ function buildWorkbenchStats(input={}){
     monthFinishedLessonUnits:monthEndedRows.reduce((sum,item)=>sum+parseLessonValue(item.lessonCount,1),0),
     weekFinishedLessonUnits:weekEndedRows.reduce((sum,item)=>sum+parseLessonValue(item.lessonCount,1),0),
     todayFinishedLessonUnits:todayEndedRows.reduce((sum,item)=>sum+parseLessonValue(item.lessonCount,1),0),
+    monthFeedbackCount:monthEndedRows.filter(item=>scheduleHasFeedbackRecord(item,feedbacks)).length,
     pendingFeedbackCount:endedRows.filter(item=>!scheduleHasFeedbackRecord(item,feedbacks)).length,
+    monthTrialLessonCount:monthTrialRows.length,
     trialConversionRate:monthTrialRows.length?Math.round(monthTrialConverted/monthTrialRows.length*100):0
   };
 }
@@ -1006,10 +1012,14 @@ function filterLoadAllForUser(data,user){
   if(user?.role==='admin')return normalized;
   const coachId=String(user?.coachId||user?.id||'').trim();
   const coachName=String(user?.coachName||user?.name||'').trim();
+  const authId=String(user?.id||user?.username||'').trim();
+  const hasReliableCoachId=!!(coachId&&coachId!==authId);
   const rowMatchesCoach=(row)=>{
     const rowCoachId=String(row?.coachId||row?.primaryCoachId||'').trim();
-    if(coachId&&rowCoachId)return rowCoachId===coachId;
-    return coachName&&String(row?.coach||row?.primaryCoach||'').trim()===coachName;
+    const rowCoachName=String(row?.coach||row?.primaryCoach||'').trim();
+    if(coachId&&rowCoachId&&rowCoachId===coachId)return true;
+    if(hasReliableCoachId&&rowCoachId)return false;
+    return coachName&&rowCoachName===coachName;
   };
   const ownSchedule=normalized.schedule.filter(rowMatchesCoach);
   const scheduleIds=new Set(ownSchedule.map(s=>s.id).filter(Boolean));
@@ -1174,7 +1184,8 @@ function findWechatScheduleRecipient(schedule,users=[]){
 function findWechatUserByOpenId(users=[],openid=''){
   const key=String(openid||'').trim();
   if(!key)return null;
-  return (users||[]).find(u=>String(u?.wechatOpenId||'').trim()===key)||null;
+  const matched=(users||[]).filter(u=>String(u?.wechatOpenId||'').trim()===key);
+  return matched.find(u=>String(u?.role||'')==='editor')||matched[0]||null;
 }
 function buildScheduleSubscribeMessage({templateId,openid,schedule}){
   const start=String(schedule?.startTime||'').trim();

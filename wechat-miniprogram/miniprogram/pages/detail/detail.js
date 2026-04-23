@@ -31,10 +31,5 @@ Page({
     const pages = getCurrentPages();
     if (pages.length > 1) return wx.navigateBack();
     wx.redirectTo({ url: '/pages/schedule/schedule' });
-  },
-
-  openWebview() {
-    const suffix = this.data.scheduleId ? `?fallback=1&scheduleId=${encodeURIComponent(this.data.scheduleId)}` : '?fallback=1';
-    wx.navigateTo({ url: `/pages/webview/webview${suffix}` });
   }
 });

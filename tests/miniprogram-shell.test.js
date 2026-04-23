@@ -32,6 +32,9 @@ assert.match(indexWxml, /我已阅读并同意/, 'index page should render the a
 assert.match(indexWxml, /用户协议/, 'index page should expose the user agreement link');
 assert.match(indexWxml, /隐私政策/, 'index page should expose the privacy policy link');
 assert.match(indexWxml, /bindtap="submitLogin"[\s\S]*登录/, 'index login button should use the real account login submit handler');
+assert.match(indexWxml, /login-spinner/, 'index login button should render a centered custom loading spinner');
+assert.doesNotMatch(indexWxml, /loading="\{\{loggingIn\}\}"/, 'index login button should not use the native button loading layout');
+assert.doesNotMatch(indexWxml, /disabled="\{\{loggingIn\}\}"/, 'index login button should keep its visual style while logging in');
 assert.doesNotMatch(indexWxml, /<web-view/, 'index page should stay native so subscribe permission can be requested by tap');
 assert.doesNotMatch(indexWxml, /password-eye/, 'login page should remove the password eye icon');
 
@@ -40,6 +43,9 @@ assert.match(indexJs, /SCHEDULE_TEMPLATE_ID/, 'index page should read the schedu
 assert.match(indexJs, /COURSE_REMINDER_TEMPLATE_ID/, 'index page should read the course reminder subscribe template ID from config');
 assert.match(indexJs, /loginWithPassword/, 'index page should call the real account password login helper');
 assert.match(indexJs, /bindWechatAfterLogin/, 'index page should bind the current mini program WeChat account after password login');
+assert.match(indexJs, /function assertCoachLoginUser/, 'index page should validate coach role before entering the coach mini program');
+assert.match(indexJs, /user\.role !== 'editor'/, 'index page should reject non-coach accounts on the login page');
+assert.match(indexJs, /loginWithPassword\(account, password\)[\s\S]*assertCoachLoginUser\(data\.user \|\| \{\}\)[\s\S]*bindWechatAfterLogin/, 'index page should check role before WeChat binding and navigation');
 assert.match(indexJs, /wx\.requestSubscribeMessage/, 'index page should request schedule subscribe permission from a tap');
 assert.match(indexJs, /tmplIds:\s*\[SCHEDULE_TEMPLATE_ID,\s*COURSE_REMINDER_TEMPLATE_ID\]/, 'index page should request both schedule and course reminder templates');
 assert.match(indexJs, /pages\/schedule\/schedule/, 'index page should navigate into the native schedule page after the tap');
@@ -57,6 +63,8 @@ assert.match(indexWxss, /\.entry-card\s*\{(?=[\s\S]*width:\s*345px;)(?=[\s\S]*bo
 assert.match(indexWxss, /\.entry-title\s*\{[\s\S]*font-size:\s*24px;[\s\S]*font-weight:\s*800;[\s\S]*letter-spacing:\s*1px;/, 'login title should match the Gemini typography token');
 assert.match(indexWxss, /\.entry-input\s*\{(?=[\s\S]*height:\s*48px;)(?=[\s\S]*background:\s*#f8fafc;)(?=[\s\S]*border:\s*1px solid #e2e8f0;)(?=[\s\S]*border-radius:\s*12px;)(?=[\s\S]*font-size:\s*14px;)/i, 'login inputs should match the Gemini form token');
 assert.match(indexWxss, /\.login-btn\s*\{(?=[\s\S]*height:\s*48px;)(?=[\s\S]*background:\s*#2b3a55;)(?=[\s\S]*border-radius:\s*999px;)(?=[\s\S]*font-size:\s*16px;)(?=[\s\S]*letter-spacing:\s*4px;)/i, 'login button should match the Gemini button token');
+assert.match(indexWxss, /\.login-btn\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/i, 'login button content should be vertically centered');
+assert.match(indexWxss, /\.login-spinner\s*\{[\s\S]*animation:\s*loginSpin 0\.8s linear infinite;/i, 'login page should use a custom centered loading spinner');
 
 const scheduleWxml = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.wxml');
 assert.match(scheduleWxml, /本周|下周/, 'native schedule page should provide week navigation');
@@ -65,6 +73,7 @@ assert.match(scheduleWxml, /student-card"[^>]*data-id="\{\{item\.id\}\}"[^>]*bin
 assert.match(scheduleWxml, /今日排课/, 'native workbench should keep the today schedule section');
 assert.match(scheduleWxml, /本周待办/, 'native workbench should also show a weekly todo section');
 assert.match(scheduleWxml, /今日课程[\s\S]*本周课时[\s\S]*本月课时[\s\S]*本月反馈[\s\S]*未反馈[\s\S]*体验转化/, 'native workbench should keep the six original web metrics in the requested order');
+assert.match(scheduleWxml, /stats\.conversionText[\s\S]*stats\.conversionUnit[\s\S]*conversion-unit/, 'native workbench should render conversion percent with a separate small unit');
 assert.match(scheduleWxml, /dashboard-hero/, 'native workbench should render the recreated SVG hero header');
 assert.match(scheduleWxml, /dashboard-grid/, 'native workbench should render the two-row three-column metric grid');
 assert.match(scheduleWxml, /today-lesson-card/, 'native workbench should render the larger today lesson card style');
@@ -79,6 +88,8 @@ assert.match(scheduleWxml, /wx:if="\{\{coachMenuId\}\}"[^>]*class="coach-menu-id
 assert.match(scheduleWxml, /下一节课需跨校区换场，请预留通勤时间/, 'native workbench should show lightweight cross-campus travel reminder');
 assert.match(scheduleWxml, /coach-menu-group[\s\S]*coach-menu-item[\s\S]*coach-menu-divider[\s\S]*coach-menu-danger-card[\s\S]*coach-menu-cancel-card/, 'coach menu sheet should split menu actions into grouped cards for menu, logout, and cancel');
 assert.match(scheduleWxml, /loading-shell[\s\S]*loading-shell-safe[\s\S]*loading-shell-nav[\s\S]*loading-shell-title[\s\S]*loading-shell-summary[\s\S]*loading-shell-tip[\s\S]*loading-shell-list[\s\S]*loading-shell-item/, 'schedule page should render the structured skeleton screen instead of plain blank cards');
+assert.match(scheduleWxml, /wx:if="\{\{loading && isDashboard\}\}"/, 'dashboard skeleton should only be used for the dashboard tab');
+assert.match(scheduleWxml, /wx:elif="\{\{loading\}\}"[\s\S]*class="tab-loading"/, 'non-dashboard tabs should not reuse the dashboard skeleton while loading');
 assert.doesNotMatch(scheduleWxml, /课表加载中\.\.\./, 'schedule page should not show the old plain loading copy');
 assert.doesNotMatch(scheduleWxml.match(/<view class="sheet coach-menu-sheet[\s\S]*?<\/view>\s*<\/view>/)[0], /进入完整教练端/, 'coach menu sheet should not expose the full web coach entry');
 assert.doesNotMatch(scheduleWxml, /dashboard-topbar/, 'native workbench should not render the extra custom top bar');
@@ -89,6 +100,7 @@ assert.match(scheduleWxml, /wx:if="\{\{reminderItems\.length\}\}"/, 'native work
 assert.match(scheduleWxml, /metric-primary/, 'native workbench should use a consumer-style highlighted metric card');
 assert.match(scheduleWxml, /schedule-location/, 'native workbench lesson cards should make location easy to scan');
 assert.match(scheduleWxml, /reminder-value/, 'native workbench reminder numbers should be styled separately');
+assert.match(scheduleWxml, /class="reminder-value">\s\{\{item\.value\}\}\s<\/text>/, 'native workbench reminder numbers should keep one visible space before and after the number');
 assert.match(scheduleWxml, /today-lesson-separator/, 'native workbench today card should render location and student on one SVG-style meta row');
 assert.match(scheduleWxml, /week-task-location[\s\S]*item\.student[\s\S]*week-task-separator[\s\S]*item\.shortLocation/, 'native workbench weekly todo card should render student before location like the SVG');
 assert.match(scheduleWxml, /scroll-top="\{\{timetableScrollTop\}\}"/, 'native timetable should support vertical auto positioning');
@@ -163,6 +175,11 @@ assert.match(scheduleJs, /openAgreement\(\)/, 'schedule page should expose the u
 assert.match(scheduleJs, /openPrivacy\(\)/, 'schedule page should expose the privacy policy menu action');
 assert.match(scheduleJs, /coachWorkbenchStats/, 'mini program workbench should keep the backend stats payload separately');
 assert.match(scheduleJs, /workbenchState/, 'mini program workbench should use the backend workbenchState enum');
+assert.match(scheduleJs, /function buildLocalWorkbenchStats/, 'mini program workbench should have a local stats fallback from the loaded schedule rows');
+assert.match(scheduleJs, /mergeWorkbenchStats\(coachWorkbenchStats,\s*buildLocalWorkbenchStats\(schedule,\s*this\.data\.feedbacks,\s*now\)\)/, 'mini program workbench should fall back to local schedule stats when backend stats are still zero');
+assert.match(scheduleJs, /conversionText:\s*Number\(mergedStats\.monthTrialLessonCount\) > 0 \? String\(mergedStats\.trialConversionRate \|\| 0\) : '-'/, 'mini program workbench should show conversion percent only when trial conversion data exists');
+assert.match(scheduleJs, /feedback:\s*mergedStats\.monthFeedbackCount \|\| 0/, 'mini program workbench should render backend or locally derived month feedback count');
+assert.doesNotMatch(scheduleJs, /feedback:\s*'-'/, 'mini program workbench should not show a placeholder for month feedback count');
 assert.doesNotMatch(scheduleJs, /item\.courseContent \|\| item\.productName \|\| item\.type/, 'shift cards should no longer guess course content from mixed front-end fields');
 assert.doesNotMatch(scheduleJs, /item\.scheduleTime \|\| item\.classTime/, 'shift cards should no longer guess schedule time from mixed front-end fields');
 assert.doesNotMatch(scheduleJs, /firstNonEmpty\(item\.remark,\s*item\.note,\s*item\.notes\)/, 'shift cards should no longer guess class remark from mixed front-end fields');
@@ -248,6 +265,9 @@ const schedulePageJs = readText('wechat-miniprogram/miniprogram/pages/schedule/s
 assert.doesNotMatch(schedulePageJs, /王教练|待补充/, 'native schedule page should not show fake coach fallback values');
 assert.match(schedulePageJs, /function assertCoachUser/, 'native schedule page should reject non-coach login payloads');
 assert.match(schedulePageJs, /user\.role !== 'editor'/, 'native schedule page should only allow coach role payloads');
+assert.match(schedulePageJs, /function ensureCoachSession/, 'native schedule page should prefer the password-login coach session before WeChat login');
+assert.match(schedulePageJs, /wx\.getStorageSync\(TOKEN_KEY\)[\s\S]*wx\.getStorageSync\(USER_KEY\)[\s\S]*assertCoachUser\(storedUser\)/, 'native schedule page should not overwrite a valid coach token with WeChat login');
+assert.match(schedulePageJs, /handleCoachAuthError/, 'native schedule page should return invalid-role users to login instead of trapping them on reload');
 assert.match(schedulePageJs, /lessonUnitsCompleted/, 'native student cards should read backend lessonUnitsCompleted');
 assert.match(schedulePageJs, /function scheduleLessonUnits/, 'native student cards should calculate lesson units only as a short fallback');
 assert.match(schedulePageJs, /nextTravelReminder/, 'native workbench reminders should include a travel reminder flag');

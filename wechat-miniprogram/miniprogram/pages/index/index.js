@@ -1,8 +1,16 @@
 const { SCHEDULE_TEMPLATE_ID, COURSE_REMINDER_TEMPLATE_ID } = require('../../config');
-const { loginWithPassword, bindWechatAfterLogin } = require('../../utils/api');
+const { loginWithPassword, bindWechatAfterLogin, TOKEN_KEY, USER_KEY } = require('../../utils/api');
 
 function enterCoachPortal() {
   wx.navigateTo({ url: '/pages/schedule/schedule' });
+}
+
+function assertCoachLoginUser(user = {}) {
+  if (user.role !== 'editor') {
+    wx.removeStorageSync(TOKEN_KEY);
+    wx.removeStorageSync(USER_KEY);
+    throw new Error('当前账号不是教练账号，无法进入教练端');
+  }
 }
 
 Page({
@@ -48,6 +56,10 @@ Page({
     if (this.data.loggingIn) return;
     this.setData({ loggingIn: true });
     loginWithPassword(account, password)
+      .then((data) => {
+        assertCoachLoginUser(data.user || {});
+        return data;
+      })
       .then(() => bindWechatAfterLogin())
       .then(() => {
         const app = getApp();

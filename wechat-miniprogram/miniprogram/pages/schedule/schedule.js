@@ -181,6 +181,65 @@ function scheduleLessonUnits(item = {}) {
   return 1;
 }
 
+function localDateKey(value) {
+  const date = value instanceof Date ? value : parseLocalDate(value);
+  if (!date) return String(value || '').slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function weekRangeKeys(now = new Date()) {
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  const day = start.getDay() || 7;
+  start.setDate(start.getDate() - day + 1);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return { startKey: localDateKey(start), endKey: localDateKey(end) };
+}
+
+function scheduleEnded(item = {}, now = new Date()) {
+  const status = String(item.status || item.statusText || '').trim();
+  if (status === '已取消') return false;
+  if (status === '已结束' || status === '已下课') return true;
+  const end = parseLocalDate(item.endTime);
+  return !!(end && end < now);
+}
+
+function scheduleHasFeedback(item = {}, feedbacks = []) {
+  if (item.hasFeedback || item.feedbackId || item.feedbackStatus === '已反馈') return true;
+  const scheduleId = String(item.id || '').trim();
+  return !!(scheduleId && (feedbacks || []).some(feedback => String(feedback.scheduleId || '').trim() === scheduleId));
+}
+
+function buildLocalWorkbenchStats(schedule = [], feedbacks = [], now = new Date()) {
+  const monthKey = localDateKey(now).slice(0, 7);
+  const dayKey = localDateKey(now);
+  const { startKey, endKey } = weekRangeKeys(now);
+  const endedRows = (schedule || []).filter(item => scheduleEnded(item, now));
+  const monthRows = endedRows.filter(item => localDateKey(item.startTime).slice(0, 7) === monthKey);
+  const weekRows = endedRows.filter(item => {
+    const key = localDateKey(item.startTime);
+    return key >= startKey && key <= endKey;
+  });
+  const todayRows = endedRows.filter(item => localDateKey(item.startTime) === dayKey);
+  const monthTrialRows = monthRows.filter(item => item.isTrial || /体验/.test(String(item.type || item.title || item.courseType || '')));
+  return {
+    monthFinishedLessonUnits: monthRows.reduce((sum, item) => sum + scheduleLessonUnits(item), 0),
+    weekFinishedLessonUnits: weekRows.reduce((sum, item) => sum + scheduleLessonUnits(item), 0),
+    todayFinishedLessonUnits: todayRows.reduce((sum, item) => sum + scheduleLessonUnits(item), 0),
+    monthFeedbackCount: monthRows.filter(item => scheduleHasFeedback(item, feedbacks)).length,
+    pendingFeedbackCount: endedRows.filter(item => !scheduleHasFeedback(item, feedbacks)).length,
+    monthTrialLessonCount: monthTrialRows.length
+  };
+}
+
+function mergeWorkbenchStats(backendStats = {}, localStats = {}) {
+  const backendHasValue = ['monthFinishedLessonUnits', 'weekFinishedLessonUnits', 'todayFinishedLessonUnits', 'monthFeedbackCount', 'pendingFeedbackCount', 'monthTrialLessonCount']
+    .some(key => Number(backendStats[key]) > 0);
+  if (backendHasValue) return backendStats;
+  return { ...backendStats, ...localStats };
+}
+
 function currentCoachName() {
   const user = wx.getStorageSync(USER_KEY) || {};
   return String(user.coachName || user.name || '').trim();
@@ -193,6 +252,28 @@ function currentCoachId() {
 
 function assertCoachUser(user = {}) {
   if (user.role !== 'editor') throw new Error('当前账号不是教练账号，无法进入教练端');
+}
+
+async function ensureCoachSession() {
+  const token = wx.getStorageSync(TOKEN_KEY);
+  const storedUser = wx.getStorageSync(USER_KEY) || {};
+  if (token && storedUser.role) {
+    assertCoachUser(storedUser);
+    return { user: storedUser };
+  }
+  const loginResult = await loginWithWechat();
+  assertCoachUser(loginResult.user || {});
+  return loginResult;
+}
+
+function handleCoachAuthError(error) {
+  const message = error && error.message || '';
+  if (!/不是教练账号/.test(message)) return false;
+  wx.removeStorageSync(TOKEN_KEY);
+  wx.removeStorageSync(USER_KEY);
+  wx.showToast({ title: message, icon: 'none' });
+  wx.reLaunch({ url: '/pages/index/index' });
+  return true;
 }
 
 function avatarText(name = '') {
@@ -1225,7 +1306,7 @@ Page({
     savingFeedback: false,
     savingShiftSchedule: false,
     savingCancelSchedule: false,
-    stats: { month: 0, week: 0, today: 0, feedback: '-', pending: 0, conversion: '0%', nextTime: '暂无', nextText: '暂无', todo: 0 },
+    stats: { month: 0, week: 0, today: 0, feedback: 0, pending: 0, conversionText: '-', conversionUnit: '', nextTime: '暂无', nextText: '暂无', todo: 0 },
     selectedClass: null,
     selectedClassDetail: null,
     selectedStudentDetail: null,
@@ -1292,8 +1373,7 @@ Page({
   async load(options = {}) {
     if (!options.keepLoading) this.setData({ loading: true, error: '' });
     try {
-      const loginResult = await loginWithWechat();
-      assertCoachUser(loginResult.user || {});
+      await ensureCoachSession();
       const data = await loadCoachWorkbench();
       const coachName = currentCoachName();
       const displayName = coachDisplayName(coachName);
@@ -1322,6 +1402,7 @@ Page({
       });
       this.renderWeek();
     } catch (err) {
+      if (handleCoachAuthError(err)) return;
       this.setData({ loading: false, hasLoaded: true, error: err.message || '请先确认账号已绑定微信后重试' });
     } finally {
       if (options.stopPullDown) wx.stopPullDownRefresh();
@@ -1331,6 +1412,7 @@ Page({
   renderWeek() {
     const { weekOffset, schedule, coachWorkbenchStats } = this.data;
     const now = new Date();
+    const mergedStats = mergeWorkbenchStats(coachWorkbenchStats, buildLocalWorkbenchStats(schedule, this.data.feedbacks, now));
     const days = buildWeekDays(schedule, weekOffset);
     const visibleClasses = days.reduce((all, day) => all.concat(day.items.map(item => ({ ...item, dayKey: day.key }))), []);
     const today = days.find(day => day.isToday);
@@ -1373,12 +1455,13 @@ Page({
       reminderItems,
       nextTravelReminder: hasTravelReminder(nextClass),
       stats: {
-        month: coachWorkbenchStats.monthFinishedLessonUnits || 0,
-        week: coachWorkbenchStats.weekFinishedLessonUnits || 0,
-        today: coachWorkbenchStats.todayFinishedLessonUnits || 0,
-        feedback: '-',
-        pending: coachWorkbenchStats.pendingFeedbackCount || 0,
-        conversion: `${coachWorkbenchStats.trialConversionRate || 0}%`,
+        month: mergedStats.monthFinishedLessonUnits || 0,
+        week: mergedStats.weekFinishedLessonUnits || 0,
+        today: mergedStats.todayFinishedLessonUnits || 0,
+        feedback: mergedStats.monthFeedbackCount || 0,
+        pending: mergedStats.pendingFeedbackCount || 0,
+        conversionText: Number(mergedStats.monthTrialLessonCount) > 0 ? String(mergedStats.trialConversionRate || 0) : '-',
+        conversionUnit: Number(mergedStats.monthTrialLessonCount) > 0 ? '%' : '',
         nextTime: nextClass ? nextClass.timeText : '暂无',
         nextText: nextClass ? `${nextClass.timeText} · ${nextClass.locationText}` : '暂无',
         todo: todoItems.length

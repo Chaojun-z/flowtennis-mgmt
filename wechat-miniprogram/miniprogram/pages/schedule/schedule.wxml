@@ -1,5 +1,5 @@
 <view class="app-shell">
-  <view wx:if="{{loading}}" class="loading-shell">
+  <view wx:if="{{loading && isDashboard}}" class="loading-shell">
     <view class="loading-shell-top">
       <view class="loading-shell-safe"></view>
       <view class="loading-shell-nav">
@@ -57,6 +57,10 @@
     </view>
   </view>
 
+  <view wx:elif="{{loading}}" class="tab-loading">
+    <text>加载中...</text>
+  </view>
+
   <view wx:elif="{{error}}" class="empty-box">
     <text class="empty-title">{{error}}</text>
     <button class="primary-btn" bindtap="load">重新加载</button>
@@ -92,7 +96,7 @@
           <view class="mini-metric"><text>本月课时</text><text>{{stats.month}}</text></view>
           <view class="mini-metric"><text>本月反馈</text><text>{{stats.feedback}}</text></view>
           <view class="mini-metric"><text>未反馈</text><text class="danger">{{stats.pending}}</text></view>
-          <view class="mini-metric"><text>体验转化</text><text>{{stats.conversion}}</text></view>
+          <view class="mini-metric"><text>体验转化</text><text>{{stats.conversionText}}<text wx:if="{{stats.conversionUnit}}" class="conversion-unit">{{stats.conversionUnit}}</text></text></view>
         </view>
 
         <view wx:if="{{reminderItems.length}}" class="reminder-bar">
@@ -103,7 +107,7 @@
           <view class="reminder-list">
             <view wx:for="{{reminderItems}}" wx:key="label" class="reminder-chip {{item.itemClass}}">
               <text>{{item.label}}</text>
-              <text class="reminder-value">{{item.value}}</text>
+              <text class="reminder-value"> {{item.value}} </text>
               <text>{{item.unit}}</text>
             </view>
           </view>
