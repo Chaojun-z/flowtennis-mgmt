@@ -1,12 +1,72 @@
 <view class="app-shell">
-  <view wx:if="{{loading}}" class="state-text">课表加载中...</view>
+  <view wx:if="{{loading}}" class="loading-shell">
+    <view class="loading-shell-top">
+      <view class="loading-shell-safe"></view>
+      <view class="loading-shell-nav">
+        <view class="loading-shell-title loading-shell-pulse"></view>
+      </view>
+      <view class="loading-shell-heading loading-shell-pulse"></view>
+    </view>
+    <view class="loading-shell-summary">
+      <view class="loading-shell-summary-block">
+        <view class="loading-shell-summary-label loading-shell-pulse"></view>
+        <view class="loading-shell-summary-value loading-shell-pulse"></view>
+      </view>
+      <view class="loading-shell-summary-divider"></view>
+      <view class="loading-shell-summary-block">
+        <view class="loading-shell-summary-label is-wide loading-shell-pulse"></view>
+        <view class="loading-shell-summary-value is-wide loading-shell-pulse"></view>
+      </view>
+    </view>
+    <view class="loading-shell-body">
+      <view class="loading-shell-tip">
+        <view class="loading-shell-tip-line loading-shell-pulse"></view>
+      </view>
+      <view class="loading-shell-list">
+        <view class="loading-shell-item">
+          <view class="loading-shell-item-head">
+            <view class="loading-shell-item-title loading-shell-pulse"></view>
+            <view class="loading-shell-item-tag loading-shell-pulse"></view>
+          </view>
+          <view class="loading-shell-item-lines">
+            <view class="loading-shell-item-line loading-shell-pulse"></view>
+            <view class="loading-shell-item-line is-short loading-shell-pulse"></view>
+            <view class="loading-shell-item-line is-mid loading-shell-pulse"></view>
+          </view>
+          <view class="loading-shell-item-footer">
+            <view class="loading-shell-item-progress loading-shell-pulse"></view>
+            <view class="loading-shell-item-button loading-shell-pulse"></view>
+          </view>
+        </view>
+        <view class="loading-shell-item">
+          <view class="loading-shell-item-head">
+            <view class="loading-shell-item-title is-second loading-shell-pulse"></view>
+            <view class="loading-shell-item-tag loading-shell-pulse"></view>
+          </view>
+          <view class="loading-shell-item-lines">
+            <view class="loading-shell-item-line is-mid loading-shell-pulse"></view>
+            <view class="loading-shell-item-line is-short loading-shell-pulse"></view>
+            <view class="loading-shell-item-line loading-shell-pulse"></view>
+          </view>
+          <view class="loading-shell-item-footer">
+            <view class="loading-shell-item-progress loading-shell-pulse"></view>
+            <view class="loading-shell-item-button loading-shell-pulse"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
 
   <view wx:elif="{{error}}" class="empty-box">
     <text class="empty-title">{{error}}</text>
-    <button class="primary-btn" bindtap="openWebview">进入完整教练端</button>
+    <button class="primary-btn" bindtap="load">重新加载</button>
   </view>
 
   <block wx:else>
+    <view wx:if="{{isTimetable}}" class="custom-nav-title">我的课表</view>
+    <view wx:if="{{isStudents}}" class="custom-nav-title">我的学员</view>
+    <view wx:if="{{isShifts}}" class="custom-nav-title">我的班次</view>
+
     <scroll-view wx:if="{{isDashboard}}" scroll-y class="page-scroll page-bg">
       <view class="dashboard-top">
         <view class="dashboard-hero">
@@ -116,7 +176,6 @@
 
     <view wx:if="{{isTimetable}}" class="timetable-page">
       <view class="timetable-top">
-        <view class="top-title">我的课表</view>
         <view class="week-toolbar">
           <view class="week-switch">
             <button class="switch-btn switch-prev" bindtap="prevWeek"></button>
@@ -165,14 +224,15 @@
     </view>
 
     <scroll-view wx:if="{{isStudents}}" scroll-y class="page-scroll page-bg">
-      <view class="students-top"></view>
-
-      <view class="page-body students-body">
+      <view class="students-top">
         <view class="students-summary">
           <view class="students-summary-block"><text class="students-number">{{studentStats.visibleCount}}</text><text class="students-caption">可见学员</text></view>
           <view class="students-divider"></view>
           <view class="students-summary-block"><text class="students-number">{{studentStats.ownerCount}}</text><text class="students-caption">负责学员</text></view>
         </view>
+      </view>
+
+      <view class="page-body students-body">
         <view class="student-list">
         <view wx:for="{{studentsList}}" wx:key="id" class="student-card" data-id="{{item.id}}" bindtap="openStudentDetail">
           <view class="student-avatar {{item.avatarClass}}">{{item.avatarText}}</view>
@@ -195,34 +255,63 @@
 
     <scroll-view wx:if="{{isShifts}}" scroll-y class="page-scroll page-bg">
       <view class="shifts-top">
-        <view class="top-title">我的班次</view>
-        <view class="shift-summary-row">
-          <view class="shift-summary-card">
+        <view class="shift-summary-card">
+          <view class="shift-summary-block">
             <text class="shift-summary-label">我的班次</text>
-            <text class="shift-summary-value">{{shiftStats.totalCount}} <text>个</text></text>
-            <text class="shift-summary-foot">进行中 {{shiftStats.activeCount}}</text>
+            <view class="shift-summary-line">
+              <text class="shift-summary-value shift-summary-value-main">{{shiftStats.totalCount}}</text>
+              <text class="shift-summary-unit">个</text>
+              <text class="shift-summary-foot shift-summary-foot-left">进行中 {{shiftStats.activeCount}}</text>
+            </view>
           </view>
-          <view class="shift-summary-card">
+          <view class="shift-summary-divider"></view>
+          <view class="shift-summary-block">
             <text class="shift-summary-label">总课时 / 已上</text>
-            <text class="shift-summary-value">{{shiftStats.totalLessons}} / {{shiftStats.usedLessons}}</text>
-            <text class="shift-summary-foot">剩余 {{shiftStats.remainingLessons}} 节</text>
+            <view class="shift-summary-line">
+              <text class="shift-summary-value shift-summary-value-main">{{shiftStats.totalLessons}}</text>
+              <text class="shift-summary-slash">/</text>
+              <text class="shift-summary-value shift-summary-value-sub">{{shiftStats.usedLessons}}</text>
+              <text class="shift-summary-foot">剩余 {{shiftStats.remainingLessons}} 节</text>
+            </view>
           </view>
         </view>
       </view>
 
       <view class="page-body">
-        <view class="summary-card summary-left">这里查看你当前负责的班次，可快速了解学员名单、课时进度和班次时间。</view>
-        <view wx:for="{{shiftsList}}" wx:key="id" class="shift-card">
-          <view class="shift-head">
-            <view class="shift-head-left">
-              <text class="shift-name">{{item.name}}</text>
-              <text class="status-tag {{item.statusClass}}">{{item.status}}</text>
-            </view>
-            <text class="shift-link">详情</text>
-          </view>
-          <view class="shift-meta-row"><text>学员：{{item.student}}</text><text>课时进度：<text class="shift-strong">{{item.progress}}</text></text></view>
+        <view class="summary-card summary-left shift-tip-card">
+          <view class="shift-tip-icon"></view>
+          <text>这里查看你当前负责的班次，可快速了解学员名单和进度。</text>
         </view>
-        <view class="bottom-end">已经到底啦</view>
+        <view wx:if="{{shiftsList.length}}">
+          <view wx:for="{{shiftsList}}" wx:key="id" class="shift-card">
+            <view class="shift-accent {{item.accentClass}}"></view>
+            <view class="shift-head">
+              <view class="shift-head-left">
+                <text class="shift-name">{{item.name}}</text>
+                <text class="status-tag {{item.statusClass}}">{{item.status}}</text>
+              </view>
+            </view>
+            <view class="shift-info-line"><text class="shift-info-label">课程内容：</text><text class="shift-info-value">{{item.courseContent}}</text></view>
+            <view class="shift-info-line"><text class="shift-info-label">班级学员：</text><text class="shift-info-value">{{item.student}}</text></view>
+            <view class="shift-info-line"><text class="shift-info-label">排课时间：</text><text class="shift-info-value">{{item.scheduleTime}}</text></view>
+            <view class="shift-card-divider"></view>
+            <view class="shift-progress-row">
+              <view class="shift-progress-left">
+                <text class="shift-progress-label">课时进度</text>
+                <text class="shift-progress-value">{{item.progress}}</text>
+                <view class="shift-progress-track">
+                  <view class="shift-progress-fill" style="width:{{item.progressWidth}};"></view>
+                </view>
+              </view>
+              <view class="shift-action {{item.actionClass}}" data-id="{{item.id}}" bindtap="openShiftAction">{{item.actionText}}</view>
+            </view>
+          </view>
+          <view class="bottom-end">已经到底啦</view>
+        </view>
+        <view wx:elif="{{!shiftsList.length}}" class="shift-empty">
+          <text class="shift-empty-title">暂无班次</text>
+          <text class="shift-empty-copy">等后端班次数据接通后，这里会展示真实班次。</text>
+        </view>
       </view>
     </scroll-view>
 
@@ -246,14 +335,40 @@
       <view class="tab-home-indicator"></view>
     </view>
 
-    <view wx:if="{{showDetail || showFeedback || showPoster || showStudentDetail || showCoachMenu}}" class="mask" catchtouchmove="stopMove" bindtap="closeOverlay"></view>
+    <view wx:if="{{showDetail || showFeedback || showPoster || showStudentDetail || showShiftDetail || showCoachMenu}}" class="mask" catchtouchmove="stopMove" bindtap="closeOverlay"></view>
 
     <view class="sheet coach-menu-sheet {{coachMenuSheetClass}}" catchtouchmove="stopMove">
       <view class="sheet-handle coach-menu-handle"></view>
-      <view class="coach-menu-card">
-        <button class="coach-menu-row is-danger" bindtap="logout">退出登录</button>
-        <button class="coach-menu-row" bindtap="closeCoachMenu">取消</button>
+
+      <view class="coach-menu-profile">
+        <view class="coach-menu-avatar">{{coachMenuAvatar}}</view>
+        <view class="coach-menu-profile-copy">
+          <text class="coach-menu-name">{{coachDisplayName}}</text>
+          <text class="coach-menu-id">教练 ID: {{coachMenuId}}</text>
+        </view>
       </view>
+
+      <view class="coach-menu-group">
+        <button class="coach-menu-item coach-menu-item-top" bindtap="openAgreement">
+          <view class="coach-menu-item-left">
+            <view class="coach-menu-icon coach-menu-icon-agreement"></view>
+            <text class="coach-menu-item-text">用户协议</text>
+          </view>
+          <view class="coach-menu-chevron"></view>
+        </button>
+        <view class="coach-menu-divider"></view>
+        <button class="coach-menu-item coach-menu-item-bottom" bindtap="openPrivacy">
+          <view class="coach-menu-item-left">
+            <view class="coach-menu-icon coach-menu-icon-privacy"></view>
+            <text class="coach-menu-item-text">隐私政策</text>
+          </view>
+          <view class="coach-menu-chevron"></view>
+        </button>
+      </view>
+
+      <button class="coach-menu-danger-card" bindtap="logout">退出登录</button>
+
+      <button class="coach-menu-cancel-card" bindtap="closeCoachMenu">取消</button>
     </view>
 
     <view class="sheet student-detail-sheet {{studentDetailSheetClass}}" catchtouchmove="stopMove">
@@ -262,7 +377,7 @@
         <text class="student-detail-title">学员详情</text>
         <button class="student-detail-close" bindtap="closeSheets">×</button>
       </view>
-      <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="student-detail-body">
+      <scroll-view scroll-y enhanced show-scrollbar="{{false}}" scroll-top="{{studentDetailScrollTop}}" class="student-detail-body">
         <view class="student-detail-card">
           <view class="student-detail-section-title">
             <view class="student-detail-section-bar"></view>
@@ -339,9 +454,109 @@
                 <text class="detail-inline-tag {{selectedStudentDetail.latest.courseTypeClass}}">{{selectedStudentDetail.latest.courseType}}</text>
                 <text class="detail-inline-tag {{selectedStudentDetail.latest.statusClass}}">{{selectedStudentDetail.latest.status}}</text>
               </view>
-              <text class="student-record-meta">{{selectedStudentDetail.latest.meta}}</text>
+              <view class="student-record-meta">
+                <block wx:for="{{selectedStudentDetail.latest.metaParts}}" wx:key="*this">
+                  <text class="student-record-meta-text">{{item}}</text>
+                  <text wx:if="{{index < selectedStudentDetail.latest.metaParts.length - 1}}" class="student-record-meta-divider">｜</text>
+                </block>
+              </view>
             </view>
             <text class="student-record-arrow">›</text>
+          </view>
+          <view wx:else class="student-record-empty">暂无记录</view>
+        </view>
+      </scroll-view>
+      <view class="student-detail-actions">
+        <button class="student-detail-btn" bindtap="closeSheets">关闭</button>
+      </view>
+    </view>
+
+    <view class="sheet student-detail-sheet shift-detail-sheet {{shiftDetailSheetClass}}" catchtouchmove="stopMove">
+      <view class="sheet-handle student-detail-handle shift-detail-handle"></view>
+      <view class="student-detail-head shift-detail-head">
+        <text class="student-detail-title">班级详情</text>
+        <button class="student-detail-close shift-detail-close" bindtap="closeSheets">×</button>
+      </view>
+      <scroll-view scroll-y enhanced show-scrollbar="{{false}}" scroll-top="{{shiftDetailScrollTop}}" class="student-detail-body">
+        <view class="student-detail-card">
+          <view class="student-detail-section-title">
+            <view class="student-detail-section-bar"></view>
+            <text>基础信息</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">班级名称</text>
+            <text class="student-detail-value is-strong">{{selectedShiftDetail.basic.name}}</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">课程内容</text>
+            <text class="student-detail-value">{{selectedShiftDetail.basic.courseContent}}</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">当前状态</text>
+            <text class="detail-inline-tag {{selectedShiftDetail.basic.statusClass}}">{{selectedShiftDetail.basic.status}}</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">班级学员</text>
+            <text class="student-detail-value">{{selectedShiftDetail.basic.students}}</text>
+          </view>
+        </view>
+
+        <view class="student-detail-card">
+          <view class="student-detail-section-title">
+            <view class="student-detail-section-bar"></view>
+            <text>班级概览</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">负责教练</text>
+            <text class="student-detail-value is-strong">{{selectedShiftDetail.summary.coach}}</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">所在校区</text>
+            <text class="student-detail-value">{{selectedShiftDetail.summary.campus}}</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">排课时间</text>
+            <text class="student-detail-value">{{selectedShiftDetail.summary.scheduleTime}}</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">课时进度</text>
+            <text class="student-detail-value is-strong">{{selectedShiftDetail.summary.progress}}</text>
+          </view>
+          <view class="student-detail-row">
+            <text class="student-detail-label">班级剩余</text>
+            <text class="student-detail-value is-strong">{{selectedShiftDetail.summary.remaining}}</text>
+          </view>
+        </view>
+
+        <view class="student-detail-card">
+          <view class="student-detail-section-title">
+            <view class="student-detail-section-bar"></view>
+            <text>班级备注</text>
+          </view>
+          <view class="student-remark-box {{selectedShiftDetail.remark.isEmpty ? 'is-empty' : ''}}">
+            <text>{{selectedShiftDetail.remark.text}}</text>
+          </view>
+        </view>
+
+        <view class="student-detail-card">
+          <view class="student-detail-section-title">
+            <view class="student-detail-section-bar"></view>
+            <text>最近一次排课</text>
+          </view>
+          <view wx:if="{{selectedShiftDetail.hasLatest}}" class="student-record-card">
+            <view class="student-record-main">
+              <view class="student-record-head">
+                <text class="student-record-time">{{selectedShiftDetail.latest.time}}</text>
+                <text class="detail-inline-tag {{selectedShiftDetail.latest.courseTypeClass}}">{{selectedShiftDetail.latest.courseType}}</text>
+                <text class="detail-inline-tag {{selectedShiftDetail.latest.statusClass}}">{{selectedShiftDetail.latest.status}}</text>
+              </view>
+              <view class="student-record-meta">
+                <block wx:for="{{selectedShiftDetail.latest.metaParts}}" wx:key="*this">
+                  <text class="student-record-meta-text">{{item}}</text>
+                  <text wx:if="{{index < selectedShiftDetail.latest.metaParts.length - 1}}" class="student-record-meta-divider">｜</text>
+                </block>
+              </view>
+            </view>
           </view>
           <view wx:else class="student-record-empty">暂无记录</view>
         </view>

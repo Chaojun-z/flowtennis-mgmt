@@ -73,7 +73,7 @@ assert.match(scheduleWxml, /bindtap="toggleCoachMenu"/, 'coach header arrow shou
 assert.match(scheduleWxml, /coach-menu-sheet[\s\S]*用户协议[\s\S]*隐私政策[\s\S]*退出登录[\s\S]*取消/, 'coach menu sheet should expose agreement, privacy, logout, and cancel actions');
 assert.match(scheduleWxml, /coach-menu-profile[\s\S]*coach-menu-avatar[\s\S]*coach-menu-name[\s\S]*教练 ID:/, 'coach menu sheet should render the coach profile block with avatar, name, and coach id');
 assert.match(scheduleWxml, /coach-menu-group[\s\S]*coach-menu-item[\s\S]*coach-menu-divider[\s\S]*coach-menu-danger-card[\s\S]*coach-menu-cancel-card/, 'coach menu sheet should split menu actions into grouped cards for menu, logout, and cancel');
-assert.match(scheduleWxml, /loading-shell/, 'schedule page should render a branded loading shell instead of the old plain loading text');
+assert.match(scheduleWxml, /loading-shell[\s\S]*loading-shell-safe[\s\S]*loading-shell-nav[\s\S]*loading-shell-title[\s\S]*loading-shell-summary[\s\S]*loading-shell-tip[\s\S]*loading-shell-list[\s\S]*loading-shell-item/, 'schedule page should render the structured skeleton screen instead of plain blank cards');
 assert.doesNotMatch(scheduleWxml, /课表加载中\.\.\./, 'schedule page should not show the old plain loading copy');
 assert.doesNotMatch(scheduleWxml.match(/<view class="sheet coach-menu-sheet[\s\S]*?<\/view>\s*<\/view>/)[0], /进入完整教练端/, 'coach menu sheet should not expose the full web coach entry');
 assert.doesNotMatch(scheduleWxml, /dashboard-topbar/, 'native workbench should not render the extra custom top bar');
@@ -308,6 +308,10 @@ assert.match(scheduleWxss, /\.shifts-top\s*\{[\s\S]*height:\s*210px;/i, 'shifts 
 assert.match(scheduleWxss, /\.students-summary\s*\{[\s\S]*width:\s*361px;[\s\S]*height:\s*90px;/i, 'students summary card should keep the 361x90 token');
 assert.match(scheduleWxss, /\.shift-summary-card\s*\{[\s\S]*height:\s*90px;/i, 'shifts summary card should keep the 90px height token');
 assert.match(scheduleWxss, /\.custom-nav-title\s*\{[\s\S]*font-size:\s*20px;[\s\S]*line-height:\s*26px;/i, 'top tab titles should use the requested 20px typography');
+assert.match(scheduleWxss, /\.loading-shell-top\s*\{[\s\S]*height:\s*210px;[\s\S]*background:\s*linear-gradient\(135deg,\s*#2b3a55 0%,\s*#1e2a38 100%\)/i, 'loading shell should keep the same dark header height and gradient');
+assert.match(scheduleWxss, /\.loading-shell-summary\s*\{[\s\S]*width:\s*361px;[\s\S]*height:\s*90px;[\s\S]*margin:\s*-45px auto 0;/i, 'loading shell summary card should overlap the header by 45px with the same 361x90 footprint');
+assert.match(scheduleWxss, /\.loading-shell-pulse\s*\{[\s\S]*animation:\s*loadingPulse 1\.4s ease-in-out infinite;/i, 'loading shell placeholders should use the pulse animation');
+assert.match(scheduleWxss, /@keyframes loadingPulse[\s\S]*0%[\s\S]*opacity:\s*0\.45[\s\S]*50%[\s\S]*opacity:\s*1[\s\S]*100%[\s\S]*opacity:\s*0\.45/i, 'loading shell should define the pulse keyframes');
 assert.match(scheduleWxss, /\.tt-header\s*\{[\s\S]*position:\s*sticky;/, 'timetable header should stay fixed during vertical scrolling');
 assert.match(scheduleWxss, /\.tt-time-axis\s*\{[\s\S]*position:\s*sticky;[\s\S]*left:\s*0;/, 'timetable time axis should stay fixed during horizontal scrolling');
 assert.match(scheduleWxss, /\.tt-header\s*\{[\s\S]*z-index:\s*60;/, 'timetable weekday header should stay above the scrolling time axis');
