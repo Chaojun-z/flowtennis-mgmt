@@ -22,6 +22,8 @@ const WECHAT_SCHEDULE_TEMPLATE_ID = process.env.WECHAT_SCHEDULE_TEMPLATE_ID;
 const WECHAT_COURSE_REMINDER_TEMPLATE_ID = process.env.WECHAT_COURSE_REMINDER_TEMPLATE_ID;
 const MATCH_WECHAT_TEMPLATE_ID = process.env.MATCH_WECHAT_TEMPLATE_ID;
 const MATCH_DATABASE_URL = process.env.MATCH_DATABASE_URL || process.env.DATABASE_URL;
+const DEFAULT_ADMIN_BOOTSTRAP_PASSWORD = process.env.DEFAULT_ADMIN_BOOTSTRAP_PASSWORD || '';
+const MATCH_CREATOR_CONFIRM_DEADLINE_HOURS = 12;
 
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
 const MATCH_COURT_FINANCE_ACCOUNT_ID='match-court-finance';
@@ -239,6 +241,129 @@ function scheduleLessonChargeStatus(rec,ledger=[]){
   if(!rec.entitlementId)return '未扣课';
   const used=(ledger||[]).some(l=>l.scheduleId===rec.id&&l.entitlementId===rec.entitlementId&&parseLessonValue(l.lessonDelta)<0);
   return used?'已扣课':'扣课异常';
+}
+function assertCanWriteSchedule(user){
+  if(user?.role==='admin')return;
+  throw new Error('无权限');
+}
+function scheduleHasFeedbackRecord(schedule,feedbacks=[]){
+  const scheduleId=String(schedule?.id||'').trim();
+  if(!scheduleId)return false;
+  return (feedbacks||[]).some(item=>String(item?.scheduleId||'').trim()===scheduleId);
+}
+function scheduleIsTrialLesson(schedule){
+  if(schedule?.isTrial===true)return true;
+  return /体验/.test(String(schedule?.courseType||''));
+}
+function workbenchTrialConvertedByPurchaseRecord(schedule,purchases=[]){
+  const studentIds=parseArr(schedule?.studentIds).filter(Boolean);
+  const studentId=studentIds[0]||String(schedule?.studentId||'').trim();
+  const studentName=String(schedule?.studentName||'').trim();
+  const trialDate=dateKey(schedule?.endTime||schedule?.startTime);
+  if(!trialDate)return false;
+  return (purchases||[]).some(item=>{
+    if(String(item?.status||'').trim()==='voided')return false;
+    const purchaseDate=dateKey(item?.purchaseDate||item?.createdAt);
+    if(!purchaseDate||purchaseDate<trialDate)return false;
+    if(studentId)return String(item?.studentId||'').trim()===studentId;
+    return !!studentName&&String(item?.studentName||'').trim()===studentName;
+  });
+}
+function resolveWorkbenchState(schedule,prevSchedule,now=new Date(),feedbacks=[]){
+  const fromBackend=schedule?.workbenchState;
+  if(fromBackend&&typeof fromBackend==='object'&&fromBackend.code&&fromBackend.label){
+    return {code:fromBackend.code,label:fromBackend.label};
+  }
+  if(!schedule||effectiveScheduleStatus(schedule,now)==='已取消')return null;
+  const startMs=dateMs(schedule.startTime);
+  const endMs=dateMs(schedule.endTime||schedule.startTime);
+  const nowMs=now instanceof Date?now.getTime():dateMs(now);
+  const startDiff=Number.isFinite(startMs)&&Number.isFinite(nowMs)?Math.round((startMs-nowMs)/60000):null;
+  const sameDay=prevSchedule&&dateKey(prevSchedule.startTime)===dateKey(schedule.startTime);
+  const travelGap=sameDay&&prevSchedule&&prevSchedule.campus!==schedule.campus&&prevSchedule.endTime
+    ? Math.round((dateMs(schedule.startTime)-dateMs(prevSchedule.endTime))/60000)
+    : null;
+  const ended=effectiveScheduleStatus(schedule,now)==='已结束';
+  if(Number.isFinite(startMs)&&Number.isFinite(endMs)&&startMs<=nowMs&&nowMs<endMs){
+    return {code:'live',label:'进行中'};
+  }
+  if(Number.isFinite(startDiff)&&startDiff>=0&&startDiff<=30){
+    return {code:'upcoming',label:'即将开始'};
+  }
+  if(Number.isFinite(startDiff)&&startDiff>30&&Number.isFinite(travelGap)&&travelGap>=0&&travelGap<60){
+    return {code:'travel',label:'需换场'};
+  }
+  if(Number.isFinite(startDiff)&&startDiff>30){
+    return {code:'later',label:'今日后续'};
+  }
+  if(ended&&!scheduleHasFeedbackRecord(schedule,feedbacks)){
+    return {code:'pending',label:'待反馈'};
+  }
+  return null;
+}
+function buildWorkbenchStats(input={}){
+  if(
+    Object.prototype.hasOwnProperty.call(input,'monthFinishedLessonUnits')
+    ||Object.prototype.hasOwnProperty.call(input,'weekFinishedLessonUnits')
+    ||Object.prototype.hasOwnProperty.call(input,'todayFinishedLessonUnits')
+    ||Object.prototype.hasOwnProperty.call(input,'pendingFeedbackCount')
+    ||Object.prototype.hasOwnProperty.call(input,'trialConversionRate')
+  ){
+    return {
+      monthFinishedLessonUnits:parseLessonValue(input.monthFinishedLessonUnits),
+      weekFinishedLessonUnits:parseLessonValue(input.weekFinishedLessonUnits),
+      todayFinishedLessonUnits:parseLessonValue(input.todayFinishedLessonUnits),
+      pendingFeedbackCount:parseInt(input.pendingFeedbackCount,10)||0,
+      trialConversionRate:parseLessonValue(input.trialConversionRate)
+    };
+  }
+  const now=input.now instanceof Date?input.now:new Date();
+  const scheduleRows=Array.isArray(input.schedule)?input.schedule:[];
+  const feedbacks=Array.isArray(input.feedbacks)?input.feedbacks:[];
+  const purchases=Array.isArray(input.purchases)?input.purchases:[];
+  const monthKey=dateKey(now.toISOString()).slice(0,7);
+  const dayKey=dateKey(now.toISOString());
+  const weekStart=new Date(now);
+  weekStart.setHours(0,0,0,0);
+  const day=weekStart.getDay()||7;
+  weekStart.setDate(weekStart.getDate()-day+1);
+  const weekStartKey=dateKey(weekStart.toISOString());
+  const weekEnd=new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate()+6);
+  const weekEndKey=dateKey(weekEnd.toISOString());
+  const endedRows=scheduleRows.filter(item=>effectiveScheduleStatus(item,now)==='已结束');
+  const monthEndedRows=endedRows.filter(item=>dateKey(item.startTime).slice(0,7)===monthKey);
+  const weekEndedRows=endedRows.filter(item=>{const key=dateKey(item.startTime);return key>=weekStartKey&&key<=weekEndKey;});
+  const todayEndedRows=endedRows.filter(item=>dateKey(item.startTime)===dayKey);
+  const monthTrialRows=monthEndedRows.filter(scheduleIsTrialLesson);
+  const monthTrialConverted=monthTrialRows.filter(item=>workbenchTrialConvertedByPurchaseRecord(item,purchases)).length;
+  return {
+    monthFinishedLessonUnits:monthEndedRows.reduce((sum,item)=>sum+parseLessonValue(item.lessonCount,1),0),
+    weekFinishedLessonUnits:weekEndedRows.reduce((sum,item)=>sum+parseLessonValue(item.lessonCount,1),0),
+    todayFinishedLessonUnits:todayEndedRows.reduce((sum,item)=>sum+parseLessonValue(item.lessonCount,1),0),
+    pendingFeedbackCount:endedRows.filter(item=>!scheduleHasFeedbackRecord(item,feedbacks)).length,
+    trialConversionRate:monthTrialRows.length?Math.round(monthTrialConverted/monthTrialRows.length*100):0
+  };
+}
+function decorateWorkbenchScheduleRows(schedule=[],feedbacks=[],purchases=[],now=new Date()){
+  const sorted=(Array.isArray(schedule)?schedule:[]).slice().sort((a,b)=>{
+    const coachCompare=String(a?.coach||'').localeCompare(String(b?.coach||''),'zh-CN');
+    if(coachCompare!==0)return coachCompare;
+    return String(a?.startTime||'').localeCompare(String(b?.startTime||''));
+  });
+  let prevByCoachDay=new Map();
+  return sorted.map(item=>{
+    const coachKey=String(item?.coach||'').trim();
+    const dayKeyValue=dateKey(item?.startTime);
+    const prevKey=`${coachKey}__${dayKeyValue}`;
+    const prevSchedule=prevByCoachDay.get(prevKey)||null;
+    const workbenchState=resolveWorkbenchState(item,prevSchedule,now,feedbacks);
+    prevByCoachDay.set(prevKey,item);
+    return {
+      ...item,
+      workbenchState:workbenchState
+    };
+  });
 }
 function assertClassSchedulable(cls,rec){
   if(!rec?.classId||!isBillableSchedule(rec))return;
@@ -802,14 +927,26 @@ function collectScheduleRiskWarnings(candidate,schedules,excludeId){
   }
   return [...new Set(warnings)];
 }
+function feedbackScopeForSchedule(schedule={}){
+  const studentIds=parseArr(schedule?.studentIds).filter(Boolean);
+  const courseType=String(schedule?.courseType||schedule?.type||schedule?.title||'').trim();
+  if(schedule?.feedbackScope==='class'||schedule?.feedbackScope==='student')return schedule.feedbackScope;
+  if(String(schedule?.classId||'').trim()&&(studentIds.length>1||/班课|训练营|小班|大师课/.test(courseType)))return 'class';
+  return 'student';
+}
 function buildFeedbackRecord(body,base,user){
   if(!body.scheduleId)throw new Error('缺少排课ID');
   const now=new Date().toISOString();
+  const studentIds=parseArr(body.studentIds).filter(Boolean);
+  const feedbackScope=feedbackScopeForSchedule(body);
+  const studentId=feedbackScope==='class'?'':(body.studentId||studentIds[0]||'');
   return {
     ...base,
     scheduleId:body.scheduleId,
-    studentId:body.studentId||'',
-    studentIds:parseArr(body.studentIds).filter(Boolean),
+    classId:body.classId||'',
+    feedbackScope,
+    studentId,
+    studentIds,
     studentName:body.studentName||'',
     coach:body.coach||user?.name||'',
     startTime:body.startTime||'',
@@ -867,14 +1004,20 @@ function filterLoadAllForUser(data,user){
     feedbacks:Array.isArray(data?.feedbacks)?data.feedbacks:[]
   };
   if(user?.role==='admin')return normalized;
+  const coachId=String(user?.coachId||user?.id||'').trim();
   const coachName=String(user?.coachName||user?.name||'').trim();
-  const ownSchedule=normalized.schedule.filter(s=>String(s.coach||'').trim()===coachName);
+  const rowMatchesCoach=(row)=>{
+    const rowCoachId=String(row?.coachId||row?.primaryCoachId||'').trim();
+    if(coachId&&rowCoachId)return rowCoachId===coachId;
+    return coachName&&String(row?.coach||row?.primaryCoach||'').trim()===coachName;
+  };
+  const ownSchedule=normalized.schedule.filter(rowMatchesCoach);
   const scheduleIds=new Set(ownSchedule.map(s=>s.id).filter(Boolean));
   const scheduleClassIds=new Set(ownSchedule.map(s=>s.classId).filter(Boolean));
-  const ownClasses=normalized.classes.filter(c=>String(c.coach||'').trim()===coachName||scheduleClassIds.has(c.id));
+  const ownClasses=normalized.classes.filter(c=>rowMatchesCoach(c)||scheduleClassIds.has(c.id));
   const classIds=new Set([...ownClasses.map(c=>c.id).filter(Boolean),...scheduleClassIds]);
   const studentIds=new Set();
-  normalized.students.filter(s=>String(s.primaryCoach||'').trim()===coachName).forEach(s=>studentIds.add(s.id));
+  normalized.students.filter(rowMatchesCoach).forEach(s=>studentIds.add(s.id));
   ownSchedule.forEach(s=>parseArr(s.studentIds).forEach(id=>studentIds.add(id)));
   ownClasses.forEach(c=>parseArr(c.studentIds).forEach(id=>studentIds.add(id)));
   const ownPlans=normalized.plans.filter(p=>studentIds.has(p.studentId)||classIds.has(p.classId));
@@ -929,13 +1072,15 @@ function mergeStoredAuthUser(tokenUser,storedUser){
   const source=storedUser||tokenUser||{};
   const role=source.role||tokenUser?.role||'';
   const name=source.name||tokenUser?.name||'';
+  const id=source.id||tokenUser?.id||'';
+  const username=source.username||tokenUser?.username||'';
   return {
-    id:source.id||tokenUser?.id||'',
+    id,
     name,
     role,
     status:source.status||tokenUser?.status||'active',
-    username:source.username||tokenUser?.username||'',
-    coachId:source.coachId||tokenUser?.coachId||'',
+    username,
+    coachId:source.coachId||tokenUser?.coachId||(role==='editor'?(id||username):''),
     coachName:source.coachName||(role==='editor'?name:(tokenUser?.coachName||'')),
     matchPermissions:source.matchPermissions||source.permissions||tokenUser?.matchPermissions||tokenUser?.permissions||[]
   };
@@ -1314,8 +1459,9 @@ const DEFAULT_CAMPUSES=[
 ];
 async function bootstrapDefaultUsers(){
   if(!ENABLE_DEFAULT_USER_BOOTSTRAP)return;
+  if(!DEFAULT_ADMIN_BOOTSTRAP_PASSWORD)throw new Error('ENABLE_DEFAULT_USER_BOOTSTRAP=true 时必须配置 DEFAULT_ADMIN_BOOTSTRAP_PASSWORD');
   const us=[{id:'admin',name:'管理员',role:'admin',username:'admin'},{id:'baiyangj',name:'白杨静',role:'editor',username:'baiyangj'},{id:'chendand',name:'陈丹丹',role:'editor',username:'chendand'},{id:'yuekez',name:'岳克舟',role:'editor',username:'yuekez'},{id:'zhoux',name:'周欣',role:'editor',username:'zhoux'},{id:'sunmingy',name:'孙明玥',role:'editor',username:'sunmingy'}];
-  const h=await bcrypt.hash('wqxd2026',10);
+  const h=await bcrypt.hash(DEFAULT_ADMIN_BOOTSTRAP_PASSWORD,10);
   for(const u of us){
     const ex=await get(T_USERS,u.id).catch(()=>null);
     if(!ex)await put(T_USERS,u.id,{...u,password:h,createdAt:new Date().toISOString()});
@@ -2939,6 +3085,83 @@ function buildClassUpdateRecord(oldClass,body,{product,now}){
     updatedAt:now
   };
 }
+function firstNonEmptyText(...values){
+  for(const value of values){
+    const text=String(value??'').trim();
+    if(text)return text;
+  }
+  return '';
+}
+function formatClassScheduleDaysText(days){
+  const list=parseArr(days).map(item=>String(item||'').trim()).filter(Boolean);
+  if(!list.length)return '';
+  return `每${list.join('、')}`;
+}
+function formatClassScheduleTimeFromLesson(lesson){
+  const start=String(lesson?.startTime||'').trim();
+  const end=String(lesson?.endTime||'').trim();
+  if(!start||!end)return '';
+  const startDate=new Date(start.replace(' ','T'));
+  const endDate=new Date(end.replace(' ','T'));
+  if(Number.isNaN(startDate.getTime())||Number.isNaN(endDate.getTime()))return '';
+  const weekDays=['周日','周一','周二','周三','周四','周五','周六'];
+  const startText=`${String(startDate.getHours()).padStart(2,'0')}:${String(startDate.getMinutes()).padStart(2,'0')}`;
+  const endText=`${String(endDate.getHours()).padStart(2,'0')}:${String(endDate.getMinutes()).padStart(2,'0')}`;
+  return `${weekDays[startDate.getDay()]} ${startText} - ${endText}`;
+}
+function decorateWorkbenchClasses(classes,schedule){
+  const lessons=Array.isArray(schedule)?schedule:[];
+  return (Array.isArray(classes)?classes:[]).map(item=>{
+    const classLessons=lessons
+      .filter(lesson=>String(lesson?.status||'')!=='已取消')
+      .filter(lesson=>String(lesson?.classId||'').trim()===String(item?.id||'').trim())
+      .sort((a,b)=>String(a?.startTime||'').localeCompare(String(b?.startTime||'')));
+    const scheduleTime=firstNonEmptyText(
+      classLessons[0]&&formatClassScheduleTimeFromLesson(classLessons[0]),
+      formatClassScheduleDaysText(item?.scheduleDays)
+    );
+    return {
+      ...item,
+      courseContent:firstNonEmptyText(item?.courseContent,item?.productName),
+      scheduleTime:scheduleTime,
+      campus:firstNonEmptyText(item?.campus,item?.campusName),
+      remark:firstNonEmptyText(item?.remark,item?.opsNote)
+    };
+  });
+}
+function workbenchLessonUnits(schedule){
+  const count=parseLessonValue(schedule?.lessonCount);
+  if(count>0)return count;
+  const start=dateMs(schedule?.startTime);
+  const end=dateMs(schedule?.endTime);
+  if(Number.isFinite(start)&&Number.isFinite(end)&&end>start)return Math.max(0,(end-start)/3600000);
+  return 1;
+}
+function decorateWorkbenchStudents(students=[],schedule=[],now=new Date()){
+  const lessons=Array.isArray(schedule)?schedule:[];
+  return (Array.isArray(students)?students:[]).map(item=>({
+    ...item,
+    phone:firstNonEmptyText(item?.phone,item?.mobile,item?.phoneNumber),
+    type:firstNonEmptyText(item?.type,item?.studentType,item?.category),
+    campus:firstNonEmptyText(item?.campus,item?.campusName,item?.primaryCampus),
+    primaryCoach:firstNonEmptyText(item?.primaryCoach,item?.coachName),
+    ownerCoach:firstNonEmptyText(item?.ownerCoach,item?.saleCoach,item?.salesCoach),
+    remark:firstNonEmptyText(item?.remark,item?.studentRemark,item?.note,item?.notes),
+    historyIssue:firstNonEmptyText(item?.historyIssue,item?.issueHistory,item?.issueNote,item?.healthNote),
+    focusNote:firstNonEmptyText(item?.focusNote,item?.sessionFocus),
+    lessonUnitsCompleted:lessons
+      .filter(lesson=>effectiveScheduleStatus(lesson,now)==='已结束')
+      .filter(lesson=>parseArr(lesson?.studentIds).includes(item?.id)||String(lesson?.studentId||'')===String(item?.id||''))
+      .reduce((sum,lesson)=>sum+workbenchLessonUnits(lesson),0)
+  }));
+}
+function decorateWorkbenchFeedbacks(feedbacks=[]){
+  return (Array.isArray(feedbacks)?feedbacks:[]).map(item=>({
+    ...item,
+    focusNote:firstNonEmptyText(item?.focusNote,item?.sessionFocus,item?.coachFocus,item?.coachNote),
+    summary:firstNonEmptyText(item?.summary,item?.practicedToday)
+  }));
+}
 function assertCanEditClassWithSchedules(oldClass,nextClass,schedules){
   const classSchedules=(schedules||[]).filter(s=>s.classId===oldClass?.id);
   if(!classSchedules.length)return;
@@ -3659,7 +3882,7 @@ module.exports = async (req, res) => {
       const session=await fetchWechatSession(code);
       const openid=extractWechatOpenId(session);
       const account=findWechatUserByOpenId(await getCachedScan(T_USERS).catch(()=>[]),openid);
-      if(!account)return sendJson(res,{error:'微信未绑定教练账号，请先进入完整教练端登录绑定'},404);
+      if(!account)return sendJson(res,{error:'微信未绑定教练账号，请先使用账号密码登录完成绑定'},404);
       const payload=mergeStoredAuthUser(null,account);
       try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}
       const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});
@@ -4281,6 +4504,7 @@ module.exports = async (req, res) => {
       await init();
       if(method==='GET'){const rows=await getCachedScan(T_SCHEDULE);return sendJson(res,user.role==='admin'?rows:filterLoadAllForUser({schedule:rows},user).schedule);}
       if(method==='POST'){
+        try{assertCanWriteSchedule(user);}catch(e){return sendJson(res,{error:e.message},403);}
         const id=uuidv4();
         const r={...body,...normalizeCoachLateInfo(body),studentIds:parseArr(body.studentIds).filter(Boolean),expectedStudentIds:parseArr(body.expectedStudentIds).filter(Boolean),absentStudentIds:parseArr(body.absentStudentIds).filter(Boolean),venue:normalizeVenue(body.venue),id,status:body.status||'已排课',cancelReason:body.cancelReason||'',notifyStatus:body.notifyStatus||'未通知',confirmStatus:body.confirmStatus||'待确认',scheduleSource:body.scheduleSource||'排课表',createdBy:user.name,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
         const {risk,entitlementDeltas}=await timed('schedule create validate',async()=>{
@@ -4327,6 +4551,7 @@ module.exports = async (req, res) => {
       const id=schM[1];
       if(method==='GET')return sendJson(res,await get(T_SCHEDULE,id));
       if(method==='PUT'){
+        try{assertCanWriteSchedule(user);}catch(e){return sendJson(res,{error:e.message},403);}
         const ex=await get(T_SCHEDULE,id).catch(()=>null);
         const r={...ex,...body,...normalizeCoachLateInfo({...ex,...body}),studentIds:parseArr(body.studentIds??ex?.studentIds).filter(Boolean),expectedStudentIds:parseArr(body.expectedStudentIds??ex?.expectedStudentIds).filter(Boolean),absentStudentIds:parseArr(body.absentStudentIds??ex?.absentStudentIds).filter(Boolean),venue:normalizeVenue(body.venue??ex?.venue),id,updatedAt:new Date().toISOString()};
         const oldDelta=scheduleLessonDelta(ex);
@@ -4481,13 +4706,20 @@ module.exports = async (req, res) => {
         getCachedScan(T_PURCHASES).catch(()=>[])
       ]);
       const scoped=filterLoadAllForUser({campuses,students,classes,schedule,feedbacks,purchases},user);
+      const now=new Date();
+      const decoratedStudents=decorateWorkbenchStudents(scoped.students||[],scoped.schedule||[],now);
+      const decoratedFeedbacks=decorateWorkbenchFeedbacks(scoped.feedbacks||[]);
+      const decoratedSchedule=decorateWorkbenchScheduleRows(scoped.schedule||[],decoratedFeedbacks,scoped.purchases||[],now);
+      const decoratedClasses=decorateWorkbenchClasses(scoped.classes||[],scoped.schedule||[]);
+      const stats=buildWorkbenchStats({schedule:decoratedSchedule,feedbacks:decoratedFeedbacks,purchases:scoped.purchases||[],now});
       return sendJson(res,{
         campuses:scoped.campuses||[],
-        students:scoped.students||[],
-        classes:scoped.classes||[],
-        schedule:scoped.schedule||[],
-        feedbacks:scoped.feedbacks||[],
-        purchases:scoped.purchases||[]
+        students:decoratedStudents,
+        classes:decoratedClasses,
+        schedule:decoratedSchedule,
+        feedbacks:decoratedFeedbacks,
+        purchases:scoped.purchases||[],
+        stats
       });
     }
     if(path==='/classes'){await init();if(method==='GET'){const rows=await getCachedScan(T_CLASSES);if(user.role==='admin')return sendJson(res,rows);const schedule=await getCachedScan(T_SCHEDULE).catch(()=>[]);return sendJson(res,filterLoadAllForUser({classes:rows,schedule},user).classes);}if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);const id=uuidv4();const now=new Date().toISOString();const [existingClasses,product]=await Promise.all([getCachedScan(T_CLASSES).catch(()=>[]),get(T_PRODUCTS,body.productId).catch(()=>null)]);if(!product)return sendJson(res,{error:'课程产品不存在'},404);validateClassInput({...body,usedLessons:0},product);const classNo=await reserveNextClassNo(existingClasses,user,now);const r=buildClassCreateRecord({...body,productName:product.name||body.productName||''},{id,classNo,user,now});await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}}
@@ -4541,7 +4773,16 @@ module.exports._test={
   collectScheduleRiskWarnings,
   buildFeedbackRecord,
   assertCanWriteFeedback,
+  buildFeedbackRecord,
+  feedbackScopeForSchedule,
+  assertCanWriteSchedule,
   filterLoadAllForUser,
+  buildWorkbenchStats,
+  resolveWorkbenchState,
+  decorateWorkbenchClasses,
+  decorateWorkbenchStudents,
+  decorateWorkbenchFeedbacks,
+  workbenchLessonUnits,
   assertPlanWriteForbidden,
   buildCoachRenameUpdates,
   buildStudentIdentityUpdates,

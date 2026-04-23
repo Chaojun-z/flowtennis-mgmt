@@ -283,6 +283,10 @@ page {
   color: #d97706;
 }
 
+.travel-reminder {
+  font-size: 12px;
+}
+
 .section-heading {
   display: flex;
   align-items: baseline;

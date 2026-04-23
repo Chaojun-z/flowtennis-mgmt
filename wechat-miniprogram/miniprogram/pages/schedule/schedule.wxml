@@ -109,6 +109,14 @@
           </view>
         </view>
 
+        <view wx:if="{{nextTravelReminder}}" class="reminder-bar travel-reminder">
+          <view class="summary-icon">
+            <view class="summary-icon-dot"></view>
+            <text>i</text>
+          </view>
+          <text>下一节课需跨校区换场，请预留通勤时间</text>
+        </view>
+
         <view class="section-heading">
           <text class="section-title">今日排课</text>
           <text class="section-date">{{todayLabel}}</text>
@@ -344,7 +352,7 @@
         <view class="coach-menu-avatar">{{coachMenuAvatar}}</view>
         <view class="coach-menu-profile-copy">
           <text class="coach-menu-name">{{coachDisplayName}}</text>
-          <text class="coach-menu-id">教练 ID: {{coachMenuId}}</text>
+          <text wx:if="{{coachMenuId}}" class="coach-menu-id">教练 ID: {{coachMenuId}}</text>
         </view>
       </view>
 
@@ -758,7 +766,7 @@
       <view class="poster-sheet-actions">
         <button class="poster-action-btn is-back" bindtap="closePoster">返回</button>
         <button class="poster-action-btn is-save" bindtap="savePosterToAlbum">保存相册</button>
-        <button class="poster-action-btn is-send" bindtap="sharePosterToStudent">发送给学员</button>
+        <button class="poster-action-btn is-send" bindtap="sharePoster">分享海报</button>
       </view>
     </view>
   </block>

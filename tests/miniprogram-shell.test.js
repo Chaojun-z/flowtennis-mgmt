@@ -47,6 +47,9 @@ assert.match(indexJs, /agreed/, 'index page should track the agreement checkbox 
 assert.match(indexJs, /openAgreement/, 'index page should open the agreement page from the login page');
 assert.match(indexJs, /openPrivacy/, 'index page should open the privacy page from the login page');
 assert.doesNotMatch(indexJs, /enterWithoutNotice/, 'index page should no longer keep the fake direct-enter handler');
+assert.doesNotMatch(indexJs, /passwordVisible|togglePasswordVisible/, 'index page should remove password visibility dead code');
+assert.doesNotMatch(indexWxml, /passwordVisible/, 'index page should not bind removed password visibility state');
+assert.match(indexWxml, /<input class="entry-input" password="\{\{true\}\}"/, 'index password input should stay masked without dead state');
 
 const indexWxss = readText('wechat-miniprogram/miniprogram/pages/index/index.wxss');
 assert.match(indexWxss, /background:\s*linear-gradient\(180deg,\s*#2b3a55 0%,\s*#1e2a38 35%,\s*#f4f6f9 60%,\s*#f4f6f9 100%\)/i, 'login page should use the requested brand gradient background');
@@ -72,6 +75,8 @@ assert.match(scheduleWxml, /coach-title-row/, 'native workbench should render th
 assert.match(scheduleWxml, /bindtap="toggleCoachMenu"/, 'coach header arrow should open the account action sheet');
 assert.match(scheduleWxml, /coach-menu-sheet[\s\S]*用户协议[\s\S]*隐私政策[\s\S]*退出登录[\s\S]*取消/, 'coach menu sheet should expose agreement, privacy, logout, and cancel actions');
 assert.match(scheduleWxml, /coach-menu-profile[\s\S]*coach-menu-avatar[\s\S]*coach-menu-name[\s\S]*教练 ID:/, 'coach menu sheet should render the coach profile block with avatar, name, and coach id');
+assert.match(scheduleWxml, /wx:if="\{\{coachMenuId\}\}"[^>]*class="coach-menu-id"/, 'coach menu should hide coach ID when backend does not return it');
+assert.match(scheduleWxml, /下一节课需跨校区换场，请预留通勤时间/, 'native workbench should show lightweight cross-campus travel reminder');
 assert.match(scheduleWxml, /coach-menu-group[\s\S]*coach-menu-item[\s\S]*coach-menu-divider[\s\S]*coach-menu-danger-card[\s\S]*coach-menu-cancel-card/, 'coach menu sheet should split menu actions into grouped cards for menu, logout, and cancel');
 assert.match(scheduleWxml, /loading-shell[\s\S]*loading-shell-safe[\s\S]*loading-shell-nav[\s\S]*loading-shell-title[\s\S]*loading-shell-summary[\s\S]*loading-shell-tip[\s\S]*loading-shell-list[\s\S]*loading-shell-item/, 'schedule page should render the structured skeleton screen instead of plain blank cards');
 assert.doesNotMatch(scheduleWxml, /课表加载中\.\.\./, 'schedule page should not show the old plain loading copy');
@@ -106,7 +111,7 @@ assert.doesNotMatch(scheduleWxml, /feedback-input-bar/, 'feedback sheet should n
 assert.match(scheduleWxml, /feedback-course-time[\s\S]*selectedClassDetail\.basicInfo\.datetime[\s\S]*feedback-course-separator/, 'feedback course card should render full date time and styled separators');
 assert.match(scheduleWxml, /scroll-top="\{\{feedbackSheetScrollTop\}\}"/, 'feedback sheet should reset its scroll position when opened from any entry');
 assert.match(scheduleWxml, /今天练习了/, 'feedback sheet first field should use the requested label copy');
-assert.match(scheduleWxml, /poster-sheet[\s\S]*生成反馈海报[\s\S]*posterStyles[\s\S]*feedbackPosterCanvas[\s\S]*手机端可直接长按海报保存[\s\S]*保存相册[\s\S]*发送给学员/, 'poster sheet should render the real six-template canvas poster shell');
+assert.match(scheduleWxml, /poster-sheet[\s\S]*生成反馈海报[\s\S]*posterStyles[\s\S]*feedbackPosterCanvas[\s\S]*手机端可直接长按海报保存[\s\S]*保存相册[\s\S]*分享海报/, 'poster sheet should render the real six-template canvas poster shell');
 assert.match(scheduleWxml, /student-detail-sheet[\s\S]*学员详情[\s\S]*基础信息[\s\S]*教练视角摘要[\s\S]*学员备注[\s\S]*上课记录[\s\S]*关闭/, 'student detail sheet should render the SVG-mapped student profile sections');
 assert.match(scheduleWxml, /shift-detail-sheet[\s\S]*班级详情[\s\S]*基础信息[\s\S]*班级概览[\s\S]*班级备注[\s\S]*最近一次排课[\s\S]*关闭/, 'shift detail sheet should render the mapped class profile sections');
 assert.match(scheduleWxml, /wx:elif="\{\{!shiftsList\.length\}\}"[\s\S]*暂无班次/, 'shift page should render an empty state instead of mock cards when classes are empty');
@@ -156,6 +161,8 @@ assert.doesNotMatch(scheduleWxml, /进入完整教练端/, 'native schedule page
 assert.doesNotMatch(scheduleJs, /openWebview\(\)/, 'native schedule page should not keep the old webview jump handler');
 assert.match(scheduleJs, /openAgreement\(\)/, 'schedule page should expose the user agreement menu action');
 assert.match(scheduleJs, /openPrivacy\(\)/, 'schedule page should expose the privacy policy menu action');
+assert.match(scheduleJs, /coachWorkbenchStats/, 'mini program workbench should keep the backend stats payload separately');
+assert.match(scheduleJs, /workbenchState/, 'mini program workbench should use the backend workbenchState enum');
 assert.doesNotMatch(scheduleJs, /item\.courseContent \|\| item\.productName \|\| item\.type/, 'shift cards should no longer guess course content from mixed front-end fields');
 assert.doesNotMatch(scheduleJs, /item\.scheduleTime \|\| item\.classTime/, 'shift cards should no longer guess schedule time from mixed front-end fields');
 assert.doesNotMatch(scheduleJs, /firstNonEmpty\(item\.remark,\s*item\.note,\s*item\.notes\)/, 'shift cards should no longer guess class remark from mixed front-end fields');
@@ -169,13 +176,13 @@ assert.strictEqual(
 const todoNow = new Date('2026-04-21T12:00:00+08:00');
 assert.strictEqual(
   scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已排课' }, todoNow).label,
-  '待上课',
-  'future active courses should be weekly todos'
+  '今日后续',
+  'future later courses should use the standard later state'
 );
 assert.strictEqual(
   scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已排课' }, todoNow).label,
   '待反馈',
-  'ended courses without feedback should become feedback todos'
+  'ended courses without feedback should become pending state'
 );
 assert.strictEqual(
   scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已排课', hasFeedback: true }, todoNow),
@@ -216,6 +223,15 @@ assert.match(apiServerJs, /pages\/detail\/detail/, 'subscribe messages should de
 assert.match(apiServerJs, /courseContent:/, 'workbench API should decorate class data with a courseContent field for the mini program');
 assert.match(apiServerJs, /scheduleTime:/, 'workbench API should decorate class data with a scheduleTime field for the mini program');
 assert.match(apiServerJs, /remark:/, 'workbench API should decorate class data with a remark field for the mini program');
+assert.match(apiServerJs, /historyIssue:/, 'workbench API should decorate student data with a normalized historyIssue field');
+assert.match(apiServerJs, /focusNote:/, 'workbench API should decorate student and feedback data with a normalized focusNote field');
+assert.match(apiServerJs, /summary:/, 'workbench API should decorate feedback data with a normalized summary field');
+assert.match(apiServerJs, /monthFinishedLessonUnits/, 'workbench API should expose standard stats fields');
+assert.match(apiServerJs, /weekFinishedLessonUnits/, 'workbench API should expose standard stats fields');
+assert.match(apiServerJs, /todayFinishedLessonUnits/, 'workbench API should expose standard stats fields');
+assert.match(apiServerJs, /pendingFeedbackCount/, 'workbench API should expose standard stats fields');
+assert.match(apiServerJs, /trialConversionRate/, 'workbench API should expose standard stats fields');
+assert.match(apiServerJs, /workbenchState:/, 'workbench API should expose standard state enum for each schedule');
 
 const miniApiJs = readText('wechat-miniprogram/miniprogram/utils/api.js');
 assert.match(miniApiJs, /function saveCoachFeedback/, 'mini program API helper should provide feedback save');
@@ -224,6 +240,32 @@ assert.match(miniApiJs, /function loginWithPassword/, 'mini program API helper s
 assert.match(miniApiJs, /function bindWechatAfterLogin/, 'mini program API helper should provide WeChat bind after login');
 assert.match(miniApiJs, /\/auth\/login/, 'mini program API helper should call the account login API');
 assert.match(miniApiJs, /\/auth\/wechat-bind/, 'mini program API helper should call the WeChat bind API');
+assert.doesNotMatch(miniApiJs, /function saveCoachSchedule/, 'mini program API helper should not keep coach schedule write helper');
+assert.doesNotMatch(miniApiJs, /request\('\/schedule'/, 'mini program API helper should not call schedule write APIs');
+assert.doesNotMatch(miniApiJs, /request\(`\/schedule\//, 'mini program API helper should not call schedule update APIs');
+
+const schedulePageJs = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.js');
+assert.doesNotMatch(schedulePageJs, /王教练|待补充/, 'native schedule page should not show fake coach fallback values');
+assert.match(schedulePageJs, /function assertCoachUser/, 'native schedule page should reject non-coach login payloads');
+assert.match(schedulePageJs, /user\.role !== 'editor'/, 'native schedule page should only allow coach role payloads');
+assert.match(schedulePageJs, /lessonUnitsCompleted/, 'native student cards should read backend lessonUnitsCompleted');
+assert.match(schedulePageJs, /function scheduleLessonUnits/, 'native student cards should calculate lesson units only as a short fallback');
+assert.match(schedulePageJs, /nextTravelReminder/, 'native workbench reminders should include a travel reminder flag');
+assert.doesNotMatch(scheduleWxml, /发送给学员/, 'mini program poster action should not pretend it can target a specific student chat');
+assert.match(scheduleWxml, /分享海报/, 'mini program poster action should use the real share poster wording');
+assert.match(schedulePageJs, /showShareImageMenu/, 'mini program poster sharing should use WeChat image share capability');
+assert.match(schedulePageJs, /function feedbackScopeForSchedule/, 'mini program feedback save should decide student vs class feedback scope');
+assert.match(schedulePageJs, /feedbackScope:\s*feedbackScope/, 'mini program feedback save should send the feedback scope contract');
+assert.match(schedulePageJs, /String\(item\.classId \|\| ''\)\.trim\(\) === String\(shift\.id \|\| ''\)\.trim\(\)/, 'shift detail should first link schedules by classId');
+assert.match(schedulePageJs, /String\(item\.id \|\| ''\) === String\(selectedClass && selectedClass\.classId \|\| ''\)/, 'schedule detail should first link classes by classId');
+assert.doesNotMatch(schedulePageJs, /className && className === shift\.name/, 'shift detail should not use class name guessing as the primary link');
+assert.doesNotMatch(schedulePageJs, /classes\.find\(item => studentIdsOf\(item\)\.some\(id => studentIds\.includes\(id\)\)\)/, 'schedule detail should not link classes by studentIds intersection');
+assert.doesNotMatch(schedulePageJs, /student && student\.studentRemark[\s\S]*student && student\.note[\s\S]*student && student\.notes/, 'mini program detail should not guess multiple student remark fields on the frontend');
+assert.doesNotMatch(schedulePageJs, /student && student\.issueHistory[\s\S]*student && student\.issueNote[\s\S]*student && student\.healthNote/, 'mini program detail should not guess multiple history issue fields on the frontend');
+assert.doesNotMatch(schedulePageJs, /item\.courseContent \|\| '课程内容待补充'/, 'mini program shift cards should trust the backend courseContent contract');
+assert.doesNotMatch(schedulePageJs, /student\.phone,\s*student\.mobile,\s*student\.phoneNumber/, 'mini program student detail should trust the backend phone contract');
+assert.doesNotMatch(schedulePageJs, /student\.studentType,\s*student\.type,\s*student\.category/, 'mini program student detail should trust the backend student type contract');
+assert.doesNotMatch(schedulePageJs, /student\.campus,[\s\S]*student\.campusName,[\s\S]*student\.primaryCampus/, 'mini program student detail should trust the backend campus contract');
 
 const agreementWxml = readText('wechat-miniprogram/miniprogram/pages/agreement/agreement.wxml');
 assert.match(agreementWxml, /用户服务协议/, 'mini program should provide a native user agreement page');

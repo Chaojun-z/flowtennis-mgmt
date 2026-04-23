@@ -35,13 +35,14 @@ function timeText(item) {
 }
 
 function formatScheduleItem(item) {
+  const state = item.workbenchState && item.workbenchState.code ? item.workbenchState : null;
   return {
     ...item,
     timeText: timeText(item),
     title: item.courseType || item.className || '课程',
     studentText: item.studentName || '学员待确认',
     locationText: [item.campus, item.venue || item.externalVenueName || item.externalCourtName].filter(Boolean).join(' ') || '地点待确认',
-    statusText: item.status || '已排课'
+    statusText: state ? state.label : (item.status || '已排课')
   };
 }
 
@@ -51,13 +52,23 @@ function hasScheduleFeedback(item = {}) {
 
 function workbenchTodoState(item = {}, now = new Date()) {
   if (item.status === '已取消') return null;
+  if (item.workbenchState && item.workbenchState.code) {
+    const code = String(item.workbenchState.code || '');
+    const label = String(item.workbenchState.label || '');
+    if (code === 'pending') return { code, label, className: 'tag-danger' };
+    if (code === 'live') return { code, label, className: 'tag-green' };
+    if (code === 'upcoming' || code === 'travel') return { code, label, className: 'tag-green' };
+    if (code === 'later') return { code, label, className: 'tag-green' };
+    return null;
+  }
   const start = parseDate(item.startTime);
   const end = parseDate(item.endTime || item.startTime);
   if (start && start > now) {
-    return { code: 'upcoming', label: '待上课', className: 'tag-green' };
+    const diff = Math.round((start.getTime() - now.getTime()) / 60000);
+    return { code: diff <= 30 ? 'upcoming' : 'later', label: diff <= 30 ? '即将开始' : '今日后续', className: 'tag-green' };
   }
   if (end && end <= now && !hasScheduleFeedback(item)) {
-    return { code: 'feedback', label: '待反馈', className: 'tag-danger' };
+    return { code: 'pending', label: '待反馈', className: 'tag-danger' };
   }
   return null;
 }

@@ -12,6 +12,14 @@ assert.ok(rules.findWechatScheduleRecipient, 'api._test should expose schedule r
 assert.ok(rules.buildScheduleSubscribeMessage, 'api._test should expose schedule subscribe message builder');
 assert.ok(rules.collectCourseReminderCandidates, 'api._test should expose course reminder candidate helper');
 assert.ok(rules.buildCourseReminderSubscribeMessage, 'api._test should expose course reminder message helper');
+assert.ok(rules.assertCanWriteSchedule, 'api._test should expose schedule write permission guard');
+assert.ok(rules.buildWorkbenchStats, 'api._test should expose standard workbench stats helper');
+assert.ok(rules.resolveWorkbenchState, 'api._test should expose standard workbench state helper');
+assert.ok(rules.decorateWorkbenchClasses, 'api._test should expose class contract normalization helper');
+assert.ok(rules.decorateWorkbenchStudents, 'api._test should expose student contract normalization helper');
+assert.ok(rules.decorateWorkbenchFeedbacks, 'api._test should expose feedback contract normalization helper');
+assert.ok(rules.feedbackScopeForSchedule, 'api._test should expose feedback scope helper');
+assert.ok(rules.buildFeedbackRecord, 'api._test should expose feedback record builder');
 
 assert.strictEqual(
   rules.effectiveScheduleStatus(
@@ -66,6 +74,245 @@ assert.strictEqual(
   '不扣课',
   'cancelled schedule should show no charge'
 );
+
+assert.doesNotThrow(
+  () => rules.assertCanWriteSchedule(
+    { role: 'admin', name: '管理员' }
+  ),
+  'admin can write schedule'
+);
+
+assert.throws(
+  () => rules.assertCanWriteSchedule(
+    { role: 'editor', coachName: '朝珺', name: '朝珺' }
+  ),
+  /无权限/,
+  'coach cannot write schedule'
+);
+
+assert.deepStrictEqual(
+  rules.buildWorkbenchStats({
+    monthFinishedLessonUnits: 12,
+    weekFinishedLessonUnits: 5,
+    todayFinishedLessonUnits: 2,
+    pendingFeedbackCount: 3,
+    trialConversionRate: 50
+  }),
+  {
+    monthFinishedLessonUnits: 12,
+    weekFinishedLessonUnits: 5,
+    todayFinishedLessonUnits: 2,
+    pendingFeedbackCount: 3,
+    trialConversionRate: 50
+  },
+  'workbench stats helper should keep the standard backend contract'
+);
+
+assert.deepStrictEqual(
+  rules.resolveWorkbenchState(
+    {
+      startTime: '2026-04-21 12:00',
+      endTime: '2026-04-21 13:00',
+      status: '已排课'
+    },
+    null,
+    new Date('2026-04-21T12:15:00+08:00')
+  ),
+  {
+    code: 'live',
+    label: '进行中'
+  },
+  'active course should resolve to live'
+);
+
+assert.deepStrictEqual(
+  rules.resolveWorkbenchState(
+    {
+      startTime: '2026-04-21 12:20',
+      endTime: '2026-04-21 13:20',
+      status: '已排课'
+    },
+    null,
+    new Date('2026-04-21T12:00:00+08:00')
+  ),
+  {
+    code: 'upcoming',
+    label: '即将开始'
+  },
+  'near-future course should resolve to upcoming'
+);
+
+assert.deepStrictEqual(
+  rules.resolveWorkbenchState(
+    {
+      startTime: '2026-04-21 11:00',
+      endTime: '2026-04-21 12:00',
+      status: '已排课'
+    },
+    null,
+    new Date('2026-04-21T12:30:00+08:00')
+  ),
+  {
+    code: 'pending',
+    label: '待反馈'
+  },
+  'finished course without feedback should resolve to pending'
+);
+
+assert.deepStrictEqual(
+  rules.decorateWorkbenchClasses(
+    [{
+      id: 'class-1',
+      className: 'A班',
+      productName: '体验课',
+      opsNote: '班次备注',
+      scheduleDays: ['周一']
+    }],
+    [{
+      id: 'schedule-1',
+      classId: '',
+      className: 'A班',
+      startTime: '2026-04-21 10:00',
+      endTime: '2026-04-21 11:00',
+      status: '已排课'
+    }]
+  ),
+  [{
+    id: 'class-1',
+    className: 'A班',
+    productName: '体验课',
+    opsNote: '班次备注',
+    scheduleDays: ['周一'],
+    courseContent: '体验课',
+    scheduleTime: '每周一',
+    campus: '',
+    remark: '班次备注'
+  }],
+  'class normalization should output standard fields and avoid linking schedule time by class name guessing'
+);
+
+assert.deepStrictEqual(
+  rules.decorateWorkbenchStudents([{
+    id: 'stu-1',
+    mobile: '13800000000',
+    category: '青少年',
+    primaryCampus: '马宝',
+    primaryCoach: '朝珺',
+    ownerCoach: '销售A',
+    studentRemark: '学生备注',
+    issueNote: '膝盖旧伤',
+    sessionFocus: '盯正手',
+    notes: '旧备注'
+  }], [{
+    id: 'sch-1',
+    studentIds: ['stu-1'],
+    status: '已排课',
+    startTime: '2026-04-21 10:00',
+    endTime: '2026-04-21 11:00',
+    lessonCount: 1.5
+  }], new Date('2026-04-21T12:00:00+08:00')),
+  [{
+    id: 'stu-1',
+    mobile: '13800000000',
+    category: '青少年',
+    primaryCampus: '马宝',
+    primaryCoach: '朝珺',
+    ownerCoach: '销售A',
+    phone: '13800000000',
+    type: '青少年',
+    campus: '马宝',
+    studentRemark: '学生备注',
+    issueNote: '膝盖旧伤',
+    sessionFocus: '盯正手',
+    notes: '旧备注',
+    remark: '学生备注',
+    historyIssue: '膝盖旧伤',
+    focusNote: '盯正手',
+    lessonUnitsCompleted: 1.5
+  }],
+  'student normalization should expose standard fields and completed lesson units'
+);
+
+assert.strictEqual(
+  rules.decorateWorkbenchClasses([{ id: 'class-campus', campusName: '旗忠', productName: '私教课' }], [])[0].campus,
+  '旗忠',
+  'class normalization should expose the standard campus field'
+);
+
+assert.strictEqual(
+  rules.mergeStoredAuthUser(null, { id: 'coach-user', name: '朝珺', role: 'editor' }).coachId,
+  'coach-user',
+  'editor login payload should include a stable coachId fallback'
+);
+
+assert.deepStrictEqual(
+  rules.filterLoadAllForUser({
+    schedule: [
+      { id: 'mine', coachId: 'coach-1', coach: '同名教练', classId: 'class-1', studentIds: ['stu-1'] },
+      { id: 'same-name-other-id', coachId: 'coach-2', coach: '同名教练', classId: 'class-2', studentIds: ['stu-2'] },
+      { id: 'legacy-name', coach: '同名教练', classId: 'class-legacy', studentIds: ['stu-legacy'] }
+    ],
+    classes: [
+      { id: 'class-1', coachId: 'coach-1', coach: '同名教练', studentIds: ['stu-1'] },
+      { id: 'class-2', coachId: 'coach-2', coach: '同名教练', studentIds: ['stu-2'] },
+      { id: 'class-legacy', coach: '同名教练', studentIds: ['stu-legacy'] }
+    ],
+    students: [
+      { id: 'stu-1', primaryCoachId: 'coach-1', primaryCoach: '同名教练' },
+      { id: 'stu-2', primaryCoachId: 'coach-2', primaryCoach: '同名教练' },
+      { id: 'stu-legacy', primaryCoach: '同名教练' }
+    ],
+    feedbacks: [
+      { id: 'fb-1', scheduleId: 'mine' },
+      { id: 'fb-2', scheduleId: 'same-name-other-id' }
+    ]
+  }, { role: 'editor', coachId: 'coach-1', coachName: '同名教练', name: '同名教练' }).schedule.map(item => item.id),
+  ['mine', 'legacy-name'],
+  'coach scoped data should prefer coachId and only fall back to coachName for legacy rows without coachId'
+);
+
+assert.deepStrictEqual(
+  rules.decorateWorkbenchFeedbacks([{
+    id: 'fb-1',
+    coachNote: '重心前压',
+    practicedToday: '发球节奏'
+  }]),
+  [{
+    id: 'fb-1',
+    coachNote: '重心前压',
+    practicedToday: '发球节奏',
+    focusNote: '重心前压',
+    summary: '发球节奏'
+  }],
+  'feedback normalization should expose a single standard focus and summary contract'
+);
+
+assert.strictEqual(
+  rules.feedbackScopeForSchedule({ classId: 'class-1', studentIds: ['s1', 's2'], courseType: '班课' }),
+  'class',
+  'multi-student class feedback should use class scope'
+);
+
+assert.strictEqual(
+  rules.feedbackScopeForSchedule({ studentIds: ['s1'], courseType: '私教课' }),
+  'student',
+  'private feedback should use student scope'
+);
+
+const classFeedbackRecord = rules.buildFeedbackRecord({
+  scheduleId: 'sch-1',
+  classId: 'class-1',
+  studentIds: ['s1', 's2'],
+  studentId: 's1',
+  studentName: '多人班',
+  courseType: '班课',
+  practicedToday: '正手',
+  nextTraining: '步伐'
+}, { id: 'fb-1' }, { name: '朝珺' });
+assert.strictEqual(classFeedbackRecord.feedbackScope, 'class', 'class feedback should use class scope');
+assert.strictEqual(classFeedbackRecord.classId, 'class-1', 'class feedback should keep classId');
+assert.strictEqual(classFeedbackRecord.studentId, '', 'class feedback should not bind to only the first student');
+assert.deepStrictEqual(classFeedbackRecord.studentIds, ['s1', 's2'], 'class feedback should keep all studentIds');
 
 assert.strictEqual(
   rules.buildWechatAccessTokenUrl('wx-app-id', 'secret-value'),

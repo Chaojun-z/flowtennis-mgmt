@@ -117,6 +117,18 @@ assert.match(
 );
 
 assert.match(
+  fnBody('openMyStudentDetail'),
+  /备注[\s\S]*s\.remark/,
+  'my student detail should read the normalized backend remark field'
+);
+
+assert.match(
+  fnBody('renderMyStudents'),
+  /recentFb\?\.mainIssues\|\|recentFb\?\.knowledgePoint\|\|s\.remark\|\|''/,
+  'my students list should read the normalized backend remark field'
+);
+
+assert.match(
   source,
   /function openMyClassDetail\(/,
   'coach portal should provide a dedicated my class detail modal'
@@ -242,8 +254,26 @@ assert.match(
 
 assert.match(
   fnBody('renderWorkbench'),
-  /sumScheduleLessonUnits/,
-  'coach workbench summary cards should count lesson units, not schedule rows'
+  /window\.coachWorkbenchStats|coachWorkbenchStats/,
+  'coach workbench should read the backend standard stats payload'
+);
+
+assert.doesNotMatch(
+  fnBody('renderWorkbench'),
+  /monthTrialConverted|monthTrialRows|monthTrialRate|pendingFeedbackCount=endedRows/,
+  'coach workbench should not re-compute manager metrics on the frontend'
+);
+
+assert.match(
+  fnBody('workbenchScheduleState'),
+  /workbenchState/,
+  'coach workbench cards should prefer the backend workbenchState enum'
+);
+
+assert.doesNotMatch(
+  fnBody('workbenchScheduleState'),
+  /code:'done'|label:'已完成'/,
+  'coach workbench state machine should remove the done state'
 );
 
 assert.doesNotMatch(

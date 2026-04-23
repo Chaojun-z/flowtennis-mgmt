@@ -12,12 +12,21 @@
 
     <view class="entry-field entry-field-password">
       <text class="entry-label">密码</text>
-      <view class="password-wrap">
-        <input class="entry-input password-input" password="{{!passwordVisible}}" placeholder="请输入密码" placeholder-class="entry-placeholder" value="{{password}}" bindinput="onPasswordInput" />
-        <view class="password-eye" bindtap="togglePasswordVisible"></view>
-      </view>
+      <input class="entry-input" password="{{true}}" placeholder="请输入密码" placeholder-class="entry-placeholder" value="{{password}}" bindinput="onPasswordInput" />
     </view>
 
-    <button class="login-btn" bindtap="requestScheduleNotice">登录</button>
+    <checkbox-group class="agreement-group" bindchange="onAgreementChange">
+      <label class="agreement-row">
+        <checkbox value="agree" checked="{{agreed}}" color="#2B3A55" />
+        <view class="agreement-copy">
+          <text>我已阅读并同意</text>
+          <text class="agreement-link" bindtap="openAgreement">《用户协议》</text>
+          <text class="agreement-gap"></text>
+          <text class="agreement-link" bindtap="openPrivacy">《隐私政策》</text>
+        </view>
+      </label>
+    </checkbox-group>
+
+    <button class="login-btn" loading="{{loggingIn}}" bindtap="submitLogin">登录</button>
   </view>
 </view>

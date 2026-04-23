@@ -1,4 +1,5 @@
 const { SCHEDULE_TEMPLATE_ID, COURSE_REMINDER_TEMPLATE_ID } = require('../../config');
+const { loginWithPassword, bindWechatAfterLogin } = require('../../utils/api');
 
 function enterCoachPortal() {
   wx.navigateTo({ url: '/pages/schedule/schedule' });
@@ -8,7 +9,8 @@ Page({
   data: {
     account: '',
     password: '',
-    passwordVisible: false
+    agreed: false,
+    loggingIn: false
   },
   onAccountInput(event) {
     this.setData({ account: event.detail.value });
@@ -16,8 +18,15 @@ Page({
   onPasswordInput(event) {
     this.setData({ password: event.detail.value });
   },
-  togglePasswordVisible() {
-    this.setData({ passwordVisible: !this.data.passwordVisible });
+  onAgreementChange(event) {
+    const values = event.detail.value || [];
+    this.setData({ agreed: values.includes('agree') });
+  },
+  openAgreement() {
+    wx.navigateTo({ url: '/pages/agreement/agreement' });
+  },
+  openPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/privacy' });
   },
   requestScheduleNotice() {
     wx.requestSubscribeMessage({
@@ -25,7 +34,34 @@ Page({
       complete: enterCoachPortal
     });
   },
-  enterWithoutNotice() {
-    enterCoachPortal();
+  submitLogin() {
+    const account = String(this.data.account || '').trim();
+    const password = String(this.data.password || '');
+    if (!account || !password) {
+      wx.showToast({ title: '请填写账号和密码', icon: 'none' });
+      return;
+    }
+    if (!this.data.agreed) {
+      wx.showToast({ title: '请先同意用户协议和隐私政策', icon: 'none' });
+      return;
+    }
+    if (this.data.loggingIn) return;
+    this.setData({ loggingIn: true });
+    loginWithPassword(account, password)
+      .then(() => bindWechatAfterLogin())
+      .then(() => {
+        const app = getApp();
+        if (app && app.globalData) app.globalData.privacyAccepted = true;
+        this.requestScheduleNotice();
+      })
+      .catch((error) => {
+        wx.showToast({
+          title: error.message || '登录失败',
+          icon: 'none'
+        });
+      })
+      .finally(() => {
+        this.setData({ loggingIn: false });
+      });
   }
 });
