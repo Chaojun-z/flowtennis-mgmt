@@ -17,24 +17,36 @@ assert.strictEqual(projectConfig.miniprogramRoot, 'miniprogram/', 'project.confi
 assert.strictEqual(projectConfig.appid, 'wx7acb7603ee803923', 'project.config.json should use the real mini program AppID');
 
 const appConfig = readJson('wechat-miniprogram/miniprogram/app.json');
-assert.deepStrictEqual(appConfig.pages, ['pages/index/index', 'pages/schedule/schedule', 'pages/detail/detail', 'pages/webview/webview'], 'mini program should keep entry, native schedule/detail pages, and the web-view fallback');
+assert.deepStrictEqual(appConfig.pages, ['pages/index/index', 'pages/schedule/schedule', 'pages/detail/detail', 'pages/agreement/agreement', 'pages/privacy/privacy'], 'mini program should keep only native entry pages plus agreement and privacy pages');
 assert.strictEqual(appConfig.sitemapLocation, 'sitemap.json', 'mini program should include sitemap config');
 assert.strictEqual(appConfig.lazyCodeLoading, 'requiredComponents', 'mini program should enable component lazy injection');
+assert.strictEqual(appConfig.__usePrivacyCheck__, true, 'mini program should enable the WeChat privacy check mechanism');
 
 const indexWxml = readText('wechat-miniprogram/miniprogram/pages/index/index.wxml');
 assert.match(indexWxml, /网球兄弟/, 'index page should render the Gemini login title');
 assert.match(indexWxml, /FLOWTENNIS · 管理系统/, 'index page should render the Gemini login subtitle');
 assert.match(indexWxml, /请输入账号或手机号/, 'index page should render the mapped account input');
 assert.match(indexWxml, /请输入密码/, 'index page should render the mapped password input');
-assert.match(indexWxml, /bindtap="requestScheduleNotice"[\s\S]*登录/, 'index login button should keep the existing tap-to-enter flow');
+assert.match(indexWxml, /checkbox/, 'index page should render an agreement checkbox');
+assert.match(indexWxml, /我已阅读并同意/, 'index page should render the agreement consent copy');
+assert.match(indexWxml, /用户协议/, 'index page should expose the user agreement link');
+assert.match(indexWxml, /隐私政策/, 'index page should expose the privacy policy link');
+assert.match(indexWxml, /bindtap="submitLogin"[\s\S]*登录/, 'index login button should use the real account login submit handler');
 assert.doesNotMatch(indexWxml, /<web-view/, 'index page should stay native so subscribe permission can be requested by tap');
+assert.doesNotMatch(indexWxml, /password-eye/, 'login page should remove the password eye icon');
 
 const indexJs = readText('wechat-miniprogram/miniprogram/pages/index/index.js');
 assert.match(indexJs, /SCHEDULE_TEMPLATE_ID/, 'index page should read the schedule subscribe template ID from config');
 assert.match(indexJs, /COURSE_REMINDER_TEMPLATE_ID/, 'index page should read the course reminder subscribe template ID from config');
+assert.match(indexJs, /loginWithPassword/, 'index page should call the real account password login helper');
+assert.match(indexJs, /bindWechatAfterLogin/, 'index page should bind the current mini program WeChat account after password login');
 assert.match(indexJs, /wx\.requestSubscribeMessage/, 'index page should request schedule subscribe permission from a tap');
 assert.match(indexJs, /tmplIds:\s*\[SCHEDULE_TEMPLATE_ID,\s*COURSE_REMINDER_TEMPLATE_ID\]/, 'index page should request both schedule and course reminder templates');
 assert.match(indexJs, /pages\/schedule\/schedule/, 'index page should navigate into the native schedule page after the tap');
+assert.match(indexJs, /agreed/, 'index page should track the agreement checkbox state');
+assert.match(indexJs, /openAgreement/, 'index page should open the agreement page from the login page');
+assert.match(indexJs, /openPrivacy/, 'index page should open the privacy page from the login page');
+assert.doesNotMatch(indexJs, /enterWithoutNotice/, 'index page should no longer keep the fake direct-enter handler');
 
 const indexWxss = readText('wechat-miniprogram/miniprogram/pages/index/index.wxss');
 assert.match(indexWxss, /background:\s*linear-gradient\(180deg,\s*#2b3a55 0%,\s*#1e2a38 35%,\s*#f4f6f9 60%,\s*#f4f6f9 100%\)/i, 'login page should use the requested brand gradient background');
@@ -58,7 +70,11 @@ assert.match(scheduleWxml, /coachGreeting/, 'native workbench should bind the gr
 assert.match(scheduleWxml, /coachDisplayName/, 'native workbench should bind the coach name dynamically');
 assert.match(scheduleWxml, /coach-title-row/, 'native workbench should render the coach title and dropdown arrow in one aligned row');
 assert.match(scheduleWxml, /bindtap="toggleCoachMenu"/, 'coach header arrow should open the account action sheet');
-assert.match(scheduleWxml, /coach-menu-sheet[\s\S]*退出登录[\s\S]*取消/, 'coach menu sheet should expose only logout and cancel actions');
+assert.match(scheduleWxml, /coach-menu-sheet[\s\S]*用户协议[\s\S]*隐私政策[\s\S]*退出登录[\s\S]*取消/, 'coach menu sheet should expose agreement, privacy, logout, and cancel actions');
+assert.match(scheduleWxml, /coach-menu-profile[\s\S]*coach-menu-avatar[\s\S]*coach-menu-name[\s\S]*教练 ID:/, 'coach menu sheet should render the coach profile block with avatar, name, and coach id');
+assert.match(scheduleWxml, /coach-menu-group[\s\S]*coach-menu-item[\s\S]*coach-menu-divider[\s\S]*coach-menu-danger-card[\s\S]*coach-menu-cancel-card/, 'coach menu sheet should split menu actions into grouped cards for menu, logout, and cancel');
+assert.match(scheduleWxml, /loading-shell/, 'schedule page should render a branded loading shell instead of the old plain loading text');
+assert.doesNotMatch(scheduleWxml, /课表加载中\.\.\./, 'schedule page should not show the old plain loading copy');
 assert.doesNotMatch(scheduleWxml.match(/<view class="sheet coach-menu-sheet[\s\S]*?<\/view>\s*<\/view>/)[0], /进入完整教练端/, 'coach menu sheet should not expose the full web coach entry');
 assert.doesNotMatch(scheduleWxml, /dashboard-topbar/, 'native workbench should not render the extra custom top bar');
 assert.doesNotMatch(scheduleWxml, /hero-device-pill/, 'native workbench should not render the extra simulated top-right device pill');
@@ -73,6 +89,9 @@ assert.match(scheduleWxml, /week-task-location[\s\S]*item\.student[\s\S]*week-ta
 assert.match(scheduleWxml, /scroll-top="\{\{timetableScrollTop\}\}"/, 'native timetable should support vertical auto positioning');
 assert.match(scheduleWxml, /scroll-left="\{\{timetableScrollLeft\}\}"/, 'native timetable should support horizontal auto positioning to today');
 assert.match(scheduleWxml, /scroll-x scroll-y class="timetable-scroll"/, 'native timetable should use one native two-axis scroll for smoother movement');
+assert.match(scheduleWxml, /custom-nav-title">我的课表/, 'timetable tab should render the title in a dedicated custom nav layer');
+assert.match(scheduleWxml, /custom-nav-title">我的学员/, 'students tab should render the title in a dedicated custom nav layer');
+assert.match(scheduleWxml, /custom-nav-title">我的班次/, 'shifts tab should render the title in a dedicated custom nav layer');
 assert.match(scheduleWxml, /tt-time-axis[\s\S]*tt-now-label[\s\S]*currentTimeText[\s\S]*tt-day-columns[\s\S]*tt-now-line[\s\S]*tt-now-line-solid/, 'native timetable should keep the current-time label fixed inside the left time axis');
 assert.match(scheduleWxml, /tt-day-date-dot/, 'native timetable should render the active day as a round date marker');
 assert.match(scheduleWxml, /tt-course-status/, 'native timetable course cards should render pending status as a compact badge');
@@ -89,6 +108,9 @@ assert.match(scheduleWxml, /scroll-top="\{\{feedbackSheetScrollTop\}\}"/, 'feedb
 assert.match(scheduleWxml, /今天练习了/, 'feedback sheet first field should use the requested label copy');
 assert.match(scheduleWxml, /poster-sheet[\s\S]*生成反馈海报[\s\S]*posterStyles[\s\S]*feedbackPosterCanvas[\s\S]*手机端可直接长按海报保存[\s\S]*保存相册[\s\S]*发送给学员/, 'poster sheet should render the real six-template canvas poster shell');
 assert.match(scheduleWxml, /student-detail-sheet[\s\S]*学员详情[\s\S]*基础信息[\s\S]*教练视角摘要[\s\S]*学员备注[\s\S]*上课记录[\s\S]*关闭/, 'student detail sheet should render the SVG-mapped student profile sections');
+assert.match(scheduleWxml, /shift-detail-sheet[\s\S]*班级详情[\s\S]*基础信息[\s\S]*班级概览[\s\S]*班级备注[\s\S]*最近一次排课[\s\S]*关闭/, 'shift detail sheet should render the mapped class profile sections');
+assert.match(scheduleWxml, /wx:elif="\{\{!shiftsList\.length\}\}"[\s\S]*暂无班次/, 'shift page should render an empty state instead of mock cards when classes are empty');
+assert.doesNotMatch(scheduleWxml, /编辑排课|取消排课|去排课|保存排课|确认取消/, 'coach mini program should not expose schedule create, edit, or cancel actions');
 
 const scheduleJs = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.js');
 assert.match(scheduleJs, /weekTodoGroups/, 'native workbench should prepare grouped weekly todo data');
@@ -96,6 +118,7 @@ assert.match(scheduleJs, /dashboardClasses,\s*weekTodoGroups/, 'native week rend
 assert.match(scheduleJs, /reminderItems/, 'native workbench should prepare compact reminder chips');
 assert.match(scheduleJs, /coachGreeting/, 'mini program schedule page should prepare the greeting copy for the recreated dashboard header');
 assert.match(scheduleJs, /coachDisplayName/, 'mini program schedule page should prepare the coach name for the recreated dashboard header');
+assert.match(scheduleJs, /coachMenuId/, 'mini program schedule page should prepare the coach id for the settings action sheet');
 assert.match(scheduleJs, /logout\(\)\s*\{[\s\S]*wx\.reLaunch\(\{ url: '\/pages\/index\/index' \}\)/, 'coach logout should clear storage and return to the login page');
 assert.doesNotMatch(scheduleJs, /const studentsList = \[/, 'mini program students should not stay on hardcoded local list data');
 assert.doesNotMatch(scheduleJs, /const shiftsList = \[/, 'mini program classes should not stay on hardcoded local list data');
@@ -129,7 +152,13 @@ assert.match(scheduleJs, /Array\.from\(\{\s*length:\s*25\s*\}[\s\S]*String\(i\)\
 assert.match(scheduleJs, /TIMETABLE_START_HOUR\s*=\s*0/, 'mini program current-time marker should use a midnight-based timetable axis');
 assert.match(scheduleJs, /timetableNowSolidLineStyle/, 'mini program current-time marker should expose a solid segment for today');
 assert.match(scheduleJs, /lastScheduleId:\s*lastClass && lastClass\.id/, 'mini program students should still carry their latest class id for summaries');
-assert.match(scheduleJs, /\/pages\/webview\/webview\?fallback=1/, 'schedule fallback button should mark deliberate web-view entry');
+assert.doesNotMatch(scheduleWxml, /进入完整教练端/, 'native schedule page should not expose the old webview fallback entry');
+assert.doesNotMatch(scheduleJs, /openWebview\(\)/, 'native schedule page should not keep the old webview jump handler');
+assert.match(scheduleJs, /openAgreement\(\)/, 'schedule page should expose the user agreement menu action');
+assert.match(scheduleJs, /openPrivacy\(\)/, 'schedule page should expose the privacy policy menu action');
+assert.doesNotMatch(scheduleJs, /item\.courseContent \|\| item\.productName \|\| item\.type/, 'shift cards should no longer guess course content from mixed front-end fields');
+assert.doesNotMatch(scheduleJs, /item\.scheduleTime \|\| item\.classTime/, 'shift cards should no longer guess schedule time from mixed front-end fields');
+assert.doesNotMatch(scheduleJs, /firstNonEmpty\(item\.remark,\s*item\.note,\s*item\.notes\)/, 'shift cards should no longer guess class remark from mixed front-end fields');
 
 const scheduleUtils = require('../wechat-miniprogram/miniprogram/utils/schedule');
 assert.strictEqual(
@@ -163,18 +192,8 @@ const detailWxml = readText('wechat-miniprogram/miniprogram/pages/detail/detail.
 assert.match(detailWxml, /课程详情/, 'native detail page should render course detail content');
 assert.match(detailWxml, /返回课表/, 'native detail page should let coaches return to schedule');
 const detailJs = readText('wechat-miniprogram/miniprogram/pages/detail/detail.js');
-assert.match(detailJs, /fallback=1/, 'detail fallback button should mark deliberate web-view entry');
-
-const webviewWxml = readText('wechat-miniprogram/miniprogram/pages/webview/webview.wxml');
-assert.match(webviewWxml, /<web-view\s+src="\{\{webViewUrl\}\}"/, 'web-view page should render the PWA through web-view');
-
-const webviewJs = readText('wechat-miniprogram/miniprogram/pages/webview/webview.js');
-assert.match(webviewJs, /WEB_VIEW_URL/, 'web-view page should read the PWA URL from config');
-assert.match(webviewJs, /options\.fallback !== '1'[\s\S]*wx\.redirectTo/, 'web-view page should redirect accidental opens back to native pages');
-assert.doesNotMatch(webviewJs, /https:\/\/[^'"]+/, 'web-view page should not hardcode the business domain');
-assert.match(webviewJs, /wx\.login/, 'web-view page should request a mini program login code');
-assert.match(webviewJs, /wechatCode/, 'web-view page should pass the mini program login code into the web-view URL');
-assert.match(webviewJs, /scheduleId/, 'web-view page should pass notification scheduleId into the PWA URL');
+assert.doesNotMatch(detailWxml, /完整工作台|进入完整教练端/, 'native detail page should not expose the old webview fallback entry');
+assert.doesNotMatch(detailJs, /openWebview\(\)/, 'native detail page should not keep the old webview jump handler');
 
 const apiJs = readText('public/assets/scripts/core/api.js');
 assert.match(apiJs, /WECHAT_CODE_KEY/, 'web app should keep the mini program login code until account login succeeds');
@@ -185,21 +204,59 @@ const stateJs = readText('public/assets/scripts/core/state.js');
 assert.match(stateJs, /openPendingScheduleDeepLink/, 'page data load should try to open a pending notification schedule');
 
 const configJs = readText('wechat-miniprogram/miniprogram/config.js');
-assert.match(configJs, /WEB_VIEW_URL:\s*'https:\/\/www\.flowtennis\.cn'/, 'config should use the verified business domain');
 assert.match(configJs, /API_BASE_URL:\s*'https:\/\/www\.flowtennis\.cn\/api'/, 'config should expose the API base URL for native pages');
 assert.match(configJs, /SCHEDULE_TEMPLATE_ID:\s*'H_BIzR4Ca7aKldMWAlajgSwTWSos80lDZskEM4p8taI'/, 'config should include the selected schedule subscribe template ID');
 assert.match(configJs, /COURSE_REMINDER_TEMPLATE_ID:\s*'ME_OpZIFDLRwN-ENibuFk4g4Dtdi8x43TAQR2nKkoUs'/, 'config should include the selected course reminder subscribe template ID');
+assert.doesNotMatch(configJs, /WEB_VIEW_URL/, 'mini program config should no longer keep the removed webview URL');
 
 const apiServerJs = readText('api/index.js');
 assert.match(apiServerJs, /\/auth\/wechat-login/, 'API should support mini program login by bound openid');
 assert.match(apiServerJs, /findWechatUserByOpenId/, 'API should find the bound coach account by openid');
 assert.match(apiServerJs, /pages\/detail\/detail/, 'subscribe messages should deep link to native course detail');
+assert.match(apiServerJs, /courseContent:/, 'workbench API should decorate class data with a courseContent field for the mini program');
+assert.match(apiServerJs, /scheduleTime:/, 'workbench API should decorate class data with a scheduleTime field for the mini program');
+assert.match(apiServerJs, /remark:/, 'workbench API should decorate class data with a remark field for the mini program');
 
 const miniApiJs = readText('wechat-miniprogram/miniprogram/utils/api.js');
 assert.match(miniApiJs, /function saveCoachFeedback/, 'mini program API helper should provide feedback save');
 assert.match(miniApiJs, /request\('\/feedbacks'/, 'mini program feedback save should call the feedback API');
+assert.match(miniApiJs, /function loginWithPassword/, 'mini program API helper should provide account password login');
+assert.match(miniApiJs, /function bindWechatAfterLogin/, 'mini program API helper should provide WeChat bind after login');
+assert.match(miniApiJs, /\/auth\/login/, 'mini program API helper should call the account login API');
+assert.match(miniApiJs, /\/auth\/wechat-bind/, 'mini program API helper should call the WeChat bind API');
+
+const agreementWxml = readText('wechat-miniprogram/miniprogram/pages/agreement/agreement.wxml');
+assert.match(agreementWxml, /用户服务协议/, 'mini program should provide a native user agreement page');
+assert.match(agreementWxml, /doc-meta/, 'agreement page should render the latest updated meta line');
+assert.match(agreementWxml, /doc-section-head[\s\S]*doc-section-marker/, 'agreement page should render each section with the branded vertical marker');
+const agreementWxss = readText('wechat-miniprogram/miniprogram/pages/agreement/agreement.wxss');
+assert.match(agreementWxss, /\.doc-card\s*\{[\s\S]*margin:\s*16px 16px 24px;[\s\S]*padding:\s*24px 24px 36px;/i, 'agreement page should keep larger outer spacing and bottom breathing room');
+assert.match(agreementWxss, /\.doc-section-marker\s*\{[\s\S]*width:\s*4px;[\s\S]*height:\s*14px;/i, 'agreement page should use the requested 4x14 section marker');
+
+const privacyWxml = readText('wechat-miniprogram/miniprogram/pages/privacy/privacy.wxml');
+assert.match(privacyWxml, /隐私政策/, 'mini program should provide a native privacy policy page');
+assert.match(privacyWxml, /doc-meta/, 'privacy page should render the latest updated meta line');
+assert.match(privacyWxml, /doc-link-card[\s\S]*doc-link-icon[\s\S]*查看微信隐私保护指引[\s\S]*doc-link-chevron/, 'privacy page should render the WeChat privacy link as a light card action instead of a primary button');
+const privacyWxss = readText('wechat-miniprogram/miniprogram/pages/privacy/privacy.wxss');
+assert.match(privacyWxss, /\.doc-link-icon\s*\{[\s\S]*width:\s*20px;[\s\S]*height:\s*20px;[\s\S]*%2307C160/i, 'privacy page should render the WeChat icon with the requested 20px green SVG');
+assert.match(privacyWxss, /\.doc-link-card\s*\{[\s\S]*width:\s*313px;[\s\S]*height:\s*56px;[\s\S]*border:\s*1px solid #e2e8f0;/i, 'privacy page should size the WeChat link card to the requested 313x56 spec');
+assert.match(privacyWxss, /\.doc-link-chevron\s*\{[\s\S]*width:\s*6px;[\s\S]*height:\s*12px;/i, 'privacy page should use the slimmer 6x12 chevron icon');
+assert.match(privacyWxss, /\.doc-title\s*\{[\s\S]*font-size:\s*22px;[\s\S]*color:\s*#0f172a;/i, 'privacy page title should use the requested 22px dark token');
+assert.match(privacyWxss, /\.doc-section-title\s*\{[\s\S]*font-size:\s*15px;[\s\S]*font-weight:\s*700;/i, 'privacy page section titles should use the requested 15px bold token');
+assert.match(privacyWxss, /\.doc-paragraph\s*\{[\s\S]*color:\s*#475569;/i, 'privacy page body copy should use the requested slate body color');
+assert.match(privacyWxss, /\.doc-paragraph\s*\{[\s\S]*font-size:\s*13px;/i, 'privacy page body copy should use the requested 13px regular size');
+
+const appJs = readText('wechat-miniprogram/miniprogram/app.js');
+assert.match(appJs, /onNeedPrivacyAuthorization/, 'mini program app should implement the WeChat privacy authorization hook');
+assert.match(appJs, /openPrivacyContract/, 'mini program app should provide a helper to open the WeChat privacy contract');
 
 const scheduleWxss = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.wxss');
+assert.match(scheduleWxss, /\.coach-menu-icon-agreement\s*\{[\s\S]*width:\s*20px;[\s\S]*height:\s*20px;/i, 'settings action sheet should use the 20px agreement icon slot');
+assert.match(scheduleWxss, /\.coach-menu-icon-privacy\s*\{[\s\S]*width:\s*20px;[\s\S]*height:\s*20px;/i, 'settings action sheet should use the 20px privacy icon slot');
+assert.match(scheduleWxss, /\.coach-menu-avatar\s*\{[\s\S]*width:\s*52px;[\s\S]*height:\s*52px;/, 'settings action sheet should use the larger avatar size from the refined spec');
+assert.match(scheduleWxss, /\.coach-menu-sheet\s*\{[\s\S]*padding:\s*0 16px calc\(36px \+ env\(safe-area-inset-bottom\)\);/i, 'settings action sheet should keep extra bottom safe-area spacing');
+assert.match(scheduleWxss, /\.student-detail-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 180rpx\);/i, 'student detail sheet should sit below the top-right capsule area');
+assert.match(scheduleWxss, /\.custom-nav-title\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*74px;[\s\S]*left:\s*16px;[\s\S]*font-size:\s*17px;/i, 'tab top titles should be absolutely positioned in the top-left operation bar area with 17px type');
 assert.match(scheduleWxss, /\.dashboard-top\s*\{[\s\S]*background:\s*linear-gradient\(135deg,\s*#2b3a55 0%,\s*#1e2a38 100%\)/i, 'mini program workbench should use the SVG dark header gradient');
 assert.match(scheduleWxss, /\.dashboard-top\s*\{[\s\S]*height:\s*230px;/, 'dashboard header should use the requested 230px height');
 assert.match(scheduleWxss, /\.dashboard-hero\s*\{[\s\S]*padding:\s*122px 32rpx 0;/, 'dashboard coach header should stop with the avatar bottom 20px above the metric card');
@@ -238,13 +295,19 @@ assert.match(scheduleWxss, /\.tab-workdesk-icon:not\(\.active\)\s*\{[\s\S]*strok
 assert.match(scheduleWxss, /\.tab-schedule-icon\.active\s*\{[\s\S]*rect x='4' y='5' width='16' height='15' rx='2' fill='%232B3A55'[\s\S]*stroke='%23FFFFFF' stroke-width='2'/, 'active schedule tab should use the latest calendar SVG with white negative-space divider');
 assert.match(scheduleWxss, /\.tab-schedule-icon:not\(\.active\)\s*\{[\s\S]*rect x='4' y='5' width='16' height='15' rx='2' stroke='%2394A3B8' stroke-width='2'[\s\S]*M8 3v4M16 3v4M4 11h16[\s\S]*stroke='%2394A3B8' stroke-width='2'/, 'inactive schedule tab should use the latest outline calendar SVG');
 assert.match(scheduleWxss, /\.tab-classes-icon\.active\s*\{[\s\S]*fill='%23FFFFFF'/, 'active classes tab should preserve the white negative-space SVG detail');
-assert.match(scheduleWxss, /\.timetable-top\s*\{[\s\S]*height:\s*190px;[\s\S]*padding:\s*124px 16px 0;[\s\S]*background:\s*linear-gradient\(135deg,\s*#2b3a55 0%,\s*#1e2a38 100%\)/i, 'timetable top should match the requested dark header shell');
+assert.match(scheduleWxss, /\.timetable-top\s*\{[\s\S]*height:\s*210px;[\s\S]*padding:\s*115px 16px 0;[\s\S]*background:\s*linear-gradient\(135deg,\s*#2b3a55 0%,\s*#1e2a38 100%\)/i, 'timetable top should match the requested dark header shell');
 assert.match(scheduleWxss, /\.week-switch\s*\{[\s\S]*width:\s*160px;[\s\S]*height:\s*36px;[\s\S]*border:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.1\);[\s\S]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.15\);/i, 'timetable week switch should match the SVG 160x36 translucent pill');
 assert.match(scheduleWxss, /\.week-switch\s*\{[^}]*gap:\s*20px;/, 'timetable week switch should keep 20px spacing around the date text');
 assert.match(scheduleWxss, /\.switch-btn::before\s*\{[\s\S]*width:\s*8px;[\s\S]*height:\s*10px;[\s\S]*background-image:\s*url\("data:image\/svg\+xml/, 'timetable switch arrows should use the provided SVG chevron shape without distortion');
 assert.match(scheduleWxss, /\.week-range\s*\{[\s\S]*font-size:\s*15px;[\s\S]*font-weight:\s*500;/, 'timetable week range text should use 15px medium');
 assert.match(scheduleWxss, /\.back-week-btn\s*\{[\s\S]*width:\s*80px;[\s\S]*height:\s*36px;[\s\S]*font-size:\s*13px;[\s\S]*font-weight:\s*500;/, 'timetable back-to-week button should match the SVG token');
-assert.match(scheduleWxss, /\.timetable-scroll\s*\{[\s\S]*border-top-left-radius:\s*40rpx;[\s\S]*border-top-right-radius:\s*40rpx;/, 'timetable grid should sit in the SVG rounded white panel');
+assert.match(scheduleWxss, /\.timetable-scroll\s*\{[\s\S]*margin-top:\s*-45px;[\s\S]*border-top-left-radius:\s*40rpx;[\s\S]*border-top-right-radius:\s*40rpx;/, 'timetable grid should sit in the SVG rounded white panel with 45px overlap');
+assert.match(scheduleWxss, /\.timetable-top\s*\{[\s\S]*height:\s*210px;/i, 'timetable top blue panel should use the unified 210px height');
+assert.match(scheduleWxss, /\.students-top\s*\{[\s\S]*height:\s*210px;/i, 'students top blue panel should use the unified 210px height');
+assert.match(scheduleWxss, /\.shifts-top\s*\{[\s\S]*height:\s*210px;/i, 'shifts top blue panel should use the unified 210px height');
+assert.match(scheduleWxss, /\.students-summary\s*\{[\s\S]*width:\s*361px;[\s\S]*height:\s*90px;/i, 'students summary card should keep the 361x90 token');
+assert.match(scheduleWxss, /\.shift-summary-card\s*\{[\s\S]*height:\s*90px;/i, 'shifts summary card should keep the 90px height token');
+assert.match(scheduleWxss, /\.custom-nav-title\s*\{[\s\S]*font-size:\s*20px;[\s\S]*line-height:\s*26px;/i, 'top tab titles should use the requested 20px typography');
 assert.match(scheduleWxss, /\.tt-header\s*\{[\s\S]*position:\s*sticky;/, 'timetable header should stay fixed during vertical scrolling');
 assert.match(scheduleWxss, /\.tt-time-axis\s*\{[\s\S]*position:\s*sticky;[\s\S]*left:\s*0;/, 'timetable time axis should stay fixed during horizontal scrolling');
 assert.match(scheduleWxss, /\.tt-header\s*\{[\s\S]*z-index:\s*60;/, 'timetable weekday header should stay above the scrolling time axis');
@@ -262,6 +325,7 @@ assert.match(scheduleWxss, /\.tt-day-date\s*\{[\s\S]*margin-top:\s*4px;[\s\S]*fo
 assert.match(scheduleWxss, /\.tt-day-date-dot\s*\{[\s\S]*width:\s*22px;[\s\S]*height:\s*22px;[\s\S]*background:\s*#2b3a55;[\s\S]*font-size:\s*11px;[\s\S]*font-weight:\s*700;/, 'active timetable day should use the SVG dark 22px circular date marker');
 assert.match(scheduleWxml, /tt-day-date[\s\S]*item\.displayDate/, 'active timetable date should render the mapped display date without the trailing day suffix');
 assert.match(scheduleJs, /displayDate:\s*item\.isToday[\s\S]*replace\('日', ''\)/, 'timetable day data should strip the active date suffix');
+assert.doesNotMatch(scheduleJs, /saveCoachSchedule|openShiftScheduler|saveShiftSchedule|openEditSchedule|openCancelSchedule|saveScheduleCancellation/, 'coach mini program should not keep schedule create, edit, or cancel handlers');
 assert.doesNotMatch(scheduleJs, /onTimetableScrollX/, 'timetable should avoid JS scroll syncing that causes horizontal lag');
 assert.match(scheduleJs, /activeTab === 'timetable'[\s\S]*this\.renderWeek\(\)/, 'timetable tab should refresh current-time positioning when opened');
 assert.match(scheduleWxss, /\.tt-time-axis::after\s*\{[\s\S]*top:\s*0;[\s\S]*background:\s*#eef2f7;/, 'timetable time axis divider should start at the 00:00 row');
@@ -296,6 +360,8 @@ assert.match(scheduleWxss, /\.detail-feedback-card\.is-empty-state \.detail-note
 assert.match(scheduleJs, /feedbackSummary\.text = '待填写反馈'/, 'empty feedback summary copy should be pending feedback');
 assert.match(scheduleWxss, /\.detail-sheet-title\s*\{[\s\S]*line-height:\s*48rpx;/, 'detail title should have enough vertical height');
 assert.match(scheduleWxss, /\.detail-sheet-actions\s*\{[\s\S]*padding:\s*24rpx 32rpx 64rpx;[\s\S]*border-top:\s*1px solid #f1f5f9;/, 'detail action bar should match sticky bottom action tokens');
+assert.match(scheduleWxss, /\.detail-sheet\s*\{[\s\S]*position:\s*fixed;[\s\S]*z-index:\s*120;/, 'detail sheet should float above the timetable header instead of being clipped inside the grid');
+assert.match(scheduleWxss, /\.mask\s*\{[\s\S]*position:\s*fixed;[\s\S]*z-index:\s*100;/, 'detail overlay mask should cover the whole page above the timetable content');
 assert.match(scheduleWxss, /\.feedback-course-card\s*\{[\s\S]*background:\s*#f8fafc;[\s\S]*border:\s*1px solid #f1f5f9;/, 'feedback course summary should match the slate-50 card token');
 assert.match(scheduleWxss, /\.feedback-course-time\s*\{[\s\S]*font-size:\s*14px;[\s\S]*color:\s*#0f172a;[\s\S]*font-weight:\s*700;/, 'feedback course time should use the requested 14px bold slate token');
 assert.match(scheduleWxss, /\.feedback-course-separator\s*\{[\s\S]*color:\s*#cbd5e1;[\s\S]*font-size:\s*12px;/, 'feedback course separators should use the requested muted token');
@@ -310,7 +376,10 @@ assert.match(scheduleWxss, /\.feedback-action-btn\s*\{[\s\S]*height:\s*88rpx;[\s
 assert.match(scheduleWxss, /\.poster-style-chip\s*\{[\s\S]*height:\s*64rpx;[\s\S]*border-radius:\s*32rpx;[\s\S]*font-size:\s*13px;/, 'poster style chips should match the 32px capsule token');
 assert.match(scheduleWxss, /\.feedback-poster-canvas\s*\{[\s\S]*width:\s*560rpx;[\s\S]*height:\s*996rpx;[\s\S]*border-radius:\s*32rpx;/, 'poster canvas should keep the mapped preview container');
 assert.match(scheduleWxss, /\.poster-action-btn\s*\{[\s\S]*height:\s*88rpx;[\s\S]*border-radius:\s*44rpx;[\s\S]*font-size:\s*15px;/, 'poster bottom buttons should use the 44px pill token');
-assert.match(scheduleWxss, /\.student-detail-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 120rpx\);[\s\S]*background:\s*#f4f6f9;/, 'student detail sheet should match the SVG modal top offset and background');
+assert.match(scheduleWxss, /\.student-detail-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 180rpx\);[\s\S]*background:\s*#f4f6f9;/, 'student detail sheet should match the lowered modal top offset and background');
+assert.match(scheduleWxss, /\.schedule-create-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 180rpx\);/, 'native shift scheduling sheet should sit below the mini program top-right capsule');
+assert.match(scheduleWxss, /\.cancel-schedule-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 320rpx\);/, 'native cancel schedule sheet should use a shorter lower sheet');
+assert.match(scheduleWxss, /\.shift-empty\s*\{[\s\S]*height:\s*160px;[\s\S]*border-radius:\s*16px;/, 'shift empty state should use the new native empty panel instead of mock cards');
 assert.match(scheduleWxss, /\.student-detail-card\s*\{[\s\S]*padding:\s*40rpx;[\s\S]*border-radius:\s*32rpx;[\s\S]*background:\s*#fff;/, 'student detail cards should match the white rounded mapped sections');
 assert.match(scheduleWxss, /\.student-detail-btn\s*\{[\s\S]*height:\s*96rpx;[\s\S]*border-radius:\s*48rpx;[\s\S]*background:\s*#f8fafc;/, 'student detail close button should match the bottom pill token');
 assert.match(scheduleWxss, /\.coach-title-row\s*\{[\s\S]*align-items:\s*center;/, 'mini program coach name row should vertically center the dropdown arrow');
