@@ -1,54 +1,146 @@
 page {
   height: 100%;
-  background: #a46f42;
+  background: #f4f6f9;
 }
 
 .entry-page {
   min-height: 100%;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48rpx;
+  padding: 0 24px;
   box-sizing: border-box;
+  overflow: hidden;
+  background: linear-gradient(180deg, #2b3a55 0%, #1e2a38 35%, #f4f6f9 60%, #f4f6f9 100%);
 }
 
 .entry-card {
-  width: 100%;
-  padding: 48rpx 40rpx;
-  border-radius: 8px;
-  background: #fffaf3;
+  width: 345px;
+  min-height: 420px;
+  padding: 32px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
   box-sizing: border-box;
+  position: relative;
+  z-index: 2;
 }
 
 .entry-title {
   display: block;
-  color: #2e241c;
-  font-size: 40rpx;
-  font-weight: 700;
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 1px;
   text-align: center;
+  line-height: 1.25;
 }
 
-.entry-desc {
+.entry-subtitle {
   display: block;
-  margin-top: 24rpx;
-  color: #6f6258;
-  font-size: 28rpx;
-  line-height: 1.6;
+  margin-top: 8px;
+  margin-bottom: 56px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
   text-align: center;
+  line-height: 1.4;
 }
 
-.primary-btn {
-  margin-top: 40rpx;
-  border-radius: 8px;
-  background: #c97824;
+.entry-field {
+  margin-bottom: 20px;
+}
+
+.entry-field-password {
+  margin-bottom: 0;
+}
+
+.entry-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.entry-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 400;
+  box-sizing: border-box;
+}
+
+.entry-placeholder {
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.password-wrap {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 46px;
+}
+
+.password-eye {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  background-image: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 18 18' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2.25 9C3.5 6.75 5.75 5.25 9 5.25C12.25 5.25 14.5 6.75 15.75 9C14.5 11.25 12.25 12.75 9 12.75C5.75 12.75 3.5 11.25 2.25 9Z' stroke='%23CBD5E1' stroke-width='1.5'/%3E%3Ccircle cx='9' cy='9' r='2' fill='%23CBD5E1'/%3E%3C/svg%3E");
+  background-size: 18px 18px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.login-btn {
+  width: 100%;
+  height: 48px;
+  margin-top: 32px;
+  border-radius: 999px;
+  background: #2b3a55;
   color: #ffffff;
-  font-size: 30rpx;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 4px;
+  line-height: 48px;
 }
 
-.plain-btn {
-  margin-top: 20rpx;
-  border-radius: 8px;
-  background: transparent;
-  color: #7b6047;
-  font-size: 28rpx;
+.login-btn::after {
+  border: 0;
+}
+
+.entry-orb {
+  position: absolute;
+  border-radius: 999px;
+  background: #ffffff;
+  pointer-events: none;
+}
+
+.entry-orb-right {
+  width: 240px;
+  height: 240px;
+  top: -70px;
+  right: -77px;
+  opacity: 0.03;
+}
+
+.entry-orb-left {
+  width: 160px;
+  height: 160px;
+  top: 70px;
+  left: -40px;
+  opacity: 0.02;
 }

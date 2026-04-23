@@ -1,8 +1,23 @@
 <view class="entry-page">
+  <view class="entry-orb entry-orb-right"></view>
+  <view class="entry-orb entry-orb-left"></view>
   <view class="entry-card">
-    <text class="entry-title">FlowTennis 教练端</text>
-    <text class="entry-desc">开启排课通知后，新课程安排会通过微信服务通知提醒你。</text>
-    <button class="primary-btn" bindtap="requestScheduleNotice">接收排课通知并进入教练端</button>
-    <button class="plain-btn" bindtap="enterWithoutNotice">暂不接收，直接进入</button>
+    <text class="entry-title">网球兄弟</text>
+    <text class="entry-subtitle">FLOWTENNIS · 管理系统</text>
+
+    <view class="entry-field">
+      <text class="entry-label">账号</text>
+      <input class="entry-input" placeholder="请输入账号或手机号" placeholder-class="entry-placeholder" value="{{account}}" bindinput="onAccountInput" />
+    </view>
+
+    <view class="entry-field entry-field-password">
+      <text class="entry-label">密码</text>
+      <view class="password-wrap">
+        <input class="entry-input password-input" password="{{!passwordVisible}}" placeholder="请输入密码" placeholder-class="entry-placeholder" value="{{password}}" bindinput="onPasswordInput" />
+        <view class="password-eye" bindtap="togglePasswordVisible"></view>
+      </view>
+    </view>
+
+    <button class="login-btn" bindtap="requestScheduleNotice">登录</button>
   </view>
 </view>

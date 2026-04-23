@@ -1,4 +1,4 @@
-const { loginWithWechat, loadCoachWorkbench, saveCoachFeedback, USER_KEY } = require('../../utils/api');
+const { loginWithWechat, loadCoachWorkbench, saveCoachFeedback, TOKEN_KEY, USER_KEY } = require('../../utils/api');
 const { buildWeekDays, formatScheduleItem, weekRangeText, buildTimetableDays, classBlockStyle, workbenchTodoState } = require('../../utils/schedule');
 
 const timetableHours = Array.from({ length: 25 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
@@ -24,13 +24,20 @@ function coachGreeting(now = new Date()) {
 function dashboardCourseTag(item = {}) {
   const text = item.type || item.title || '课程';
   if (item.isTrial || /体验/.test(text)) return { text, className: 'is-trial' };
-  if (/小班/.test(text)) return { text, className: 'is-group' };
+  if (/陪打|小班/.test(text)) return { text, className: 'is-group' };
   return { text, className: 'is-private' };
+}
+
+function timetableCourseTag(item = {}) {
+  const text = item.type || item.title || '课程';
+  if (item.isTrial || /体验/.test(text)) return { text: '体验', className: 'is-trial' };
+  if (/陪打|小班/.test(text)) return { text: '陪打', className: 'is-play' };
+  return { text: '私教', className: 'is-private' };
 }
 
 function timetableAccentClass(className = '') {
   if (className === 'is-trial') return 'tt-course-trial';
-  if (className === 'is-group') return 'tt-course-group';
+  if (className === 'is-play' || className === 'is-group') return 'tt-course-play';
   return 'tt-course-private';
 }
 
@@ -67,7 +74,7 @@ function decorateTimetableDays(days = []) {
     headClass: item.isToday ? 'tt-day-head-active' : '',
     columnClass: item.isToday ? 'tt-day-column-active' : '',
     items: (item.items || []).map((course) => {
-      const tag = dashboardCourseTag(course);
+      const tag = timetableCourseTag(course);
       const todo = workbenchTodoState(course);
       return {
         ...course,
@@ -938,6 +945,13 @@ function timetableNowLineStyle(now = new Date()) {
   return `top:${top}rpx;`;
 }
 
+function timetableNowSolidLineStyle(days = [], now = new Date(), isCurrentWeek = true) {
+  if (!isCurrentWeek) return '';
+  const todayIndex = (days || []).findIndex(item => item.isToday);
+  if (todayIndex < 0) return '';
+  return `left:${todayIndex * TIMETABLE_DAY_WIDTH_RPX}rpx;width:${TIMETABLE_DAY_WIDTH_RPX}rpx;${timetableNowLineStyle(now)}`;
+}
+
 function timetableScrollTop(now = new Date(), isCurrentWeek = true) {
   if (!isCurrentWeek) return 0;
   const minutes = ((now.getHours() - TIMETABLE_START_HOUR) * 60) + now.getMinutes();
@@ -976,6 +990,7 @@ Page({
     timetableScrollLeft: 0,
     currentTimeText: '',
     timetableNowLineStyle: '',
+    timetableNowSolidLineStyle: '',
     schedule: [],
     feedbacks: [],
     studentsRaw: [],
@@ -995,6 +1010,7 @@ Page({
     feedbackEditing: false,
     feedbackFocusedField: '',
     feedbackContextParts: [],
+    feedbackSheetScrollTop: 0,
     posterDate: '',
     savingFeedback: false,
     stats: { month: 0, week: 0, today: 0, feedback: 0, pending: 0, conversion: '0%', nextTime: '暂无', nextText: '暂无', todo: 0 },
@@ -1005,10 +1021,12 @@ Page({
     showFeedback: false,
     showPoster: false,
     showStudentDetail: false,
+    showCoachMenu: false,
     detailSheetClass: '',
     feedbackSheetClass: '',
     posterSheetClass: '',
     studentDetailSheetClass: '',
+    coachMenuSheetClass: '',
     dashboardTabClass: 'active',
     timetableTabClass: '',
     studentsTabClass: '',
@@ -1092,7 +1110,7 @@ Page({
     this.setData({
       weekTitle: weekOffset === 0 ? '本周' : (weekOffset > 0 ? `后 ${weekOffset} 周` : `前 ${Math.abs(weekOffset)} 周`),
       weekRange: weekRangeText(weekOffset),
-      todayLabel: today ? today.label.replace(' ', '　') : '',
+      todayLabel: today ? today.label.replace(/\s+/, ' ') : '',
       isCurrentWeek,
       days,
       timetableDays: decoratedTimetableDays,
@@ -1100,6 +1118,7 @@ Page({
       timetableScrollLeft: timetableScrollLeft(decoratedTimetableDays, isCurrentWeek),
       currentTimeText: currentTimeMarker(now),
       timetableNowLineStyle: timetableNowLineStyle(now),
+      timetableNowSolidLineStyle: timetableNowSolidLineStyle(decoratedTimetableDays, now, isCurrentWeek),
       visibleClasses,
       dashboardClasses,
       weekTodoGroups,
@@ -1134,6 +1153,38 @@ Page({
     }, () => {
       if (activeTab === 'timetable') this.renderWeek();
     });
+  },
+
+  toggleCoachMenu() {
+    this.setData({
+      showCoachMenu: true,
+      coachMenuSheetClass: 'sheet-show'
+    });
+  },
+
+  closeCoachMenu() {
+    this.setData({
+      showCoachMenu: false,
+      coachMenuSheetClass: ''
+    });
+  },
+
+  closeOverlay() {
+    if (this.data.showCoachMenu) {
+      this.closeCoachMenu();
+      return;
+    }
+    this.closeSheets();
+  },
+
+  logout() {
+    wx.removeStorageSync(TOKEN_KEY);
+    wx.removeStorageSync(USER_KEY);
+    this.setData({
+      showCoachMenu: false,
+      coachMenuSheetClass: ''
+    });
+    wx.reLaunch({ url: '/pages/index/index' });
   },
 
   prevWeek() {
@@ -1220,6 +1271,7 @@ Page({
       feedbackHasSaved: !!currentFeedback,
       feedbackEditing: false,
       feedbackFocusedField: '',
+      feedbackSheetScrollTop: 0,
       feedbackContextParts: feedbackContextParts(this.data.selectedClass)
     });
   },
@@ -1233,6 +1285,12 @@ Page({
       const feedbackForm = feedbackFormFromRecord(currentFeedback);
       this.setData({
         selectedClass,
+        selectedClassDetail: buildDetailData(selectedClass, {
+          classes: this.data.classesRaw,
+          students: this.data.studentsRaw,
+          feedbacks: this.data.feedbacks,
+          coachName: currentCoachName()
+        }),
         showDetail: false,
         showFeedback: true,
         detailSheetClass: '',
@@ -1242,6 +1300,7 @@ Page({
         feedbackHasSaved: !!currentFeedback,
         feedbackEditing: false,
         feedbackFocusedField: '',
+        feedbackSheetScrollTop: 0,
         feedbackContextParts: feedbackContextParts(selectedClass)
       });
     }
@@ -1399,6 +1458,7 @@ Page({
   stopMove() {},
 
   openWebview() {
+    if (this.data.showCoachMenu) this.closeCoachMenu();
     wx.navigateTo({ url: '/pages/webview/webview?fallback=1' });
   }
 });
