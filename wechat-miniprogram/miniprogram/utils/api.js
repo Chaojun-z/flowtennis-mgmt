@@ -46,13 +46,55 @@ function loginWithWechat() {
   });
 }
 
+function loginWithPassword(username, password) {
+  return request('/auth/login', {
+    method: 'POST',
+    data: { username, password }
+  }).then((data) => {
+    wx.setStorageSync(TOKEN_KEY, data.token);
+    wx.setStorageSync(USER_KEY, data.user);
+    return data;
+  });
+}
+
+function bindWechatAfterLogin() {
+  return new Promise((resolve, reject) => {
+    wx.login({
+      success(res) {
+        if (!res.code) {
+          reject(new Error('微信绑定失败'));
+          return;
+        }
+        request('/auth/wechat-bind', {
+          method: 'POST',
+          data: { code: res.code }
+        }).then(resolve).catch(reject);
+      },
+      fail(err) {
+        reject(new Error(err.errMsg || '微信绑定失败'));
+      }
+    });
+  });
+}
+
 function loadCoachWorkbench() {
   return request('/page-data/workbench');
 }
 
+function saveCoachFeedback(payload = {}) {
+  const feedbackId = payload.id || '';
+  if (feedbackId) {
+    return request(`/feedbacks/${feedbackId}`, { method: 'PUT', data: payload });
+  }
+  return request('/feedbacks', { method: 'POST', data: payload });
+}
+
 module.exports = {
+  loginWithPassword,
+  bindWechatAfterLogin,
   loginWithWechat,
   loadCoachWorkbench,
+  saveCoachFeedback,
   request,
   TOKEN_KEY,
   USER_KEY

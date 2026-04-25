@@ -1,25 +1,25 @@
 function workbenchScheduleState(schedule,prevSchedule,now){
+  if(schedule?.workbenchState&&schedule.workbenchState.code&&schedule.workbenchState.label)return schedule.workbenchState;
   const start=dtObj(schedule.startTime),end=dtObj(schedule.endTime||schedule.startTime);
   const startDiff=start?durMin(now,start):-1;
-  const endDiff=end?durMin(now,end):-1;
   const travelGap=myScheduleTravelGap(prevSchedule,schedule);
   const ended=effectiveScheduleStatus(schedule,now)==='已结束';
   if(start&&end&&start<=now&&now<end){
-    return {code:'live',label:'进行中',hint:`距下课 ${Math.max(0,endDiff)} 分钟`,priority:0};
+    return {code:'live',label:'进行中'};
   }
   if(start&&start>now&&startDiff>=0&&startDiff<=30){
-    return {code:'upcoming',label:'即将开始',hint:`距开始 ${startDiff} 分钟`,priority:1};
+    return {code:'upcoming',label:'即将开始'};
   }
   if(start&&start>now&&travelGap>=0&&travelGap<60){
-    return {code:'travel',label:'需换场',hint:`跨校区提醒：上一节下课到这节上课仅 ${travelGap} 分钟`,priority:2};
+    return {code:'travel',label:'需换场',hint:`跨校区提醒：上一节下课到这节上课仅 ${travelGap} 分钟`};
   }
   if(start&&start>now){
-    return {code:'later',label:'今日后续',hint:`将于 ${start.toTimeString().slice(0,5)} 开始`,priority:3};
+    return {code:'later',label:'今日后续'};
   }
   if(ended&&!hasScheduleFeedback(schedule)){
-    return {code:'pending',label:'待反馈',hint:'已下课，待填写反馈',priority:4};
+    return {code:'pending',label:'待反馈'};
   }
-  return {code:'done',label:'已完成',hint:'课程已结束并完成反馈',priority:5};
+  return null;
 }
 function workbenchMetricHelpHtml(){
   return `<div class="coach-wb-help-wrap"><button type="button" class="coach-wb-help-btn" aria-label="查看指标口径" onclick="toggleWorkbenchMetricHelp(event)"><span>?</span></button><div class="coach-wb-help-popover" id="workbenchMetricHelp"><div>本月课时 = 本月已结束课程课时数</div><div>本周课时 = 本周已结束课程课时数</div><div>今天课时 = 今天已结束课程课时数</div><div>本月反馈 = 本月已结束且已填写课后反馈的课程数</div><div>未反馈 = 已结束但未填写反馈的课程数</div><div>本月体验课转化率 = 本月已结束体验课中，后续已购买任意产品的学员占比</div></div></div>`;
@@ -61,14 +61,15 @@ function workbenchSection(title,rows,buttonText,now,meta={}){
   const sorted=rows.slice().sort((a,b)=>String(a.startTime||'').localeCompare(String(b.startTime||'')));
   const cards=sorted.map((s,i)=>{
     const state=workbenchScheduleState(s,sorted[i-1],now);
+    if(!state)return '';
     const courseType=scheduleCourseType(s);
     const typeClass=courseType==='训练营'?'rust':courseType==='体验课'?'caramel':courseType==='班课'?'sage':'stone';
-    const stateClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':state.code==='done'?'is-done':'is-normal';
-    const badgeClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':state.code==='done'?'is-done':'is-normal';
+    const stateClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':'is-normal';
+    const badgeClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':'is-normal';
     const alertText=state.code==='travel'?'⚠️ 跨校区，建议立即出发换场':state.code==='live'?'课程正在进行中':state.code==='pending'?'已下课，待填写反馈':(s.notes||'');
-    const primaryLabel=state.code==='pending'?'填写反馈':state.code==='done'&&hasScheduleFeedback(s)?'查看反馈':state.code==='live'?'查看进度':state.code==='later'?'查看反馈':'查看详情';
+    const primaryLabel=state.code==='pending'?'填写反馈':state.code==='live'?'查看进度':'查看详情';
     const primaryClass=state.code==='pending'?'is-warning':(state.code==='live'||state.code==='upcoming')?'is-primary':'';
-    const primaryAction=state.code==='pending'||(state.code==='done'&&hasScheduleFeedback(s))||state.code==='later'?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
+    const primaryAction=state.code==='pending'?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
     const alertHtml=alertText?`<div class="coach-wb-row4"><div class="coach-wb-alert">${esc(alertText)}</div></div>`:'';
     return `<div class="coach-wb-card ${stateClass}"><div class="coach-wb-card-body"><div class="coach-wb-row1"><div class="coach-wb-time">${s.startTime.slice(11,16)}${s.endTime?` - ${s.endTime.slice(11,16)}`:''}</div><div class="coach-wb-badge ${badgeClass}">${state.label}</div></div><div class="coach-wb-name">${esc(scheduleStudentSummary(s))}</div><div class="coach-wb-row3"><span class="coach-wb-tag is-${typeClass}">${esc(courseType)}</span><span>${esc(scheduleLocationText(s))}</span></div>${alertHtml}</div><div class="coach-wb-card-footer"><button class="coach-wb-action" onclick="openScheduleDetail('${s.id}')">查看详情</button><button class="coach-wb-action ${primaryClass}" onclick="${primaryAction}">${primaryLabel}</button></div></div>`;
   }).join('');
@@ -84,34 +85,20 @@ function renderWorkbench(){
   const myRows=billableSchedules().filter(s=>coachName(s.coach)===coach).sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));
   const now=shanghaiNow();
   const todayStr=localDateKey(now);
-  const monthKey=todayStr.slice(0,7);
   const week=getWeekDates(0);
   const weekStart=week[0].toISOString().slice(0,10);
   const weekEnd=week[6].toISOString().slice(0,10);
   const weekRows=myRows.filter(s=>{const d=String(s.startTime||'').slice(0,10);return d>=weekStart&&d<=weekEnd;});
-  const todayRows=weekRows.filter(s=>String(s.startTime||'').slice(0,10)===todayStr);
-  const endedRows=myRows.filter(s=>{const end=dtObj(s.endTime||s.startTime);return end&&end<=now;});
-  const monthRows=myRows.filter(s=>String(s.startTime||'').slice(0,7)===monthKey);
-  const monthEndedRows=monthRows.filter(s=>{const end=dtObj(s.endTime||s.startTime);return end&&end<=now;});
-  const weekEndedRows=weekRows.filter(s=>{const end=dtObj(s.endTime||s.startTime);return end&&end<=now;});
-  const todayEndedRows=todayRows.filter(s=>{const end=dtObj(s.endTime||s.startTime);return end&&end<=now;});
-  const monthFeedbackCount=monthEndedRows.filter(s=>hasScheduleFeedback(s)).length;
-  const pendingFeedbackCount=endedRows.filter(s=>!hasScheduleFeedback(s)).length;
-  const monthTrialRows=monthEndedRows.filter(s=>scheduleIsTrial(s));
-  const monthTrialConverted=monthTrialRows.filter(s=>workbenchTrialConvertedByPurchase(s)).length;
-  const monthTrialRate=monthTrialRows.length?Math.round(monthTrialConverted/monthTrialRows.length*100):0;
-  const monthLessonUnits=lessonUnitsText(sumScheduleLessonUnits(monthEndedRows));
-  const weekLessonUnits=lessonUnitsText(sumScheduleLessonUnits(weekEndedRows));
-  const todayLessonUnits=lessonUnitsText(sumScheduleLessonUnits(todayEndedRows));
+  const coachWorkbenchStats=window.coachWorkbenchStats||{};
   const host=document.getElementById('workbenchBody');
   if(!host)return;
   const statsHtml=[
-    ['本月课时',monthLessonUnits,'节',monthEndedRows.length?`本月已结束 ${monthLessonUnits} 节`:'本月还没有已结束课程',false],
-    ['本周课时',weekLessonUnits,'节',weekEndedRows.length?`本周已结束 ${weekLessonUnits} 节`:'本周还没有已结束课程',false],
-    ['今天课时',todayLessonUnits,'节',todayEndedRows.length?`今天已结束 ${todayLessonUnits} 节`:'今天还没有已结束课程',false],
-    ['本月反馈',monthFeedbackCount,'节',monthFeedbackCount?`本月已写反馈 ${monthFeedbackCount} 节`:'本月还没有已写反馈',false],
-    ['未反馈',pendingFeedbackCount,'节',pendingFeedbackCount?'有已结束课程待补反馈':'已结束课程都已反馈',pendingFeedbackCount>0],
-    ['本月体验课转化率',monthTrialRate,'%',monthTrialRows.length?`${monthTrialConverted}/${monthTrialRows.length} 已购买产品`:'本月暂无已结束体验课',false]
+    ['本月课时',lessonUnitsText(coachWorkbenchStats.monthFinishedLessonUnits||0),'节','以后端统计为准',false],
+    ['本周课时',lessonUnitsText(coachWorkbenchStats.weekFinishedLessonUnits||0),'节','以后端统计为准',false],
+    ['今天课时',lessonUnitsText(coachWorkbenchStats.todayFinishedLessonUnits||0),'节','以后端统计为准',false],
+    ['本月反馈',coachWorkbenchStats.monthFeedbackCount||0,'节','以后端统计为准',false],
+    ['未反馈',coachWorkbenchStats.pendingFeedbackCount||0,'节','以后端统计为准',(coachWorkbenchStats.pendingFeedbackCount||0)>0],
+    ['本月体验课转化率',coachWorkbenchStats.trialConversionRate||0,'%', '以后端统计为准',false]
   ].map(([label,val,u,sub,accent])=>`<div class="coach-wb-stat-card"><div class="coach-wb-stat-label">${label}</div><div class="coach-wb-stat-value"${accent?' style="color:#8C4A32;"':''}>${val}<span>${u}</span></div><div class="coach-wb-stat-sub">${sub}</div></div>`).join('');
   const WDNAMES=['周一','周二','周三','周四','周五','周六','周日'];
   const weekBoardHtml=week.map((d,i)=>{
@@ -124,16 +111,17 @@ function renderWorkbench(){
     const dayLabel=`${WDNAMES[i]} ${d.getMonth()+1}/${d.getDate()}${isToday?' · 今天':''}`;
     const cards=dayRows.map((s,idx)=>{
       const state=workbenchScheduleState(s,dayRows[idx-1],now);
+      if(!state)return '';
       const courseType=scheduleCourseType(s);
       const typeClass=courseType==='训练营'?'rust':courseType==='体验课'?'caramel':courseType==='班课'?'sage':'stone';
-      const stateClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':state.code==='done'?'is-done':'is-normal';
+      const stateClass=state.code==='live'?'is-progress':(state.code==='upcoming'||state.code==='travel')?'is-upcoming':state.code==='pending'?'is-feedback':'is-normal';
       const badgeClass=stateClass;
       const isAlertWarn=state.code==='travel'||state.code==='live'||state.code==='pending';
       const alertWarnText=state.code==='travel'?'⚠️ 跨校区，建议立即出发换场':state.code==='live'?'课程正在进行中':state.code==='pending'?'已下课，待填写反馈':'';
       const alertHtml=isAlertWarn&&alertWarnText?`<div class="coach-wb-row4"><div class="coach-wb-alert is-alert-warn">${esc(alertWarnText)}</div></div>`:s.notes?`<div class="coach-wb-row4"><div class="coach-wb-alert is-alert-note">${esc(s.notes)}</div></div>`:'';
-      const primaryLabel=state.code==='pending'?'填写反馈':state.code==='done'&&hasScheduleFeedback(s)?'查看反馈':state.code==='live'?'查看进度':state.code==='later'?'查看反馈':'查看详情';
+      const primaryLabel=state.code==='pending'?'填写反馈':state.code==='live'?'查看进度':'查看详情';
       const primaryClass=state.code==='pending'?'is-warning':(state.code==='live'||state.code==='upcoming')?'is-primary':'';
-      const primaryAction=state.code==='pending'||(state.code==='done'&&hasScheduleFeedback(s))||state.code==='later'?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
+      const primaryAction=state.code==='pending'?`openFeedbackModal('${s.id}')`:`openScheduleDetail('${s.id}')`;
       return `<div class="coach-wb-card ${stateClass}"><div class="coach-wb-card-body"><div class="coach-wb-row1"><div class="coach-wb-time">${s.startTime.slice(11,16)}${s.endTime?` - ${s.endTime.slice(11,16)}`:''}</div><div class="coach-wb-badge ${badgeClass}">${state.label}</div></div><div class="coach-wb-name">${esc(scheduleStudentSummary(s))}</div><div class="coach-wb-row3"><span class="coach-wb-tag is-${typeClass}">${esc(courseType)}</span><span>${esc(scheduleLocationText(s))}</span></div>${alertHtml}</div><div class="coach-wb-card-footer"><button class="coach-wb-action" onclick="openScheduleDetail('${s.id}')">查看详情</button><button class="coach-wb-action ${primaryClass}" onclick="${primaryAction}">${primaryLabel}</button></div></div>`;
     }).join('');
     const emptyTip=dayRows.length?'':isToday?'<div class="workbench-empty">今天暂无课程</div>':'';
@@ -315,7 +303,7 @@ function renderMyStudents(){
     const lastLesson=myStudentLastLessonMeta(s,cn2);
     const packageMeta=myStudentPackageProgressMeta(s);
     const recentFb=feedbacks.filter(f=>f.studentId===s.id||parseArr(f.studentIds).includes(s.id)).sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0];
-    const noteSummary=recentFb?.recommendedProductType?`推荐${recentFb.recommendedProductType}；${recentFb.mainIssues||recentFb.knowledgePoint||''}`:(recentFb?.mainIssues||recentFb?.knowledgePoint||s.notes||'');
+    const noteSummary=recentFb?.recommendedProductType?`推荐${recentFb.recommendedProductType}；${recentFb.mainIssues||recentFb.knowledgePoint||''}`:(recentFb?.mainIssues||recentFb?.knowledgePoint||s.remark||'');
     const primaryCoach=studentPrimaryCoachText(s);
     const ownerCoach=myStudentOwnerCoachText(s);
     const relationLabel=coachName(s.primaryCoach)===cn2?'负责学员':'代上学员';
@@ -338,7 +326,7 @@ function openMyStudentDetail(id){
   const myCls=classes.filter(c=>c.coach===getMyCoachName()&&parseArr(c.studentIds).includes(s.id));
   const lastSchedule=schedules.filter(x=>x.coach===getMyCoachName()&&scheduleHasStudent(x,s)&&x.startTime).sort((a,b)=>new Date(b.startTime)-new Date(a.startTime))[0];
   const packageMeta=myStudentPackageProgressMeta(s);
-  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名</label><input class="finput tms-form-control" value="${esc(s.name)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">手机号码</label><input class="finput tms-form-control" value="${esc(s.phone)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员类型</label><input class="finput tms-form-control" value="${esc(s.type)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">所在校区</label><input class="finput tms-form-control" value="${cn(s.campus)||'—'}" readonly></div></div><div class="tms-section-header">教练视角摘要</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">负责教练</label><input class="finput tms-form-control" value="${esc(studentPrimaryCoachText(s))}" readonly></div><div class="tms-form-item"><label class="tms-form-label">归属教练</label><input class="finput tms-form-control" value="${esc(myStudentOwnerCoachText(s))}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">所上班次</label><div class="finput tms-form-control" style="height:auto;min-height:54px;white-space:normal;line-height:1.7">${esc(myCls.map(c=>c.className||c.classNo).join('、'))||'—'}</div></div><div class="tms-form-item"><label class="tms-form-label">最近上课</label><input class="finput tms-form-control" value="${lastSchedule?.startTime?fmtDt(lastSchedule.startTime):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计上课</label><input class="finput tms-form-control" value="${myStudentLessonCount(s,getMyCoachName())}" readonly></div><div class="tms-form-item"><label class="tms-form-label">课包进度 / 剩余课时</label><input class="finput tms-form-control" value="${packageMeta.progress} / ${packageMeta.remaining}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">上课记录</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${myStudentLessonRecordHtml(s)}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${esc(s.notes)||'—'}</div></div></div>`;
+  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名</label><input class="finput tms-form-control" value="${esc(s.name)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">手机号码</label><input class="finput tms-form-control" value="${esc(s.phone)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员类型</label><input class="finput tms-form-control" value="${esc(s.type)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">所在校区</label><input class="finput tms-form-control" value="${cn(s.campus)||'—'}" readonly></div></div><div class="tms-section-header">教练视角摘要</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">负责教练</label><input class="finput tms-form-control" value="${esc(studentPrimaryCoachText(s))}" readonly></div><div class="tms-form-item"><label class="tms-form-label">归属教练</label><input class="finput tms-form-control" value="${esc(myStudentOwnerCoachText(s))}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">所上班次</label><div class="finput tms-form-control" style="height:auto;min-height:54px;white-space:normal;line-height:1.7">${esc(myCls.map(c=>c.className||c.classNo).join('、'))||'—'}</div></div><div class="tms-form-item"><label class="tms-form-label">最近上课</label><input class="finput tms-form-control" value="${lastSchedule?.startTime?fmtDt(lastSchedule.startTime):'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计上课</label><input class="finput tms-form-control" value="${myStudentLessonCount(s,getMyCoachName())}" readonly></div><div class="tms-form-item"><label class="tms-form-label">课包进度 / 剩余课时</label><input class="finput tms-form-control" value="${packageMeta.progress} / ${packageMeta.remaining}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">上课记录</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${myStudentLessonRecordHtml(s)}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><div class="finput tms-form-control" style="height:auto;min-height:72px;white-space:normal;line-height:1.7">${esc(s.remark)||'—'}</div></div></div>`;
   const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">关闭</button>`;
   setCourtModalFrame('学员详情',body,footer,'modal-tight');
 }

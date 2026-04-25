@@ -1,8 +1,35 @@
 <view class="entry-page">
+  <view class="entry-orb entry-orb-right"></view>
+  <view class="entry-orb entry-orb-left"></view>
   <view class="entry-card">
-    <text class="entry-title">FlowTennis 教练端</text>
-    <text class="entry-desc">开启排课通知后，新课程安排会通过微信服务通知提醒你。</text>
-    <button class="primary-btn" bindtap="requestScheduleNotice">接收排课通知并进入教练端</button>
-    <button class="plain-btn" bindtap="enterWithoutNotice">暂不接收，直接进入</button>
+    <text class="entry-title">网球兄弟</text>
+    <text class="entry-subtitle">FLOWTENNIS · 管理系统</text>
+
+    <view class="entry-field">
+      <text class="entry-label">账号</text>
+      <input class="entry-input" placeholder="请输入账号或手机号" placeholder-class="entry-placeholder" value="{{account}}" bindinput="onAccountInput" />
+    </view>
+
+    <view class="entry-field entry-field-password">
+      <text class="entry-label">密码</text>
+      <input class="entry-input" password="{{true}}" placeholder="请输入密码" placeholder-class="entry-placeholder" value="{{password}}" bindinput="onPasswordInput" />
+    </view>
+
+    <checkbox-group class="agreement-group" bindchange="onAgreementChange">
+      <label class="agreement-row">
+        <checkbox value="agree" checked="{{agreed}}" color="#2B3A55" />
+        <view class="agreement-copy">
+          <text>我已阅读并同意</text>
+          <text class="agreement-link" bindtap="openAgreement">《用户协议》</text>
+          <text class="agreement-gap"></text>
+          <text class="agreement-link" bindtap="openPrivacy">《隐私政策》</text>
+        </view>
+      </label>
+    </checkbox-group>
+
+    <button class="login-btn" bindtap="submitLogin">
+      <view wx:if="{{loggingIn}}" class="login-spinner"></view>
+      <text>登录</text>
+    </button>
   </view>
 </view>

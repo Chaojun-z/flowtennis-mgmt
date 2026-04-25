@@ -3,8 +3,10 @@
     "pages/index/index",
     "pages/schedule/schedule",
     "pages/detail/detail",
-    "pages/webview/webview"
+    "pages/agreement/agreement",
+    "pages/privacy/privacy"
   ],
+  "__usePrivacyCheck__": true,
   "window": {
     "navigationBarTitleText": "FlowTennis 教练端",
     "navigationBarBackgroundColor": "#ffffff",
