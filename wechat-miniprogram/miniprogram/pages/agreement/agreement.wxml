@@ -1,0 +1,36 @@
+<scroll-view scroll-y class="doc-page">
+  <view class="doc-card">
+    <view class="doc-head">
+      <text class="doc-title">用户服务协议</text>
+      <text class="doc-meta">最近更新：2026年4月20日</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">一、服务说明</text>
+      </view>
+      <text class="doc-paragraph">本小程序用于 FlowTennis 教练查看排课、学员、班次、反馈等教学管理信息，仅面向已开通账号的内部教练使用。</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">二、账号使用</text>
+      </view>
+      <text class="doc-paragraph">你应使用平台分配的真实账号密码登录，不得转借、出租、出售账号，不得擅自查看、导出、传播非本人工作范围内的数据。</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">三、数据与操作</text>
+      </view>
+      <text class="doc-paragraph">你在小程序内提交的排课、反馈、备注等操作将直接写入管理系统，并同步影响教练端网页与管理端数据，请确认后再提交。</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">四、联系方式</text>
+      </view>
+      <text class="doc-paragraph">如需账号处理、数据更正或服务支持，请联系 FlowTennis 运营管理员。</text>
+    </view>
+  </view>
+</scroll-view>

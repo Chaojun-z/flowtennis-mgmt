@@ -7,8 +7,14 @@ function renderCourtHeaderFilters(base){
   const ownerOpts=[{value:'',label:'全部对接人'},...[...new Set(base.map(c=>String(c.owner||'').trim()).filter(Boolean))].map(v=>({value:v,label:v}))];
   if(ownerHost)ownerHost.innerHTML=renderCourtDropdownHtml('courtOwnerValue','全部对接人',ownerOpts,courtOwnerFilterValue,false,'onCourtToolbarFilterChange');
   if(accountHost)accountHost.innerHTML=renderCourtDropdownHtml('courtAccountTypeValue','全部账户',[{value:'',label:'全部账户'},{value:'普通',label:'普通'},{value:'会员',label:'会员'},{value:'储值',label:'储值'}],courtAccountTypeFilterValue,false,'onCourtToolbarFilterChange');
-  if(moreHost)moreHost.innerHTML=renderCourtDropdownHtml('courtMoreActionValue','更多操作',[{value:'import',label:'导入CSV'},{value:'migration',label:'财务迁移预览'},{value:'backup',label:'备份'}],'',false,'handleCourtMoreAction');
+  if(moreHost)moreHost.innerHTML=renderCourtDropdownHtml('courtMoreActionValue','更多操作',[
+    {value:courtBatchMode?'batch-exit':'batch-select',label:courtBatchMode?'退出批量':'批量选择'},
+    {value:'import',label:'导入CSV'},
+    {value:'migration',label:'财务迁移预览'},
+    {value:'backup',label:'备份'}
+  ],'',false,'handleCourtMoreAction');
   if(pageSizeHost)pageSizeHost.innerHTML=renderCourtDropdownHtml('courtPageSizeValue',`${courtPageSize}条/页`,[{value:'20',label:'20条/页'},{value:'50',label:'50条/页'},{value:'100',label:'100条/页'}],String(courtPageSize),false,'setCourtPageSize');
+  updateCourtBatchButton();
 }
 function onCourtToolbarFilterChange(){
   courtOwnerFilterValue=document.getElementById('courtOwnerValue')?.value||'';
@@ -28,6 +34,8 @@ function onCourtFilterChange(){
 }
 function handleCourtMoreAction(value){
   const action=value||document.getElementById('courtMoreActionValue')?.value||'';
+  if(action==='batch-select')setCourtBatchMode(true);
+  if(action==='batch-exit')setCourtBatchMode(false);
   if(action==='import')openCourtImport();
   if(action==='migration')openCourtFinanceMigrationPreview();
   if(action==='backup')backupToObsidian();
@@ -307,17 +315,34 @@ async function voidMembership(courtId){
   }catch(e){toast('作废失败：'+e.message,'error');}
 }
 function updateCourtBatchButton(){
+  const toolbar=document.getElementById('courtBatchToolbar');
+  const count=document.getElementById('courtBatchCount');
   const btn=document.getElementById('courtBatchDelBtn');
+  const cancelBtn=document.getElementById('courtBatchCancelBtn');
+  if(toolbar)toolbar.style.display=courtBatchMode?'flex':'none';
+  if(count)count.textContent=`已选 ${selectedCourtIds.size} 条`;
+  if(cancelBtn)cancelBtn.style.display=courtBatchMode?'inline-flex':'none';
   if(!btn)return;
-  btn.style.display=selectedCourtIds.size?'inline-flex':'none';
+  btn.style.display=courtBatchMode?'inline-flex':'none';
   btn.disabled=selectedCourtIds.size===0;
   btn.textContent=selectedCourtIds.size?`批量删除（${selectedCourtIds.size}）`:'批量删除';
 }
+function setCourtBatchMode(enabled){
+  courtBatchMode=!!enabled;
+  if(!courtBatchMode){
+    selectedCourtIds.clear();
+    const selectAll=document.getElementById('courtSelectAll');
+    if(selectAll)selectAll.checked=false;
+  }
+  renderCourts();
+}
 function toggleCourtSelection(id,checked){
+  if(!courtBatchMode)return;
   if(checked)selectedCourtIds.add(id);else selectedCourtIds.delete(id);
   updateCourtBatchButton();
 }
 function toggleCourtPageSelection(checked){
+  if(!courtBatchMode)return;
   document.querySelectorAll('.court-row-cb').forEach(cb=>{cb.checked=checked;if(checked)selectedCourtIds.add(cb.value);else selectedCourtIds.delete(cb.value);});
   updateCourtBatchButton();
 }
@@ -476,6 +501,7 @@ function getCourtTimeOptions(selected='08:00'){
 }
 function renderCourts(){
   const q=(document.getElementById('courtSearch')?.value||'').toLowerCase();
+  document.getElementById('page-courts')?.classList.toggle('court-batch-mode',courtBatchMode);
   const visibleCourts=courts.filter(c=>isActiveCourtRecord(c));
   const base=visibleCourts.filter(c=>campus==='all'||c.campus===campus);
   renderCourtHeaderFilters(base);
@@ -501,13 +527,18 @@ function renderCourts(){
   const finBase=base.map(courtFinanceLocal);
   const totBal=finBase.reduce((s,u)=>s+u.balance,0),totDep=finBase.reduce((s,u)=>s+u.totalDeposit,0),totSpent=finBase.reduce((s,u)=>s+u.spentAmount,0),totReceived=finBase.reduce((s,u)=>s+u.receivedAmount,0);
   document.getElementById('courtStatsRow').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">订场用户</div><div class="tms-stat-value">${base.length}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">余额合计</div><div class="tms-stat-value">¥${fmt(totBal)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计充值</div><div class="tms-stat-value">¥${fmt(totDep)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计消费</div><div class="tms-stat-value">¥${fmt(totSpent)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计实收</div><div class="tms-stat-value">¥${fmt(totReceived)}</div></div>`;
-  const total=sortedList.length,pages=Math.ceil(total/courtPageSize),slice=sortedList.slice((courtPage-1)*courtPageSize,courtPage*courtPageSize);
+  const total=sortedList.length,pages=Math.max(1,Math.ceil(total/courtPageSize));
+  if(courtPage>pages)courtPage=pages;
+  const slice=sortedList.slice((courtPage-1)*courtPageSize,courtPage*courtPageSize);
   const pager=document.querySelector('#page-courts .tms-pagination');
   if(pager)pager.style.display=pages>1?'flex':'none';
   document.getElementById('courtPagerInfo').textContent=`共 ${total} 条`;
   document.getElementById('courtPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<div class="tms-page-btn${i+1===courtPage?' active':''}" onclick="courtPage=${i+1};renderCourts()">${i+1}</div>`).join('');
   const selectAll=document.getElementById('courtSelectAll');
-  if(selectAll){selectAll.checked=!!slice.length&&slice.every(u=>selectedCourtIds.has(u.id));}
+  if(selectAll){
+    selectAll.checked=!!slice.length&&slice.every(u=>selectedCourtIds.has(u.id));
+    selectAll.disabled=!courtBatchMode;
+  }
   document.getElementById('courtTbody').innerHTML=slice.length?slice.map(u=>{
     const f=courtFinanceLocal(u);
     const m=courtMembershipSummary(u);
@@ -621,7 +652,7 @@ function openCourtModal(id){
   const linked=findStudentForCourt(r);
   const selectedIds=parseArr(r?.studentIds);if(!selectedIds.length&&linked)selectedIds.push(linked.id);
   const campusList=campuses.map(c=>({value:c.code||c.id,label:esc(c.name)}));
-  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input type="text" class="finput tms-form-control" id="f_name" placeholder="请输入" value="${rv(r,'name')}"></div><div class="tms-form-item"><label class="tms-form-label">手机号</label><input type="text" class="finput tms-form-control" id="f_phone" placeholder="13800138000" value="${rv(r,'phone')}"></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">关联学员（可多选）</label><div class="tms-checkbox-matrix">${studentChecks(selectedIds)}</div></div></div><div class="tms-form-row court-date-row"><div class="tms-form-item"><label class="tms-form-label">校区</label>${renderCourtDropdownHtml('f_campus','校区',[{value:'',label:'-'},...campusList],rv(r,'campus'),true)}</div><div class="tms-form-item"><label class="tms-form-label">加入日期</label>${courtDateButtonHtml('f_joinDate',rv(r,'joinDate'))}</div><div class="tms-form-item"><label class="tms-form-label">末次跟进日期</label>${courtDateButtonHtml('f_recentFollowUpDate',rv(r,'recentFollowUpDate'))}</div><div class="tms-form-item"><label class="tms-form-label">下次跟进日期</label>${courtDateButtonHtml('f_nextFollowUpDate',rv(r,'nextFollowUpDate'))}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计充值</label><input type="number" class="finput tms-form-control" id="f_dep" value="${fin.totalDeposit}" readonly></div><div class="tms-form-item"><label class="tms-form-label">当前余额</label><input type="number" class="finput tms-form-control" id="f_bal" value="${fin.balance}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计消费</label><input type="number" class="finput tms-form-control" id="f_spent" value="${fin.spentAmount}" readonly></div><div class="tms-form-item"><label class="tms-form-label">累计实收</label><input type="number" class="finput tms-form-control" id="f_received" value="${fin.receivedAmount}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">对接人</label><input type="text" class="finput tms-form-control" id="f_owner" value="${rv(r,'owner')}"></div><div class="tms-form-item"><label class="tms-form-label">对储值态度</label><input type="text" class="finput tms-form-control" id="f_attitude" value="${rv(r,'depositAttitude')}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">熟悉程度</label><input type="text" class="finput tms-form-control" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="tms-form-item"></div></div><div class="tms-form-row" style="margin-bottom:0;"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div>`;
+  const body=`<div class="tms-section-header" style="margin-top:0;">基本信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input type="text" class="finput tms-form-control" id="f_name" placeholder="请输入" value="${rv(r,'name')}"></div><div class="tms-form-item"><label class="tms-form-label">手机号</label><input type="text" class="finput tms-form-control" id="f_phone" placeholder="13800138000" value="${rv(r,'phone')}"></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">关联学员（可多选）</label><div class="tms-checkbox-matrix">${studentChecks(selectedIds)}</div></div></div><div class="tms-form-row court-date-row"><div class="tms-form-item"><label class="tms-form-label">校区</label>${renderCourtDropdownHtml('f_campus','校区',[{value:'',label:'-'},...campusList],rv(r,'campus'),true)}</div><div class="tms-form-item"><label class="tms-form-label">加入日期</label>${courtDateButtonHtml('f_joinDate',rv(r,'joinDate'))}</div><div class="tms-form-item"><label class="tms-form-label">末次跟进日期</label>${courtDateButtonHtml('f_recentFollowUpDate',rv(r,'recentFollowUpDate'))}</div><div class="tms-form-item"><label class="tms-form-label">下次跟进日期</label>${courtDateButtonHtml('f_nextFollowUpDate',rv(r,'nextFollowUpDate'))}</div></div><div class="tms-readonly-panel" style="margin-bottom:16px"><span class="tms-panel-tip">下面 4 个财务字段是系统自动汇总，只读展示，不能在这里手动修改。</span><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">累计充值</label><div class="tms-form-readonly">¥${fmt(fin.totalDeposit)}</div></div><div class="tms-form-item"><label class="tms-form-label">当前余额</label><div class="tms-form-readonly">¥${fmt(fin.balance)}</div></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item"><label class="tms-form-label">累计消费</label><div class="tms-form-readonly">¥${fmt(fin.spentAmount)}</div></div><div class="tms-form-item"><label class="tms-form-label">累计实收</label><div class="tms-form-readonly">¥${fmt(fin.receivedAmount)}</div></div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">对接人</label><input type="text" class="finput tms-form-control" id="f_owner" value="${rv(r,'owner')}"></div><div class="tms-form-item"><label class="tms-form-label">对储值态度</label><input type="text" class="finput tms-form-control" id="f_attitude" value="${rv(r,'depositAttitude')}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">熟悉程度</label><input type="text" class="finput tms-form-control" id="f_familiarity" value="${rv(r,'familiarity')}"></div><div class="tms-form-item"></div></div><div class="tms-form-row" style="margin-bottom:0;"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="f_notes">${esc(rv(r,'notes'))}</textarea></div></div>`;
   const footer=id?`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><div style="display:flex;gap:12px;"><button class="tms-btn tms-btn-default" onclick="openCourtMergeModal('${r.id}')">合并</button><button class="tms-btn tms-btn-danger" onclick="confirmDel('${r.id}','${esc(r.name)}','court')">删除</button><button class="tms-btn tms-btn-primary" id="courtSaveBtn" onclick="saveCourt()">保存</button></div>`:`<div style="display:flex;gap:12px;margin-left:auto;"><button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="courtSaveBtn" onclick="saveCourt()">保存</button></div>`;
   setCourtModalFrame(id?'编辑订场用户':'添加订场用户',body,footer,'modal-wide');
 }

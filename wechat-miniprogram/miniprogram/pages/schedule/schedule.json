@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "我的课表"
+  "navigationBarTitleText": "我的课表",
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": true
 }

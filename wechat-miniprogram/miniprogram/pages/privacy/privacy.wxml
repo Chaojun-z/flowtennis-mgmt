@@ -1,0 +1,41 @@
+<scroll-view scroll-y class="doc-page">
+  <view class="doc-card">
+    <view class="doc-head">
+      <text class="doc-title">隐私政策</text>
+      <text class="doc-meta">最近更新：2026年4月20日</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">一、我们处理的信息</text>
+      </view>
+      <text class="doc-paragraph">为完成教练登录、排课管理、学员查看、反馈记录等功能，我们会处理你的账号信息、微信登录标识，以及你在教学管理中提交的业务数据。</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">二、信息使用目的</text>
+      </view>
+      <text class="doc-paragraph">相关信息仅用于身份识别、数据同步、消息提醒、教学管理与服务支持，不用于与业务无关的用途。</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">三、你的权利</text>
+      </view>
+      <text class="doc-paragraph">如需查询、更正、删除与你相关的数据，或申请解绑账号，请联系 FlowTennis 运营管理员处理。</text>
+    </view>
+    <view class="doc-section">
+      <view class="doc-section-head">
+        <view class="doc-section-marker"></view>
+        <text class="doc-section-title">四、微信隐私保护指引</text>
+      </view>
+      <text class="doc-paragraph">如需查看微信侧隐私保护指引，可点击下方按钮打开系统隐私说明。</text>
+      <button class="doc-link-card" bindtap="openWechatPrivacy">
+        <view class="doc-link-icon"></view>
+        <text class="doc-link-text">查看微信隐私保护指引</text>
+        <view class="doc-link-chevron"></view>
+      </button>
+    </view>
+  </view>
+</scroll-view>

@@ -80,10 +80,27 @@ assert.match(
   'coach workbench cards should use the gemini-style course card structure'
 );
 
+assert.doesNotMatch(
+  fnBody('workbenchSection'),
+  /state\.code==='later'\?'查看反馈'/,
+  'future coach workbench courses should not label the primary action as feedback'
+);
+
+assert.doesNotMatch(
+  fnBody('workbenchSection'),
+  /state\.code==='pending'\|\|\(state\.code==='done'&&hasScheduleFeedback\(s\)\)\|\|state\.code==='later'\?`openFeedbackModal\('\$\{s\.id\}'\)`/,
+  'future coach workbench courses should not jump into the feedback modal'
+);
+
 assert.match(
   fnBody('workbenchScheduleState'),
   /跨校区提醒：/,
   'coach workbench should surface cross-campus travel reminders'
+);
+assert.doesNotMatch(
+  fnBody('workbenchScheduleState'),
+  /今日后续/,
+  'coach workbench should not expose the removed later-state label'
 );
 
 assert.match(
@@ -102,6 +119,18 @@ assert.match(
   fnBody('openMyStudentDetail'),
   /tms-section-header[\s\S]*上课记录[\s\S]*setCourtModalFrame/,
   'my student detail should reuse the management modal frame and include lesson history'
+);
+
+assert.match(
+  fnBody('openMyStudentDetail'),
+  /备注[\s\S]*s\.remark/,
+  'my student detail should read the normalized backend remark field'
+);
+
+assert.match(
+  fnBody('renderMyStudents'),
+  /recentFb\?\.mainIssues\|\|recentFb\?\.knowledgePoint\|\|s\.remark\|\|''/,
+  'my students list should read the normalized backend remark field'
 );
 
 assert.match(
@@ -230,8 +259,26 @@ assert.match(
 
 assert.match(
   fnBody('renderWorkbench'),
-  /sumScheduleLessonUnits/,
-  'coach workbench summary cards should count lesson units, not schedule rows'
+  /window\.coachWorkbenchStats|coachWorkbenchStats/,
+  'coach workbench should read the backend standard stats payload'
+);
+
+assert.doesNotMatch(
+  fnBody('renderWorkbench'),
+  /monthTrialConverted|monthTrialRows|monthTrialRate|pendingFeedbackCount=endedRows/,
+  'coach workbench should not re-compute manager metrics on the frontend'
+);
+
+assert.match(
+  fnBody('workbenchScheduleState'),
+  /workbenchState/,
+  'coach workbench cards should prefer the backend workbenchState enum'
+);
+
+assert.doesNotMatch(
+  fnBody('workbenchScheduleState'),
+  /code:'done'|label:'已完成'/,
+  'coach workbench state machine should remove the done state'
 );
 
 assert.doesNotMatch(
