@@ -42,13 +42,42 @@ const rows = api.buildNormalizedFinanceRows({
       productSnapshotMeta: { courtId: 'court-1' },
       sourceId: 'match-1',
       notes: ''
+    },
+    {
+      id: 'ledger-3',
+      businessDate: '',
+      userId: 'stu-2',
+      userName: 'Lam、Loon',
+      businessType: '',
+      actionType: '历史导入',
+      cashDelta: 0,
+      recognizedRevenueDelta: 0,
+      deferredRevenueDelta: 0,
+      paymentChannel: '历史导入',
+      sourceId: 'import-1',
+      notes: '周五朗茶校区'
+    },
+    {
+      id: 'ledger-4',
+      businessDate: '2026-04-22',
+      userId: 'stu-3',
+      userName: '李四',
+      businessType: '课程',
+      actionType: '历史导入',
+      cashDelta: 0,
+      recognizedRevenueDelta: 50000,
+      deferredRevenueDelta: -50000,
+      paymentChannel: '历史导入',
+      campusId: 'mabao',
+      sourceId: 'import-2',
+      notes: '朝珺私教'
     }
   ]
 });
 const overview = api.buildFinanceOverview(rows);
 const audit = api.buildFinanceAudit(rows, overview);
 
-assert.strictEqual(rows.length, 2, 'finance normalization should keep every active ledger row');
+assert.strictEqual(rows.length, 4, 'finance normalization should keep every active ledger row');
 assert.strictEqual(rows[0].campusName, '朝珺私教', 'finance normalization should prefer explicit ledger campus');
 assert.strictEqual(rows[0].actionType, '已入账', 'write-off rows should normalize to recognized revenue action');
 assert.strictEqual(rows[0].recognizedRevenueDelta, 1200, 'finance normalization should convert ledger cents into yuan');
@@ -56,13 +85,17 @@ assert.strictEqual(rows[1].campusName, '顺义马坡', 'match-court-finance rows
 assert.strictEqual(rows[1].actionType, '记录', 'trace rows should stay as non-revenue records');
 assert.strictEqual(rows[1].sourceDocument, '账本记录 match-1', 'finance normalization should emit a readable source document');
 assert.strictEqual(overview.all.cash, 200, 'finance overview should aggregate total cash from normalized rows');
-assert.strictEqual(overview.all.recognized, 1200, 'finance overview should aggregate total recognized revenue from normalized rows');
+assert.strictEqual(overview.all.recognized, 1700, 'finance overview should aggregate total recognized revenue from normalized rows');
 assert.strictEqual(overview.campuses.length, 2, 'finance overview should keep campus-level buckets');
 assert.strictEqual(overview.campuses[0].campusName, '朝珺私教', 'finance overview should expose campus names in the summary');
 assert.strictEqual(audit.missingCampusCount, 0, 'finance audit should report zero missing campus rows for normalized fixtures');
 assert.strictEqual(audit.cashGap, 0, 'finance audit should keep total cash aligned with campus buckets');
 assert.strictEqual(audit.recognizedGap, 0, 'finance audit should keep total recognized revenue aligned with campus buckets');
-assert.strictEqual(audit.details.length, 6, 'finance audit should expose a fixed anomaly detail checklist');
+assert.strictEqual(audit.importMissingDateCount, 1, 'finance audit should flag historical import rows missing business date');
+assert.strictEqual(audit.importZeroAmountCount, 1, 'finance audit should flag zero-amount historical import rows');
+assert.strictEqual(audit.chaojunRiskCount, 1, 'finance audit should flag chaojun rows that were forced into mabao');
+assert.strictEqual(audit.externalCampusRiskCount, 1, 'finance audit should flag explicit external-campus clues');
+assert.strictEqual(audit.details.length, 10, 'finance audit should expose the extended anomaly detail checklist');
 assert.strictEqual(audit.details[0].type, '缺校区', 'finance audit detail should include missing campus checks');
 
 console.log('finance api normalization tests passed');

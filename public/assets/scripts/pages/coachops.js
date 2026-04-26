@@ -994,6 +994,9 @@ function renderFinanceOverview(){
     {label:'缺校区记录',value:String(parseInt(audit.missingCampusCount)||0)},
     {label:'未识别业务',value:String(parseInt(audit.unknownBusinessCount)||0)},
     {label:'未识别动作',value:String(parseInt(audit.unknownActionCount)||0)},
+    {label:'历史导入缺日期',value:String(parseInt(audit.importMissingDateCount)||0)},
+    {label:'朝珺误归马坡风险',value:String(parseInt(audit.chaojunRiskCount)||0)},
+    {label:'外校区特例待核',value:String(parseInt(audit.externalCampusRiskCount)||0)},
     {label:'总实收-分校区差额',value:financeCardMoney(Number(audit.cashGap)||0)},
     {label:'总已入账-分校区差额',value:financeCardMoney(Number(audit.recognizedGap)||0)},
     {label:'总未入账-分校区差额',value:financeCardMoney(Number(audit.deferredGap)||0)}

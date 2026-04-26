@@ -1914,9 +1914,30 @@ function buildFinanceOverview(rows=[]){
 }
 function buildFinanceAudit(rows=[],overview=null){
   const activeRows=(rows||[]).filter(row=>String(row?.status||'active')!=='voided');
+  const detailText=row=>`${String(row?.customerName||'').trim()||'—'} / ${String(row?.sourceDocument||'').trim()||String(row?.id||'').trim()||'—'}`;
+  const detailNotes=(matched=[],fallback)=>{
+    if(!matched.length)return fallback;
+    return `${fallback}；示例：${matched.slice(0,2).map(detailText).join('；')}`;
+  };
   const missingCampusRows=activeRows.filter(row=>!String(row?.campusName||'').trim()&&!String(row?.campusId||'').trim());
   const unknownBusinessRows=activeRows.filter(row=>!String(row?.businessType||'').trim()||String(row?.businessType||'').trim()==='其他');
   const unknownActionRows=activeRows.filter(row=>!String(row?.actionType||'').trim()||String(row?.actionType||'').trim()==='记录');
+  const importRows=activeRows.filter(row=>String(row?.actionType||'').trim()==='记录'||String(row?.sourceType||'').includes('导入')||String(row?.paymentChannel||'').trim()==='历史导入'||String(row?.notes||'').includes('导入'));
+  const importMissingDateRows=importRows.filter(row=>!String(row?.businessDate||'').trim());
+  const importZeroAmountRows=importRows.filter(row=>{
+    const cash=Math.abs(Number(row?.cashDelta)||0);
+    const recognized=Math.abs(Number(row?.recognizedRevenueDelta)||0);
+    const deferred=Math.abs(Number(row?.deferredRevenueDelta)||0);
+    return cash===0&&recognized===0&&deferred===0;
+  });
+  const chaojunRiskRows=activeRows.filter(row=>{
+    const text=`${row?.notes||''} ${row?.sourceDocument||''} ${row?.customerName||''}`;
+    return text.includes('朝珺私教')&&String(row?.campusName||'').trim()==='顺义马坡';
+  });
+  const externalCampusRows=activeRows.filter(row=>{
+    const text=`${row?.notes||''} ${row?.sourceDocument||''} ${row?.customerName||''}`;
+    return /朗茶|周五朗茶校区/.test(text);
+  });
   const overviewData=overview||buildFinanceOverview(activeRows);
   const campusCashTotal=(overviewData?.campuses||[]).reduce((sum,row)=>sum+(Number(row?.cash)||0),0);
   const campusRecognizedTotal=(overviewData?.campuses||[]).reduce((sum,row)=>sum+(Number(row?.recognized)||0),0);
@@ -1928,6 +1949,10 @@ function buildFinanceAudit(rows=[],overview=null){
     {id:'missing-campus',level:missingCampusRows.length?'P0':'OK',type:'缺校区',count:missingCampusRows.length,amount:0,notes:'正式账缺校区，不能用于经营归属'},
     {id:'unknown-business',level:unknownBusinessRows.length?'P0':'OK',type:'未识别业务',count:unknownBusinessRows.length,amount:0,notes:'业务类型落到“其他”，需要补枚举'},
     {id:'unknown-action',level:unknownActionRows.length?'P0':'OK',type:'未识别动作',count:unknownActionRows.length,amount:0,notes:'动作落到“记录”，需要补协议'},
+    {id:'import-missing-date',level:importMissingDateRows.length?'P1':'OK',type:'历史导入缺日期',count:importMissingDateRows.length,amount:0,notes:detailNotes(importMissingDateRows,'导入记录缺 businessDate，不能直接做经营统计')},
+    {id:'import-zero-amount',level:importZeroAmountRows.length?'P1':'OK',type:'历史导入零金额',count:importZeroAmountRows.length,amount:0,notes:detailNotes(importZeroAmountRows,'导入记录三项金额都为 0，只能留痕，不能直接入经营口径')},
+    {id:'chaojun-risk',level:chaojunRiskRows.length?'P1':'OK',type:'朝珺误归马坡风险',count:chaojunRiskRows.length,amount:0,notes:detailNotes(chaojunRiskRows,'文本写了朝珺私教，但当前归到了顺义马坡，需要逐条清理')},
+    {id:'external-campus-risk',level:externalCampusRows.length?'P1':'OK',type:'明确外校区特例',count:externalCampusRows.length,amount:0,notes:detailNotes(externalCampusRows,'文本明确提到外校区，需要确认是否应从马坡分出')},
     {id:'cash-gap',level:cashGap?'P0':'OK',type:'实收汇总差额',count:cashGap?1:0,amount:cashGap,notes:'总实收与分校区汇总不一致'},
     {id:'recognized-gap',level:recognizedGap?'P0':'OK',type:'已入账汇总差额',count:recognizedGap?1:0,amount:recognizedGap,notes:'总已入账与分校区汇总不一致'},
     {id:'deferred-gap',level:deferredGap?'P0':'OK',type:'未入账汇总差额',count:deferredGap?1:0,amount:deferredGap,notes:'总未入账与分校区汇总不一致'}
@@ -1936,6 +1961,10 @@ function buildFinanceAudit(rows=[],overview=null){
     missingCampusCount:missingCampusRows.length,
     unknownBusinessCount:unknownBusinessRows.length,
     unknownActionCount:unknownActionRows.length,
+    importMissingDateCount:importMissingDateRows.length,
+    importZeroAmountCount:importZeroAmountRows.length,
+    chaojunRiskCount:chaojunRiskRows.length,
+    externalCampusRiskCount:externalCampusRows.length,
     cashGap,
     recognizedGap,
     deferredGap,
