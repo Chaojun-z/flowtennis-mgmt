@@ -11,6 +11,7 @@ assert.match(source, /if\(Array\.isArray\(financialLedger\)&&financialLedger\.le
 assert.match(source, /if\(Array\.isArray\(financialLedger\)&&financialLedger\.length\)\{[\s\S]*return financeConsumeRowsFromLedger\(\)\.filter/, 'finance recognized report should prefer financialLedger before legacy entitlement stitching');
 assert.match(source, /purchase\.saleCampusId\|\|entitlementCampus\|\|purchase\.campus\|\|studentCampus/, 'course income campus should prefer saleCampusId before old fallback fields');
 assert.match(source, /if\(actionType==='核销'\)return '已入账';/, 'finance ledger should treat write-off rows as recognized revenue actions');
+assert.match(source, /if\(actionType==='留痕'\)return '记录';/, 'finance ledger should preserve trace-only rows as non-revenue records');
 assert.match(source, /if\(userId==='match-court-finance'\)return '顺义马坡';/, 'finance ledger should pin match-court-finance to mabao campus');
 
 console.log('finance ledger rules tests passed');

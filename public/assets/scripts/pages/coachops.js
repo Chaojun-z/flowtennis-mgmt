@@ -530,6 +530,7 @@ function financeLedgerActionFromRow(row){
   if(actionType==='冲正')return '冲回';
   if(actionType==='核销')return '已入账';
   if(actionType==='消耗')return '消耗';
+  if(actionType==='留痕')return '记录';
   if(actionType==='消费')return payMethod.includes('储值')?'已入账':'收款';
   if(actionType==='历史导入'){
     if(cashDelta>0)return '收款';
