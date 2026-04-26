@@ -994,6 +994,7 @@ function renderFinanceOverview(){
     {label:'缺校区记录',value:String(parseInt(audit.missingCampusCount)||0)},
     {label:'未识别业务',value:String(parseInt(audit.unknownBusinessCount)||0)},
     {label:'未识别动作',value:String(parseInt(audit.unknownActionCount)||0)},
+    {label:'自动纠偏校区',value:String(parseInt(audit.autoFixedCampusCount)||0)},
     {label:'历史导入缺日期',value:String(parseInt(audit.importMissingDateCount)||0)},
     {label:'朝珺误归马坡风险',value:String(parseInt(audit.chaojunRiskCount)||0)},
     {label:'外校区特例待核',value:String(parseInt(audit.externalCampusRiskCount)||0)},
@@ -1014,6 +1015,12 @@ function renderFinanceAuditActionTable(){
   if(!body)return;
   const rows=Array.isArray(financeAuditData?.actionItems)?financeAuditData.actionItems:[];
   body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.type,false)}</td><td>${renderCourtCellText(row.customerName,false)}</td><td>${renderCourtCellText(row.sourceDocument,false)}</td><td>${renderCourtCellText(row.currentCampus,false)}</td><td>${renderCourtCellText(row.suggestedCampus,false)}</td><td><div class="tms-text-remark">${esc(renderCourtEmptyText(row.suggestion))}</div></td></tr>`).join(''):`<tr><td colspan="6"><div class="empty"><p>暂无待处理明细</p></div></td></tr>`;
+}
+function renderFinanceAuditFixedTable(){
+  const body=document.getElementById('financeAuditFixedTbody');
+  if(!body)return;
+  const rows=Array.isArray(financeAuditData?.fixedItems)?financeAuditData.fixedItems:[];
+  body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.type,false)}</td><td>${renderCourtCellText(row.customerName,false)}</td><td>${renderCourtCellText(row.sourceDocument,false)}</td><td>${renderCourtCellText(row.fromCampus,false)}</td><td>${renderCourtCellText(row.toCampus,false)}</td><td><div class="tms-text-remark">${esc(renderCourtEmptyText(row.reason))}</div></td></tr>`).join(''):`<tr><td colspan="6"><div class="empty"><p>暂无自动纠偏记录</p></div></td></tr>`;
 }
 function renderFinanceLedgerFilterDropdowns(baseRows){
   const businessHost=document.getElementById('financeLedgerBusinessTypeFilterHost');
@@ -1040,6 +1047,7 @@ function renderFinanceLedger(){
   if(!syncFinanceLedgerLoadingState())return;
   renderFinanceAuditTable();
   renderFinanceAuditActionTable();
+  renderFinanceAuditFixedTable();
   const baseRows=financeLedgerBaseRows().filter(row=>coachOpsDateWithinRange(row.businessDate,document.getElementById('financeLedgerFrom')?.value||'',document.getElementById('financeLedgerTo')?.value||''));
   renderFinanceLedgerFilterDropdowns(baseRows);
   renderFinanceLedgerPageSizeFilter();

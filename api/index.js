@@ -1822,6 +1822,25 @@ function financeLedgerCampusName(row,campuses=[],courts=[]){
   if(String(row?.userId||'').trim()===MATCH_COURT_FINANCE_ACCOUNT_ID)return '顺义马坡';
   return '顺义马坡';
 }
+function financeLedgerCampusResolution(row,campuses=[],courts=[]){
+  const direct=financeCampusNameForValue(row?.campusName||row?.campusId||row?.campus||'',campuses);
+  const textCampus=financeCampusNameFromTextClues(`${row?.notes||''} ${row?.reason||''} ${row?.productSnapshotName||''} ${row?.ledgerType||''}`);
+  const isImportLike=String(row?.actionType||'').trim()==='历史导入'||String(row?.paymentChannel||'').trim()==='历史导入'||String(row?.notes||'').includes('导入');
+  if(textCampus&&isImportLike&&(!direct||direct==='顺义马坡')&&textCampus!==direct){
+    return {campusName:textCampus,resolution:'text_override_import',originalCampus:direct||'顺义马坡',reason:'历史导入备注明确给出校区，已按文本线索纠偏'};
+  }
+  if(direct)return {campusName:direct,resolution:'direct',originalCampus:direct,reason:''};
+  if(textCampus)return {campusName:textCampus,resolution:'text_clue',originalCampus:'',reason:'按备注/快照文本识别校区'};
+  const meta=row?.productSnapshotMeta||{};
+  const courtId=meta.courtId||(row?.userType==='court_customer'?row?.userId:'');
+  if(courtId){
+    const court=(courts||[]).find(item=>String(item.id||'')===String(courtId));
+    const courtCampus=financeCampusNameForValue(court?.campus||court?.campusName||'',campuses);
+    if(courtCampus)return {campusName:courtCampus,resolution:'court_link',originalCampus:'',reason:'按关联订场账户归属校区'};
+  }
+  if(String(row?.userId||'').trim()===MATCH_COURT_FINANCE_ACCOUNT_ID)return {campusName:'顺义马坡',resolution:'match_default',originalCampus:'',reason:'约球订场统一归顺义马坡'};
+  return {campusName:'顺义马坡',resolution:'default_mabao',originalCampus:direct||'',reason:'缺少更强线索，默认归顺义马坡'};
+}
 function financeLedgerBusinessType(row){
   const rawBusiness=String(row?.businessType||'').trim();
   const payMethod=String(row?.paymentChannel||'').trim();
@@ -1858,11 +1877,16 @@ function financeLedgerActionType(row){
 function buildNormalizedFinanceRows({financialLedger=[],campuses=[],courts=[]}={}){
   return (financialLedger||[])
     .filter(row=>String(row?.status||'active')!=='voided')
-    .map(row=>({
+    .map(row=>{
+      const campusResolution=financeLedgerCampusResolution(row,campuses,courts);
+      return {
       id:String(row.id||''),
       businessDate:String(row.businessDate||row.createdAt||'').slice(0,10),
       campusId:String(row.campusId||row.campus||row.campusName||'').trim(),
-      campusName:financeLedgerCampusName(row,campuses,courts),
+      campusName:campusResolution.campusName,
+      campusResolution:campusResolution.resolution,
+      originalCampusName:campusResolution.originalCampus,
+      campusResolutionReason:campusResolution.reason,
       customerId:String(row.userId||'').trim(),
       customerName:String(row.userName||'').trim()||'—',
       sourceType:String(row.ledgerType||'').trim()||'finance_ledger',
@@ -1884,7 +1908,7 @@ function buildNormalizedFinanceRows({financialLedger=[],campuses=[],courts=[]}={
       courtId:String((row.productSnapshotMeta||{}).courtId||'').trim(),
       status:String(row.status||'active').trim()||'active',
       systemStatus:String(row.scheduleId||row.entitlementId||row.purchaseId||row.sourceId?'已关联':'待补来源')
-    }));
+    };});
 }
 function summarizeFinanceOverviewBucket(rows=[]){
   const cash=(rows||[]).reduce((sum,row)=>sum+(Number(row?.cashDelta)||0),0);
@@ -1949,6 +1973,7 @@ function buildFinanceAudit(rows=[],overview=null){
     const text=`${row?.notes||''} ${row?.sourceDocument||''} ${row?.customerName||''}`;
     return /朗茶|周五朗茶校区/.test(text);
   });
+  const autoFixedCampusRows=activeRows.filter(row=>String(row?.campusResolution||'')==='text_override_import');
   const overviewData=overview||buildFinanceOverview(activeRows);
   const campusCashTotal=(overviewData?.campuses||[]).reduce((sum,row)=>sum+(Number(row?.cash)||0),0);
   const campusRecognizedTotal=(overviewData?.campuses||[]).reduce((sum,row)=>sum+(Number(row?.recognized)||0),0);
@@ -1974,6 +1999,14 @@ function buildFinanceAudit(rows=[],overview=null){
     ...externalCampusRows.slice(0,5).map(row=>actionRow('外校区特例待核',row,'确认是否从马坡分出到外校区',financeCampusNameFromTextClues(`${row?.notes||''} ${row?.sourceDocument||''}`))),
     ...missingCampusRows.slice(0,5).map(row=>actionRow('缺校区',row,'补真实发生校区后再入经营口径'))
   ];
+  const fixedItems=autoFixedCampusRows.slice(0,10).map(row=>({
+    type:'校区自动纠偏',
+    customerName:String(row?.customerName||'').trim()||'—',
+    sourceDocument:String(row?.sourceDocument||row?.id||'').trim()||'—',
+    fromCampus:String(row?.originalCampusName||'').trim()||'顺义马坡',
+    toCampus:String(row?.campusName||'').trim()||'—',
+    reason:String(row?.campusResolutionReason||'').trim()||'按文本线索自动纠偏'
+  }));
   return {
     missingCampusCount:missingCampusRows.length,
     unknownBusinessCount:unknownBusinessRows.length,
@@ -1982,11 +2015,13 @@ function buildFinanceAudit(rows=[],overview=null){
     importZeroAmountCount:importZeroAmountRows.length,
     chaojunRiskCount:chaojunRiskRows.length,
     externalCampusRiskCount:externalCampusRows.length,
+    autoFixedCampusCount:autoFixedCampusRows.length,
     cashGap,
     recognizedGap,
     deferredGap,
     details,
-    actionItems
+    actionItems,
+    fixedItems
   };
 }
 function scheduleInitInBackground(){
