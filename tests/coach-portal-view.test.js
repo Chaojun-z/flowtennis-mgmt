@@ -97,6 +97,11 @@ assert.match(
   /跨校区提醒：/,
   'coach workbench should surface cross-campus travel reminders'
 );
+assert.doesNotMatch(
+  fnBody('workbenchScheduleState'),
+  /今日后续/,
+  'coach workbench should not expose the removed later-state label'
+);
 
 assert.match(
   fnBody('renderWorkbench'),

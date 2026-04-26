@@ -1,5 +1,5 @@
 const { loginWithWechat, loadCoachWorkbench, saveCoachFeedback, TOKEN_KEY, USER_KEY } = require('../../utils/api');
-const { buildWeekDays, formatScheduleItem, weekRangeText, buildTimetableDays, classBlockStyle, workbenchTodoState } = require('../../utils/schedule');
+const { buildWeekDays, formatScheduleItem, weekRangeText, buildTimetableDays, classBlockStyle, workbenchTodoState, scheduleLocationText } = require('../../utils/schedule');
 
 const timetableHours = Array.from({ length: 25 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const avatarClasses = ['avatar-warm', 'avatar-teal', 'avatar-green', 'avatar-purple'];
@@ -107,12 +107,13 @@ function decorateWorkbenchClass(item, now = new Date()) {
   };
 }
 
-function buildWeekTodoGroups(days = [], now = new Date()) {
+function buildWeekTodoGroups(days = [], now = new Date(), todayShownIds = new Set()) {
   return days
     .map(day => ({
       ...day,
       items: (day.items || [])
         .map(item => {
+          if (day.isToday && todayShownIds.has(String(item.id))) return null;
           const state = workbenchTodoState(item, now);
           if (!state) return null;
           return {
@@ -558,7 +559,7 @@ function feedbackCountsOf(form = {}) {
 function feedbackContextParts(item = {}) {
   return [
     item.student || item.studentText,
-    [item.campus, item.venue || item.loc || item.locationText].filter(Boolean).join('·'),
+    scheduleLocationText(item),
     item.type || item.title
   ].filter(Boolean);
 }
@@ -668,7 +669,7 @@ function buildDetailData(selectedClass, context = {}) {
     actionText: currentFeedback ? '查看反馈' : '填写反馈',
     basicInfo: {
       datetime: formatDetailDateTime(selectedClass),
-      location: [selectedClass.campus, selectedClass.venue || selectedClass.loc || selectedClass.locationText].filter(Boolean).join('·') || '地点待确认',
+      location: scheduleLocationText(selectedClass),
       courseType: typeTag.text,
       courseTypeClass: typeTag.className === 'is-trial' ? 'detail-tag-trial' : 'detail-tag-private',
       status: statusTag.text,
@@ -1245,7 +1246,7 @@ function timetableScrollLeft(days = [], isCurrentWeek = true) {
   if (!isCurrentWeek) return 0;
   const todayIndex = (days || []).findIndex(item => item.isToday);
   if (todayIndex < 0) return 0;
-  return Math.max(0, Math.round(rpxToPx(todayIndex * TIMETABLE_DAY_WIDTH_RPX) - 60));
+  return Math.max(0, Math.round(rpxToPx(todayIndex * TIMETABLE_DAY_WIDTH_RPX)));
 }
 
 Page({
@@ -1416,8 +1417,9 @@ Page({
     const days = buildWeekDays(schedule, weekOffset);
     const visibleClasses = days.reduce((all, day) => all.concat(day.items.map(item => ({ ...item, dayKey: day.key }))), []);
     const today = days.find(day => day.isToday);
-    const dashboardClasses = today ? today.items.map(item => decorateWorkbenchClass(item, now)).filter(item => item.status) : [];
-    const weekTodoGroups = buildWeekTodoGroups(days, now);
+    const dashboardClasses = today ? today.items.map(item => decorateWorkbenchClass(item, now)) : [];
+    const todayShownIds = new Set((dashboardClasses || []).map(item => String(item.id || '')).filter(Boolean));
+    const weekTodoGroups = buildWeekTodoGroups(days, now, todayShownIds);
     const weekTodoCards = buildWeekTodoCards(weekTodoGroups);
     const todoItems = weekTodoGroups.reduce((all, day) => all.concat(day.items), []);
     const pending = todoItems.filter(item => item.todoLabel === '待反馈').length;
@@ -1434,7 +1436,7 @@ Page({
       todoCount: todoItems.length,
       pendingCount: pending
     });
-    const decoratedTimetableDays = decorateTimetableDays(buildTimetableDays(visibleClasses, weekOffset));
+    const decoratedTimetableDays = decorateTimetableDays(buildTimetableDays(schedule, weekOffset, now));
     const isCurrentWeek = weekOffset === 0;
     this.setData({
       weekTitle: weekOffset === 0 ? '本周' : (weekOffset > 0 ? `后 ${weekOffset} 周` : `前 ${Math.abs(weekOffset)} 周`),

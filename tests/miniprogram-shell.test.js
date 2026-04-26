@@ -25,7 +25,7 @@ assert.strictEqual(appConfig.__usePrivacyCheck__, true, 'mini program should ena
 const indexWxml = readText('wechat-miniprogram/miniprogram/pages/index/index.wxml');
 assert.match(indexWxml, /网球兄弟/, 'index page should render the Gemini login title');
 assert.match(indexWxml, /FLOWTENNIS · 管理系统/, 'index page should render the Gemini login subtitle');
-assert.match(indexWxml, /请输入账号或手机号/, 'index page should render the mapped account input');
+assert.match(indexWxml, /请输入账号ID（不是姓名）/, 'index page should render the mapped account input');
 assert.match(indexWxml, /请输入密码/, 'index page should render the mapped password input');
 assert.match(indexWxml, /checkbox/, 'index page should render an agreement checkbox');
 assert.match(indexWxml, /我已阅读并同意/, 'index page should render the agreement consent copy');
@@ -43,9 +43,10 @@ assert.match(indexJs, /SCHEDULE_TEMPLATE_ID/, 'index page should read the schedu
 assert.match(indexJs, /COURSE_REMINDER_TEMPLATE_ID/, 'index page should read the course reminder subscribe template ID from config');
 assert.match(indexJs, /loginWithPassword/, 'index page should call the real account password login helper');
 assert.match(indexJs, /bindWechatAfterLogin/, 'index page should bind the current mini program WeChat account after password login');
+assert.match(indexJs, /function shouldBindWechatAfterLogin/, 'index page should decide whether WeChat bind is still needed after password login');
 assert.match(indexJs, /function assertCoachLoginUser/, 'index page should validate coach role before entering the coach mini program');
 assert.match(indexJs, /user\.role !== 'editor'/, 'index page should reject non-coach accounts on the login page');
-assert.match(indexJs, /loginWithPassword\(account, password\)[\s\S]*assertCoachLoginUser\(data\.user \|\| \{\}\)[\s\S]*bindWechatAfterLogin/, 'index page should check role before WeChat binding and navigation');
+assert.match(indexJs, /loginWithPassword\(account, password\)[\s\S]*assertCoachLoginUser\(data\.user \|\| \{\}\)[\s\S]*shouldBindWechatAfterLogin\(data\.user \|\| \{\}\)\s*\? bindWechatAfterLogin\(\)\s*: Promise\.resolve\(\)/, 'index page should skip repeated WeChat bind when the coach account is already bound');
 assert.match(indexJs, /wx\.requestSubscribeMessage/, 'index page should request schedule subscribe permission from a tap');
 assert.match(indexJs, /tmplIds:\s*\[SCHEDULE_TEMPLATE_ID,\s*COURSE_REMINDER_TEMPLATE_ID\]/, 'index page should request both schedule and course reminder templates');
 assert.match(indexJs, /pages\/schedule\/schedule/, 'index page should navigate into the native schedule page after the tap');
@@ -163,6 +164,11 @@ assert.match(scheduleJs, /showStudentDetail/, 'student detail sheet should use i
 assert.match(scheduleJs, /formatStudentClassTime[\s\S]*endText[\s\S]*`\$\{dateText\} \$\{startText\}-\$\{endText\}`/, 'student detail latest class should show the full start-end time range');
 assert.match(scheduleJs, /timetableScrollTop/, 'mini program schedule page should compute a vertical scroll position for the timetable');
 assert.match(scheduleJs, /timetableScrollLeft/, 'mini program schedule page should compute a horizontal scroll position for the timetable');
+assert.match(scheduleJs, /return Math\.max\(0,\s*Math\.round\(rpxToPx\(todayIndex \* TIMETABLE_DAY_WIDTH_RPX\)\)\);/, 'mini program timetable should align today to the first visible day column');
+assert.match(scheduleJs, /const todayShownIds = new Set\(/, 'mini program schedule page should track today cards already rendered in the dashboard');
+assert.match(scheduleJs, /buildWeekTodoGroups\(days,\s*now,\s*todayShownIds\)/, 'mini program weekly todos should receive dashboard shown ids for de-duplication');
+assert.match(scheduleJs, /if\s*\(\s*day\.isToday\s*&&\s*todayShownIds\.has\(String\(item\.id\)\)\s*\)\s*return null;/, 'mini program weekly todos should skip classes that already appear in today dashboard');
+assert.match(scheduleJs, /decorateTimetableDays\(buildTimetableDays\(schedule,\s*weekOffset,\s*now\)\)/, 'mini program timetable should build its window from the full schedule dataset so current week can preview next-week days');
 assert.match(scheduleJs, /currentTimeText/, 'mini program schedule page should compute the current-time marker text');
 assert.match(scheduleJs, /todayLabel:\s*today \? today\.label\.replace\(\s*\/\\s\+\/,\s*' '\s*\)/, 'dashboard today date should keep exactly one space between weekday and date');
 assert.match(scheduleJs, /Array\.from\(\{\s*length:\s*25\s*\}[\s\S]*String\(i\)\.padStart\(2,\s*'0'\)/, 'mini program timetable should expose a 00:00-24:00 time axis');
@@ -192,9 +198,45 @@ assert.strictEqual(
 );
 const todoNow = new Date('2026-04-21T12:00:00+08:00');
 assert.strictEqual(
-  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已排课' }, todoNow).label,
-  '今日后续',
-  'future later courses should use the standard later state'
+  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已排课' }, todoNow),
+  null,
+  'future later courses should not expose a standalone later state'
+);
+assert.strictEqual(
+  scheduleUtils.formatScheduleItem({ campus: 'mabao', venue: '1号场' }).locationText,
+  '顺义马坡 · 1号场',
+  'mini program schedule items should render campus display names instead of raw campus codes'
+);
+assert.strictEqual(
+  scheduleUtils.formatScheduleItem({ campus: '__external__', externalVenueName: '国网北区', externalCourtName: 'C1' }).locationText,
+  '国网北区 · C1',
+  'mini program schedule items should hide the internal external-campus sentinel value'
+);
+const sundayNow = new Date('2026-04-26T09:00:00+08:00');
+const sundayWindow = scheduleUtils.buildTimetableDays([
+  { id: 'sun', startTime: '2026-04-26 13:00', endTime: '2026-04-26 15:00', campus: 'mabao', venue: '1号场' },
+  { id: 'mon', startTime: '2026-04-27 09:00', endTime: '2026-04-27 11:00', campus: 'mabao', venue: '1号场' },
+  { id: 'tue', startTime: '2026-04-28 10:00', endTime: '2026-04-28 12:00', campus: 'mabao', venue: '1号场' }
+], 0, sundayNow);
+assert.strictEqual(
+  sundayWindow.length,
+  9,
+  'current-week timetable window should include two preview days from next week'
+);
+assert.strictEqual(
+  sundayWindow[7].key,
+  '2026-04-27',
+  'current-week timetable window should preview next Monday after Sunday'
+);
+assert.strictEqual(
+  sundayWindow[8].key,
+  '2026-04-28',
+  'current-week timetable window should preview next Tuesday after Sunday'
+);
+assert.strictEqual(
+  sundayWindow[7].items.length,
+  1,
+  'current-week timetable preview should carry next-week schedule items'
 );
 assert.strictEqual(
   scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已排课' }, todoNow).label,
@@ -313,6 +355,7 @@ assert.match(appJs, /onNeedPrivacyAuthorization/, 'mini program app should imple
 assert.match(appJs, /openPrivacyContract/, 'mini program app should provide a helper to open the WeChat privacy contract');
 
 const scheduleWxss = readText('wechat-miniprogram/miniprogram/pages/schedule/schedule.wxss');
+assert.match(scheduleWxss, /\.today-detail-btn\s*\{[\s\S]*min-width:\s*92rpx;[\s\S]*padding:\s*0 20rpx;[\s\S]*display:\s*flex;[\s\S]*justify-content:\s*center;/i, 'today detail button should use a flexible width so narrow phones do not truncate the label');
 assert.match(scheduleWxss, /\.coach-menu-icon-agreement\s*\{[\s\S]*width:\s*20px;[\s\S]*height:\s*20px;/i, 'settings action sheet should use the 20px agreement icon slot');
 assert.match(scheduleWxss, /\.coach-menu-icon-privacy\s*\{[\s\S]*width:\s*20px;[\s\S]*height:\s*20px;/i, 'settings action sheet should use the 20px privacy icon slot');
 assert.match(scheduleWxss, /\.coach-menu-avatar\s*\{[\s\S]*width:\s*52px;[\s\S]*height:\s*52px;/, 'settings action sheet should use the larger avatar size from the refined spec');
