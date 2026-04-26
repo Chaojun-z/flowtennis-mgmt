@@ -13,10 +13,6 @@ function assertCoachLoginUser(user = {}) {
   }
 }
 
-function shouldBindWechatAfterLogin(user = {}) {
-  return !user.wechatBound;
-}
-
 Page({
   data: {
     account: '',
@@ -64,7 +60,7 @@ Page({
         assertCoachLoginUser(data.user || {});
         return data;
       })
-      .then((data) => (shouldBindWechatAfterLogin(data.user || {}) ? bindWechatAfterLogin() : Promise.resolve()))
+      .then(() => bindWechatAfterLogin())
       .then(() => {
         const app = getApp();
         if (app && app.globalData) app.globalData.privacyAccepted = true;
