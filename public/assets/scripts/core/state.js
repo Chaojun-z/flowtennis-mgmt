@@ -5,7 +5,7 @@ function syncViewportMode(){
   document.body.classList.toggle('admin-mobile',!!(!isCoach&&isMobile&&currentUser));
 }
 
-let courts=[],students=[],products=[],packages=[],purchases=[],entitlements=[],entitlementLedger=[],financialLedger=[],membershipPlans=[],membershipAccounts=[],membershipOrders=[],membershipBenefitLedger=[],membershipAccountEvents=[],pricePlans=[],plans=[],schedules=[],coaches=[],classes=[],campuses=[],feedbacks=[],adminUsers=[],matches=[];
+let courts=[],students=[],products=[],packages=[],purchases=[],entitlements=[],entitlementLedger=[],financialLedger=[],financeRows=[],membershipPlans=[],membershipAccounts=[],membershipOrders=[],membershipBenefitLedger=[],membershipAccountEvents=[],pricePlans=[],plans=[],schedules=[],coaches=[],classes=[],campuses=[],feedbacks=[],adminUsers=[],matches=[];
 window.coachWorkbenchStats=window.coachWorkbenchStats||{};
 let adminUsersLoaded=false;
 let modalCleanupTimer=null;
@@ -134,6 +134,7 @@ function setDatasetValue(name,data,{persist=true}={}){
   if(name==='entitlements')entitlements=rows;
   if(name==='entitlementLedger')entitlementLedger=rows;
   if(name==='financialLedger')financialLedger=rows;
+  if(name==='financeRows')financeRows=rows;
   if(name==='membershipPlans')membershipPlans=rows;
   if(name==='membershipAccounts')membershipAccounts=rows;
   if(name==='membershipOrders')membershipOrders=rows;
@@ -253,6 +254,7 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
       setDatasetValue('entitlements',data.entitlements||[]);
       setDatasetValue('entitlementLedger',data.entitlementLedger||[]);
       setDatasetValue('financialLedger',data.financialLedger||[]);
+      setDatasetValue('financeRows',data.financeRows||[]);
       setDatasetValue('coaches',data.coaches||[]);
       setDatasetValue('products',data.products||[]);
       setDatasetValue('purchases',data.purchases||[]);
@@ -331,7 +333,7 @@ async function loadPageBackgroundDatasets(pg,requestVersion,{force=false}={}){
   renderAll();
 }
 function clearLoadedData(){
-  courts=[];students=[];products=[];packages=[];purchases=[];entitlements=[];entitlementLedger=[];financialLedger=[];
+  courts=[];students=[];products=[];packages=[];purchases=[];entitlements=[];entitlementLedger=[];financialLedger=[];financeRows=[];
   membershipPlans=[];membershipAccounts=[];membershipOrders=[];membershipBenefitLedger=[];membershipAccountEvents=[];pricePlans=[];
   plans=[];schedules=[];coaches=[];classes=[];campuses=[];feedbacks=[];adminUsers=[];matches=[];adminUsersLoaded=false;
   loadedDatasets=new Set();
@@ -359,6 +361,7 @@ function applyLoadedData(data){
   entitlements=Array.isArray(data?.entitlements)?data.entitlements:[];
   entitlementLedger=Array.isArray(data?.entitlementLedger)?data.entitlementLedger:[];
   financialLedger=Array.isArray(data?.financialLedger)?data.financialLedger:[];
+  financeRows=Array.isArray(data?.financeRows)?data.financeRows:[];
   membershipPlans=Array.isArray(data?.membershipPlans)?data.membershipPlans:[];
   membershipAccounts=Array.isArray(data?.membershipAccounts)?data.membershipAccounts:[];
   membershipOrders=Array.isArray(data?.membershipOrders)?data.membershipOrders:[];
@@ -372,7 +375,7 @@ function applyLoadedData(data){
   campuses=Array.isArray(data?.campuses)?data.campuses:[];
   feedbacks=Array.isArray(data?.feedbacks)?data.feedbacks:[];
   matches=Array.isArray(data?.matches)?data.matches:[];
-  loadedDatasets=new Set(['courts','students','products','packages','purchases','entitlements','entitlementLedger','financialLedger','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','pricePlans','plans','schedule','coaches','classes','campuses','feedbacks','matches']);
+  loadedDatasets=new Set(['courts','students','products','packages','purchases','entitlements','entitlementLedger','financialLedger','financeRows','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','pricePlans','plans','schedule','coaches','classes','campuses','feedbacks','matches']);
   if(data?.user){
     currentUser=data.user;
     localStorage.setItem('ft_user',JSON.stringify(currentUser));
