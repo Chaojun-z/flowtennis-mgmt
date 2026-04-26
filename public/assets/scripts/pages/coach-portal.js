@@ -13,9 +13,6 @@ function workbenchScheduleState(schedule,prevSchedule,now){
   if(start&&start>now&&travelGap>=0&&travelGap<60){
     return {code:'travel',label:'需换场',hint:`跨校区提醒：上一节下课到这节上课仅 ${travelGap} 分钟`};
   }
-  if(start&&start>now){
-    return {code:'later',label:'今日后续'};
-  }
   if(ended&&!hasScheduleFeedback(schedule)){
     return {code:'pending',label:'待反馈'};
   }
@@ -268,10 +265,10 @@ function myStudentLastLessonMeta(stu,coach){
 function myStudentPackageProgressMeta(stu){
   const rows=entitlements.filter(e=>e.studentId===stu?.id&&e.status!=='voided');
   if(!rows.length)return {progress:'-',remaining:'-'};
-  const total=rows.reduce((sum,e)=>sum+(parseInt(e.totalLessons)||0),0);
-  const used=rows.reduce((sum,e)=>sum+(parseInt(e.usedLessons)||0),0);
-  const remaining=rows.reduce((sum,e)=>sum+(parseInt(e.remainingLessons)||0),0);
-  return {progress:total>0?`${used}/${total}`:'-',remaining:String(remaining)};
+  const total=rows.reduce((sum,e)=>sum+lessonValue(e.totalLessons),0);
+  const used=rows.reduce((sum,e)=>sum+lessonValue(e.usedLessons),0);
+  const remaining=rows.reduce((sum,e)=>sum+lessonValue(e.remainingLessons),0);
+  return {progress:total>0?`${lessonQty(used)}/${lessonQty(total)}`:'-',remaining:lessonQty(remaining)};
 }
 function myStudentOwnerCoachText(stu){
   const ownerSet=[...new Set(entitlements.filter(e=>e.studentId===stu?.id&&e.status!=='voided').map(e=>String(e.ownerCoach||'').trim()).filter(Boolean))];
@@ -279,10 +276,10 @@ function myStudentOwnerCoachText(stu){
 }
 function myStudentEntitlementProgress(stu){
   const rows=entitlements.filter(e=>e.studentId===stu?.id&&e.status!=='voided');
-  const total=rows.reduce((sum,e)=>sum+(parseInt(e.totalLessons)||0),0);
-  const used=rows.reduce((sum,e)=>sum+(parseInt(e.usedLessons)||0),0);
-  const remaining=rows.reduce((sum,e)=>sum+(parseInt(e.remainingLessons)||0),0);
-  return rows.length?`课包进度 ${used}/${total}，剩余课时 ${remaining}`:'课包进度 —，剩余课时 0';
+  const total=rows.reduce((sum,e)=>sum+lessonValue(e.totalLessons),0);
+  const used=rows.reduce((sum,e)=>sum+lessonValue(e.usedLessons),0);
+  const remaining=rows.reduce((sum,e)=>sum+lessonValue(e.remainingLessons),0);
+  return rows.length?`课包进度 ${lessonQty(used)}/${lessonQty(total)}，剩余课时 ${lessonQty(remaining)}`:'课包进度 —，剩余课时 0';
 }
 function renderMyStudents(){
   const cn2=getMyCoachName();
@@ -334,15 +331,15 @@ function renderMyClasses(){
   const cn2=getMyCoachName();
   const myCls=classes.filter(c=>c.coach===cn2);
   const active=myCls.filter(c=>c.status==='已排班').length;
-  const tL=myCls.reduce((s,c)=>s+(parseInt(c.totalLessons)||0),0),uL=myCls.reduce((s,c)=>s+(parseInt(c.usedLessons)||0),0);
+  const tL=myCls.reduce((s,c)=>s+lessonValue(c.totalLessons),0),uL=myCls.reduce((s,c)=>s+lessonValue(c.usedLessons),0);
   const mobile=document.getElementById('myClassMobileList');
-  document.getElementById('myClassStats').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">我的班次</div><div class="tms-stat-value">${myCls.length}<span>个</span></div><div class="tms-stat-sub">进行中 ${active}</div></div><div class="tms-stat-card"><div class="tms-stat-label">总课时 / 已上</div><div class="tms-stat-value">${tL}<span>/ ${uL}</span></div><div class="tms-stat-sub">剩余 ${tL-uL} 节</div></div>`;
+  document.getElementById('myClassStats').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">我的班次</div><div class="tms-stat-value">${myCls.length}<span>个</span></div><div class="tms-stat-sub">进行中 ${active}</div></div><div class="tms-stat-card"><div class="tms-stat-label">总课时 / 已上</div><div class="tms-stat-value">${lessonQty(tL)}<span>/ ${lessonQty(uL)}</span></div><div class="tms-stat-sub">剩余 ${lessonQty(tL-uL)} 节</div></div>`;
   const ss={'已排班':'b-blue','已取消':'b-gray','已结课':'b-green'};
   document.getElementById('myClsTbody').innerHTML=myCls.length?myCls.map(c=>{
     const prod=products.find(x=>x.id===c.productId);
     const ids=parseArr(c.studentIds);
     const names=ids.map(sid=>{const st=students.find(x=>x.id===sid);return st?esc(st.name):esc(sid);}).join('、')||'-';
-    const tl=parseInt(c.totalLessons)||0,ul=parseInt(c.usedLessons)||0,rem=tl-ul;
+    const tl=lessonValue(c.totalLessons),ul=lessonValue(c.usedLessons),rem=tl-ul;
     const pct=tl>0?Math.round(rem/tl*100):0,pc=pct>40?'pf-gold':pct>15?'pf-warn':'pf-red';
     return `<tr><td style="padding-left:20px"><div class="tms-text-primary">${esc(c.className)||'—'}</div><div class="tms-text-secondary">${esc(c.classNo)||''}</div></td><td>${renderCourtCellText(prod?prod.name:'—')}</td><td><div class="tms-text-remark" title="${names}">${names}</div></td><td><div class="prog-wrap"><div class="prog-track"><div class="prog-fill ${pc}" style="width:${pct}%"></div></div><span class="prog-txt">${ul}/${tl} 剩${rem}</span></div></td><td>${renderCourtCellText(`${c.startDate||'—'} ~ ${c.endDate||'—'}`,false)}</td><td><span class="tms-tag ${c.status==='已结课'?'tms-tag-green':c.status==='已取消'?'tms-tag-tier-slate':'tms-tag-tier-blue'}">${c.status||'已排班'}</span></td><td class="tms-action-cell" style="width:72px;padding-right:20px;text-align:right"><span class="tms-action-link" onclick="openMyClassDetail('${c.id}')">查看</span></td></tr>`;
   }).join(''):'<tr><td colspan="7"><div class="empty"><div class="empty-ico"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div><p>暂无班次</p></div></td></tr>';
@@ -350,7 +347,7 @@ function renderMyClasses(){
     mobile.innerHTML=myCls.length?`<div class="ios-list-group">${myCls.map(c=>{
       const prod=products.find(x=>x.id===c.productId);
       const studentText=parseArr(c.studentIds).map(sid=>students.find(s=>s.id===sid)?.name||sid).join('、')||'-';
-      const tl=parseInt(c.totalLessons)||0,ul=parseInt(c.usedLessons)||0,rem=tl-ul;
+      const tl=lessonValue(c.totalLessons),ul=lessonValue(c.usedLessons),rem=tl-ul;
       const ssc={'已排班':'tms-tag-blue','已取消':'tms-tag-tier-slate','已结课':'tms-tag-green'};
       return `<div class="ios-list-item" onclick="openMyClassDetail('${c.id}')"><div class="ios-list-body"><div class="ios-list-title">${esc(renderCourtEmptyText(c.className||c.classNo))} <span class="tms-tag ${ssc[c.status||'已排班']||'tms-tag-tier-slate'}" style="transform:scale(0.85);transform-origin:left center">${esc(renderCourtEmptyText(c.status||'已排班'))}</span></div><div class="ios-list-sub">课程：${esc(renderCourtEmptyText(prod?.name||c.productName))}<br>学员：${esc(studentText)}<br>进度：${ul}/${tl} 节，剩余 ${rem} 节</div></div><div class="ios-list-chevron"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div></div>`;
     }).join('')}</div>`:'';
@@ -360,8 +357,8 @@ function openMyClassDetail(id){
   const c=classes.find(x=>x.id===id);if(!c)return;
   const prod=products.find(x=>x.id===c.productId);
   const studentText=parseArr(c.studentIds).map(sid=>students.find(s=>s.id===sid)?.name||sid).join('、')||'—';
-  const tl=parseInt(c.totalLessons)||0,ul=parseInt(c.usedLessons)||0,rem=tl-ul;
-  const body=`<div class="tms-section-header" style="margin-top:0;">班次信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">班次名称</label><input class="finput tms-form-control" value="${esc(c.className)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">班次编号</label><input class="finput tms-form-control" value="${esc(c.classNo)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">课程</label><input class="finput tms-form-control" value="${esc(prod?.name||c.productName)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">状态</label><input class="finput tms-form-control" value="${esc(c.status)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员</label><div class="finput tms-form-control" style="height:auto;min-height:54px;white-space:normal;line-height:1.7">${esc(studentText)}</div></div><div class="tms-form-item"><label class="tms-form-label">日期</label><input class="finput tms-form-control" value="${esc(c.startDate||'—')} ~ ${esc(c.endDate||'—')}" readonly></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">课时进度</label><div class="finput tms-form-control" style="height:auto;min-height:54px;white-space:normal;line-height:1.7">总课时 ${tl} 节；已上 ${ul} 节；剩余 ${rem} 节</div></div></div>`;
+  const tl=lessonValue(c.totalLessons),ul=lessonValue(c.usedLessons),rem=tl-ul;
+  const body=`<div class="tms-section-header" style="margin-top:0;">班次信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">班次名称</label><input class="finput tms-form-control" value="${esc(c.className)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">班次编号</label><input class="finput tms-form-control" value="${esc(c.classNo)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">课程</label><input class="finput tms-form-control" value="${esc(prod?.name||c.productName)||'—'}" readonly></div><div class="tms-form-item"><label class="tms-form-label">状态</label><input class="finput tms-form-control" value="${esc(c.status)||'—'}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">学员</label><div class="finput tms-form-control" style="height:auto;min-height:54px;white-space:normal;line-height:1.7">${esc(studentText)}</div></div><div class="tms-form-item"><label class="tms-form-label">日期</label><input class="finput tms-form-control" value="${esc(c.startDate||'—')} ~ ${esc(c.endDate||'—')}" readonly></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">课时进度</label><div class="finput tms-form-control" style="height:auto;min-height:54px;white-space:normal;line-height:1.7">总课时 ${lessonQty(tl)} 节；已上 ${lessonQty(ul)} 节；剩余 ${lessonQty(rem)} 节</div></div></div>`;
   const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">关闭</button>`;
   setCourtModalFrame('查看班次',body,footer,'modal-tight');
 }

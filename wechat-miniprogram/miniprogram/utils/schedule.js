@@ -1,4 +1,10 @@
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const CAMPUS_DISPLAY = {
+  mabao: '顺义马坡',
+  shilipu: '朝阳十里堡',
+  guowang: '朝阳国网',
+  chaojun: '朝珺私教'
+};
 
 function parseDate(value) {
   if (!value) return null;
@@ -34,6 +40,25 @@ function timeText(item) {
   return `${pad(start.getHours())}:${pad(start.getMinutes())}${end ? ` - ${pad(end.getHours())}:${pad(end.getMinutes())}` : ''}`;
 }
 
+function campusDisplayName(raw = '') {
+  const key = String(raw || '').trim();
+  if (!key || key === '__external__') return '';
+  return CAMPUS_DISPLAY[key] || key;
+}
+
+function scheduleLocationText(item = {}) {
+  const locationType = String(item.locationType || '').trim();
+  const campusCode = String(item.campus || '').trim();
+  if (locationType === 'external' || campusCode === '__external__') {
+    const venue = String(item.externalVenueName || '').trim() || String(item.venue || '').split(' · ')[0].trim();
+    const court = String(item.externalCourtName || '').trim() || String(item.venue || '').split(' · ').slice(1).join(' · ').trim();
+    return [venue, court].filter(Boolean).join(' · ') || '地点待确认';
+  }
+  const campus = String(item.campusName || '').trim() || campusDisplayName(campusCode);
+  const venue = String(item.venue || item.externalCourtName || '').trim();
+  return [campus, venue].filter(Boolean).join(' · ') || '地点待确认';
+}
+
 function formatScheduleItem(item) {
   const state = item.workbenchState && item.workbenchState.code ? item.workbenchState : null;
   return {
@@ -41,7 +66,7 @@ function formatScheduleItem(item) {
     timeText: timeText(item),
     title: item.courseType || item.className || '课程',
     studentText: item.studentName || '学员待确认',
-    locationText: [item.campus, item.venue || item.externalVenueName || item.externalCourtName].filter(Boolean).join(' ') || '地点待确认',
+    locationText: scheduleLocationText(item),
     statusText: state ? state.label : (item.status || '已排课')
   };
 }
@@ -58,14 +83,14 @@ function workbenchTodoState(item = {}, now = new Date()) {
     if (code === 'pending') return { code, label, className: 'tag-danger' };
     if (code === 'live') return { code, label, className: 'tag-green' };
     if (code === 'upcoming' || code === 'travel') return { code, label, className: 'tag-green' };
-    if (code === 'later') return { code, label, className: 'tag-green' };
     return null;
   }
   const start = parseDate(item.startTime);
   const end = parseDate(item.endTime || item.startTime);
   if (start && start > now) {
     const diff = Math.round((start.getTime() - now.getTime()) / 60000);
-    return { code: diff <= 30 ? 'upcoming' : 'later', label: diff <= 30 ? '即将开始' : '今日后续', className: 'tag-green' };
+    if (diff <= 30) return { code: 'upcoming', label: '即将开始', className: 'tag-green' };
+    return null;
   }
   if (end && end <= now && !hasScheduleFeedback(item)) {
     return { code: 'pending', label: '待反馈', className: 'tag-danger' };
@@ -76,6 +101,7 @@ function workbenchTodoState(item = {}, now = new Date()) {
 function buildWeekDays(schedule = [], weekOffset = 0, now = new Date()) {
   const weekStart = addDays(startOfWeek(now), weekOffset * 7);
   const weekEnd = addDays(weekStart, 7);
+  const todayKey = dateKey(now);
   const items = schedule
     .filter((item) => {
       const start = parseDate(item.startTime);
@@ -88,7 +114,7 @@ function buildWeekDays(schedule = [], weekOffset = 0, now = new Date()) {
     const key = dateKey(date);
     return {
       key,
-      isToday: key === dateKey(new Date()),
+      isToday: key === todayKey,
       label: `${WEEKDAYS[date.getDay()]} ${pad(date.getMonth() + 1)}/${pad(date.getDate())}`,
       items: items.filter((item) => String(item.startTime || '').slice(0, 10) === key)
     };
@@ -103,14 +129,16 @@ function weekRangeText(weekOffset = 0, now = new Date()) {
 
 function buildTimetableDays(schedule = [], weekOffset = 0, now = new Date()) {
   const start = addDays(startOfWeek(now), weekOffset * 7);
-  return Array.from({ length: 7 }).map((_, index) => {
+  const dayCount = weekOffset === 0 ? 9 : 7;
+  const todayKey = dateKey(now);
+  return Array.from({ length: dayCount }).map((_, index) => {
     const date = addDays(start, index);
     const key = dateKey(date);
     return {
       key,
       name: WEEKDAYS[date.getDay()],
       date: `${pad(date.getDate())}日`,
-      isToday: key === dateKey(new Date()),
+      isToday: key === todayKey,
       items: schedule.filter(item => String(item.startTime || '').slice(0, 10) === key)
     };
   });
@@ -140,6 +168,7 @@ module.exports = {
   classBlockStyle,
   findSchedule,
   formatScheduleItem,
+  scheduleLocationText,
   workbenchTodoState,
   weekRangeText
 };

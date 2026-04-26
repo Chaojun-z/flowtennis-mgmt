@@ -165,6 +165,10 @@ assert.match(scheduleJs, /formatStudentClassTime[\s\S]*endText[\s\S]*`\$\{dateTe
 assert.match(scheduleJs, /timetableScrollTop/, 'mini program schedule page should compute a vertical scroll position for the timetable');
 assert.match(scheduleJs, /timetableScrollLeft/, 'mini program schedule page should compute a horizontal scroll position for the timetable');
 assert.match(scheduleJs, /return Math\.max\(0,\s*Math\.round\(rpxToPx\(todayIndex \* TIMETABLE_DAY_WIDTH_RPX\)\)\);/, 'mini program timetable should align today to the first visible day column');
+assert.match(scheduleJs, /const todayShownIds = new Set\(/, 'mini program schedule page should track today cards already rendered in the dashboard');
+assert.match(scheduleJs, /buildWeekTodoGroups\(days,\s*now,\s*todayShownIds\)/, 'mini program weekly todos should receive dashboard shown ids for de-duplication');
+assert.match(scheduleJs, /if\s*\(\s*day\.isToday\s*&&\s*todayShownIds\.has\(String\(item\.id\)\)\s*\)\s*return null;/, 'mini program weekly todos should skip classes that already appear in today dashboard');
+assert.match(scheduleJs, /decorateTimetableDays\(buildTimetableDays\(schedule,\s*weekOffset,\s*now\)\)/, 'mini program timetable should build its window from the full schedule dataset so current week can preview next-week days');
 assert.match(scheduleJs, /currentTimeText/, 'mini program schedule page should compute the current-time marker text');
 assert.match(scheduleJs, /todayLabel:\s*today \? today\.label\.replace\(\s*\/\\s\+\/,\s*' '\s*\)/, 'dashboard today date should keep exactly one space between weekday and date');
 assert.match(scheduleJs, /Array\.from\(\{\s*length:\s*25\s*\}[\s\S]*String\(i\)\.padStart\(2,\s*'0'\)/, 'mini program timetable should expose a 00:00-24:00 time axis');
@@ -194,9 +198,45 @@ assert.strictEqual(
 );
 const todoNow = new Date('2026-04-21T12:00:00+08:00');
 assert.strictEqual(
-  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已排课' }, todoNow).label,
-  '今日后续',
-  'future later courses should use the standard later state'
+  scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 15:00', endTime: '2026-04-21 16:00', status: '已排课' }, todoNow),
+  null,
+  'future later courses should not expose a standalone later state'
+);
+assert.strictEqual(
+  scheduleUtils.formatScheduleItem({ campus: 'mabao', venue: '1号场' }).locationText,
+  '顺义马坡 · 1号场',
+  'mini program schedule items should render campus display names instead of raw campus codes'
+);
+assert.strictEqual(
+  scheduleUtils.formatScheduleItem({ campus: '__external__', externalVenueName: '国网北区', externalCourtName: 'C1' }).locationText,
+  '国网北区 · C1',
+  'mini program schedule items should hide the internal external-campus sentinel value'
+);
+const sundayNow = new Date('2026-04-26T09:00:00+08:00');
+const sundayWindow = scheduleUtils.buildTimetableDays([
+  { id: 'sun', startTime: '2026-04-26 13:00', endTime: '2026-04-26 15:00', campus: 'mabao', venue: '1号场' },
+  { id: 'mon', startTime: '2026-04-27 09:00', endTime: '2026-04-27 11:00', campus: 'mabao', venue: '1号场' },
+  { id: 'tue', startTime: '2026-04-28 10:00', endTime: '2026-04-28 12:00', campus: 'mabao', venue: '1号场' }
+], 0, sundayNow);
+assert.strictEqual(
+  sundayWindow.length,
+  9,
+  'current-week timetable window should include two preview days from next week'
+);
+assert.strictEqual(
+  sundayWindow[7].key,
+  '2026-04-27',
+  'current-week timetable window should preview next Monday after Sunday'
+);
+assert.strictEqual(
+  sundayWindow[8].key,
+  '2026-04-28',
+  'current-week timetable window should preview next Tuesday after Sunday'
+);
+assert.strictEqual(
+  sundayWindow[7].items.length,
+  1,
+  'current-week timetable preview should carry next-week schedule items'
 );
 assert.strictEqual(
   scheduleUtils.workbenchTodoState({ startTime: '2026-04-21 09:00', endTime: '2026-04-21 10:00', status: '已排课' }, todoNow).label,
