@@ -46,6 +46,10 @@ assert.match(source,/总收入（实收）[\s\S]*总已入账[\s\S]*总未入账
 assert.doesNotMatch(source,/总流水笔数/,'ledger summary should not keep total flow count card');
 assert.match(source,/课包收入 \/ 已入账[\s\S]*会员储值收入 \/ 已消耗[\s\S]*订场收入 \/ 已入账/,'ledger summary should keep six owner-facing cards without duplicate member booking stats');
 assert.doesNotMatch(source,/会员订场已入账/,'ledger summary should not repeat stored value consumption as a separate member booking card');
+assert.doesNotMatch(source,/financeOverviewSecondaryStats/,'ledger should not show a second row of backend audit cards in the owner-facing total ledger');
+assert.doesNotMatch(source,/financeAuditTbody/,'ledger should not expose backend audit detail tables in the owner-facing total ledger');
+assert.doesNotMatch(source,/financeAuditActionTbody/,'ledger should not expose backend pending action tables in the owner-facing total ledger');
+assert.doesNotMatch(source,/financeAuditFixedTbody/,'ledger should not expose backend auto-fix tables in the owner-facing total ledger');
 assert.match(source,/id="financeLedgerPagerInfo"/,'ledger should expose pager info');
 assert.match(source,/id="financeLedgerPageSize"/,'ledger should expose page size selector');
 assert.match(source,/id="financeLedgerPagerBtns"/,'ledger should expose pager buttons');

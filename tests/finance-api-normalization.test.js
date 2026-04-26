@@ -89,6 +89,8 @@ assert.strictEqual(rows[3].campusName, '朝珺私教', 'import text clues should
 assert.strictEqual(rows[3].campusResolution, 'text_override_import', 'import text correction rows should expose the auto-fix resolution type');
 assert.strictEqual(overview.all.cash, 200, 'finance overview should aggregate total cash from normalized rows');
 assert.strictEqual(overview.all.recognized, 1700, 'finance overview should aggregate total recognized revenue from normalized rows');
+assert.strictEqual(overview.all.bookingIncome, 0, 'finance overview booking income should only count non-stored-value booking cash that is explicitly marked as collected');
+assert.strictEqual(overview.all.bookingRecognized, 0, 'finance overview booking recognized should exclude member stored-value consumption');
 assert.strictEqual(overview.campuses.length, 3, 'finance overview should keep campus-level buckets after explicit external campus normalization');
 assert.strictEqual(overview.campuses[0].campusName, '朝珺私教', 'finance overview should expose campus names in the summary');
 assert.strictEqual(audit.missingCampusCount, 0, 'finance audit should report zero missing campus rows for normalized fixtures');

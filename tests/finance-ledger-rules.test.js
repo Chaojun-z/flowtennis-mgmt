@@ -13,18 +13,12 @@ assert.match(source, /if\(Array\.isArray\(financeRows\)&&financeRows\.length\)re
 assert.match(source, /if\(Array\.isArray\(financeRows\)&&financeRows\.length\)\{[\s\S]*return financeConsumeRowsFromLedger\(\)\.filter/, 'finance recognized report should prefer normalized financeRows before older entitlement stitching');
 assert.match(source, /return loadedDatasets\.has\('financeRows'\)\|\|loadedDatasets\.has\('financialLedger'\)\|\|loadedDatasets\.has\('financePage'\);/, 'finance center loading state should recognize normalized finance rows');
 assert.match(source, /const overviewFromApi=campusName[\s\S]*: financeOverviewData\?\.all;/, 'finance overview cards should prefer the backend normalized overview summary');
-assert.match(source, /const audit=financeAuditData\|\|\{\};[\s\S]*缺校区记录[\s\S]*自动纠偏校区[\s\S]*历史导入缺日期[\s\S]*朝珺误归马坡风险[\s\S]*总实收-分校区差额/, 'finance overview should surface import and campus-risk audit summary cards');
-assert.match(source, /function renderFinanceAuditTable\(/, 'finance page should render audit detail rows from backend audit payload');
-assert.match(source, /function renderFinanceAuditActionTable\(/, 'finance page should render actionable audit rows from backend audit payload');
-assert.match(source, /function renderFinanceAuditFixedTable\(/, 'finance page should render auto-fixed audit rows from backend audit payload');
-assert.match(source, /financeAuditTbody/, 'finance ledger tab should show an audit detail table');
-assert.match(source, /financeAuditActionTbody/, 'finance ledger tab should show an audit action table');
-assert.match(source, /financeAuditFixedTbody/, 'finance ledger tab should show an auto-fixed audit table');
-assert.match(source, /autoFixedCampusCount/, 'finance overview should expose auto-fixed campus counts');
+assert.doesNotMatch(source, /financeOverviewSecondaryStats/, 'owner-facing finance overview should not render a second audit card row');
 assert.match(source, /row\.suggestion/, 'finance audit detail table should surface actionable handling guidance');
 assert.match(source, /purchase\.saleCampusId\|\|entitlementCampus\|\|purchase\.campus\|\|studentCampus/, 'course income campus should prefer saleCampusId before old fallback fields');
 assert.match(source, /if\(actionType==='核销'\)return '已入账';/, 'finance ledger should treat write-off rows as recognized revenue actions');
 assert.match(source, /if\(actionType==='留痕'\)return '记录';/, 'finance ledger should preserve trace-only rows as non-revenue records');
 assert.match(source, /if\(userId==='match-court-finance'\)return '顺义马坡';/, 'finance ledger should pin match-court-finance to mabao campus');
+assert.match(source, /const finalBookingRecognized=overviewFromApi\?bookingRecognized:ledgerRows\.filter\(row=>\['散客订场','约球局'\]\.includes\(row\.businessType\)\)/, 'booking recognized summary should exclude member stored-value consumption from the owner-facing booking card');
 
 console.log('finance ledger rules tests passed');

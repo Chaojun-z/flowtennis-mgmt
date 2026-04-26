@@ -954,8 +954,7 @@ function syncFinanceLedgerLoadingState(){
 }
 function renderFinanceOverview(){
   const primaryHost=document.getElementById('financeOverviewPrimaryStats');
-  const secondaryHost=document.getElementById('financeOverviewSecondaryStats');
-  if(!primaryHost||!secondaryHost)return;
+  if(!primaryHost)return;
   if(!syncFinanceLedgerLoadingState())return;
   const campusName=campus==='all'?'':financeCampusNameFromValue(campus);
   const overviewFromApi=campusName
@@ -978,8 +977,8 @@ function renderFinanceOverview(){
   const finalPackageRecognized=overviewFromApi?packageRecognized:ledgerRows.filter(row=>row.businessType==='课程').reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
   const finalStoredValueIncome=overviewFromApi?storedValueIncome:ledgerRows.filter(row=>row.businessType==='会员储值'&&row.action==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
   const finalStoredValueConsumed=overviewFromApi?storedValueConsumed:ledgerRows.filter(row=>row.businessType==='会员订场').reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
-  const finalBookingIncome=overviewFromApi?bookingIncome:ledgerRows.filter(row=>['会员订场','散客订场','约球局'].includes(row.businessType)&&row.action==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
-  const finalBookingRecognized=overviewFromApi?bookingRecognized:ledgerRows.filter(row=>['会员订场','散客订场','约球局'].includes(row.businessType)).reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
+  const finalBookingIncome=overviewFromApi?bookingIncome:ledgerRows.filter(row=>['散客订场','约球局'].includes(row.businessType)&&row.action==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
+  const finalBookingRecognized=overviewFromApi?bookingRecognized:ledgerRows.filter(row=>['散客订场','约球局'].includes(row.businessType)).reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
   const renderStatCards=items=>items.map(item=>`<div class="tms-stat-card"><div class="tms-stat-label">${item.label}</div><div class="tms-stat-value${item.split?' finance-split-value':''}">${item.value}</div></div>`).join('');
   primaryHost.innerHTML=renderStatCards([
     {label:'总收入（实收）',value:financeCardValue(finalCash)},
@@ -989,20 +988,6 @@ function renderFinanceOverview(){
     {label:'会员储值收入 / 已消耗',value:financeCardValue(finalStoredValueIncome,finalStoredValueConsumed),split:true},
     {label:'订场收入 / 已入账',value:financeCardValue(finalBookingIncome,finalBookingRecognized),split:true}
   ]);
-  const audit=financeAuditData||{};
-  secondaryHost.innerHTML=renderStatCards([
-    {label:'缺校区记录',value:String(parseInt(audit.missingCampusCount)||0)},
-    {label:'未识别业务',value:String(parseInt(audit.unknownBusinessCount)||0)},
-    {label:'未识别动作',value:String(parseInt(audit.unknownActionCount)||0)},
-    {label:'自动纠偏校区',value:String(parseInt(audit.autoFixedCampusCount)||0)},
-    {label:'历史导入缺日期',value:String(parseInt(audit.importMissingDateCount)||0)},
-    {label:'朝珺误归马坡风险',value:String(parseInt(audit.chaojunRiskCount)||0)},
-    {label:'外校区特例待核',value:String(parseInt(audit.externalCampusRiskCount)||0)},
-    {label:'总实收-分校区差额',value:financeCardMoney(Number(audit.cashGap)||0)},
-    {label:'总已入账-分校区差额',value:financeCardMoney(Number(audit.recognizedGap)||0)},
-    {label:'总未入账-分校区差额',value:financeCardMoney(Number(audit.deferredGap)||0)}
-  ]);
-  secondaryHost.style.display='';
 }
 function renderFinanceAuditTable(){
   const body=document.getElementById('financeAuditTbody');
@@ -1045,9 +1030,6 @@ function renderFinanceLedger(){
   const body=document.getElementById('financeLedgerTbody');
   if(!body)return;
   if(!syncFinanceLedgerLoadingState())return;
-  renderFinanceAuditTable();
-  renderFinanceAuditActionTable();
-  renderFinanceAuditFixedTable();
   const baseRows=financeLedgerBaseRows().filter(row=>coachOpsDateWithinRange(row.businessDate,document.getElementById('financeLedgerFrom')?.value||'',document.getElementById('financeLedgerTo')?.value||''));
   renderFinanceLedgerFilterDropdowns(baseRows);
   renderFinanceLedgerPageSizeFilter();

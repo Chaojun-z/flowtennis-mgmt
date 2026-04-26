@@ -1918,8 +1918,8 @@ function summarizeFinanceOverviewBucket(rows=[]){
   const packageRecognized=(rows||[]).filter(row=>row?.businessType==='课程').reduce((sum,row)=>sum+Math.max(0,Number(row?.recognizedRevenueDelta)||0),0);
   const storedValueIncome=(rows||[]).filter(row=>row?.businessType==='会员储值'&&row?.actionType==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row?.cashDelta)||0),0);
   const storedValueConsumed=(rows||[]).filter(row=>row?.businessType==='会员订场').reduce((sum,row)=>sum+Math.max(0,Number(row?.recognizedRevenueDelta)||0),0);
-  const bookingIncome=(rows||[]).filter(row=>['会员订场','散客订场','约球局'].includes(row?.businessType)&&row?.actionType==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row?.cashDelta)||0),0);
-  const bookingRecognized=(rows||[]).filter(row=>['会员订场','散客订场','约球局'].includes(row?.businessType)).reduce((sum,row)=>sum+Math.max(0,Number(row?.recognizedRevenueDelta)||0),0);
+  const bookingIncome=(rows||[]).filter(row=>['散客订场','约球局'].includes(row?.businessType)&&row?.actionType==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row?.cashDelta)||0),0);
+  const bookingRecognized=(rows||[]).filter(row=>['散客订场','约球局'].includes(row?.businessType)).reduce((sum,row)=>sum+Math.max(0,Number(row?.recognizedRevenueDelta)||0),0);
   return {cash,recognized,deferred,packageIncome,packageRecognized,storedValueIncome,storedValueConsumed,bookingIncome,bookingRecognized};
 }
 function buildFinanceOverview(rows=[]){
