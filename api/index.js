@@ -25,7 +25,7 @@ const MATCH_WECHAT_TEMPLATE_ID = process.env.MATCH_WECHAT_TEMPLATE_ID;
 const MATCH_DATABASE_URL = process.env.MATCH_DATABASE_URL || process.env.DATABASE_URL;
 const MATCH_CREATOR_CONFIRM_DEADLINE_HOURS = 12;
 
-const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans',T_MATCH_SETTINGS='ft_match_settings';
+const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_FINANCIAL_LEDGER='ft_financial_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans',T_MATCH_SETTINGS='ft_match_settings';
 const MATCH_COURT_FINANCE_ACCOUNT_ID='match-court-finance';
 const MATCH_SETTINGS_ROW_ID='match-launch-settings';
 const MATCH_SQL_TABLES=['match_users','match_posts','match_registrations','match_attendance','match_bookings','match_fee_records','match_fee_splits','match_operation_logs'];
@@ -1890,6 +1890,8 @@ function assertMatchPostInput(input){
   if(!['不限','男生','女生'].includes(input.genderPreference))throw new Error('请选择性别偏好');
   const estimatedCourtFee=normalizeMoney(input.estimatedCourtFee);
   if(estimatedCourtFee<=0)throw new Error('费用必须大于 0');
+  const venueName=String(input.venueName||'').trim();
+  if(!venueName)throw new Error('请选择球场');
   const startMs=dateMs(input.startTime);
   const endMs=dateMs(input.endTime);
   if(!Number.isFinite(startMs))throw new Error('请选择开始时间');
@@ -2325,14 +2327,14 @@ async function generateMatchFeeLedger(matchId,operatorId,{chargeAbsentUserIds=[]
     const finalCourtFee=bookingRes.rows[0]?.finalcourtfee||bookingRes.rows[0]?.finalCourtFee||match.finalcourtfee||match.finalCourtFee;
     const activeRegsRes=await client.query("SELECT * FROM match_registrations WHERE matchId=$1 AND registrationStatus='registered'",[matchId]);
     const attendanceRes=await client.query('SELECT * FROM match_attendance WHERE matchId=$1',[matchId]);
+    const confirmedAttendanceUserIds=new Set(
+      attendanceRes.rows
+        .filter(row=>['attended','absent'].includes(row.finalstatus||row.finalStatus))
+        .map(row=>String(row.userid||row.userId))
+    );
+    const unconfirmedUsers=activeRegsRes.rows.filter(row=>!confirmedAttendanceUserIds.has(String(row.userid||row.userId)));
+    if(unconfirmedUsers.length)throw new Error('请先完成全部到场确认，再生成AA');
     const chargeWithdrawalRes=await client.query("SELECT userId FROM match_registrations WHERE matchId=$1 AND registrationStatus='cancelled' AND financialResponsibility='charge'",[matchId]);
-    const attendanceByUser=new Map(attendanceRes.rows.map(row=>[String(row.userid||row.userId),row]));
-    const unconfirmed=activeRegsRes.rows.some(row=>{
-      const attendance=attendanceByUser.get(String(row.userid||row.userId));
-      const confirmed=attendance&&(attendance.finalstatus||attendance.finalStatus);
-      return !['attended','absent'].includes(confirmed);
-    });
-    if(unconfirmed)throw new Error('请先完成全部到场确认，再生成AA');
     const ledger=buildMatchFeeLedger({
       matchId,
       estimatedCourtFee:match.estimatedcourtfee||match.estimatedCourtFee,
@@ -2492,7 +2494,7 @@ function defaultMabaoPricePlans(){
     ['削球实战训练','体验课','lesson','1-2小时',0,260],
     ['截击入门训练','体验课','lesson','1-2小时',0,260],
     ['疯狂多球训练','体验课','lesson','1-2小时',0,260],
-    ['新客福利 约球双打局 2H','订场券','court','',0,70],
+    ['新客福利 约球双打局 2H','订场券','court','2小时',120,70],
     ['晚场福利 场地预定 1H','订场券','court','1小时',60,180],
     ['黄金时段 场地预定 1H','订场券','court','1小时',60,220],
     ['实力之选 网球陪打 1H','订场券','court','1小时',60,100],
@@ -3062,8 +3064,8 @@ function buildClassPlanRecord(cls,student){
     productName:cls.productName||'',
     coach:cls.coach||'',
     campus:cls.campus||'',
-    totalLessons:parseInt(cls.totalLessons)||0,
-    usedLessons:parseInt(cls.usedLessons)||0,
+    totalLessons:parseLessonValue(cls.totalLessons),
+    usedLessons:parseLessonValue(cls.usedLessons),
     status:classStatusToPlanStatus(cls.status)
   };
 }
@@ -3095,7 +3097,7 @@ function sameStudentIds(a,b){
   return x.length===y.length&&x.every((id,i)=>id===y[i]);
 }
 function classRemainingLessonsForRecord(cls){
-  return (parseInt(cls?.totalLessons)||0)-(parseInt(cls?.usedLessons)||0);
+  return parseLessonValue(cls?.totalLessons)-parseLessonValue(cls?.usedLessons);
 }
 function assertCanWriteClass(user){
   if(user?.role!=='admin')throw new Error('无权限');
@@ -3129,8 +3131,8 @@ async function reserveNextClassNo(existingClasses,user,now){
 }
 function validateClassInput(input,product){
   if(!input?.productId)throw new Error('请选择课程产品');
-  const total=parseInt(input.totalLessons);
-  const used=parseInt(input.usedLessons)||0;
+  const total=parseLessonValue(input.totalLessons,Number.NaN);
+  const used=parseLessonValue(input.usedLessons);
   if(Number.isNaN(total)||total<0)throw new Error('应上课时不能小于0');
   if(used<0)throw new Error('已上课时不能小于0');
   if(used>total)throw new Error('已上课时不能大于应上课时');
@@ -3149,7 +3151,7 @@ function buildClassCreateRecord(body,{id,classNo,user,now}){
     productName,
     studentIds:parseArr(body.studentIds),
     scheduleDays:parseArr(body.scheduleDays),
-    totalLessons:parseInt(body.totalLessons)||0,
+    totalLessons:parseLessonValue(body.totalLessons),
     usedLessons:0,
     status:body.status||'已排班',
     createdBy:user?.name||'',
@@ -3169,8 +3171,8 @@ function buildClassUpdateRecord(oldClass,body,{product,now}){
     productName,
     studentIds:parseArr(body.studentIds),
     scheduleDays:parseArr(body.scheduleDays),
-    totalLessons:parseInt(body.totalLessons)||0,
-    usedLessons:parseInt(oldClass?.usedLessons)||0,
+    totalLessons:parseLessonValue(body.totalLessons),
+    usedLessons:parseLessonValue(oldClass?.usedLessons),
     status:body.status||oldClass?.status||'已排班',
     updatedAt:now
   };
@@ -3259,8 +3261,8 @@ function assertCanEditClassWithSchedules(oldClass,nextClass,schedules){
   if(String(oldClass?.coach||'').trim()!==String(nextClass?.coach||'').trim())throw new Error('该班次已有排课，不能直接修改教练');
   if(String(oldClass?.campus||'').trim()!==String(nextClass?.campus||'').trim())throw new Error('该班次已有排课，不能直接修改校区');
   if(!sameStudentIds(oldClass?.studentIds,nextClass?.studentIds))throw new Error('该班次已有排课，不能直接修改学员');
-  if((parseInt(oldClass?.totalLessons)||0)!==(parseInt(nextClass?.totalLessons)||0))throw new Error('该班次已有排课，不能直接修改总课时');
-  if((parseInt(oldClass?.usedLessons)||0)!==(parseInt(nextClass?.usedLessons)||0))throw new Error('已上课时由排课自动维护，不能手动修改');
+  if(parseLessonValue(oldClass?.totalLessons)!==parseLessonValue(nextClass?.totalLessons))throw new Error('该班次已有排课，不能直接修改总课时');
+  if(parseLessonValue(oldClass?.usedLessons)!==parseLessonValue(nextClass?.usedLessons))throw new Error('已上课时由排课自动维护，不能手动修改');
   const oldStatus=oldClass?.status||'已排班',nextStatus=nextClass?.status||'已排班';
   if(oldStatus!==nextStatus&&nextStatus==='已取消')throw new Error('该班次已有排课，不能直接取消');
   if(oldStatus!==nextStatus&&nextStatus==='已结课'&&classRemainingLessonsForRecord(nextClass)>0)throw new Error('该班次仍有剩余课时，不能直接结课');
@@ -4181,7 +4183,7 @@ module.exports = async (req, res) => {
     if(path==='/load-all'&&method==='GET'){
       await init();
       await maybeRepairImportedLedgerDuplicates();
-      const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
+      const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,financialLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
         timed('load-all scan courts',()=>scan(T_COURTS)),
         timed('load-all scan students',()=>scan(T_STUDENTS)),
         timed('load-all scan products',()=>scan(T_PRODUCTS)),
@@ -4189,6 +4191,7 @@ module.exports = async (req, res) => {
         timed('load-all scan purchases',()=>scan(T_PURCHASES).catch(()=>[])),
         timed('load-all scan entitlements',()=>scan(T_ENTITLEMENTS).catch(()=>[])),
         timed('load-all scan entitlement ledger',()=>scan(T_ENTITLEMENT_LEDGER).catch(()=>[])),
+        timed('load-all scan financial ledger',()=>scan(T_FINANCIAL_LEDGER).catch(()=>[])),
         timed('load-all scan membership plans',()=>scan(T_MEMBERSHIP_PLANS).catch(()=>[])),
         timed('load-all scan membership accounts',()=>scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])),
         timed('load-all scan membership orders',()=>scan(T_MEMBERSHIP_ORDERS).catch(()=>[])),
@@ -4215,6 +4218,7 @@ module.exports = async (req, res) => {
         purchases:Array.isArray(purchases)?purchases:[],
         entitlements:Array.isArray(entitlements)?entitlements:[],
         entitlementLedger:normalizeEntitlementLedgerRowsForView(Array.isArray(entitlementLedger)?entitlementLedger:[]),
+        financialLedger:Array.isArray(financialLedger)?financialLedger:[],
         membershipPlans:normalizedMembershipPlans,
         membershipAccounts:Array.isArray(reconciled.accounts)?reconciled.accounts:[],
         membershipOrders:normalizedMembershipOrders,
@@ -4660,7 +4664,7 @@ module.exports = async (req, res) => {
           const oldEntDeltas=scheduleEntitlementDeltas(ex);
           const oldEntIds=new Set(oldEntDeltas.map(d=>d.entitlementId));
           const entitlementRows=await getCachedScan(T_ENTITLEMENTS).catch(()=>[]);
-          const nextBaseRows=entitlementRows.map(ent=>oldEntIds.has(ent.id)?{...ent,status:'active',remainingLessons:(parseInt(ent.remainingLessons)||0)+(oldEntDeltas.find(d=>d.entitlementId===ent.id)?.delta||0)}:ent);
+          const nextBaseRows=entitlementRows.map(ent=>oldEntIds.has(ent.id)?{...ent,status:'active',remainingLessons:parseLessonValue(ent.remainingLessons)+(oldEntDeltas.find(d=>d.entitlementId===ent.id)?.delta||0)}:ent);
           const nextEntDeltas=resolveScheduleEntitlementDeltas(r,nextBaseRows);
           r.entitlementIds=nextEntDeltas.map(d=>d.entitlementId);
           r.entitlementId=r.entitlementIds.length===1?r.entitlementIds[0]:'';
@@ -4750,18 +4754,24 @@ module.exports = async (req, res) => {
     if(path==='/page-data/finance'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
-      const [campuses,students,schedule,entitlements,entitlementLedger,coaches,products,purchases,packages]=await Promise.all([
+      const [campuses,students,schedule,entitlements,entitlementLedger,financialLedger,coaches,products,purchases,packages,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents]=await Promise.all([
         listCampusesWithDefaults(),
         getCachedScan(T_STUDENTS).catch(()=>[]),
         getCachedScan(T_SCHEDULE).catch(()=>[]),
         getCachedScan(T_ENTITLEMENTS).catch(()=>[]),
         getCachedScan(T_ENTITLEMENT_LEDGER).catch(()=>[]),
+        getCachedScan(T_FINANCIAL_LEDGER).catch(()=>[]),
         getCachedScan(T_COACHES).catch(()=>[]),
         getCachedScan(T_PRODUCTS).catch(()=>[]),
         getCachedScan(T_PURCHASES).catch(()=>[]),
-        getCachedScan(T_PACKAGES).catch(()=>[])
+        getCachedScan(T_PACKAGES).catch(()=>[]),
+        getCachedScan(T_COURTS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
+        getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])
       ]);
-      return sendJson(res,{campuses,students,schedule,entitlements,entitlementLedger,coaches,products,purchases,packages});
+      return sendJson(res,{campuses,students,schedule,entitlements,entitlementLedger,financialLedger,coaches,products,purchases,packages,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents});
     }
     if(path==='/page-data/courts'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
