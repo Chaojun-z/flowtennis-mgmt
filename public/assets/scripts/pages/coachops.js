@@ -989,8 +989,16 @@ function renderFinanceOverview(){
     {label:'会员储值收入 / 已消耗',value:financeCardValue(finalStoredValueIncome,finalStoredValueConsumed),split:true},
     {label:'订场收入 / 已入账',value:financeCardValue(finalBookingIncome,finalBookingRecognized),split:true}
   ]);
-  secondaryHost.innerHTML='';
-  secondaryHost.style.display='none';
+  const audit=financeAuditData||{};
+  secondaryHost.innerHTML=renderStatCards([
+    {label:'缺校区记录',value:String(parseInt(audit.missingCampusCount)||0)},
+    {label:'未识别业务',value:String(parseInt(audit.unknownBusinessCount)||0)},
+    {label:'未识别动作',value:String(parseInt(audit.unknownActionCount)||0)},
+    {label:'总实收-分校区差额',value:financeCardMoney(Number(audit.cashGap)||0)},
+    {label:'总已入账-分校区差额',value:financeCardMoney(Number(audit.recognizedGap)||0)},
+    {label:'总未入账-分校区差额',value:financeCardMoney(Number(audit.deferredGap)||0)}
+  ]);
+  secondaryHost.style.display='';
 }
 function renderFinanceLedgerFilterDropdowns(baseRows){
   const businessHost=document.getElementById('financeLedgerBusinessTypeFilterHost');

@@ -1912,6 +1912,24 @@ function buildFinanceOverview(rows=[]){
     }))
   };
 }
+function buildFinanceAudit(rows=[],overview=null){
+  const activeRows=(rows||[]).filter(row=>String(row?.status||'active')!=='voided');
+  const missingCampusRows=activeRows.filter(row=>!String(row?.campusName||'').trim()&&!String(row?.campusId||'').trim());
+  const unknownBusinessRows=activeRows.filter(row=>!String(row?.businessType||'').trim()||String(row?.businessType||'').trim()==='其他');
+  const unknownActionRows=activeRows.filter(row=>!String(row?.actionType||'').trim()||String(row?.actionType||'').trim()==='记录');
+  const overviewData=overview||buildFinanceOverview(activeRows);
+  const campusCashTotal=(overviewData?.campuses||[]).reduce((sum,row)=>sum+(Number(row?.cash)||0),0);
+  const campusRecognizedTotal=(overviewData?.campuses||[]).reduce((sum,row)=>sum+(Number(row?.recognized)||0),0);
+  const campusDeferredTotal=(overviewData?.campuses||[]).reduce((sum,row)=>sum+(Number(row?.deferred)||0),0);
+  return {
+    missingCampusCount:missingCampusRows.length,
+    unknownBusinessCount:unknownBusinessRows.length,
+    unknownActionCount:unknownActionRows.length,
+    cashGap:Math.round(((Number(overviewData?.all?.cash)||0)-campusCashTotal)*100)/100,
+    recognizedGap:Math.round(((Number(overviewData?.all?.recognized)||0)-campusRecognizedTotal)*100)/100,
+    deferredGap:Math.round(((Number(overviewData?.all?.deferred)||0)-campusDeferredTotal)*100)/100
+  };
+}
 function scheduleInitInBackground(){
   if(REQUIRED_ENV_VARS.some((k)=>!process.env[k]))return;
   if(inited||initPromise)return;
@@ -3500,6 +3518,9 @@ function normalizeCourtRecord(input,refs={}){
   }
   const currentHistory=normalizeCourtHistory(input.history);
   const history=normalizeCourtBookingHistoryRows(normalizedInput,currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(normalizedInput));
+  const courtCampus=String(normalizedInput.campus||'').trim();
+  const hasMoneyHistory=history.some(row=>['充值','消费','退款','冲正'].includes(String(row?.type||''))&&(Number(row?.amount)||0)>=0);
+  if(hasMoneyHistory&&!courtCampus)throw new Error('涉及资金的订场用户必须先选择归属校区');
   if(Array.isArray(refs.schedules))assertCourtBookingHistoryAgainstSchedules({...normalizedInput,history},refs.schedules);
   const finance=computeCourtFinance({...normalizedInput,history});
   const studentIds=normalizeStudentIds(normalizedInput);
@@ -3616,6 +3637,8 @@ function isMembershipAccountInTerm(account,purchaseDate){
 function buildMembershipPurchase({court,plan,existingAccount=null,body={},now=new Date().toISOString(),accountId=uuidv4(),orderId=uuidv4(),historyId=uuidv4()}){
   if(!court?.id)throw new Error('订场用户不存在');
   if(!plan?.id)throw new Error('会员方案不存在');
+  const saleCampusId=String(body.saleCampusId||court.campus||'').trim();
+  if(!saleCampusId)throw new Error('会员充值必须选择销售归属校区');
   const purchaseDate=body.purchaseDate||now.slice(0,10);
   const systemAmount=normalizeMoney(plan.rechargeAmount);
   const rechargeAmount=normalizeMoney(body.rechargeAmount??plan.rechargeAmount);
@@ -3658,6 +3681,7 @@ function buildMembershipPurchase({court,plan,existingAccount=null,body={},now=ne
     status:'active',
     memberTag:plan.tierCode||'',
     memberLabel:plan.name||'',
+    saleCampusId,
     discountRate:normalizeMoney(body.discountRate??plan.discountRate),
     cycleStartDate:range.cycleStartDate,
     validUntil:range.validUntil,
@@ -3674,6 +3698,7 @@ function buildMembershipPurchase({court,plan,existingAccount=null,body={},now=ne
     membershipAccountId:account.id,
     courtId:court.id,
     courtName:court.name||court.id,
+    saleCampusId,
     studentIds:normalizeStudentIds(court),
     membershipPlanId:plan.id,
     membershipPlanName:plan.name||'',
@@ -3711,6 +3736,7 @@ function buildMembershipPurchase({court,plan,existingAccount=null,body={},now=ne
     type:'充值',
     payMethod:body.payMethod||'会员充值',
     category:'会员充值',
+    campusId:saleCampusId,
     amount:rechargeAmount,
     bonusAmount:order.bonusAmount,
     membershipOrderId:order.id,
@@ -4846,7 +4872,8 @@ module.exports = async (req, res) => {
       ]);
       const financeRows=buildNormalizedFinanceRows({financialLedger,campuses,courts});
       const financeOverview=buildFinanceOverview(financeRows);
-      return sendJson(res,{campuses,students,schedule,entitlements,entitlementLedger,financialLedger,financeRows,financeOverview,coaches,products,purchases,packages,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents});
+      const financeAudit=buildFinanceAudit(financeRows,financeOverview);
+      return sendJson(res,{campuses,students,schedule,entitlements,entitlementLedger,financialLedger,financeRows,financeOverview,financeAudit,coaches,products,purchases,packages,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents});
     }
     if(path==='/page-data/courts'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
@@ -5011,6 +5038,7 @@ module.exports._test={
   buildMembershipGrantLedgerRows,
   buildNormalizedFinanceRows,
   buildFinanceOverview,
+  buildFinanceAudit,
   allocateMembershipBenefitUsage,
   reconcileMembershipAccounts,
   mergeCourtRecords,

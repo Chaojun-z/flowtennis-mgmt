@@ -92,6 +92,7 @@ const court = {
   id: 'court-1',
   name: '王大人',
   phone: '15001010368',
+  campus: 'mabao',
   studentIds: ['stu-1'],
   history: []
 };
@@ -146,6 +147,9 @@ assert.deepStrictEqual(
 );
 
 assert.strictEqual(first.historyRow.amount, 5000);
+assert.strictEqual(first.order.saleCampusId, 'mabao');
+assert.strictEqual(first.account.saleCampusId, 'mabao');
+assert.strictEqual(first.historyRow.campusId, 'mabao');
 assert.strictEqual(first.historyRow.bonusAmount, 498);
 assert.strictEqual(first.order.priceSource, 'membership_plan');
 assert.strictEqual(first.order.priceSourceId, 'mplan-gold');
@@ -186,6 +190,22 @@ assert.strictEqual(discountedMembershipPurchase.historyRow.systemAmount, 5000);
 assert.strictEqual(discountedMembershipPurchase.historyRow.finalAmount, 4600);
 assert.strictEqual(discountedMembershipPurchase.historyRow.priceOverridden, true);
 assert.strictEqual(discountedMembershipPurchase.historyRow.overrideReason, '续充优惠');
+
+assert.throws(
+  () => rules.buildMembershipPurchase({
+    court:{...court,campus:''},
+    plan,
+    body: {
+      purchaseDate: '2026-04-08'
+    },
+    now: '2026-04-12T00:00:00.000Z',
+    accountId: 'macc-campus',
+    orderId: 'mord-campus',
+    historyId: 'his-campus'
+  }),
+  /会员充值必须选择销售归属校区/,
+  'membership purchase should reject missing sale campus'
+);
 
 assert.throws(
   () => rules.buildMembershipPurchase({

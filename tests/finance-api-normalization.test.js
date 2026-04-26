@@ -46,6 +46,7 @@ const rows = api.buildNormalizedFinanceRows({
   ]
 });
 const overview = api.buildFinanceOverview(rows);
+const audit = api.buildFinanceAudit(rows, overview);
 
 assert.strictEqual(rows.length, 2, 'finance normalization should keep every active ledger row');
 assert.strictEqual(rows[0].campusName, '朝珺私教', 'finance normalization should prefer explicit ledger campus');
@@ -58,5 +59,8 @@ assert.strictEqual(overview.all.cash, 200, 'finance overview should aggregate to
 assert.strictEqual(overview.all.recognized, 1200, 'finance overview should aggregate total recognized revenue from normalized rows');
 assert.strictEqual(overview.campuses.length, 2, 'finance overview should keep campus-level buckets');
 assert.strictEqual(overview.campuses[0].campusName, '朝珺私教', 'finance overview should expose campus names in the summary');
+assert.strictEqual(audit.missingCampusCount, 0, 'finance audit should report zero missing campus rows for normalized fixtures');
+assert.strictEqual(audit.cashGap, 0, 'finance audit should keep total cash aligned with campus buckets');
+assert.strictEqual(audit.recognizedGap, 0, 'finance audit should keep total recognized revenue aligned with campus buckets');
 
 console.log('finance api normalization tests passed');
