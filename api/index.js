@@ -1917,6 +1917,14 @@ function buildFinanceOverview(rows=[]){
 }
 function buildFinanceAudit(rows=[],overview=null){
   const activeRows=(rows||[]).filter(row=>String(row?.status||'active')!=='voided');
+  const actionRow=(type,row,suggestion,suggestedCampus='')=>({
+    type,
+    customerName:String(row?.customerName||'').trim()||'—',
+    sourceDocument:String(row?.sourceDocument||row?.id||'').trim()||'—',
+    currentCampus:String(row?.campusName||'').trim()||'—',
+    suggestedCampus:String(suggestedCampus||'').trim()||'—',
+    suggestion
+  });
   const detailText=row=>`${String(row?.customerName||'').trim()||'—'} / ${String(row?.sourceDocument||'').trim()||String(row?.id||'').trim()||'—'}`;
   const detailNotes=(matched=[],fallback)=>{
     if(!matched.length)return fallback;
@@ -1960,6 +1968,12 @@ function buildFinanceAudit(rows=[],overview=null){
     {id:'recognized-gap',level:recognizedGap?'P0':'OK',type:'已入账汇总差额',count:recognizedGap?1:0,amount:recognizedGap,suggestion:'先修动作口径和归属规则',notes:'总已入账与分校区汇总不一致'},
     {id:'deferred-gap',level:deferredGap?'P0':'OK',type:'未入账汇总差额',count:deferredGap?1:0,amount:deferredGap,suggestion:'先修动作口径和归属规则',notes:'总未入账与分校区汇总不一致'}
   ];
+  const actionItems=[
+    ...importMissingDateRows.slice(0,5).map(row=>actionRow('历史导入缺日期',row,'补 businessDate 或降级为仅留痕')),
+    ...importZeroAmountRows.slice(0,5).map(row=>actionRow('历史导入零金额',row,'保留留痕，不进经营统计')),
+    ...externalCampusRows.slice(0,5).map(row=>actionRow('外校区特例待核',row,'确认是否从马坡分出到外校区',financeCampusNameFromTextClues(`${row?.notes||''} ${row?.sourceDocument||''}`))),
+    ...missingCampusRows.slice(0,5).map(row=>actionRow('缺校区',row,'补真实发生校区后再入经营口径'))
+  ];
   return {
     missingCampusCount:missingCampusRows.length,
     unknownBusinessCount:unknownBusinessRows.length,
@@ -1971,7 +1985,8 @@ function buildFinanceAudit(rows=[],overview=null){
     cashGap,
     recognizedGap,
     deferredGap,
-    details
+    details,
+    actionItems
   };
 }
 function scheduleInitInBackground(){

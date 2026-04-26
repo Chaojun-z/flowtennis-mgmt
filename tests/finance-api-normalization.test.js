@@ -100,5 +100,8 @@ assert.strictEqual(audit.externalCampusRiskCount, 1, 'finance audit should flag 
 assert.strictEqual(audit.details.length, 10, 'finance audit should expose the extended anomaly detail checklist');
 assert.strictEqual(audit.details[0].type, '缺校区', 'finance audit detail should include missing campus checks');
 assert.strictEqual(audit.details[0].suggestion, '补真实发生校区后再入经营口径', 'finance audit detail should expose actionable handling guidance');
+assert.ok(Array.isArray(audit.actionItems), 'finance audit should expose actionable row-level items');
+assert.strictEqual(audit.actionItems[0].type, '历史导入缺日期', 'finance audit should promote import issues into action items');
+assert.strictEqual(audit.actionItems[0].customerName, 'Lam、Loon', 'finance audit action items should keep customer context');
 
 console.log('finance api normalization tests passed');
