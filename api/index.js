@@ -3508,6 +3508,13 @@ function assertCanDeleteCampus(campusId,data={}){
     (data.entitlements||[]).some(r=>String(r.saleCampusId||'').trim()===id||parseArr(r.campusIds).some(c=>String(c||'').trim()===id));
   if(used)throw new Error('该校区已有学员、教练、班次、排课、课包或权益关联，不能直接删除');
 }
+function assertCampusExists(campusId,campuses=[],label='校区'){
+  const id=String(campusId||'').trim();
+  if(!id)throw new Error(`请选择${label}`);
+  const ok=new Set((campuses||[]).map(item=>String(item.id||item.code||'').trim()).filter(Boolean));
+  if(ok.size&&!ok.has(id))throw new Error(`${label}不存在`);
+  return id;
+}
 function buildProductRenameDisplayUpdates(oldProduct,nextProduct,data={},now=new Date().toISOString()){
   const empty={classes:[],plans:[]};
   if(!oldProduct||!nextProduct)return empty;
@@ -3565,6 +3572,7 @@ function normalizeCourtRecord(input,refs={}){
   const courtCampus=String(normalizedInput.campus||'').trim();
   const hasMoneyHistory=history.some(row=>['充值','消费','退款','冲正'].includes(String(row?.type||''))&&(Number(row?.amount)||0)>=0);
   if(hasMoneyHistory&&!courtCampus)throw new Error('涉及资金的订场用户必须先选择归属校区');
+  if(hasMoneyHistory&&Array.isArray(refs.campuses))assertCampusExists(courtCampus,refs.campuses,'归属校区');
   if(Array.isArray(refs.schedules))assertCourtBookingHistoryAgainstSchedules({...normalizedInput,history},refs.schedules);
   const finance=computeCourtFinance({...normalizedInput,history});
   const studentIds=normalizeStudentIds(normalizedInput);
@@ -3798,6 +3806,10 @@ function buildMembershipPurchase({court,plan,existingAccount=null,body={},now=ne
   };
   const warning=oldAccount&&inTerm&&!qualifiesRenewalReset?'低于原会员档位，已记录充值但不重置会员有效期':'';
   return {account,order,historyRow,warning};
+}
+function normalizeMembershipFinanceLink(input={},campuses=[]){
+  const saleCampusId=assertCampusExists(input?.saleCampusId,campuses,'销售归属校区');
+  return {...input,saleCampusId};
 }
 function membershipBenefitItemsFromOrder(order){
   const hasDealSnapshot=hasMembershipBenefitSnapshot(order?.benefitSnapshot)||order?.benefitSnapshotCustomized===true;
@@ -4419,8 +4431,8 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,await getCachedScan(T_COURTS));
       if(method==='POST'){
         const id=uuidv4();
-        const schedules=await getCachedScan(T_SCHEDULE).catch(()=>[]);
-        const r={...normalizeCourtRecord(body,{schedules}),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+        const [schedules,campuses]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CAMPUSES).catch(()=>[])]);
+        const r={...normalizeCourtRecord(body,{schedules,campuses}),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
         await put(T_COURTS,id,r);return sendJson(res,r);
       }
     }
@@ -4523,14 +4535,15 @@ module.exports = async (req, res) => {
         });
         if(warnings.length){skipped++;continue;}
         if(!dryRun){
-          const next=normalizeCourtRecord({...row,history,updatedAt:new Date().toISOString()},{schedules});
+          const campuses=await getCachedScan(T_CAMPUSES).catch(()=>[]);
+          const next=normalizeCourtRecord({...row,history,updatedAt:new Date().toISOString()},{schedules,campuses});
           await put(T_COURTS,row.id,next);
           migrated++;
         }
       }
       return sendJson(res,{dryRun,total:rows.length,candidates,migrated,skipped,preview});
     }
-    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const prev=await getCachedRow(T_COURTS,id).catch(()=>null);const prevHistory=JSON.stringify(normalizeCourtHistory(prev?.history));const nextHistory=JSON.stringify(normalizeCourtHistory(body?.history));const schedules=prevHistory===nextHistory?[]:await getCachedScan(T_SCHEDULE).catch(()=>[]);const r={...normalizeCourtRecord(body,{schedules}),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await getCachedRow(T_COURTS,id).catch(()=>null);if(!court)return sendJson(res,{error:'订场用户不存在'},404);const action=courtDeleteAction(court,await loadCourtDeleteReferenceData());if(action==='delete'){await del(T_COURTS,id);return sendJson(res,{success:true,archived:false});}const now=new Date().toISOString();await put(T_COURTS,id,{...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now});return sendJson(res,{success:true,archived:true});}}
+    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const prev=await getCachedRow(T_COURTS,id).catch(()=>null);const prevHistory=JSON.stringify(normalizeCourtHistory(prev?.history));const nextHistory=JSON.stringify(normalizeCourtHistory(body?.history));const [schedules,campuses]=await Promise.all([prevHistory===nextHistory?Promise.resolve([]):getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CAMPUSES).catch(()=>[])]);const r={...normalizeCourtRecord(body,{schedules,campuses}),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await getCachedRow(T_COURTS,id).catch(()=>null);if(!court)return sendJson(res,{error:'订场用户不存在'},404);const action=courtDeleteAction(court,await loadCourtDeleteReferenceData());if(action==='delete'){await del(T_COURTS,id);return sendJson(res,{success:true,archived:false});}const now=new Date().toISOString();await put(T_COURTS,id,{...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now});return sendJson(res,{success:true,archived:true});}}
     if(path==='/students'){await init();if(method==='GET'){const rows=await getCachedScan(T_STUDENTS);if(user.role==='admin')return sendJson(res,rows);const [schedule,classes]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CLASSES).catch(()=>[])]);return sendJson(res,filterLoadAllForUser({students:rows,schedule,classes},user).students);}if(method==='POST'){assertStudentWriteAccess(user);const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
     const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){assertStudentWriteAccess(user);const old=await get(T_STUDENTS,id).catch(()=>null);const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);const studentUpdates=old?await applyStudentIdentityUpdate(old,r):{plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};return sendJson(res,{...r,studentUpdates});}if(method==='DELETE'){assertStudentWriteAccess(user);const [classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_PLANS).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scanFeedbacks().catch(()=>[]),scan(T_PURCHASES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanDeleteStudent(id,{classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger});await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
     if(path==='/init-data'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const ss=body.students||[];for(const s of ss)await put(T_STUDENTS,s.id||uuidv4(),{...s,updatedAt:new Date().toISOString()});return sendJson(res,{success:true,count:ss.length});}
@@ -4571,7 +4584,9 @@ module.exports = async (req, res) => {
         const old=await getCachedRow(T_MEMBERSHIP_ACCOUNTS,id).catch(()=>null);
         if(!old)return sendJson(res,{error:'会员账户不存在'},404);
         const now=new Date().toISOString();
-        const r={...old,...body,id,updatedAt:now};
+        const campuses=await getCachedScan(T_CAMPUSES).catch(()=>[]);
+        const nextSaleCampusId=body.saleCampusId!==undefined?body.saleCampusId:old.saleCampusId||'';
+        const r=normalizeMembershipFinanceLink({...old,...body,id,saleCampusId:nextSaleCampusId,updatedAt:now},campuses);
         if(body.status==='voided'){
           r.status='voided';
           r.voidedAt=now;
@@ -4649,7 +4664,7 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       const id=moM[1];
       if(method==='GET')return sendJson(res,await getCachedRow(T_MEMBERSHIP_ORDERS,id));
-      if(method==='PUT'){const old=await getCachedRow(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员购买记录不存在'},404);const r={...old,...body,id,updatedAt:new Date().toISOString()};await put(T_MEMBERSHIP_ORDERS,id,r);return sendJson(res,r);}
+      if(method==='PUT'){const old=await getCachedRow(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员购买记录不存在'},404);const campuses=await getCachedScan(T_CAMPUSES).catch(()=>[]);const nextSaleCampusId=body.saleCampusId!==undefined?body.saleCampusId:old.saleCampusId||'';const r=normalizeMembershipFinanceLink({...old,...body,id,saleCampusId:nextSaleCampusId,updatedAt:new Date().toISOString()},campuses);await put(T_MEMBERSHIP_ORDERS,id,r);return sendJson(res,r);}
       if(method==='DELETE'){const old=await getCachedRow(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(old)await put(T_MEMBERSHIP_ORDERS,id,{...old,status:'voided',voidedAt:new Date().toISOString(),voidedBy:user.name||'',voidReason:body.reason||'会员购买记录作废',updatedAt:new Date().toISOString()});return sendJson(res,{success:true});}
     }
     if(path==='/membership-benefit-ledger'){
@@ -5083,6 +5098,8 @@ module.exports._test={
   buildNormalizedFinanceRows,
   buildFinanceOverview,
   buildFinanceAudit,
+  assertCampusExists,
+  normalizeMembershipFinanceLink,
   allocateMembershipBenefitUsage,
   reconcileMembershipAccounts,
   mergeCourtRecords,

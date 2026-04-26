@@ -10,6 +10,8 @@ assert.ok(rules.allocateMembershipBenefitUsage, 'membership benefit allocation h
 assert.ok(rules.buildMembershipAccountEventRecord, 'membership account event helper should be exposed');
 assert.ok(rules.isDuplicateMembershipOrderSubmission, 'membership order duplicate guard should be exposed');
 assert.ok(rules.mergeCourtRecords, 'court merge helper should be exposed');
+assert.ok(rules.assertCampusExists, 'campus validation helper should be exposed');
+assert.ok(rules.normalizeMembershipFinanceLink, 'membership finance campus link helper should be exposed');
 assert.deepStrictEqual(
   rules.MEMBERSHIP_TABLES,
   [
@@ -96,6 +98,28 @@ const court = {
   studentIds: ['stu-1'],
   history: []
 };
+
+const campuses = [
+  { id: 'mabao', code: 'mabao', name: '顺义马坡' },
+  { id: 'chaojun', code: 'chaojun', name: '朝珺私教' }
+];
+
+assert.strictEqual(rules.assertCampusExists('mabao', campuses, '销售归属校区'), 'mabao');
+assert.deepStrictEqual(
+  rules.normalizeMembershipFinanceLink({ saleCampusId: 'chaojun', notes: 'ok' }, campuses),
+  { saleCampusId: 'chaojun', notes: 'ok' },
+  'membership finance rows should keep valid sale campus ids'
+);
+assert.throws(
+  () => rules.normalizeMembershipFinanceLink({ saleCampusId: '' }, campuses),
+  /请选择销售归属校区/,
+  'membership finance rows should reject empty sale campus'
+);
+assert.throws(
+  () => rules.normalizeMembershipFinanceLink({ saleCampusId: 'bad-campus' }, campuses),
+  /销售归属校区不存在/,
+  'membership finance rows should reject invalid sale campus'
+);
 
 const first = rules.buildMembershipPurchase({
   court,
