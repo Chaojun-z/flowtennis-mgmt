@@ -42,20 +42,21 @@
   </div>
   <!-- 管理员视角 -->
   <div id="sbAdminView">
+  <div class="sb-sec">用户中心</div>
+  <div class="sb-item active" onclick="goPage('students',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>学员管理</div>
+  <div class="sb-item" onclick="goPage('courts',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>订场用户</div>
+  <div class="sb-item" onclick="goPage('memberships',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span>订场会员</div>
   <div class="sb-sec">教学管理</div>
-  <div class="sb-item active" onclick="goPage('students',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>学员信息</div>
+  <div class="sb-item" onclick="goPage('schedule',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span>排课表</div>
   <div class="sb-item" onclick="goPage('classes',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span>班次管理</div>
   <div class="sb-item" onclick="goPage('plans',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>学习计划</div>
-  <div class="sb-item" onclick="goPage('schedule',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span>排课表</div>
   <div class="sb-item" onclick="goPage('coachops',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 3 3 4-3 3 3"/><path d="M3 12h18"/><path d="M3 21h18"/><path d="m15 15 3 3 3-3"/><path d="m21 9-3-3-3 3"/></svg></span>教练运营</div>
   <div class="sb-sec">课程管理</div>
   <div class="sb-item" onclick="goPage('products',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>课程产品</div>
   <div class="sb-item" onclick="goPage('packages',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></span>售卖课包</div>
-  <div class="sb-item" onclick="goPage('purchases',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5V19"/><path d="M12 5v1.5"/></svg></span>购买记录</div>
+  <div class="sb-item" onclick="goPage('purchases',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v20"/><path d="M18 2v20"/><path d="M3 7h18"/><path d="M3 17h18"/></svg></span>购买记录</div>
   <div class="sb-sec">场地与资源</div>
-  <div class="sb-item" onclick="goPage('courts',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>订场用户</div>
   <div class="sb-item" onclick="goPage('matches',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v18"/><path d="M18 3v18"/><path d="M3 8h18"/><path d="M3 16h18"/></svg></span>约球管理</div>
-  <div class="sb-item" onclick="goPage('memberships',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span>会员管理</div>
   <div class="sb-item" onclick="goPage('membership-plans',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg></span>会员方案</div>
   <div class="sb-item" onclick="goPage('prices',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>价格管理</div>
   <div class="sb-item" onclick="goPage('coaches',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg></span>教练管理</div>
@@ -104,7 +105,7 @@
       </div>
     </div>
     <!-- 班次管理 -->
-    <div class="page-section" id="page-classes">
+    <div class="page-section page-layout-standard" id="page-classes">
       <div class="tms-stats-row" id="classStatsRow"></div>
       <div class="tms-audit-note">班次用于组织固定上课关系和学习进度；是否还能继续约课，仍然以课包余额和可用规则为准。</div>
       <div class="tms-toolbar">
@@ -202,7 +203,7 @@
             <span class="coach-ops-legend-item"><i class="coach-ops-legend-dot master"></i>大师课</span>
             <span class="coach-ops-legend-item"><i class="coach-ops-legend-dot partner"></i>陪打</span>
           </div>
-          <button class="tms-btn tms-btn-primary" id="coachOpsQuickCreateBtn" onclick="coachOpsQuickCreate()">＋ 新增排课</button>
+          <button class="tms-btn tms-btn-primary" id="coachOpsQuickCreateBtn" onclick="goPage('schedule')">去排课表排课</button>
         </div>
       </div>
       </div>
@@ -229,9 +230,9 @@
         </div>
       </div>
       <div id="financeLedgerPanel">
-        <div id="financeLedgerLoading" class="finance-loading-card" style="display:none">
-          <div class="finance-loading-title">总账加载中</div>
-          <div class="finance-loading-desc">先把这一页数据加载完整，再展示筛选和表格。</div>
+      <div id="financeLedgerLoading" class="finance-loading-card" style="display:none">
+        <div class="finance-loading-title">总账加载中</div>
+        <div class="finance-loading-desc">先把这一页数据加载完整，再展示筛选和表格。</div>
         </div>
         <div id="financeLedgerReady">
           <div class="tms-audit-note">先看总账和顶部汇总，知道这个校区当前收了多少钱、已经入账多少、还有多少没入账。</div>
