@@ -670,7 +670,10 @@ function financeLegacyUnifiedRows(){
 }
 function financeUnifiedRows(){
   const snapshotRows=financeNormalizedRows();
-  return snapshotRows.length?snapshotRows:financeLegacyUnifiedRows();
+  if(snapshotRows.length){
+    return snapshotRows.filter(row=>financeMatchesCampusName(row.campusName));
+  }
+  return financeLegacyUnifiedRows();
 }
 function financeRecognizedRows(){
   const q=String(document.getElementById('coachOpsConsumeSearch')?.value||'').trim().toLowerCase();
