@@ -546,7 +546,10 @@ function renderFinanceRevenueReport(){
   ].map(([label,val,unit])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${val}${unit?`<span>${unit}</span>`:''}</div></div>`).join('');
   body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.purchaseDate,false)}</td><td>${renderCourtCellText(row.weekdayText,false)}</td><td>${renderCourtCellText(row.timeText,false)}</td><td>${renderCourtCellText(row.studentName,false)}</td><td>${renderCourtCellText(row.incomeType,false)}</td><td>${renderCourtCellText(row.payMethod,false)}</td><td>${financeAmountText(row.receivableAmount)}</td><td>${financeAmountText(row.actualAmount)}</td><td>${financeSignedAmountText(row.priceDiff)}</td><td>${renderCourtCellText(row.priceDiffReason,false)}</td><td>${renderCourtCellText(row.collector,false)}</td><td><div class="tms-text-remark" title="${esc(row.notes||'')}">${esc(renderCourtEmptyText(row.notes))}</div></td><td>${renderCourtCellText(row.campusName,false)}</td><td><span class="tms-tag ${row.status==='voided'?'tms-tag-tier-slate':'tms-tag-green'}">${esc(row.systemStatus)}</span></td><td class="tms-sticky-r" style="padding-right:20px">${renderCourtCellText(row.relatedDocument,false)}</td></tr>`).join(''):`<tr><td colspan="15"><div class="empty"><p>暂无收入表记录</p></div></td></tr>`;
 }
-function financeConsumeRows(){
+function renderCoachOpsRevenueReport(){
+  return renderFinanceRevenueReport();
+}
+function coachOpsConsumeRows(){
   const q=String(document.getElementById('coachOpsConsumeSearch')?.value||'').trim().toLowerCase();
   const from=document.getElementById('coachOpsConsumeFrom')?.value||'';
   const to=document.getElementById('coachOpsConsumeTo')?.value||'';
@@ -583,6 +586,9 @@ function financeConsumeRows(){
     };
   });
 }
+function financeConsumeRows(){
+  return coachOpsConsumeRows();
+}
 function renderFinanceConsumeReport(){
   const body=document.getElementById('financeConsumeTbody');
   const stats=document.getElementById('coachOpsConsumeStats');
@@ -600,6 +606,9 @@ function renderFinanceConsumeReport(){
     ['待补来源',rows.filter(row=>!row.scheduleId&&row.importSource!=='系统导入').length,'条']
   ].map(([label,val,unit])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${val}<span>${unit}</span></div></div>`).join('');
   body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(String(row.relatedDate||row.createdAt||'').slice(0,10),false)}</td><td>${renderCourtCellText(row.studentName,false)}</td><td>${renderCourtCellText(row.confirmType,false)}</td><td>${renderCourtCellText(row.sourceProject,false)}</td><td>${renderCourtCellText(row.debitTarget,false)}</td><td>${financeAmountText(row.actionLabel==='退回'?-row.recognizedAmount:row.recognizedAmount)}</td><td>${renderCourtCellText(row.campusName,false)}</td><td><span class="tms-tag ${row.systemStatus==='已关联'?'tms-tag-green':'tms-tag-tier-slate'}">${esc(row.systemStatus)}</span></td><td class="tms-sticky-r" style="padding-right:20px">${renderCourtCellText(row.relatedDocument,false)}</td></tr>`).join(''):`<tr><td colspan="9"><div class="empty"><p>暂无消耗表记录</p></div></td></tr>`;
+}
+function renderCoachOpsConsumeReport(){
+  return renderFinanceConsumeReport();
 }
 function exportCoachOpsRevenueCsv(){
   const rows=financeRevenueRows();
