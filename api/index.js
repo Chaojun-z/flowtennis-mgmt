@@ -1908,6 +1908,12 @@ function buildNormalizedFinanceRows({financialLedger=[],campuses=[],courts=[]}={
     .map(row=>{
       const campusResolution=financeLedgerCampusResolution(row,campuses,courts);
       const dateResolution=financeBusinessDateResolution(row);
+      const cashDelta=Math.round((Number(row.cashDelta)||0))/100;
+      const recognizedRevenueDelta=Math.round((Number(row.recognizedRevenueDelta)||0))/100;
+      const deferredRevenueDelta=Math.round((Number(row.deferredRevenueDelta)||0))/100;
+      const actionType=financeLedgerActionType(row);
+      const notes=String(row.notes||row.reason||'').trim();
+      const isTraceOnlyImport=actionType==='记录'&&Math.abs(cashDelta)===0&&Math.abs(recognizedRevenueDelta)===0&&Math.abs(deferredRevenueDelta)===0&&(/导入/.test(String(row?.ledgerType||''))||String(row?.paymentChannel||'').trim()==='历史导入'||notes.includes('导入'));
       return {
       id:String(row.id||''),
       businessDate:dateResolution.businessDate,
@@ -1924,13 +1930,13 @@ function buildNormalizedFinanceRows({financialLedger=[],campuses=[],courts=[]}={
       sourceId:String(row.sourceId||row.id||'').trim(),
       sourceDocument:`${row.productSnapshotName||row.ledgerType||'账本记录'} ${row.sourceId||row.id}`,
       businessType:financeLedgerBusinessType(row),
-      actionType:financeLedgerActionType(row),
-      cashDelta:Math.round((Number(row.cashDelta)||0))/100,
-      recognizedRevenueDelta:Math.round((Number(row.recognizedRevenueDelta)||0))/100,
-      deferredRevenueDelta:Math.round((Number(row.deferredRevenueDelta)||0))/100,
+      actionType,
+      cashDelta,
+      recognizedRevenueDelta,
+      deferredRevenueDelta,
       paymentChannel:String(row.paymentChannel||'').trim()||'—',
       collector:String(row.operator||'').trim()||'系统记录',
-      notes:String(row.notes||row.reason||'').trim(),
+      notes,
       purchaseId:String(row.purchaseId||'').trim(),
       entitlementId:String(row.entitlementId||'').trim(),
       scheduleId:String(row.scheduleId||'').trim(),
@@ -1938,7 +1944,8 @@ function buildNormalizedFinanceRows({financialLedger=[],campuses=[],courts=[]}={
       membershipAccountId:String(row.membershipAccountId||'').trim(),
       courtId:String((row.productSnapshotMeta||{}).courtId||'').trim(),
       status:String(row.status||'active').trim()||'active',
-      systemStatus:String(row.scheduleId||row.entitlementId||row.purchaseId||row.sourceId?'已关联':'待补来源')
+      systemStatus:String(row.scheduleId||row.entitlementId||row.purchaseId||row.sourceId?'已关联':'待补来源'),
+      traceOnlyImport:isTraceOnlyImport
     };});
 }
 function summarizeFinanceOverviewBucket(rows=[]){
@@ -1980,6 +1987,7 @@ function buildFinanceOverview(rows=[]){
 }
 function buildFinanceAudit(rows=[],overview=null){
   const activeRows=(rows||[]).filter(row=>String(row?.status||'active')!=='voided');
+  const unresolvedAuditRows=activeRows.filter(row=>!row?.traceOnlyImport);
   const actionRow=(type,row,suggestion,suggestedCampus='')=>({
     type,
     customerName:String(row?.customerName||'').trim()||'—',
@@ -1993,24 +2001,19 @@ function buildFinanceAudit(rows=[],overview=null){
     if(!matched.length)return fallback;
     return `${fallback}；示例：${matched.slice(0,2).map(detailText).join('；')}`;
   };
-  const missingCampusRows=activeRows.filter(row=>!String(row?.campusName||'').trim()&&!String(row?.campusId||'').trim());
-  const unknownBusinessRows=activeRows.filter(row=>!String(row?.businessType||'').trim()||String(row?.businessType||'').trim()==='其他');
-  const unknownActionRows=activeRows.filter(row=>!String(row?.actionType||'').trim()||String(row?.actionType||'').trim()==='记录');
+  const missingCampusRows=unresolvedAuditRows.filter(row=>!String(row?.campusName||'').trim()&&!String(row?.campusId||'').trim());
+  const unknownBusinessRows=unresolvedAuditRows.filter(row=>!String(row?.businessType||'').trim()||String(row?.businessType||'').trim()==='其他');
+  const unknownActionRows=unresolvedAuditRows.filter(row=>!String(row?.actionType||'').trim()||(String(row?.actionType||'').trim()==='记录'&&(Math.abs(Number(row?.cashDelta)||0)>0||Math.abs(Number(row?.recognizedRevenueDelta)||0)>0||Math.abs(Number(row?.deferredRevenueDelta)||0)>0)));
   const importRows=activeRows.filter(row=>String(row?.actionType||'').trim()==='记录'||String(row?.sourceType||'').includes('导入')||String(row?.paymentChannel||'').trim()==='历史导入'||String(row?.notes||'').includes('导入'));
   const importMissingDateRows=importRows.filter(row=>!String(row?.businessDate||'').trim());
   const autoFixedDateRows=activeRows.filter(row=>String(row?.businessDateResolution||'')==='text_clue');
-  const importZeroAmountRows=importRows.filter(row=>{
-    const cash=Math.abs(Number(row?.cashDelta)||0);
-    const recognized=Math.abs(Number(row?.recognizedRevenueDelta)||0);
-    const deferred=Math.abs(Number(row?.deferredRevenueDelta)||0);
-    return cash===0&&recognized===0&&deferred===0;
-  });
-  const chaojunRiskRows=activeRows.filter(row=>{
+  const traceOnlyImportRows=activeRows.filter(row=>row?.traceOnlyImport);
+  const chaojunRiskRows=unresolvedAuditRows.filter(row=>{
     const text=`${row?.notes||''} ${row?.sourceDocument||''} ${row?.customerName||''}`;
     return text.includes('朝珺私教')&&String(row?.campusName||'').trim()==='顺义马坡';
   });
   const autoFixedCampusRows=activeRows.filter(row=>String(row?.campusResolution||'')==='text_override_import');
-  const externalCampusRows=activeRows.filter(row=>{
+  const externalCampusRows=unresolvedAuditRows.filter(row=>{
     const text=`${row?.notes||''} ${row?.sourceDocument||''} ${row?.customerName||''}`;
     if(!/朗茶|周五朗茶校区/.test(text))return false;
     return String(row?.campusName||'').trim()!=='朗茶校区';
@@ -2027,7 +2030,7 @@ function buildFinanceAudit(rows=[],overview=null){
     {id:'unknown-business',level:unknownBusinessRows.length?'P0':'OK',type:'未识别业务',count:unknownBusinessRows.length,amount:0,suggestion:'补业务类型枚举映射',notes:'业务类型落到“其他”，需要补枚举'},
     {id:'unknown-action',level:unknownActionRows.length?'P0':'OK',type:'未识别动作',count:unknownActionRows.length,amount:0,suggestion:'补动作协议映射',notes:'动作落到“记录”，需要补协议'},
     {id:'import-missing-date',level:importMissingDateRows.length?'P1':'OK',type:'历史导入缺日期',count:importMissingDateRows.length,amount:0,suggestion:'补 businessDate 或降级为仅留痕',notes:detailNotes(importMissingDateRows,'导入记录缺 businessDate，不能直接做经营统计')},
-    {id:'import-zero-amount',level:importZeroAmountRows.length?'P1':'OK',type:'历史导入零金额',count:importZeroAmountRows.length,amount:0,suggestion:'保留留痕，不进经营统计',notes:detailNotes(importZeroAmountRows,'导入记录三项金额都为 0，只能留痕，不能直接入经营口径')},
+    {id:'import-zero-amount',level:'OK',type:'历史导入零金额',count:0,amount:0,suggestion:'已自动降级为留痕，不进经营统计',notes:traceOnlyImportRows.length?detailNotes(traceOnlyImportRows,'零金额历史导入已自动降级为留痕，不再算未解决异常'):'零金额历史导入已自动降级为留痕'},
     {id:'chaojun-risk',level:chaojunRiskRows.length?'P1':'OK',type:'朝珺误归马坡风险',count:chaojunRiskRows.length,amount:0,suggestion:'按备注优先改归属到朝珺私教',notes:detailNotes(chaojunRiskRows,'文本写了朝珺私教，但当前归到了顺义马坡，需要逐条清理')},
     {id:'external-campus-risk',level:externalCampusRows.length?'P1':'OK',type:'明确外校区特例',count:externalCampusRows.length,amount:0,suggestion:'确认是否从马坡分出到外校区',notes:detailNotes(externalCampusRows,'文本明确提到外校区，需要确认是否应从马坡分出')},
     {id:'cash-gap',level:cashGap?'P0':'OK',type:'实收汇总差额',count:cashGap?1:0,amount:cashGap,suggestion:'先修归属规则，再看总数',notes:'总实收与分校区汇总不一致'},
@@ -2036,7 +2039,6 @@ function buildFinanceAudit(rows=[],overview=null){
   ];
   const actionItems=[
     ...importMissingDateRows.slice(0,5).map(row=>actionRow('历史导入缺日期',row,'补 businessDate 或降级为仅留痕')),
-    ...importZeroAmountRows.slice(0,5).map(row=>actionRow('历史导入零金额',row,'保留留痕，不进经营统计')),
     ...externalCampusRows.slice(0,5).map(row=>actionRow('外校区特例待核',row,'确认是否从马坡分出到外校区',financeCampusNameFromTextClues(`${row?.notes||''} ${row?.sourceDocument||''}`))),
     ...missingCampusRows.slice(0,5).map(row=>actionRow('缺校区',row,'补真实发生校区后再入经营口径'))
   ];
@@ -2054,6 +2056,13 @@ function buildFinanceAudit(rows=[],overview=null){
     fromCampus:'—',
     toCampus:String(row?.businessDate||'').trim()||'—',
     reason:String(row?.businessDateResolutionReason||'').trim()||'历史导入文本里带日期，已自动补 businessDate'
+  }))).concat(traceOnlyImportRows.slice(0,10).map(row=>({
+    type:'零金额已降级留痕',
+    customerName:String(row?.customerName||'').trim()||'—',
+    sourceDocument:String(row?.sourceDocument||row?.id||'').trim()||'—',
+    fromCampus:String(row?.campusName||'').trim()||'—',
+    toCampus:String(row?.campusName||'').trim()||'—',
+    reason:'零金额历史导入已自动降级为留痕，不进入经营统计'
   })));
   const blockingCount=details.filter(item=>String(item?.level||'')==='P0'&&Number(item?.count||0)>0).length;
   const warningCount=details.filter(item=>String(item?.level||'')==='P1'&&Number(item?.count||0)>0).length;
@@ -2071,11 +2080,12 @@ function buildFinanceAudit(rows=[],overview=null){
     unknownBusinessCount:unknownBusinessRows.length,
     unknownActionCount:unknownActionRows.length,
     importMissingDateCount:importMissingDateRows.length,
-    importZeroAmountCount:importZeroAmountRows.length,
+    importZeroAmountCount:0,
     chaojunRiskCount:chaojunRiskRows.length,
     externalCampusRiskCount:externalCampusRows.length,
     autoFixedCampusCount:autoFixedCampusRows.length,
     autoFixedDateCount:autoFixedDateRows.length,
+    autoTraceOnlyCount:traceOnlyImportRows.length,
     cashGap,
     recognizedGap,
     deferredGap,
@@ -2083,6 +2093,18 @@ function buildFinanceAudit(rows=[],overview=null){
     actionItems,
     fixedItems
   };
+}
+async function runFinanceAuditSnapshot(){
+  await init();
+  const [campuses,courts,financialLedger]=await Promise.all([
+    listCampusesWithDefaults(),
+    getCachedScan(T_COURTS).catch(()=>[]),
+    getCachedScan(T_FINANCIAL_LEDGER).catch(()=>[])
+  ]);
+  const financeRows=buildNormalizedFinanceRows({financialLedger,campuses,courts});
+  const financeOverview=buildFinanceOverview(financeRows);
+  const audit=buildFinanceAudit(financeRows,financeOverview);
+  return {campuses,courts,financialLedger,financeRows,financeOverview,audit};
 }
 function scheduleInitInBackground(){
   if(REQUIRED_ENV_VARS.some((k)=>!process.env[k]))return;
@@ -5304,6 +5326,7 @@ module.exports._test={
   buildNormalizedFinanceRows,
   buildFinanceOverview,
   buildFinanceAudit,
+  runFinanceAuditSnapshot,
   assertCampusExists,
   normalizeMembershipFinanceLink,
   allocateMembershipBenefitUsage,
