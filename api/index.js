@@ -1877,6 +1877,10 @@ function requireMatchUser(req){
   if(!user||user.type!=='match_user')throw new Error('未登录');
   return user;
 }
+function ensureMatchUserResponse(req,res){
+  try{return requireMatchUser(req);}
+  catch(err){sendJson(res,{error:String(err?.message||'未登录')},401);return null;}
+}
 function buildMatchUserToken(user){
   return jwt.sign({id:user.id,type:'match_user',openid:user.openid},JWT_SECRET,{expiresIn:'7d'});
 }
@@ -4001,25 +4005,25 @@ module.exports = async (req, res) => {
       return sendJson(res,{token:buildMatchUserToken(matchUser),user:{id:matchUser.id,type:'match_user',openid:matchUser.openid,phone:matchUser.phone||'',ntrpLevel:matchUser.ntrplevel||matchUser.ntrpLevel||''}});
     }
     if(path==='/matches'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchesForViewer(matchUser.id)});
     }
     if(path==='/matches'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       const profile=await getMatchSqlPool().query('SELECT phone FROM match_users WHERE id=$1',[matchUser.id]);
       if(!profile.rows[0]?.phone)return sendJson(res,{error:'请先授权手机号'},409);
       return sendJson(res,await createMatchForUser(matchUser.id,body));
     }
     const matchDetailM=path.match(/^\/matches\/([^/]+)$/);
     if(matchDetailM&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       const match=await getMatchForViewer(matchDetailM[1],matchUser.id);
       if(!match)return sendJson(res,{error:'球局不存在'},404);
       return sendJson(res,toMatchDetailResponse(match));
     }
     const matchUpdateM=path.match(/^\/matches\/([^/]+)$/);
     if(matchUpdateM&&method==='PUT'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{
         await updateMatchForUser(matchUpdateM[1],matchUser.id,body);
         const match=await getMatchForViewer(matchUpdateM[1],matchUser.id);
@@ -4028,13 +4032,13 @@ module.exports = async (req, res) => {
     }
     const matchCancelM=path.match(/^\/matches\/([^/]+)\/cancel$/);
     if(matchCancelM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{return sendJson(res,await cancelMatchForUser(matchCancelM[1],matchUser.id,body.reason));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     const matchRegisterM=path.match(/^\/matches\/([^/]+)\/register$/);
     if(matchRegisterM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       const profile=await getMatchSqlPool().query('SELECT phone FROM match_users WHERE id=$1',[matchUser.id]);
       if(!profile.rows[0]?.phone)return sendJson(res,{error:'请先授权手机号'},409);
       try{return sendJson(res,await registerMatchUser(matchRegisterM[1],matchUser.id));}
@@ -4045,48 +4049,48 @@ module.exports = async (req, res) => {
     }
     const matchCancelRegisterM=path.match(/^\/matches\/([^/]+)\/cancel-registration$/);
     if(matchCancelRegisterM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{return sendJson(res,await cancelRegistrationForUser(matchCancelRegisterM[1],matchUser.id));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     if(path==='/my-matches'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMyMatches(matchUser.id)});
     }
     if(path==='/match-profile'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await getMatchProfile(matchUser.id));
     }
     if(path==='/match-profile'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await updateMatchProfile(matchUser.id,body));
     }
     if(path==='/match-profile/phone'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await updateMatchProfile(matchUser.id,{phone:body.phone}));
     }
     if(path==='/match-profile/phone-code'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{
         const phone=await fetchWechatPhoneNumber(String(body.code||'').trim(),{appid:MATCH_MINIPROGRAM_APPID,secret:MATCH_MINIPROGRAM_SECRET,cacheKey:'match',errorText:'缺少约球小程序密钥配置'});
         return sendJson(res,await updateMatchProfile(matchUser.id,{phone}));
       }catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     if(path==='/match-settings'&&method==='GET'){
-      requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await getMatchSettings());
     }
     if(path==='/match-attendance/creator-confirm'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{return sendJson(res,await creatorConfirmMatchAttendance(body.matchId,matchUser.id,body.registrationId,body.finalAttendanceStatus));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     if(path==='/match-notifications'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchNotifications(matchUser.id)});
     }
     if(path==='/match-players'&&method==='GET'){
-      requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchPlayers()});
     }
     let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
@@ -4962,6 +4966,7 @@ module.exports._test={
   ,getMatchSqlPool
   ,requireAdminUser
   ,requireMatchUser
+  ,ensureMatchUserResponse
   ,buildMatchUserToken
   ,assertMatchPostInput
   ,normalizeMatchType

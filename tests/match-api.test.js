@@ -11,6 +11,7 @@ assert.ok(rules.assertMatchPostInput, 'api._test should expose match post valida
 assert.ok(rules.splitAaFee, 'api._test should expose AA split helper');
 assert.ok(rules.deriveMatchStatus, 'api._test should expose match status helper');
 assert.ok(rules.requireMatchUser, 'api._test should expose match user auth helper');
+assert.ok(rules.ensureMatchUserResponse, 'api._test should expose match user auth response helper');
 assert.ok(rules.requireAdminUser, 'api._test should expose admin auth helper');
 assert.ok(rules.assertMatchBookingInput, 'api._test should expose match booking validation');
 assert.ok(rules.buildMatchFeeLedger, 'api._test should expose match fee ledger builder');
@@ -57,6 +58,7 @@ assert.match(apiSource, /\/admin\/matches\/settings/, 'API should expose match s
 assert.match(apiSource, /path==='\/match-settings'/, 'API should expose mini match settings endpoint');
 assert.match(apiSource, /MATCH_MINIPROGRAM_APPID/, 'match mini program should use a dedicated appid env');
 assert.match(apiSource, /MATCH_MINIPROGRAM_SECRET/, 'match mini program should use a dedicated secret env');
+assert.match(apiSource, /sendJson\(res,\{error:String\(err\?\.message\|\|'未登录'\)\},401\)/, 'match mini auth failures should return 401 for relogin');
 assert.match(apiSource, /path==='\/my-matches'/, 'API should expose my matches endpoint');
 assert.match(apiSource, /path==='\/match-profile'/, 'API should expose match profile endpoint');
 assert.match(apiSource, /path==='\/match-profile\/phone'/, 'API should expose match phone endpoint');
