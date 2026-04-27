@@ -15,7 +15,10 @@ function fnBody(name){
 
 assert.match(fnBody('toggleScheduleLocationType'), /renderScheduleVenueField\(\)/, 'switching back to in-campus lessons should re-render venue input strategy');
 assert.match(fnBody('onScheduleCampusChange'), /renderScheduleVenueField\(\)[\s\S]*refreshSchEntitlementOptions\(\)/, 'changing schedule campus should refresh both venue strategy and entitlement recommendations');
+assert.match(fnBody('renderScheduleVenueField'), /renderCourtDropdownHtml\('sch_venue','场地'/, 'schedule venue field should reuse the shared dropdown renderer');
+assert.doesNotMatch(fnBody('renderScheduleVenueField'), /venueFieldHtml\(/, 'schedule venue field should not depend on an undefined helper');
 assert.match(fnBody('openScheduleModal'), /消课时数/, 'schedule modal should use hour-based lesson copy');
+assert.doesNotMatch(fnBody('openScheduleModal'), /venueFieldHtml\(/, 'schedule modal should not call an undefined venueFieldHtml helper');
 assert.match(fnBody('openScheduleModal'), /readonly/, 'lesson hours should be driven by the selected time range');
 assert.match(source, /function refreshScheduleTimeDerivedFields\(/, 'schedule modal should expose a shared time-derived refresh helper');
 assert.match(fnBody('syncScheduleLessonCountFromTime'), /lessonUnitsText\(scheduleLessonUnitsFromFields\(\)\)/, 'lesson units should render fractional hours like 1.5');
