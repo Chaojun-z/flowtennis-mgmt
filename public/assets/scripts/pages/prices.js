@@ -11,7 +11,7 @@ function priceChannelText(row){
   return row.type==='channel_product'?(row.channel||'—'):'—';
 }
 function priceNameText(row){
-  if(row.type==='venue_rate')return cn(row.campus)||row.campus||'—';
+  if(row.type==='venue_rate')return cn(row.campus)||'—';
   return row.productName||'—';
 }
 function priceVenueSpaceTypeText(row){
@@ -74,7 +74,7 @@ function openPriceModal(type='',id=''){
   const row=pricePlans.find(x=>x.id===id)||{type:type||'venue_rate',status:'active'};
   type=row.type||type||'venue_rate';
   editId=id||null;
-  const campusOptions=campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}));
+  const campusOptions=campuses.map(c=>({value:c.code||c.id,label:campusOptionLabel(c)}));
   const statusOptions=[{value:'active',label:'启用'},{value:'inactive',label:'停用'}];
   const typeSwitch=id?'':`<div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">价格类型</label>${renderCourtDropdownHtml('priceType','价格类型',[{value:'venue_rate',label:'场地价格'},{value:'channel_product',label:'渠道商品'}],type,true,'switchPriceModalType')}</div></div>`;
   const fields=type==='venue_rate'

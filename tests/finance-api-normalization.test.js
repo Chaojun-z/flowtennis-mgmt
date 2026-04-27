@@ -87,13 +87,43 @@ const rows = api.buildNormalizedFinanceRows({
       paymentChannel: '历史导入',
       sourceId: 'import-3',
       notes: '2026-04-23 蓝色港湾订场'
+    },
+    {
+      id: 'ledger-6',
+      businessDate: '2026-04-24',
+      userId: 'stu-6',
+      userName: '赵六',
+      businessType: '散客订场',
+      actionType: '历史导入',
+      cashDelta: 0,
+      recognizedRevenueDelta: 3000,
+      deferredRevenueDelta: -3000,
+      paymentChannel: '历史导入',
+      sourceId: 'import-4',
+      campusId: 'guowang',
+      notes: '历史订场已入账'
+    },
+    {
+      id: 'ledger-7',
+      businessDate: '2026-04-25',
+      userId: 'stu-7',
+      userName: '孙七',
+      businessType: '订场',
+      actionType: '收款',
+      cashDelta: 8000,
+      recognizedRevenueDelta: 8000,
+      deferredRevenueDelta: 0,
+      paymentChannel: '微信',
+      sourceId: 'court-regular-1',
+      campusId: 'mabao',
+      notes: '正常订场收款'
     }
   ]
 });
 const overview = api.buildFinanceOverview(rows);
 const audit = api.buildFinanceAudit(rows, overview);
 
-assert.strictEqual(rows.length, 5, 'finance normalization should keep every active ledger row');
+assert.strictEqual(rows.length, 7, 'finance normalization should keep every active ledger row');
 assert.strictEqual(rows[0].campusName, '朝珺私教', 'finance normalization should prefer explicit ledger campus');
 assert.strictEqual(rows[0].actionType, '已入账', 'write-off rows should normalize to recognized revenue action');
 assert.strictEqual(rows[0].recognizedRevenueDelta, 1200, 'finance normalization should convert ledger cents into yuan');
@@ -106,11 +136,11 @@ assert.strictEqual(rows[3].campusName, '朝珺私教', 'import text clues should
 assert.strictEqual(rows[3].campusResolution, 'text_override_import', 'import text correction rows should expose the auto-fix resolution type');
 assert.strictEqual(rows[4].campusName, '朝阳蓝色港湾', 'blue harbor aliases should also auto-fix import campus attribution');
 assert.strictEqual(rows[4].businessDate, '2026-04-23', 'blue harbor import rows should auto-fill the missing business date from text clues');
-assert.strictEqual(overview.all.cash, 300, 'finance overview should aggregate total cash from normalized rows');
-assert.strictEqual(overview.all.recognized, 1700, 'finance overview should aggregate total recognized revenue from normalized rows');
-assert.strictEqual(overview.all.bookingIncome, 100, 'finance overview booking income should count the newly auto-fixed blue-harbor booking cash');
-assert.strictEqual(overview.all.bookingRecognized, 0, 'finance overview booking recognized should exclude member stored-value consumption');
-assert.strictEqual(overview.campuses.length, 4, 'finance overview should keep campus-level buckets after explicit external campus normalization');
+assert.strictEqual(overview.all.cash, 380, 'finance overview should aggregate total cash from normalized rows');
+assert.strictEqual(overview.all.recognized, 1810, 'finance overview should aggregate total recognized revenue from normalized rows');
+assert.strictEqual(overview.all.bookingIncome, 80, 'finance overview booking income should only keep real operating booking cash instead of mixing historical import rows');
+assert.strictEqual(overview.all.bookingRecognized, 80, 'finance overview booking recognized should use the same operating booking rows as booking income');
+assert.strictEqual(overview.campuses.length, 5, 'finance overview should keep each normalized campus bucket, including historical booking rows that were already attributed to guowang');
 assert.strictEqual(overview.campuses[0].campusName, '朝珺私教', 'finance overview should expose campus names in the summary');
 assert.strictEqual(audit.missingCampusCount, 0, 'finance audit should report zero missing campus rows for normalized fixtures');
 assert.ok(audit.generatedAt, 'finance audit should expose snapshot generation time');

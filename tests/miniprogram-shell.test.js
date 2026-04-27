@@ -517,5 +517,10 @@ assert.doesNotMatch(scheduleWxss, /\.dashboard-topbar\s*\{/, 'mini program workb
 assert.doesNotMatch(scheduleWxss, /\.coach-status-pill\s*\{/, 'mini program workbench should not keep the removed connection pill styles');
 assert.match(scheduleWxss, /\.sheet\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column;/, 'mini program bottom sheets should use a flex column layout so the body can scroll');
 assert.doesNotMatch(scheduleWxss, /\.sheet-actions\s*\{[\s\S]*position:\s*absolute;/, 'mini program bottom sheet footer should not pin absolutely over scrollable content');
+assert.match(scheduleJs, /campusDisplayName/, 'mini program schedule page should normalize campus names before writing them into forms and detail sheets');
+assert.doesNotMatch(scheduleJs, /campusName:\s*fallbackCampus\s*\|\|/, 'mini program forms should not fall back to raw campus codes');
+
+assert.strictEqual(scheduleUtils.campusDisplayName('__external__'), '', 'mini program campus helper should not leak __external__ to the UI');
+assert.strictEqual(scheduleUtils.campusDisplayName('mabao'), '顺义马坡', 'mini program campus helper should map mabao to the human-readable campus name');
 
 console.log('miniprogram shell tests passed');

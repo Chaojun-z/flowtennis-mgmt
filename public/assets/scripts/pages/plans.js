@@ -47,7 +47,7 @@ function syncPlanFilterOptions(){
   const typeValue=document.getElementById('planTypeFilter')?.value||'';
   const stageValue=document.getElementById('planStageFilter')?.value||'';
   const statusOptions=[{value:'',label:'全部状态'},{value:'active',label:'上课中'},{value:'已取消',label:'已取消'},{value:'已结课',label:'已结课'}];
-  const campusOptions=[{value:'',label:'全部校区'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  const campusOptions=[{value:'',label:'全部校区'},...campuses.map(c=>({value:c.code||c.id,label:campusOptionLabel(c)}))];
   const coachOptions=[{value:'',label:'全部教练'},...activeCoachNames().map(c=>({value:c,label:c}))];
   const typeOptions=[{value:'',label:'全部课程'},...PRODUCT_TYPES.map(t=>({value:t,label:t}))];
   const stageOptions=[{value:'',label:'全部阶段'},{value:'new',label:'刚开课'},{value:'ongoing',label:'进行中'},{value:'ending',label:'临近结课'}];

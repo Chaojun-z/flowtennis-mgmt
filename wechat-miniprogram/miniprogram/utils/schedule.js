@@ -3,6 +3,7 @@ const CAMPUS_DISPLAY = {
   mabao: '顺义马坡',
   shilipu: '朝阳十里堡',
   guowang: '朝阳国网',
+  langang: '朝阳蓝色港湾',
   chaojun: '朝珺私教'
 };
 
@@ -43,7 +44,8 @@ function timeText(item) {
 function campusDisplayName(raw = '') {
   const key = String(raw || '').trim();
   if (!key || key === '__external__') return '';
-  return CAMPUS_DISPLAY[key] || key;
+  if (CAMPUS_DISPLAY[key]) return CAMPUS_DISPLAY[key];
+  return /^[a-z0-9_-]+$/i.test(key) ? '' : key;
 }
 
 function scheduleLocationText(item = {}) {
@@ -54,7 +56,7 @@ function scheduleLocationText(item = {}) {
     const court = String(item.externalCourtName || '').trim() || String(item.venue || '').split(' · ').slice(1).join(' · ').trim();
     return [venue, court].filter(Boolean).join(' · ') || '地点待确认';
   }
-  const campus = String(item.campusName || '').trim() || campusDisplayName(campusCode);
+  const campus = campusDisplayName(item.campusName) || campusDisplayName(campusCode);
   const venue = String(item.venue || item.externalCourtName || '').trim();
   return [campus, venue].filter(Boolean).join(' · ') || '地点待确认';
 }
@@ -168,6 +170,7 @@ function findSchedule(schedule = [], id = '') {
 module.exports = {
   buildWeekDays,
   buildTimetableDays,
+  campusDisplayName,
   classBlockStyle,
   findSchedule,
   formatScheduleItem,

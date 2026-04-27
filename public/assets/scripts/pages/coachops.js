@@ -977,8 +977,16 @@ function renderFinanceOverview(){
   const finalPackageRecognized=overviewFromApi?packageRecognized:ledgerRows.filter(row=>row.businessType==='课程').reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
   const finalStoredValueIncome=overviewFromApi?storedValueIncome:ledgerRows.filter(row=>row.businessType==='会员储值'&&row.action==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
   const finalStoredValueConsumed=overviewFromApi?storedValueConsumed:ledgerRows.filter(row=>row.businessType==='会员订场').reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
-  const finalBookingIncome=overviewFromApi?bookingIncome:ledgerRows.filter(row=>['散客订场','约球局'].includes(row.businessType)&&row.action==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
-  const finalBookingRecognized=overviewFromApi?bookingRecognized:ledgerRows.filter(row=>['散客订场','约球局'].includes(row.businessType)).reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
+  const bookingOverviewRows=overviewFromApi?[]:ledgerRows.filter(row=>{
+    if(!['散客订场','约球局'].includes(row.businessType))return false;
+    if(String(row.action||'')==='记录')return false;
+    if(String(row.paymentChannel||'').trim()==='历史导入')return false;
+    const noteText=`${row.notes||''} ${row.sourceDocument||''}`;
+    if(/期初导入汇总|历史导入/.test(noteText))return false;
+    return true;
+  });
+  const finalBookingIncome=overviewFromApi?bookingIncome:bookingOverviewRows.reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
+  const finalBookingRecognized=overviewFromApi?bookingRecognized:bookingOverviewRows.reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
   const renderStatCards=items=>items.map(item=>`<div class="tms-stat-card"><div class="tms-stat-label">${item.label}</div><div class="tms-stat-value${item.split?' finance-split-value':''}">${item.value}</div></div>`).join('');
   primaryHost.innerHTML=renderStatCards([
     {label:'总收入（实收）',value:financeCardValue(finalCash)},

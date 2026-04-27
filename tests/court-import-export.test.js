@@ -9,5 +9,7 @@ assert.match(html, /末次跟进日期[\s\S]*下次跟进日期/, 'court import\
 assert.match(html, /exportCourtCSV\([\s\S]*csvEscapeCell/, 'court export should use shared CSV escaping');
 assert.match(html, /normalizeCourtImportRows\([\s\S]*末次跟进日期[\s\S]*下次跟进日期/, 'court import normalization should read follow-up fields');
 assert.match(html, /import-note[\s\S]*末次跟进日期[\s\S]*下次跟进日期/, 'court import hint should mention the new columns');
+assert.doesNotMatch(html, /<th>余额<\/th><th>储值<\/th><th>消费金额<\/th>/, 'court import preview should no longer surface finance columns as if they were normal import targets');
+assert.doesNotMatch(html, /balance:row\.balance,totalDeposit:row\.totalDeposit,spentAmount:row\.spentAmount/, 'court import payload should stop sending finance fields into the normal court import endpoint');
 
 console.log('court import export tests passed');

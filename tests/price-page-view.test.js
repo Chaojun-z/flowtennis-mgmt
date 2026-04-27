@@ -36,6 +36,7 @@ assert.match(appSource, /function priceTimeBandText\(/, 'price page should expos
 assert.match(appSource, /function priceDurationText\(/, 'price page should expose a dedicated duration renderer');
 assert.match(appSource, /function priceChannelText\(/, 'price page should expose a dedicated channel renderer');
 assert.match(appSource, /function priceNameText\(/, 'price page should expose a dedicated name renderer');
+assert.doesNotMatch(appSource, /return cn\(row\.campus\)\|\|row\.campus\|\|'—'/, 'price page should not fall back to raw campus codes in the owner-facing list');
 assert.match(appSource, /function priceVenueSpaceTypeText\(/, 'price page should expose a dedicated venue space type renderer');
 assert.match(appSource, /function priceAmountText\(/, 'price page should expose a dedicated amount renderer');
 assert.doesNotMatch(fnBody('priceAmountText'), /\/小时/, 'price page should not render hourly suffix in amount text');

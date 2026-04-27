@@ -5,7 +5,7 @@ function syncScheduleFilterOptions(){
   const courseTypeValue=document.getElementById('schCourseTypeFilter')?.value||'';
   const statusOptions=[{value:'',label:'全部状态'},{value:'已排课',label:'待上课'},{value:'已结束',label:'已下课'},{value:'已取消',label:'已取消'}];
   const hasExternal=schedules.some(s=>isExternalSchedule(s));
-  const campusOptions=[{value:'',label:'全部校区'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id})),...(hasExternal?[{value:'__external__',label:'外部场馆'}]:[])];
+  const campusOptions=[{value:'',label:'全部校区'},...campuses.map(c=>({value:c.code||c.id,label:campusOptionLabel(c)})),...(hasExternal?[{value:'__external__',label:'外部场馆'}]:[])];
   const courseTypeOptions=[{value:'',label:'全部课程类型'},...PRODUCT_TYPES.map(t=>({value:t,label:t}))];
   [['schStatusFilterHost','schStatusFilter','全部状态',statusOptions,statusValue],['schCampusFilterHost','schCampusFilter','全部校区',campusOptions,campusValue],['schCourseTypeFilterHost','schCourseTypeFilter','全部课程类型',courseTypeOptions,courseTypeValue]].forEach(([hostId,id,label,options,value])=>{
     const host=document.getElementById(hostId);
@@ -78,8 +78,8 @@ function scheduleSelectedStudentHomeCampusMeta(ids){
   const campusIds=[...new Set(selected.map(s=>s.campus).filter(Boolean))];
   if(!selected.length)return {text:'归属校区：未选择学员',campus:''};
   if(!campusIds.length)return {text:'归属校区：未设置',campus:''};
-  if(campusIds.length===1)return {text:`归属校区：${cn(campusIds[0])||campusIds[0]}`,campus:campusIds[0]};
-  return {text:`归属校区：多个（${campusIds.map(id=>cn(id)||id).join('、')}）`,campus:''};
+  if(campusIds.length===1)return {text:`归属校区：${cn(campusIds[0])||'未设校区'}`,campus:campusIds[0]};
+  return {text:`归属校区：多个（${campusIds.map(id=>cn(id)||'未设校区').join('、')}）`,campus:''};
 }
 function scheduleSelectedStudentCoachMeta(ids){
   const selected=parseArr(ids).map(id=>students.find(s=>s.id===id)).filter(Boolean);
@@ -92,7 +92,7 @@ function syncScheduleHomeCampusFromStudents(ids,applyDefault=true){
   const summary=document.getElementById('sch_homeCampusSummary');
   if(summary)summary.textContent=meta.text;
   if(applyDefault&&meta.campus&&(document.getElementById('sch_locationType')?.value||'own')==='own'){
-    setCourtDropdownValue('sch_campus',meta.campus,cn(meta.campus)||meta.campus);
+    setCourtDropdownValue('sch_campus',meta.campus,cn(meta.campus)||'未设校区');
   }
 }
 function syncScheduleProfileFromStudents(ids,applyDefault=true){
@@ -196,7 +196,7 @@ function openScheduleModal(id,seed={}){
   const classOptions=[{value:'',label:'— 不关联 —'},...classes.filter(c=>c.status==='已排班').map(c=>{const rem=(parseInt(c.totalLessons)||0)-(parseInt(c.usedLessons)||0);return {value:c.id,label:`${c.className} 剩余${rem}节`};})];
   const courseTypeOptions=PRODUCT_TYPES.map(t=>({value:t,label:t}));
   const coachOptions=[{value:'',label:'— 选择 —'},...activeCoachNames().map(c=>({value:c,label:c}))];
-  const campusOptions=[{value:'',label:'— 选择 —'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  const campusOptions=[{value:'',label:'— 选择 —'},...campuses.map(c=>({value:c.code||c.id,label:campusOptionLabel(c)}))];
   const cancelOptions=[{value:'',label:'— 未取消 —'},...SCH_CANCEL_REASONS.map(t=>({value:t,label:t}))];
   const selectedStudentIds=parseArr(rv(s,'studentIds','[]'));
   const expectedStudentIds=parseArr(rv(s,'expectedStudentIds','[]')).length?parseArr(rv(s,'expectedStudentIds','[]')):selectedStudentIds;
@@ -251,7 +251,7 @@ function onSchClassChange(){
   const prod=products.find(p=>p.id===cls.productId);
   if(prod?.type)setCourtDropdownValue('sch_courseType',prod.type,prod.type);
   if(cls.coach)setCourtDropdownValue('sch_coach',cls.coach,cls.coach);
-  if(cls.campus)setCourtDropdownValue('sch_campus',cls.campus,cn(cls.campus)||cls.campus);
+  if(cls.campus)setCourtDropdownValue('sch_campus',cls.campus,cn(cls.campus)||'未设校区');
   setCourtDropdownValue('sch_locationType','own','校区内');
   toggleScheduleLocationType();
   updateSchClassHint();

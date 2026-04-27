@@ -1,5 +1,5 @@
 const { loginWithWechat, loadCoachWorkbench, saveCoachFeedback, TOKEN_KEY, USER_KEY } = require('../../utils/api');
-const { buildWeekDays, formatScheduleItem, weekRangeText, buildTimetableDays, classBlockStyle, workbenchTodoState, scheduleLocationText } = require('../../utils/schedule');
+const { buildWeekDays, formatScheduleItem, weekRangeText, buildTimetableDays, classBlockStyle, workbenchTodoState, scheduleLocationText, campusDisplayName } = require('../../utils/schedule');
 
 const timetableHours = Array.from({ length: 25 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 const avatarClasses = ['avatar-warm', 'avatar-teal', 'avatar-green', 'avatar-purple'];
@@ -309,18 +309,22 @@ function extractTimeRange(text = '') {
   if (!matched) return { startTime: '14:00', endTime: '16:00' };
   return { startTime: normalizeTimeValue(matched[1]), endTime: normalizeTimeValue(matched[2]) };
 }
+function campusText(value = '') {
+  return campusDisplayName(value) || '';
+}
 
 function normalizeCampusOptions(campuses = [], fallbackCampus = '') {
   const options = (campuses || []).map((item) => {
-    const label = firstNonEmpty(item.name, item.campusName, item.label, item.code, item.id);
+    const label = firstNonEmpty(item.name, item.campusName, item.label, campusText(item.code), campusText(item.id));
     if (!label) return null;
     return {
       id: item.id || label,
       name: label
     };
   }).filter(Boolean);
-  if (fallbackCampus && !options.some(item => item.name === fallbackCampus)) {
-    options.unshift({ id: fallbackCampus, name: fallbackCampus });
+  const fallbackCampusName = campusText(fallbackCampus) || String(fallbackCampus || '').trim();
+  if (fallbackCampusName && !options.some(item => item.name === fallbackCampusName)) {
+    options.unshift({ id: fallbackCampusName, name: fallbackCampusName });
   }
   return options;
 }
@@ -444,7 +448,7 @@ function buildShiftScheduleForm(shift, linkedClass = null, campuses = []) {
     endTime,
     campusIndex: campusOptions.length ? 0 : -1,
     campusOptions,
-    campusName: campusOptions[0] ? campusOptions[0].name : (fallbackCampus || ''),
+    campusName: campusOptions[0] ? campusOptions[0].name : (campusText(fallbackCampus) || ''),
     venue: firstNonEmpty(linkedClass && linkedClass.venue, shift && shift.venue) || '',
     lessonCount: String(parseInt(linkedClass && linkedClass.lessonCount, 10) || 1),
     notes: ''
@@ -454,7 +458,7 @@ function buildShiftScheduleForm(shift, linkedClass = null, campuses = []) {
 function buildScheduleEditForm(selectedClass, linkedClass = null, campuses = []) {
   const fallbackCampus = firstNonEmpty(selectedClass && selectedClass.campus, linkedClass && linkedClass.campus);
   const campusOptions = normalizeCampusOptions(campuses, fallbackCampus);
-  const campusName = fallbackCampus || (campusOptions[0] ? campusOptions[0].name : '');
+  const campusName = campusText(fallbackCampus) || (campusOptions[0] ? campusOptions[0].name : '');
   const campusIndex = campusOptions.findIndex(item => item.name === campusName);
   return {
     id: selectedClass && selectedClass.id ? selectedClass.id : '',
@@ -514,7 +518,7 @@ function buildShiftDetailData(shift, context = {}) {
     },
     summary: {
       coach: firstNonEmpty(shift.coach, linkedClass && linkedClass.coach, coachName) || '暂无记录',
-      campus: firstNonEmpty(shift.campus, linkedClass && linkedClass.campus) || '暂无记录',
+      campus: campusText(firstNonEmpty(shift.campus, linkedClass && linkedClass.campus)) || '暂无记录',
       scheduleTime: firstNonEmpty(shift.scheduleTime, linkedClass && linkedClass.scheduleTime) || '暂无记录',
       progress: shift.progress || `${usedLessons}/${totalLessons}`,
       remaining: `${remainingLessons} 节`
@@ -1167,7 +1171,7 @@ function buildStudentDetailData(student, context = {}) {
   const latestStatus = latestClass ? studentScheduleStatusMeta(latestClass) : { text: '', className: '' };
   const ownerCoach = firstNonEmpty(student.ownerCoach, student.primaryCoach, activeClass && activeClass.coach);
   const responsibleCoach = firstNonEmpty(student.primaryCoach, activeClass && activeClass.coach, coachName);
-  const campus = firstNonEmpty(student.campus, latestClass && latestClass.campus, activeClass && activeClass.campus);
+  const campus = campusText(firstNonEmpty(student.campus, latestClass && latestClass.campus, activeClass && activeClass.campus));
   const remark = firstNonEmpty(student.remark);
   return {
     studentId: student.id,

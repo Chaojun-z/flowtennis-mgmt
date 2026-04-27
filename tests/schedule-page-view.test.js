@@ -32,6 +32,8 @@ assert.match(fnBody('renderSchedule'), /scheduleRepeatBadgeHtml\(s\)/, 'schedule
 assert.match(fnBody('openScheduleDetail'), /教练迟到处理/, 'schedule detail should show coach late settlement info');
 assert.match(fnBody('openScheduleDetail'), /循环说明/, 'schedule detail should explain how recurring schedules behave when viewing a generated lesson');
 assert.match(source, /function scheduleLocationText\(/, 'schedule page should centralize location display');
+assert.match(source, /function campusOptionLabel\(/, 'schedule page should share the campus option label helper so dropdowns prefer campus names');
+assert.doesNotMatch(fnBody('scheduleSelectedStudentHomeCampusMeta'), /\|\|campusIds\[0\]|\|\|id/, 'schedule home campus summary should not fall back to raw campus codes');
 assert.match(source, /function campusVenueRule\(/, 'schedule page should share a campus venue rule helper');
 assert.match(source, /function campusVenueRule\([\s\S]*mode:'text'/, 'shared campus venue rules should allow free-form court input for every campus');
 assert.match(fnBody('openScheduleModal'), /地点类型[\s\S]*校区内[\s\S]*校区外/, 'schedule modal should support in-campus and off-campus lesson location types');

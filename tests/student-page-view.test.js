@@ -88,6 +88,8 @@ assert.match(source, /id="purchaseEditSaveBtn"[\s\S]*onclick="savePurchaseEdit\(
 assert.match(source, /document\.getElementById\('purchaseCreateSaveBtn'\)/, 'purchase create save flow should target its real footer button');
 assert.match(source, /document\.getElementById\('purchaseEditSaveBtn'\)/, 'purchase edit save flow should target its real footer button');
 assert.match(source, /实际成交价与系统价格不一致时必填/, 'purchase modal should require an override reason when final price differs');
+assert.match(source, /购买后的学员、课包、归属教练、销售校区不能直接改，请作废后重建/, 'purchase edit modal should warn that ownership fields are no longer directly editable');
+assert.match(source, /\['pur_edit_studentId_dropdown','pur_edit_packageId_dropdown','pur_edit_ownerCoach_dropdown','pur_edit_saleCampusId_dropdown'\]/, 'purchase edit modal should lock core ownership dropdowns');
 assert.match(source, /tms-readonly-text/, 'student detail long readonly fields should use padded readonly text blocks');
 assert.match(source, /purchase-coach-wrap[\s\S]*purchase-notes-row/, 'purchase modal should leave space between allowed coaches and notes');
 assert.match(source, /购买日期<\/th><th style="width:120px">学员\/支付<\/th><th style="width:170px">课包\/课程<\/th><th style="width:90px">实收<\/th><th style="width:95px">余额<\/th><th style="width:135px">有效期<\/th><th style="width:80px">状态<\/th><th style="width:95px">归属教练<\/th>/, 'purchase record table should split validity and status into compact ordered columns');

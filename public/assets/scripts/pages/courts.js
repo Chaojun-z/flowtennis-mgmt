@@ -925,7 +925,7 @@ let courtImportState={fileName:'',rows:[],summary:null};
 function openCourtImport(){
   courtImportState={fileName:'',rows:[],summary:null};
   document.getElementById('importTitle').textContent='导入订场用户';
-  document.getElementById('importBody').innerHTML=`<div class="import-grid"><div class="import-box"><label class="import-drop" for="courtImportFile"><strong>点击选择 CSV 文件</strong><div class="import-drop-sub">支持 UTF-8（fatal）/ GB18030 / GBK 编码，额外列会自动忽略</div></label><input class="import-file" id="courtImportFile" type="file" accept=".csv,text/csv" onchange="handleCourtImportFile(this)"><div class="import-meta" id="courtImportMeta"><span class="import-pill">未选择文件</span></div><div class="import-note" style="margin-top:10px">导入规则：<br>1. 必填字段：姓名。<br>2. 校区可留空。<br>3. 余额/储值默认 0。<br>4. 序号不会入库。<br>5. 已存在的用户会按手机号优先、否则按“姓名+校区”去重。<br>6. 末次跟进日期、下次跟进日期会一并导入。</div></div><div class="import-box"><div class="import-note"><strong>建议列名</strong><br>姓名、手机号、关联学员、校区、余额、储值、消费金额、对接人、对储值态度、熟悉程度、加入日期、末次跟进日期、下次跟进日期、备注<br><br><strong>特殊字段</strong><br>基本情况、沟通情况等，会自动保留到备注中。</div></div></div><div style="margin-top:14px" id="courtImportPreview"><div class="import-empty">请选择 CSV 文件后预览数据</div></div><div class="import-actions"><button class="btn-cancel" onclick="closeCourtImport()">取消</button><button class="btn-save" id="courtImportBtn" onclick="runCourtImport()" disabled>导入</button></div>`;
+  document.getElementById('importBody').innerHTML=`<div class="import-grid"><div class="import-box"><label class="import-drop" for="courtImportFile"><strong>点击选择 CSV 文件</strong><div class="import-drop-sub">支持 UTF-8（fatal）/ GB18030 / GBK 编码，额外列会自动忽略</div></label><input class="import-file" id="courtImportFile" type="file" accept=".csv,text/csv" onchange="handleCourtImportFile(this)"><div class="import-meta" id="courtImportMeta"><span class="import-pill">未选择文件</span></div><div class="import-note" style="margin-top:10px">导入规则：<br>1. 必填字段：姓名。<br>2. 校区可留空。<br>3. 余额/储值/消费金额不会再导入正式账。<br>4. 序号不会入库。<br>5. 已存在的用户会按手机号优先、否则按“姓名+校区”去重。<br>6. 末次跟进日期、下次跟进日期会一并导入。</div></div><div class="import-box"><div class="import-note"><strong>建议列名</strong><br>姓名、手机号、关联学员、校区、对接人、对储值态度、熟悉程度、加入日期、末次跟进日期、下次跟进日期、备注<br><br><strong>特殊字段</strong><br>基本情况、沟通情况，以及历史余额/储值/消费金额等列，会自动保留到备注中，不直接入账。</div></div></div><div style="margin-top:14px" id="courtImportPreview"><div class="import-empty">请选择 CSV 文件后预览数据</div></div><div class="import-actions"><button class="btn-cancel" onclick="closeCourtImport()">取消</button><button class="btn-save" id="courtImportBtn" onclick="runCourtImport()" disabled>导入</button></div>`;
   document.getElementById('importOv').classList.add('open');
 }
 function closeCourtImport(){
@@ -997,7 +997,7 @@ function getCourtDedupKeys(item){
 }
 function normalizeCampusCode(value){
   const raw=String(value||'').trim();
-  if(!raw)return 'mabao';
+  if(!raw)return '';
   if(CAMPUS[raw])return raw;
   const match=Object.entries(CAMPUS).find(([,name])=>String(name).trim()===raw);
   return match?match[0]:raw;
@@ -1011,23 +1011,17 @@ function normalizeCourtImportRows(rawRows){
     const phone=readRowValue(row,['手机号','电话','手机','联系方式']);
     const studentId=resolveStudentIdByText(readRowValue(row,['关联学员','学员','学员姓名','关联学员姓名'])||phone||name);
     const campusRaw=readRowValue(row,['校区','门店','区域']);
-    const campus=normalizeCampusCode(campusRaw||'mabao');
-    const balanceRaw=readRowValue(row,['余额']);
-    const depositRaw=readRowValue(row,['储值','历史储值','总储值','累计储值']);
+    const campus=normalizeCampusCode(campusRaw||'');
     const joinDate=readRowValue(row,['加入日期','加入时间','日期']);
     const recentFollowUpDate=readRowValue(row,['末次跟进日期','末次跟进','最近跟进日期','最近跟进','跟进日期']);
     const nextFollowUpDate=readRowValue(row,['下次跟进日期','下次跟进','跟进提醒日期']);
-    const spentAmount=readRowValue(row,['消费金额','消费','消费金额（仅自己订场部分）']);
     const owner=readRowValue(row,['对接人','负责人']);
     const depositAttitude=readRowValue(row,['对储值态度','对储值的态度']);
     const familiarity=readRowValue(row,['熟悉程度']);
     const baseNotes=[readRowValue(row,['备注','说明']),readRowValue(row,['基本情况']),readRowValue(row,['沟通情况'])].filter(Boolean).join('；');
     const extras=collectUnknownNotes(row,['序号','姓名','用户名','用户','订场用户','名称','客户','手机号','电话','手机','联系方式','关联学员','学员','学员姓名','关联学员姓名','校区','门店','区域','余额','储值','历史储值','总储值','累计储值','加入日期','加入时间','日期','末次跟进日期','末次跟进','最近跟进日期','最近跟进','跟进日期','下次跟进日期','下次跟进','跟进提醒日期','备注','说明','基本情况','沟通情况','消费金额','消费','消费金额（仅自己订场部分）','对接人','负责人','对储值态度','对储值的态度','熟悉程度']);
     const notes=[baseNotes,...extras].filter(Boolean).join('；');
-    const parsedSpent=importMoney(spentAmount);
-    const parsedDeposit=importMoney(depositRaw)||extractDepositAmountFromText(depositAttitude);
-    const inferredBalance=!hasImportValue(balanceRaw)&&parsedDeposit>0&&parsedSpent>0?Math.max(0,parsedDeposit-parsedSpent):importMoney(balanceRaw);
-    const item={name,phone,studentId,campus,balance:inferredBalance,totalDeposit:parsedDeposit||0,spentAmount:parsedSpent,owner,depositAttitude,familiarity,joinDate,recentFollowUpDate,nextFollowUpDate,notes,status:'active',history:[]};
+    const item={name,phone,studentId,campus,owner,depositAttitude,familiarity,joinDate,recentFollowUpDate,nextFollowUpDate,notes,status:'active',history:[]};
     const keys=getCourtDedupKeys(item);
     let status='待导入';
     let reason='';
@@ -1065,9 +1059,9 @@ function renderCourtImportPreview(){
     const cls=r._status==='待导入'?'ok':r._status==='重复'?'warn':'err';
     const statusText=r._status==='待导入'?'可导入':r._status==='重复'?`已跳过：${r._reason}`:`无效：${r._reason}`;
     const st=r.studentId?students.find(s=>s.id===r.studentId):null;
-    return `<tr class="import-row ${cls}"><td>${esc(r.name||'')}</td><td>${esc(r.phone||'')}</td><td>${esc(st?.name||'')}</td><td>${cn(r.campus)||esc(r.campus||'')}</td><td>${fmt(r.balance)||0}</td><td>${fmt(r.totalDeposit)||0}</td><td>${fmt(r.spentAmount)||0}</td><td>${esc(r.owner||'')}</td><td>${esc(r.depositAttitude||'')}</td><td>${esc(r.familiarity||'')}</td><td>${esc(r.joinDate||'')}</td><td>${esc(r.recentFollowUpDate||'')}</td><td>${esc(r.nextFollowUpDate||'')}</td><td style="max-width:240px;white-space:normal;word-break:break-word">${esc(r.notes||'')}</td><td><span class="import-status ${cls}">${statusText}</span></td></tr>`;
+    return `<tr class="import-row ${cls}"><td>${esc(r.name||'')}</td><td>${esc(r.phone||'')}</td><td>${esc(st?.name||'')}</td><td>${esc(cn(r.campus)||'未设置')}</td><td>${esc(r.owner||'')}</td><td>${esc(r.depositAttitude||'')}</td><td>${esc(r.familiarity||'')}</td><td>${esc(r.joinDate||'')}</td><td>${esc(r.recentFollowUpDate||'')}</td><td>${esc(r.nextFollowUpDate||'')}</td><td style="max-width:240px;white-space:normal;word-break:break-word">${esc(r.notes||'')}</td><td><span class="import-status ${cls}">${statusText}</span></td></tr>`;
   }).join('');
-  host.innerHTML=`<div class="import-table-wrap"><table class="import-table"><thead><tr><th>姓名</th><th>手机号</th><th>关联学员</th><th>校区</th><th>余额</th><th>储值</th><th>消费金额</th><th>对接人</th><th>对储值态度</th><th>熟悉程度</th><th>加入日期</th><th>末次跟进日期</th><th>下次跟进日期</th><th>备注</th><th>结果</th></tr></thead><tbody>${previewRows}</tbody></table></div>${rows.length>50?`<div class="import-note" style="margin-top:8px">仅预览前 50 行，实际会按全部可导入数据执行。</div>`:''}`;
+  host.innerHTML=`<div class="import-table-wrap"><table class="import-table"><thead><tr><th>姓名</th><th>手机号</th><th>关联学员</th><th>校区</th><th>对接人</th><th>对储值态度</th><th>熟悉程度</th><th>加入日期</th><th>末次跟进日期</th><th>下次跟进日期</th><th>备注</th><th>结果</th></tr></thead><tbody>${previewRows}</tbody></table></div>${rows.length>50?`<div class="import-note" style="margin-top:8px">仅预览前 50 行，实际会按全部可导入数据执行。</div>`:''}`;
 }
 async function handleCourtImportFile(input){
   const file=input.files&&input.files[0];
@@ -1090,7 +1084,7 @@ async function runCourtImport(){
   btn.disabled=true;btn.textContent=`导入中 0/${rows.length}`;
   let success=0,failed=0;
   try{
-    const makePayload=row=>({name:row.name,phone:row.phone,studentId:row.studentId,campus:row.campus,balance:row.balance,totalDeposit:row.totalDeposit,spentAmount:row.spentAmount,owner:row.owner,depositAttitude:row.depositAttitude,familiarity:row.familiarity,joinDate:row.joinDate,recentFollowUpDate:row.recentFollowUpDate,nextFollowUpDate:row.nextFollowUpDate,notes:row.notes,status:'active',history:[]});
+    const makePayload=row=>({name:row.name,phone:row.phone,studentId:row.studentId,campus:row.campus,owner:row.owner,depositAttitude:row.depositAttitude,familiarity:row.familiarity,joinDate:row.joinDate,recentFollowUpDate:row.recentFollowUpDate,nextFollowUpDate:row.nextFollowUpDate,notes:row.notes,status:'active',history:[]});
     for(let i=0;i<rows.length;i+=20){
       const batchRows=rows.slice(i,i+20);
       const payload=batchRows.map(makePayload);

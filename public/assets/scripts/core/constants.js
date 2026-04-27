@@ -1,11 +1,24 @@
 const API='';
 let CAMPUS={};
+const CAMPUS_DISPLAY_FALLBACK={
+  mabao:'顺义马坡',
+  shilipu:'朝阳十里堡',
+  guowang:'朝阳国网',
+  langang:'朝阳蓝色港湾',
+  chaojun:'朝珺私教'
+};
 function cn(k){
   const raw=String(k??'').trim();
   if(!raw||raw==='undefined'||raw==='null')return '';
+  if(raw==='__external__')return '';
   if(CAMPUS[raw])return CAMPUS[raw];
+  if(CAMPUS_DISPLAY_FALLBACK[raw])return CAMPUS_DISPLAY_FALLBACK[raw];
   const hit=campuses.find(c=>[c.code,c.id,c.name].map(v=>String(v||'').trim()).includes(raw));
-  return hit?.name||raw;
+  if(hit?.name)return hit.name;
+  return /^[a-z0-9_-]+$/i.test(raw)?'':raw;
+}
+function campusOptionLabel(item={}){
+  return String(item.name||'').trim()||cn(item.code||item.id)||'未命名校区';
 }
 function campusOpts(sel){return Object.entries(CAMPUS).map(([k,v])=>`<option value="${k}"${sel===k?' selected':''}>${v}</option>`).join('');}
 function normalizeCampusVenueRuleKey(raw=''){

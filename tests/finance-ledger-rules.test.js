@@ -19,6 +19,8 @@ assert.match(source, /purchase\.saleCampusId\|\|entitlementCampus\|\|purchase\.c
 assert.match(source, /if\(actionType==='核销'\)return '已入账';/, 'finance ledger should treat write-off rows as recognized revenue actions');
 assert.match(source, /if\(actionType==='留痕'\)return '记录';/, 'finance ledger should preserve trace-only rows as non-revenue records');
 assert.match(source, /if\(userId==='match-court-finance'\)return '顺义马坡';/, 'finance ledger should pin match-court-finance to mabao campus');
-assert.match(source, /const finalBookingRecognized=overviewFromApi\?bookingRecognized:ledgerRows\.filter\(row=>\['散客订场','约球局'\]\.includes\(row\.businessType\)\)/, 'booking recognized summary should exclude member stored-value consumption from the owner-facing booking card');
+assert.match(source, /const bookingOverviewRows=overviewFromApi\?\[\]:ledgerRows\.filter\(row=>\{[\s\S]*paymentChannel\|\|''\)\.trim\(\)==='历史导入'[\s\S]*期初导入汇总\|历史导入/, 'booking overview cards should exclude historical import and migration-only booking rows from the owner-facing summary');
+assert.match(source, /const finalBookingIncome=overviewFromApi\?bookingIncome:bookingOverviewRows\.reduce/, 'booking income summary should only use the filtered operating booking rows');
+assert.match(source, /const finalBookingRecognized=overviewFromApi\?bookingRecognized:bookingOverviewRows\.reduce/, 'booking recognized summary should use the same operating booking rows as booking income');
 
 console.log('finance ledger rules tests passed');

@@ -87,7 +87,7 @@ function getStudentDuplicateCandidates(input,editingId=''){
   });
 }
 function studentCampusOptions(){
-  return [{value:'',label:'-'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
+  return [{value:'',label:'-'},...campuses.map(c=>({value:c.code||c.id,label:campusOptionLabel(c)}))];
 }
 function renderStudents(){
   renderStudentToolbarFilters();
