@@ -512,6 +512,26 @@ assert.strictEqual(cleared.historyRows[0].type, '冲正');
 assert.strictEqual(cleared.historyRows[0].category, '会员到期清零');
 assert.strictEqual(cleared.historyRows[0].amount, 5498);
 
+const reconcilePreview = rules.buildMembershipReconcilePreview({
+  changedAccounts: cleared.accounts,
+  events: cleared.events,
+  historyRows: cleared.historyRows
+});
+assert.strictEqual(reconcilePreview.confirmRequired, true);
+assert.strictEqual(reconcilePreview.changedAccountCount, 1);
+assert.strictEqual(reconcilePreview.eventCount, 1);
+assert.strictEqual(reconcilePreview.historyRowCount, 1);
+assert.ok(/^[a-f0-9]{16}$/.test(reconcilePreview.confirmToken), 'membership reconcile preview should expose a stable short confirm token');
+
+assert.rejects(
+  () => rules.runMembershipReconcile({
+    accounts: [first.account],
+    courts: [{ ...court, history: [first.historyRow] }]
+  }, { persist: true, confirmToken: 'stale-token', today: '2028-04-05', now: '2028-04-05T00:00:00.000Z' }),
+  /请先预演，再使用最新确认口令执行/,
+  'membership reconcile persist should reject stale confirm tokens'
+);
+
 const benefitSummary = rules.summarizeMembershipBenefits({
   orders: [first.order],
   ledger: [{

@@ -158,6 +158,7 @@ assert.strictEqual(audit.externalCampusRiskCount, 0, 'finance audit should stop 
 assert.strictEqual(audit.autoFixedCampusCount, 3, 'finance audit should expose how many rows were auto-fixed by import campus clues');
 assert.strictEqual(audit.autoFixedDateCount, 2, 'finance audit should expose how many rows had business dates auto-filled from import text clues');
 assert.strictEqual(audit.autoTraceOnlyCount, 1, 'finance audit should expose how many zero-amount historical imports were downgraded to trace-only rows');
+assert.ok(Array.isArray(audit.manualReviewItems), 'finance audit should expose manual review items for strict audit workflows');
 assert.strictEqual(audit.details.length, 10, 'finance audit should expose the extended anomaly detail checklist');
 assert.strictEqual(audit.details[0].type, '缺校区', 'finance audit detail should include missing campus checks');
 assert.strictEqual(audit.details[0].suggestion, '补真实发生校区后再入经营口径', 'finance audit detail should expose actionable handling guidance');

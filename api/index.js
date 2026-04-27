@@ -1,6 +1,7 @@
 const TableStore = require('tablestore');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const mabaoFinanceSeed = require('./seeds/mabao-finance-seed.json');
@@ -2086,6 +2087,7 @@ function buildFinanceAudit(rows=[],overview=null){
     autoFixedCampusCount:autoFixedCampusRows.length,
     autoFixedDateCount:autoFixedDateRows.length,
     autoTraceOnlyCount:traceOnlyImportRows.length,
+    manualReviewItems:actionItems,
     cashGap,
     recognizedGap,
     deferredGap,
@@ -4020,6 +4022,12 @@ function releaseRecentMembershipOrderRequest(key,{keep=false}={}){
   if(!key)return;
   if(!keep)recentMembershipOrderRequests.delete(key);
 }
+function financeAuditManualReviewItems(audit={}){
+  return Array.isArray(audit?.actionItems)?audit.actionItems:[];
+}
+function hashConfirmToken(payload={}){
+  return crypto.createHash('sha1').update(JSON.stringify(payload)).digest('hex').slice(0,16);
+}
 function buildMembershipBenefitLedgerRecord(input,opts={}){
   if(!input?.membershipOrderId)throw new Error('会员权益流水必须关联购买批次');
   if(!input?.membershipAccountId)throw new Error('会员权益流水必须关联会员账户');
@@ -4149,6 +4157,43 @@ function reconcileMembershipAccounts({accounts=[],courts=[],today=new Date().toI
   }
   return {accounts:nextAccounts,events,historyRows};
 }
+function buildMembershipReconcilePreview({changedAccounts=[],events=[],historyRows=[]}={}){
+  const payload={
+    changedAccounts:(changedAccounts||[]).map(row=>({
+      id:row?.id||'',
+      status:row?.status||'',
+      autoExtended:!!row?.autoExtended,
+      validUntil:row?.validUntil||'',
+      hardExpireAt:row?.hardExpireAt||''
+    })),
+    events:(events||[]).map(row=>({
+      membershipAccountId:row?.membershipAccountId||'',
+      courtId:row?.courtId||'',
+      eventType:row?.eventType||'',
+      beforeStatus:row?.beforeStatus||'',
+      afterStatus:row?.afterStatus||''
+    })),
+    historyRows:(historyRows||[]).map(row=>({
+      courtId:row?.courtId||'',
+      membershipAccountId:row?.membershipAccountId||'',
+      type:row?.type||'',
+      category:row?.category||'',
+      amount:normalizeMoney(row?.amount)
+    }))
+  };
+  const changedAccountCount=payload.changedAccounts.length;
+  const eventCount=payload.events.length;
+  const historyRowCount=payload.historyRows.length;
+  const totalChanges=changedAccountCount+eventCount+historyRowCount;
+  return {
+    changedAccountCount,
+    eventCount,
+    historyRowCount,
+    totalChanges,
+    confirmRequired:totalChanges>0,
+    confirmToken:hashConfirmToken(payload)
+  };
+}
 function legacyCourtFinanceWarnings(court){
   const total=normalizeMoney(court?.totalDeposit);
   const balance=normalizeMoney(court?.balance);
@@ -4264,18 +4309,25 @@ async function importCourtRows(rows){
   }
   return {success,failed,errors};
 }
-async function runMembershipReconcile(rows,{persist=false}={}){
+async function runMembershipReconcile(rows,{persist=false,confirmToken='',today='',now=''}={}){
   const accounts=Array.isArray(rows?.accounts)?rows.accounts:await getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]);
   const courts=Array.isArray(rows?.courts)?rows.courts:await getCachedScan(T_COURTS).catch(()=>[]);
-  const result=reconcileMembershipAccounts({accounts,courts});
+  const reconcileNow=String(now||new Date().toISOString());
+  const reconcileToday=String(today||reconcileNow.slice(0,10));
+  const result=reconcileMembershipAccounts({accounts,courts,today:reconcileToday,now:reconcileNow});
   const accountMap=new Map((accounts||[]).map(a=>[a.id,a]));
   const changedAccounts=result.accounts.filter(a=>JSON.stringify(a)!==JSON.stringify(accountMap.get(a.id)));
+  const preview=buildMembershipReconcilePreview({changedAccounts,events:result.events,historyRows:result.historyRows});
+  if(persist&&preview.totalChanges>0&&String(confirmToken||'').trim()!==preview.confirmToken){
+    throw new Error('请先预演，再使用最新确认口令执行');
+  }
   const courtMap=new Map((courts||[]).map(c=>[c.id,c]));
+  const commitNow=reconcileNow;
   for(const row of result.historyRows){
     const court=courtMap.get(row.courtId);
     if(!court)continue;
     const history=[...normalizeCourtHistory(court.history),row];
-    const next=normalizeCourtRecord({...court,history,updatedAt:new Date().toISOString()});
+    const next=normalizeCourtRecord({...court,history,updatedAt:commitNow});
     courtMap.set(court.id,next);
     if(persist)await put(T_COURTS,court.id,next);
   }
@@ -4283,7 +4335,7 @@ async function runMembershipReconcile(rows,{persist=false}={}){
     for(const account of changedAccounts)await put(T_MEMBERSHIP_ACCOUNTS,account.id,account);
     for(const event of result.events)await put(T_MEMBERSHIP_ACCOUNT_EVENTS,event.id,event);
   }
-  return {...result,accounts:result.accounts,courts:[...courtMap.values()],dryRun:!persist};
+  return {...result,...preview,accounts:result.accounts,courts:[...courtMap.values()],dryRun:!persist,applied:!!persist&&preview.totalChanges>0};
 }
 function assertPurchaseCoreFieldsLocked(oldPurchase,body={}){
   const protectedFields=['studentId','packageId','ownerCoach','saleCampusId','allowedCoaches'];
@@ -4780,7 +4832,8 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const confirm=body?.confirm===true;
-      return sendJson(res,await runMembershipReconcile(undefined,{persist:confirm}));
+      if(!confirm)return sendJson(res,await runMembershipReconcile(undefined,{persist:false}));
+      return sendJson(res,await runMembershipReconcile(undefined,{persist:true,confirmToken:body?.confirmToken||''}));
     }
     if(path==='/membership-accounts'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
@@ -5327,10 +5380,13 @@ module.exports._test={
   buildFinanceOverview,
   buildFinanceAudit,
   runFinanceAuditSnapshot,
+  financeAuditManualReviewItems,
   assertCampusExists,
   normalizeMembershipFinanceLink,
   allocateMembershipBenefitUsage,
   reconcileMembershipAccounts,
+  buildMembershipReconcilePreview,
+  runMembershipReconcile,
   mergeCourtRecords,
   normalizeMembershipPlanViewRecord,
   normalizeMembershipOrderViewRecord,
