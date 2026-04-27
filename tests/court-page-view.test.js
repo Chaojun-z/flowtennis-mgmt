@@ -9,5 +9,6 @@ function fnBody(name){
 }
 
 assert.match(fnBody('scheduleTimeRangeControls'), /refreshScheduleTimeDerivedFields/, 'schedule time range controls should refresh lesson hours when date or time changes');
+assert.match(html, /<th style="width:64px">重复\?<\/th>/, 'schedule table should expose a dedicated repeat column beside course type');
 
 console.log('court page view tests passed');

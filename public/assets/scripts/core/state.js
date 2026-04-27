@@ -6,6 +6,10 @@ function syncViewportMode(){
 }
 
 let courts=[],students=[],products=[],packages=[],purchases=[],entitlements=[],entitlementLedger=[],financialLedger=[],membershipPlans=[],membershipAccounts=[],membershipOrders=[],membershipBenefitLedger=[],membershipAccountEvents=[],pricePlans=[],plans=[],schedules=[],coaches=[],classes=[],campuses=[],feedbacks=[],adminUsers=[],matches=[];
+let financeOverviewData=null,financeNormalizedLedgerRows=[];
+function financeNormalizedRows(){
+  return Array.isArray(financeNormalizedLedgerRows)?financeNormalizedLedgerRows:[];
+}
 window.coachWorkbenchStats=window.coachWorkbenchStats||{};
 let adminUsersLoaded=false;
 let modalCleanupTimer=null;
@@ -262,6 +266,8 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
       setDatasetValue('membershipOrders',data.membershipOrders||[]);
       setDatasetValue('membershipBenefitLedger',data.membershipBenefitLedger||[]);
       setDatasetValue('membershipAccountEvents',data.membershipAccountEvents||[]);
+      financeOverviewData=data.financeOverviewData||null;
+      financeNormalizedLedgerRows=Array.isArray(data.financeNormalizedRows)?data.financeNormalizedRows:[];
       loadedDatasets.add('financePage');
       return;
     }
@@ -333,6 +339,7 @@ function clearLoadedData(){
   courts=[];students=[];products=[];packages=[];purchases=[];entitlements=[];entitlementLedger=[];financialLedger=[];
   membershipPlans=[];membershipAccounts=[];membershipOrders=[];membershipBenefitLedger=[];membershipAccountEvents=[];pricePlans=[];
   plans=[];schedules=[];coaches=[];classes=[];campuses=[];feedbacks=[];adminUsers=[];matches=[];adminUsersLoaded=false;
+  financeOverviewData=null;financeNormalizedLedgerRows=[];
   loadedDatasets=new Set();
 }
 function normalizeCurrentPageForRole(){
@@ -371,6 +378,8 @@ function applyLoadedData(data){
   campuses=Array.isArray(data?.campuses)?data.campuses:[];
   feedbacks=Array.isArray(data?.feedbacks)?data.feedbacks:[];
   matches=Array.isArray(data?.matches)?data.matches:[];
+  financeOverviewData=data?.financeOverviewData||null;
+  financeNormalizedLedgerRows=Array.isArray(data?.financeNormalizedRows)?data.financeNormalizedRows:[];
   loadedDatasets=new Set(['courts','students','products','packages','purchases','entitlements','entitlementLedger','financialLedger','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','pricePlans','plans','schedule','coaches','classes','campuses','feedbacks','matches']);
   if(data?.user){
     currentUser=data.user;

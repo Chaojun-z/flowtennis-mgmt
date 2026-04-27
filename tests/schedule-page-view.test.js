@@ -23,7 +23,16 @@ assert.match(fnBody('refreshSchEntitlementOptions'), /scheduleId:editId\|\|''/, 
 assert.match(fnBody('refreshSchEntitlementOptions'), /lessonCount:parseFloat\(document\.getElementById\('sch_lc'\)\?\.value\)\|\|1/, 'entitlement recommendation should accept fractional lesson hours');
 assert.match(fnBody('openCancelScheduleModal'), /确认取消/, 'schedule cancel should use a dedicated confirm modal instead of reopening the edit form');
 assert.match(fnBody('openCancelScheduleModal'), /取消本节及后续未上课的循环课/, 'repeat schedules should expose a future-lessons cancel option');
+assert.match(fnBody('openCancelScheduleModal'), /schedule-cancel-summary/, 'schedule cancel modal should use a readable summary block instead of low-contrast warning text');
+assert.match(fnBody('openCancelScheduleModal'), /schedule-cancel-scope/, 'schedule cancel modal should render the cancellation scope options in a dedicated stacked layout');
 assert.match(fnBody('confirmScheduleCancel'), /effectiveScheduleStatus\(item\)==='已排课'/, 'repeat cancellation should only touch not-yet-started lessons');
 assert.match(fnBody('confirmScheduleCancel'), /scope==='future'/, 'repeat cancellation should support current-and-future scope');
+assert.doesNotMatch(fnBody('confirmScheduleCancel'), /window\.confirm\(/, 'schedule cancel flow should not fall back to the browser confirm');
+assert.match(fnBody('saveSchedule'), /openScheduleSaveConfirmModal\(/, 'schedule save should open the in-app confirm modal');
+assert.doesNotMatch(fnBody('saveSchedule'), /window\.confirm\(/, 'schedule save flow should not fall back to the browser confirm');
+assert.match(source, /function refreshScheduleSettlementMode\(/, 'schedule page should define the settlement mode refresh helper before opening the modal');
+assert.match(source, /function campusOptionLabel\(/, 'schedule page should define the campus option label helper used by the modal');
+assert.match(source, /function scheduleRepeatDisplayText\(/, 'schedule list should define a repeat display helper');
+assert.match(fnBody('renderSchedule'), /scheduleRepeatDisplayText\(s\)/, 'schedule rows should render a user-facing repeat value');
 
 console.log('schedule page view tests passed');
