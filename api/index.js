@@ -20,7 +20,7 @@ const DEFAULT_ADMIN_BOOTSTRAP_PASSWORD = process.env.DEFAULT_ADMIN_BOOTSTRAP_PAS
 const WECHAT_MINIPROGRAM_APPID = process.env.WECHAT_MINIPROGRAM_APPID || 'wx7acb7603ee803923';
 const WECHAT_MINIPROGRAM_SECRET = process.env.WECHAT_MINIPROGRAM_SECRET;
 const MATCH_MINIPROGRAM_APPID = process.env.MATCH_MINIPROGRAM_APPID || '';
-const MATCH_MINIPROGRAM_SECRET = process.env.MATCH_MINIPROGRAM_SECRET;
+const MATCH_MINIPROGRAM_SECRET = process.env.MATCH_MINIPROGRAM_SECRET || '';
 const WECHAT_SCHEDULE_TEMPLATE_ID = process.env.WECHAT_SCHEDULE_TEMPLATE_ID;
 const WECHAT_COURSE_REMINDER_TEMPLATE_ID = process.env.WECHAT_COURSE_REMINDER_TEMPLATE_ID;
 const MATCH_WECHAT_TEMPLATE_ID = process.env.MATCH_WECHAT_TEMPLATE_ID;
@@ -87,7 +87,7 @@ const hotGetCache=new Map();
 let importedLedgerRepairChecked=false;
 
 let tsClient;
-let wechatAccessTokenCache=null;
+const wechatAccessTokenCacheByApp = new Map();
 let matchSqlPool;
 function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
 function getMatchSqlPool(){
@@ -2385,6 +2385,7 @@ async function getMatchForViewer(matchId,viewerId){
   return toMatchView(match.rows[0],regs.rows,viewerId,splits.rows,viewerAttendance,attendance.rows,feeRecord.rows[0]||null);
 }
 async function createMatchForUser(userId,input){
+  if(!(await canMatchUserCreate(userId)))throw new Error('仅管理员可发起约球');
   const row=assertMatchPostInput(input);
   const id=uuidv4();
   await getMatchSqlPool().query(
@@ -2735,7 +2736,7 @@ async function getMatchProfile(userId){
   ]);
   const stats=buildMatchProfileStats({createdMatches:created.rows,joinedMatches:joined.rows,attendanceRows:attendance.rows,feeSplits:fees.rows});
   const user=userRes.rows[0]||{};
-  return {...stats,user:{id:user.id,phone:user.phone||'',nickName:user.nickname||user.nickName||'',avatarUrl:user.avatarurl||user.avatarUrl||'',ntrpLevel:user.ntrplevel||user.ntrpLevel||''}};
+  return {...stats,user:{id:user.id,phone:user.phone||'',nickName:user.nickname||user.nickName||'',avatarUrl:user.avatarurl||user.avatarUrl||'',ntrpLevel:user.ntrplevel||user.ntrpLevel||'',canCreateMatch:created.rows.length>0}};
 }
 async function updateMatchProfile(userId,input){
   const phone=assertPhone(input.phone||'');
@@ -4305,7 +4306,7 @@ module.exports = async (req, res) => {
           [matchUser.id,matchUser.openid,matchUser.unionid,matchUser.nickName,matchUser.avatarUrl,matchUser.phone,matchUser.ntrpLevel]
         );
       }
-      return sendJson(res,{token:buildMatchUserToken(matchUser),user:{id:matchUser.id,type:'match_user',openid:matchUser.openid,phone:matchUser.phone||'',ntrpLevel:matchUser.ntrplevel||matchUser.ntrpLevel||''}});
+      return sendJson(res,{token:buildMatchUserToken(matchUser),user:{id:matchUser.id,type:'match_user',openid:matchUser.openid,phone:matchUser.phone||'',ntrpLevel:matchUser.ntrplevel||matchUser.ntrpLevel||'',canCreateMatch:await canMatchUserCreate(matchUser.id)}});
     }
     if(path==='/matches'&&method==='GET'){
       const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
