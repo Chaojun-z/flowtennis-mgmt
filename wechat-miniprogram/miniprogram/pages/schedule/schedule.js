@@ -72,6 +72,7 @@ function adaptSchedule(raw = [], feedbacks = []) {
 }
 
 function decorateTimetableDays(days = []) {
+  const now = new Date();
   return days.map((item) => ({
     ...item,
     displayDate: item.isToday ? String(item.date || '').replace('日', '').replace(/^0/, '') : item.date,
@@ -79,13 +80,15 @@ function decorateTimetableDays(days = []) {
     columnClass: item.isToday ? 'tt-day-column-active' : '',
     items: (item.items || []).map((course) => {
       const tag = timetableCourseTag(course);
-      const todo = workbenchTodoState(course);
+      const todo = workbenchTodoState(course, now);
+      const endedClass = scheduleEnded(course, now) ? 'tt-course-ended' : '';
       return {
         ...course,
         courseTagText: tag.text,
         courseTagClass: tag.className,
         accentClass: timetableAccentClass(tag.className),
-        todoLabel: todo ? todo.label : ''
+        todoLabel: todo ? todo.label : '',
+        endedClass
       };
     })
   }));
@@ -151,7 +154,9 @@ function hasTravelReminder(nextClass = null) {
 
 function buildWeekTodoCards(groups = []) {
   return groups.flatMap((group) => {
-    const [weekdayText = '', dateText = ''] = String(group.label || '').split(' ');
+    const labelParts = String(group.label || '').split(' ');
+    const weekdayText = labelParts[0] || '';
+    const dateText = labelParts[1] || '';
     return (group.items || []).map((item) => ({
       ...item,
       weekdayText,
@@ -241,36 +246,6 @@ function mergeWorkbenchStats(backendStats = {}, localStats = {}) {
   return { ...backendStats, ...localStats };
 }
 
-function upsertFeedbackRecord(feedbacks = [], feedback = null) {
-  if (!feedback || !feedback.id) return Array.isArray(feedbacks) ? feedbacks.slice() : [];
-  const list = Array.isArray(feedbacks) ? feedbacks.slice() : [];
-  const index = list.findIndex(item => String(item && item.id || '') === String(feedback.id));
-  if (index >= 0) {
-    list[index] = { ...list[index], ...feedback };
-    return list;
-  }
-  return [feedback, ...list];
-}
-
-function patchScheduleFeedbackState(schedule = [], feedback = null) {
-  const scheduleId = String(feedback && feedback.scheduleId || '').trim();
-  if (!scheduleId) return Array.isArray(schedule) ? schedule.slice() : [];
-  return (Array.isArray(schedule) ? schedule : []).map(item => {
-    if (String(item && item.id || '').trim() !== scheduleId) return item;
-    const nextItem = {
-      ...item,
-      hasFeedback: true,
-      feedbackPending: false,
-      feedbackId: feedback.id || item.feedbackId || '',
-      feedbackStatus: '已反馈'
-    };
-    return {
-      ...nextItem,
-      statusClass: statusClass(nextItem)
-    };
-  });
-}
-
 function currentCoachName() {
   const user = wx.getStorageSync(USER_KEY) || {};
   return String(user.coachName || user.name || '').trim();
@@ -330,7 +305,9 @@ function formatDateInputValue(value) {
 }
 
 function normalizeTimeValue(value = '') {
-  const [hour = '00', minute = '00'] = String(value || '').split(':');
+  const parts = String(value || '').split(':');
+  const hour = parts[0] || '00';
+  const minute = parts[1] || '00';
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
@@ -860,7 +837,7 @@ function posterTextLines(ctx, text, maxWidth, maxLines) {
   });
 }
 
-function posterDrawTextBlock(ctx, tpl, label, text, x, y, w, maxLines) {
+function posterMeasureTextBlock(ctx, text, w, maxLines) {
   ctx.font = '400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
   const lines = posterTextLines(ctx, text, w, maxLines);
   const paddingTop = 32;
@@ -868,6 +845,50 @@ function posterDrawTextBlock(ctx, tpl, label, text, x, y, w, maxLines) {
   const titleSpace = 52;
   const lineHeight = 48;
   const boxHeight = paddingTop + titleSpace + (lines.length > 0 ? lines.length - 1 : 0) * lineHeight + paddingBottom;
+  return { lines, boxHeight, consumedHeight: boxHeight + 28 };
+}
+
+function posterLayout(ctx, data) {
+  const contentWidth = 570;
+  const baseSections = [
+    { key: 'practicedToday', label: '今天练习了', text: data.practicedToday },
+    { key: 'knowledgePoint', label: '练习情况', text: data.knowledgePoint },
+    { key: 'nextTraining', label: '下次练习', text: data.nextTraining }
+  ];
+  const sections = baseSections.map((section) => {
+    const measured = posterMeasureTextBlock(ctx, section.text, contentWidth, Infinity);
+    return {
+      key: section.key,
+      label: section.label,
+      text: section.text,
+      lines: measured.lines,
+      boxHeight: measured.boxHeight,
+      consumedHeight: measured.consumedHeight
+    };
+  });
+  const contentStartY = 320;
+  let currentY = contentStartY;
+  sections.forEach(section => {
+    section.y = currentY;
+    currentY += section.consumedHeight;
+  });
+  const footerY = currentY + 62;
+  return {
+    sections,
+    canvasHeight: Math.max(1334, footerY + 120),
+    footerY
+  };
+}
+
+function posterDrawTextBlock(ctx, tpl, section, x, w) {
+  const label = section.label;
+  const lines = section.lines;
+  const boxHeight = section.boxHeight;
+  const y = section.y;
+  ctx.font = '400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  const paddingTop = 32;
+  const titleSpace = 52;
+  const lineHeight = 48;
   const boxY = y - paddingTop - 24;
   ctx.save();
   if (tpl.type === 'diagonalSplit') {
@@ -928,27 +949,29 @@ function posterDrawTextBlock(ctx, tpl, label, text, x, y, w, maxLines) {
     });
   });
   ctx.restore();
-  return boxHeight + 28;
 }
 
 function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
   const tpl = FEEDBACK_POSTER_TEMPLATES[templateKey] || FEEDBACK_POSTER_TEMPLATES.blueGreenDiagonal;
   const ctx = canvas.getContext('2d');
   canvas.width = 750;
-  canvas.height = 1334;
-  const grad = ctx.createLinearGradient(0, 0, 0, 1334);
+  const layout = posterLayout(ctx, data);
+  const canvasHeight = layout.canvasHeight;
+  canvas.width = 750;
+  canvas.height = layout.canvasHeight;
+  const grad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
   grad.addColorStop(0, tpl.bg1);
   grad.addColorStop(1, tpl.bg2);
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 750, 1334);
+  ctx.fillRect(0, 0, 750, canvasHeight);
   ctx.save();
   if (tpl.type === 'diagonalSplit') {
     ctx.fillStyle = tpl.accent;
     ctx.beginPath();
-    ctx.moveTo(0, 950);
-    ctx.lineTo(750, 1100);
-    ctx.lineTo(750, 1334);
-    ctx.lineTo(0, 1334);
+    ctx.moveTo(0, canvasHeight - 384);
+    ctx.lineTo(750, canvasHeight - 234);
+    ctx.lineTo(750, canvasHeight);
+    ctx.lineTo(0, canvasHeight);
     ctx.fill();
     ctx.strokeStyle = '#4A8DB7';
     ctx.lineWidth = 14;
@@ -1003,10 +1026,10 @@ function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
   } else if (tpl.type === 'split') {
     ctx.fillStyle = tpl.bg2;
     ctx.beginPath();
-    ctx.moveTo(0, 1334);
-    ctx.lineTo(750, 1334);
+    ctx.moveTo(0, canvasHeight);
+    ctx.lineTo(750, canvasHeight);
     ctx.lineTo(750, 450);
-    ctx.lineTo(0, 950);
+    ctx.lineTo(0, canvasHeight - 384);
     ctx.fill();
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 18;
@@ -1029,10 +1052,10 @@ function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
     for (let i = 0; i < 750; i += 40) {
       ctx.beginPath();
       ctx.moveTo(i, 0);
-      ctx.lineTo(i, 1334);
+      ctx.lineTo(i, canvasHeight);
       ctx.stroke();
     }
-    for (let i = 0; i < 1334; i += 40) {
+    for (let i = 0; i < canvasHeight; i += 40) {
       ctx.beginPath();
       ctx.moveTo(0, i);
       ctx.lineTo(750, i);
@@ -1112,31 +1135,31 @@ function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
     ctx.fillRect(60, 235, 630, 2);
     ctx.globalAlpha = 1;
   }
-  let currentY = 320;
-  const contentWidth = 570;
-  currentY += posterDrawTextBlock(ctx, tpl, '今天练习了', data.practicedToday, 90, currentY, contentWidth, 4);
-  currentY += posterDrawTextBlock(ctx, tpl, '练习情况', data.knowledgePoint, 90, currentY, contentWidth, 5);
-  posterDrawTextBlock(ctx, tpl, '下次练习', data.nextTraining, 90, currentY, contentWidth, 4);
+  layout.sections.forEach(section => {
+    posterDrawTextBlock(ctx, tpl, section, 90, 570);
+  });
+  const footerY = layout.footerY;
   ctx.fillStyle = tpl.nameColor || tpl.ink;
   ctx.font = '900 34px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.fillText('网球兄弟', 60, 1235);
+  ctx.fillText('网球兄弟', 60, footerY);
   ctx.fillStyle = tpl.subColor || tpl.muted;
   ctx.font = '500 18px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
-  ctx.fillText('用网球向生活发出邀请', 60, 1270);
+  ctx.fillText('用网球向生活发出邀请', 60, footerY + 35);
   ctx.save();
   ctx.fillStyle = tpl.accent;
   if (tpl.type === 'sport') {
     ctx.beginPath();
-    ctx.moveTo(630, 1270);
-    ctx.lineTo(690, 1270);
-    ctx.lineTo(670, 1240);
+    ctx.moveTo(630, footerY + 35);
+    ctx.lineTo(690, footerY + 35);
+    ctx.lineTo(670, footerY + 5);
     ctx.fill();
   } else {
     ctx.beginPath();
-    ctx.arc(670, 1260, 10, 0, Math.PI * 2);
+    ctx.arc(670, footerY + 25, 10, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
+  return layout;
 }
 
 function feedbackPosterDataForMini(schedule = {}, form = {}) {
@@ -1337,7 +1360,6 @@ Page({
     savingFeedback: false,
     savingShiftSchedule: false,
     savingCancelSchedule: false,
-    needsWorkbenchRefresh: false,
     stats: { month: 0, week: 0, today: 0, feedback: 0, pending: 0, conversionText: '-', conversionUnit: '', nextTime: '暂无', nextText: '暂无', todo: 0 },
     selectedClass: null,
     selectedClassDetail: null,
@@ -1387,7 +1409,9 @@ Page({
     shiftsTabClass: '',
     posterStyle: '蓝绿对角',
     posterTemplateKey: 'blueGreenDiagonal',
-    posterStyles: POSTER_STYLE_OPTIONS
+    posterStyles: POSTER_STYLE_OPTIONS,
+    posterCanvasHeightRpx: 996,
+    posterPreviewImage: ''
   },
 
   onLoad() {
@@ -1395,7 +1419,7 @@ Page({
   },
 
   onShow() {
-    if (this.shouldRefreshOnShow()) this.load({ keepLoading: true });
+    if (this.data.hasLoaded) this.load({ keepLoading: true });
   },
 
   onPullDownRefresh() {
@@ -1430,20 +1454,15 @@ Page({
         coachMenuId,
         coachMenuAvatar: avatarText(displayName),
         loading: false,
-        hasLoaded: true,
-        needsWorkbenchRefresh: false
+        hasLoaded: true
       });
       this.renderWeek();
     } catch (err) {
       if (handleCoachAuthError(err)) return;
-      this.setData({ loading: false, hasLoaded: true, needsWorkbenchRefresh: false, error: err.message || '请先确认账号已绑定微信后重试' });
+      this.setData({ loading: false, hasLoaded: true, error: err.message || '请先确认账号已绑定微信后重试' });
     } finally {
       if (options.stopPullDown) wx.stopPullDownRefresh();
     }
-  },
-
-  shouldRefreshOnShow() {
-    return !!(this.data.hasLoaded && this.data.needsWorkbenchRefresh);
   },
 
   renderWeek() {
@@ -1743,32 +1762,6 @@ Page({
     this.setData({ feedbackEditing: true, feedbackFocusedField: '' });
   },
 
-  applyFeedbackPatch(selectedClass, savedFeedback) {
-    if (!selectedClass || !savedFeedback) return;
-    const feedbacks = upsertFeedbackRecord(this.data.feedbacks, savedFeedback);
-    const schedule = patchScheduleFeedbackState(this.data.schedule, savedFeedback);
-    const localStats = buildLocalWorkbenchStats(schedule, feedbacks, new Date());
-    const nextSelectedClass = schedule.find(item => String(item.id || '') === String(selectedClass.id || '')) || selectedClass;
-    this.setData({
-      schedule,
-      feedbacks,
-      selectedClass: nextSelectedClass,
-      selectedClassDetail: buildDetailData(nextSelectedClass, {
-        classes: this.data.classesRaw,
-        students: this.data.studentsRaw,
-        feedbacks,
-        coachName: currentCoachName()
-      }),
-      coachWorkbenchStats: {
-        ...this.data.coachWorkbenchStats,
-        monthFeedbackCount: localStats.monthFeedbackCount,
-        pendingFeedbackCount: localStats.pendingFeedbackCount
-      },
-      needsWorkbenchRefresh: false
-    });
-    this.renderWeek();
-  },
-
   async saveFeedback() {
     const selectedClass = this.data.selectedClass;
     if (!selectedClass || this.data.savingFeedback) return;
@@ -1787,7 +1780,7 @@ Page({
     const feedbackScope = feedbackScopeForSchedule(selectedClass);
     this.setData({ savingFeedback: true });
     try {
-      const savedFeedback = await saveCoachFeedback({
+      await saveCoachFeedback({
         id: currentFeedback ? currentFeedback.id : '',
         scheduleId: selectedClass.id,
         classId: selectedClass.classId || '',
@@ -1806,9 +1799,9 @@ Page({
         knowledgePoint,
         nextTraining
       });
-      this.applyFeedbackPatch(selectedClass, savedFeedback);
       wx.showToast({ title: '反馈已保存', icon: 'success' });
       this.closeSheets();
+      await this.load({ keepLoading: true });
     } catch (err) {
       wx.showToast({ title: err.message || '保存失败', icon: 'none' });
     } finally {
@@ -1823,7 +1816,8 @@ Page({
       feedbackSheetClass: '',
       posterSheetClass: 'sheet-show',
       posterDate: posterDateText(this.data.selectedClass || {}),
-      posterTemplateKey: this.data.posterTemplateKey || 'blueGreenDiagonal'
+      posterTemplateKey: this.data.posterTemplateKey || 'blueGreenDiagonal',
+      posterPreviewImage: ''
     });
     setTimeout(() => this.renderFeedbackPosterCanvas(), 80);
   },
@@ -1833,7 +1827,8 @@ Page({
       showPoster: false,
       showFeedback: true,
       posterSheetClass: '',
-      feedbackSheetClass: 'sheet-show'
+      feedbackSheetClass: 'sheet-show',
+      posterPreviewImage: ''
     });
   },
 
@@ -1849,20 +1844,30 @@ Page({
     query.select('#feedbackPosterCanvas').fields({ node: true, size: true }).exec((res) => {
       const canvas = res && res[0] && res[0].node;
       if (!canvas) return;
-      drawFeedbackPoster(
+      const layout = drawFeedbackPoster(
         canvas,
         feedbackPosterDataForMini(this.data.selectedClass || {}, this.data.feedbackForm || {}),
         this.data.posterTemplateKey || 'blueGreenDiagonal'
       );
+      this.setData({
+        posterCanvasHeightRpx: Math.round((layout.canvasHeight / 750) * 560)
+      });
+      this.updatePosterPreview();
     });
   },
 
-  createPosterTempFile(callback) {
+  updatePosterPreview() {
+    this.createPosterTempFile((path) => {
+      this.setData({ posterPreviewImage: path });
+    }, { silent: true });
+  },
+
+  createPosterTempFile(callback, options = {}) {
     const query = wx.createSelectorQuery().in(this);
     query.select('#feedbackPosterCanvas').fields({ node: true, size: true }).exec((res) => {
       const canvas = res && res[0] && res[0].node;
       if (!canvas) {
-        wx.showToast({ title: '海报生成失败', icon: 'none' });
+        if (!options.silent) wx.showToast({ title: '海报生成失败', icon: 'none' });
         return;
       }
       wx.canvasToTempFilePath({
@@ -1870,7 +1875,9 @@ Page({
         fileType: 'png',
         quality: 1,
         success: result => callback(result.tempFilePath),
-        fail: () => wx.showToast({ title: '海报生成失败', icon: 'none' })
+        fail: () => {
+          if (!options.silent) wx.showToast({ title: '海报生成失败', icon: 'none' });
+        }
       });
     });
   },
