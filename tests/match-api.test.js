@@ -11,6 +11,7 @@ assert.ok(rules.assertMatchPostInput, 'api._test should expose match post valida
 assert.ok(rules.splitAaFee, 'api._test should expose AA split helper');
 assert.ok(rules.deriveMatchStatus, 'api._test should expose match status helper');
 assert.ok(rules.requireMatchUser, 'api._test should expose match user auth helper');
+assert.ok(rules.ensureMatchUserResponse, 'api._test should expose match user auth response helper');
 assert.ok(rules.requireAdminUser, 'api._test should expose admin auth helper');
 assert.ok(rules.assertMatchBookingInput, 'api._test should expose match booking validation');
 assert.ok(rules.buildMatchFeeLedger, 'api._test should expose match fee ledger builder');
@@ -57,6 +58,7 @@ assert.match(apiSource, /\/admin\/matches\/settings/, 'API should expose match s
 assert.match(apiSource, /path==='\/match-settings'/, 'API should expose mini match settings endpoint');
 assert.match(apiSource, /MATCH_MINIPROGRAM_APPID/, 'match mini program should use a dedicated appid env');
 assert.match(apiSource, /MATCH_MINIPROGRAM_SECRET/, 'match mini program should use a dedicated secret env');
+assert.match(apiSource, /sendJson\(res,\{error:String\(err\?\.message\|\|'未登录'\)\},401\)/, 'match mini auth failures should return 401 for relogin');
 assert.match(apiSource, /path==='\/my-matches'/, 'API should expose my matches endpoint');
 assert.match(apiSource, /path==='\/match-profile'/, 'API should expose match profile endpoint');
 assert.match(apiSource, /path==='\/match-profile\/phone'/, 'API should expose match phone endpoint');
@@ -180,6 +182,39 @@ const detailResponse = rules.toMatchDetailResponse({ id: 'm1', title: '周末双
 assert.equal(detailResponse.match.id, 'm1');
 assert.equal(detailResponse.registrations.length, 1);
 assert.equal(detailResponse.id, 'm1');
+
+const matchView = rules.toMatchView({
+  id: 'm2',
+  creatorUserId: 'creator',
+  title: '周二双打',
+  matchType: 'double',
+  targetHeadcount: 6,
+  startTime: '2026-04-28T10:00:00.000Z',
+  endTime: '2026-04-28T12:00:00.000Z',
+  venueName: '网球兄弟·马坡',
+  venueAddress: '北京市顺义区白马路65号',
+  venueLatitude: 40.1,
+  venueLongitude: 116.6,
+  ntrpMin: 2.5,
+  ntrpMax: 3,
+  genderPreference: '不限',
+  estimatedCourtFee: 440,
+  status: 'open'
+}, [{
+  id: 'reg-1',
+  userId: 'u1',
+  registrationStatus: 'registered',
+  nickName: '球友A',
+  ntrpLevel: '3.0',
+  confirmedAttendanceCount: 2,
+  attendedCount: 1
+}], 'u1');
+assert.equal(matchView.venueLatitude, 40.1);
+assert.equal(matchView.venueLongitude, 116.6);
+assert.equal(matchView.aaDisplayText, '约 ¥74/人');
+assert.equal(matchView.registrations[0].userName, '球友A');
+assert.equal(matchView.registrations[0].ntrpText, '3.0');
+assert.equal(matchView.registrations[0].attendanceRateText, '50%');
 
 assert.throws(() => rules.assertMatchBookingInput({}), /请填写最终场地费/);
 const booking = rules.assertMatchBookingInput({

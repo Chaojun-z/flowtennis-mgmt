@@ -1877,6 +1877,10 @@ function requireMatchUser(req){
   if(!user||user.type!=='match_user')throw new Error('未登录');
   return user;
 }
+function ensureMatchUserResponse(req,res){
+  try{return requireMatchUser(req);}
+  catch(err){sendJson(res,{error:String(err?.message||'未登录')},401);return null;}
+}
 function buildMatchUserToken(user){
   return jwt.sign({id:user.id,type:'match_user',openid:user.openid},JWT_SECRET,{expiresIn:'7d'});
 }
@@ -1993,29 +1997,54 @@ function buildMatchStatusHint({match,registrations=[],attendanceRows=[],feeRecor
 }
 function toMatchView(row,registrations=[],viewerId='',feeSplits=[],viewerAttendance=null,attendanceRows=[],feeRecord=null){
   const attendanceByUser=new Map((attendanceRows||[]).map(item=>[String(item.userid||item.userId),item]));
-  const mappedRegistrations=(registrations||[]).map(item=>({...item,finalAttendanceStatus:attendanceByUser.get(String(item.userid||item.userId))?.finalstatus||attendanceByUser.get(String(item.userid||item.userId))?.finalStatus||''}));
-  const active=(mappedRegistrations||[]).filter(r=>String(r.registrationstatus||r.registrationStatus)==='registered');
+  const mappedRegistrations=(registrations||[]).map(item=>{
+    const attendance=attendanceByUser.get(String(item.userid||item.userId));
+    const confirmedCount=Number(item.confirmedattendancecount||item.confirmedAttendanceCount||0);
+    const attendedCount=Number(item.attendedcount||item.attendedCount||0);
+    const userId=String(item.userid||item.userId||'');
+    const phone=String(item.phone||'').trim();
+    const fallbackName=phone?`${phone.slice(0,3)}****${phone.slice(-4)}`:(userId?'球友':'');
+    return {
+      ...item,
+      userId,
+      userName:String(item.nickname||item.nickName||item.username||item.userName||fallbackName||'球友'),
+      registrationStatus:item.registrationstatus||item.registrationStatus||'',
+      ntrpText:String(item.ntrplevel||item.ntrpLevel||'').trim()||'未设水平',
+      attendanceRateText:confirmedCount>0?`${Math.round(attendedCount*100/confirmedCount)}%`:'暂无守约率',
+      finalAttendanceStatus:attendance?.finalstatus||attendance?.finalStatus||''
+    };
+  });
+  const active=(mappedRegistrations||[]).filter(r=>String(r.registrationStatus||r.registrationstatus)==='registered');
   const viewerRegistration=(registrations||[]).find(r=>String(r.userid||r.userId)===String(viewerId));
   const finalFee=normalizeMoney(row.finalcourtfee||row.finalCourtFee);
+  const estimatedCourtFee=normalizeMoney(row.estimatedcourtfee||row.estimatedCourtFee);
+  const targetHeadcount=Number(row.targetheadcount||row.targetHeadcount||0);
   const activeCount=active.length;
   const viewerFeeSplit=(feeSplits||[]).find(row=>String(row.userid||row.userId)===String(viewerId))||null;
   const viewerFinalAttendanceStatus=viewerAttendance?.finalstatus||viewerAttendance?.finalStatus||'';
   const statusMeta=buildMatchStatusHint({match:row,registrations:mappedRegistrations,attendanceRows,feeRecord});
+  const aaAmount=finalFee>0&&activeCount>0
+    ? Math.ceil(finalFee/activeCount)
+    : estimatedCourtFee>0&&targetHeadcount>0
+      ? Math.ceil(estimatedCourtFee/targetHeadcount)
+      : 0;
   return {
     id:row.id,
     creatorUserId:row.creatoruserid||row.creatorUserId,
     title:row.title,
     matchType:row.matchtype||row.matchType,
-    targetHeadcount:Number(row.targetheadcount||row.targetHeadcount||0),
+    targetHeadcount,
     currentHeadcount:activeCount,
     startTime:row.starttime||row.startTime,
     endTime:row.endtime||row.endTime,
     venueName:row.venuename||row.venueName||'',
     venueAddress:row.venueaddress||row.venueAddress||'',
+    venueLatitude:Number(row.venuelatitude||row.venueLatitude||0),
+    venueLongitude:Number(row.venuelongitude||row.venueLongitude||0),
     ntrpMin:Number(row.ntrpmin||row.ntrpMin||0),
     ntrpMax:Number(row.ntrpmax||row.ntrpMax||0),
     genderPreference:row.genderpreference||row.genderPreference||'不限',
-    estimatedCourtFee:normalizeMoney(row.estimatedcourtfee||row.estimatedCourtFee),
+    estimatedCourtFee,
     finalCourtFee:finalFee,
     status:deriveMatchStatus(row),
     statusText:matchStatusText(deriveMatchStatus(row)),
@@ -2027,7 +2056,7 @@ function toMatchView(row,registrations=[],viewerId='',feeSplits=[],viewerAttenda
     needsOperatorTakeover:statusMeta.needsOperatorTakeover,
     attendanceLocked:statusMeta.attendanceLocked,
     statusHintText:statusMeta.statusHintText,
-    aaDisplayText:finalFee>0&&activeCount>0?`AA 约 ${Math.ceil(finalFee/activeCount)} 元/人`:'AA 待定',
+    aaDisplayText:aaAmount>0?`约 ¥${aaAmount}/人`:'AA待定',
     viewerFeeSplit,
     offlinePaymentText:viewerFeeSplit&&String(viewerFeeSplit.paystatus||viewerFeeSplit.payStatus)==='pending'?'请线下联系运营收款，付款后由管理端确认':'',
     registrations:active
@@ -2131,7 +2160,21 @@ async function getMatchForViewer(matchId,viewerId){
   const match=await pool.query('SELECT * FROM match_posts WHERE id=$1',[matchId]);
   if(!match.rows[0])return null;
   const [regs,splits,attendance,feeRecord]=await Promise.all([
-    pool.query('SELECT r.*,u.nickName,u.avatarUrl,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId WHERE r.matchId=$1',[matchId]),
+    pool.query(`
+      SELECT r.*,u.nickName,u.avatarUrl,u.phone,u.ntrpLevel,
+        COALESCE(stats.confirmedCount,0) AS confirmedAttendanceCount,
+        COALESCE(stats.attendedCount,0) AS attendedCount
+      FROM match_registrations r
+      LEFT JOIN match_users u ON u.id=r.userId
+      LEFT JOIN (
+        SELECT userId,
+          COUNT(*) FILTER (WHERE finalStatus IN ('attended','absent'))::int AS confirmedCount,
+          COUNT(*) FILTER (WHERE finalStatus='attended')::int AS attendedCount
+        FROM match_attendance
+        GROUP BY userId
+      ) stats ON stats.userId=r.userId
+      WHERE r.matchId=$1
+    `,[matchId]),
     pool.query('SELECT * FROM match_fee_splits WHERE matchId=$1',[matchId]),
     pool.query('SELECT * FROM match_attendance WHERE matchId=$1',[matchId]),
     pool.query('SELECT * FROM match_fee_records WHERE matchId=$1 LIMIT 1',[matchId])
@@ -2438,7 +2481,12 @@ async function getMatchProfile(userId){
 async function updateMatchProfile(userId,input){
   const phone=assertPhone(input.phone||'');
   const ntrpLevel=input.ntrpLevel==null?'':String(input.ntrpLevel||'').trim();
-  await getMatchSqlPool().query('UPDATE match_users SET phone=COALESCE(NULLIF($2,$3),phone),ntrpLevel=COALESCE(NULLIF($4,$3),ntrpLevel),updatedAt=NOW() WHERE id=$1',[userId,phone,'',ntrpLevel]);
+  const nickName=input.nickName==null?'':String(input.nickName||'').trim();
+  const avatarUrl=input.avatarUrl==null?'':String(input.avatarUrl||'').trim();
+  await getMatchSqlPool().query(
+    'UPDATE match_users SET phone=COALESCE(NULLIF($2,$6),phone),ntrpLevel=COALESCE(NULLIF($3,$6),ntrpLevel),nickName=COALESCE(NULLIF($4,$6),nickName),avatarUrl=COALESCE(NULLIF($5,$6),avatarUrl),updatedAt=NOW() WHERE id=$1',
+    [userId,phone,ntrpLevel,nickName,avatarUrl,'']
+  );
   return getMatchProfile(userId);
 }
 async function listMatchNotifications(userId){
@@ -4001,25 +4049,25 @@ module.exports = async (req, res) => {
       return sendJson(res,{token:buildMatchUserToken(matchUser),user:{id:matchUser.id,type:'match_user',openid:matchUser.openid,phone:matchUser.phone||'',ntrpLevel:matchUser.ntrplevel||matchUser.ntrpLevel||''}});
     }
     if(path==='/matches'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchesForViewer(matchUser.id)});
     }
     if(path==='/matches'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       const profile=await getMatchSqlPool().query('SELECT phone FROM match_users WHERE id=$1',[matchUser.id]);
       if(!profile.rows[0]?.phone)return sendJson(res,{error:'请先授权手机号'},409);
       return sendJson(res,await createMatchForUser(matchUser.id,body));
     }
     const matchDetailM=path.match(/^\/matches\/([^/]+)$/);
     if(matchDetailM&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       const match=await getMatchForViewer(matchDetailM[1],matchUser.id);
       if(!match)return sendJson(res,{error:'球局不存在'},404);
       return sendJson(res,toMatchDetailResponse(match));
     }
     const matchUpdateM=path.match(/^\/matches\/([^/]+)$/);
     if(matchUpdateM&&method==='PUT'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{
         await updateMatchForUser(matchUpdateM[1],matchUser.id,body);
         const match=await getMatchForViewer(matchUpdateM[1],matchUser.id);
@@ -4028,13 +4076,13 @@ module.exports = async (req, res) => {
     }
     const matchCancelM=path.match(/^\/matches\/([^/]+)\/cancel$/);
     if(matchCancelM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{return sendJson(res,await cancelMatchForUser(matchCancelM[1],matchUser.id,body.reason));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     const matchRegisterM=path.match(/^\/matches\/([^/]+)\/register$/);
     if(matchRegisterM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       const profile=await getMatchSqlPool().query('SELECT phone FROM match_users WHERE id=$1',[matchUser.id]);
       if(!profile.rows[0]?.phone)return sendJson(res,{error:'请先授权手机号'},409);
       try{return sendJson(res,await registerMatchUser(matchRegisterM[1],matchUser.id));}
@@ -4045,48 +4093,48 @@ module.exports = async (req, res) => {
     }
     const matchCancelRegisterM=path.match(/^\/matches\/([^/]+)\/cancel-registration$/);
     if(matchCancelRegisterM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{return sendJson(res,await cancelRegistrationForUser(matchCancelRegisterM[1],matchUser.id));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     if(path==='/my-matches'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMyMatches(matchUser.id)});
     }
     if(path==='/match-profile'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await getMatchProfile(matchUser.id));
     }
     if(path==='/match-profile'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await updateMatchProfile(matchUser.id,body));
     }
     if(path==='/match-profile/phone'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await updateMatchProfile(matchUser.id,{phone:body.phone}));
     }
     if(path==='/match-profile/phone-code'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{
         const phone=await fetchWechatPhoneNumber(String(body.code||'').trim(),{appid:MATCH_MINIPROGRAM_APPID,secret:MATCH_MINIPROGRAM_SECRET,cacheKey:'match',errorText:'缺少约球小程序密钥配置'});
         return sendJson(res,await updateMatchProfile(matchUser.id,{phone}));
       }catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     if(path==='/match-settings'&&method==='GET'){
-      requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,await getMatchSettings());
     }
     if(path==='/match-attendance/creator-confirm'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       try{return sendJson(res,await creatorConfirmMatchAttendance(body.matchId,matchUser.id,body.registrationId,body.finalAttendanceStatus));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
     if(path==='/match-notifications'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchNotifications(matchUser.id)});
     }
     if(path==='/match-players'&&method==='GET'){
-      requireMatchUser(req);
+      const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchPlayers()});
     }
     let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
@@ -4968,6 +5016,7 @@ module.exports._test={
   ,getMatchSqlPool
   ,requireAdminUser
   ,requireMatchUser
+  ,ensureMatchUserResponse
   ,buildMatchUserToken
   ,assertMatchPostInput
   ,normalizeMatchType
