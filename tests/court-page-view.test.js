@@ -43,6 +43,7 @@ assert.match(html, /id="courtPageSize"/, 'court table should support page size s
 assert.match(html, /20条\/页[\s\S]*50条\/页[\s\S]*100条\/页/, 'court page size selector should offer 20, 50, and 100 rows per page');
 assert.match(html, /function openCourtFinanceModal\(/, 'court page should expose a dedicated finance modal');
 assert.match(html, /function campusVenueRule\(/, 'court finance page should reuse the shared campus venue rule helper');
+assert.match(fnBody('scheduleTimeRangeControls'), /refreshScheduleTimeDerivedFields/, 'schedule time range controls should refresh lesson hours when date or time changes');
 assert.match(html, /function renderCourtFinanceVenueField\(/, 'court finance modal should render venue field from the shared rule');
 assert.match(html, /function onCourtFinanceCampusChange\(/, 'court finance modal should refresh venue strategy when campus changes');
 assert.match(html, /记一笔流水/, 'court page should expose the standalone finance entry label');

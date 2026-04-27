@@ -12,7 +12,8 @@ assert.match(source, /function financeLessonDeferredRows\(\)\{[\s\S]*purchaseEnt
 assert.match(source, /if\(Array\.isArray\(financeRows\)&&financeRows\.length\)return financeRevenueRowsFromLedger\(\);/, 'finance revenue report should prefer normalized financeRows before older stitched sources');
 assert.match(source, /if\(Array\.isArray\(financeRows\)&&financeRows\.length\)\{[\s\S]*return financeConsumeRowsFromLedger\(\)\.filter/, 'finance recognized report should prefer normalized financeRows before older entitlement stitching');
 assert.match(source, /return loadedDatasets\.has\('financeRows'\)\|\|loadedDatasets\.has\('financialLedger'\)\|\|loadedDatasets\.has\('financePage'\);/, 'finance center loading state should recognize normalized finance rows');
-assert.match(source, /const overviewFromApi=campusName[\s\S]*: financeOverviewData\?\.all;/, 'finance overview cards should prefer the backend normalized overview summary');
+assert.match(source, /const overviewCandidate=campusName[\s\S]*: financeOverviewData\?\.all;/, 'finance overview cards should read the backend normalized overview summary candidate');
+assert.match(source, /const hasApiLedger=financeNormalizedRows\(\)\.length\|\|\s*\(Array\.isArray\(financialLedger\)&&financialLedger\.length\);[\s\S]*const overviewFromApi=hasApiLedger\?overviewCandidate:null;/, 'finance overview cards should fall back to legacy stitched totals when the financial ledger is empty');
 assert.doesNotMatch(source, /financeOverviewSecondaryStats/, 'owner-facing finance overview should not render a second audit card row');
 assert.match(source, /row\.suggestion/, 'finance audit detail table should surface actionable handling guidance');
 assert.match(source, /purchase\.saleCampusId\|\|entitlementCampus\|\|purchase\.campus\|\|studentCampus/, 'course income campus should prefer saleCampusId before old fallback fields');

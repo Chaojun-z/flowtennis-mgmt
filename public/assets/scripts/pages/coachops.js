@@ -957,9 +957,11 @@ function renderFinanceOverview(){
   if(!primaryHost)return;
   if(!syncFinanceLedgerLoadingState())return;
   const campusName=campus==='all'?'':financeCampusNameFromValue(campus);
-  const overviewFromApi=campusName
+  const overviewCandidate=campusName
     ? (Array.isArray(financeOverviewData?.campuses)?financeOverviewData.campuses.find(item=>String(item?.campusName||'')===campusName):null)
     : financeOverviewData?.all;
+  const hasApiLedger=financeNormalizedRows().length|| (Array.isArray(financialLedger)&&financialLedger.length);
+  const overviewFromApi=hasApiLedger?overviewCandidate:null;
   const ledgerRows=overviewFromApi?[]:financeLedgerRows();
   const cash=Number(overviewFromApi?.cash);
   const recognized=Number(overviewFromApi?.recognized);
@@ -970,11 +972,10 @@ function renderFinanceOverview(){
   const storedValueConsumed=Number(overviewFromApi?.storedValueConsumed);
   const bookingIncome=Number(overviewFromApi?.bookingIncome);
   const bookingRecognized=Number(overviewFromApi?.bookingRecognized);
+  const consumeRows=overviewFromApi?[]:financeConsumeRows().filter(row=>coachOpsDateWithinRange(row.relatedDate||row.createdAt,document.getElementById('financeLedgerFrom')?.value||'',document.getElementById('financeLedgerTo')?.value||''));
   const finalCash=overviewFromApi?cash:ledgerRows.reduce((sum,row)=>sum+(Number(row.cashDelta)||0),0);
-  const finalRecognized=overviewFromApi?recognized:ledgerRows.reduce((sum,row)=>sum+(Number(row.recognizedRevenueDelta)||0),0);
-  const finalDeferred=overviewFromApi?deferred:ledgerRows.reduce((sum,row)=>sum+(Number(row.deferredRevenueDelta)||0),0);
   const finalPackageIncome=overviewFromApi?packageIncome:ledgerRows.filter(row=>row.businessType==='课程'&&row.action==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
-  const finalPackageRecognized=overviewFromApi?packageRecognized:ledgerRows.filter(row=>row.businessType==='课程').reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
+  const finalPackageRecognized=overviewFromApi?packageRecognized:consumeRows.filter(row=>row.courseType==='课程').reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedAmount)||0),0);
   const finalStoredValueIncome=overviewFromApi?storedValueIncome:ledgerRows.filter(row=>row.businessType==='会员储值'&&row.action==='收款').reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
   const finalStoredValueConsumed=overviewFromApi?storedValueConsumed:ledgerRows.filter(row=>row.businessType==='会员订场').reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
   const bookingOverviewRows=overviewFromApi?[]:ledgerRows.filter(row=>{
@@ -987,6 +988,8 @@ function renderFinanceOverview(){
   });
   const finalBookingIncome=overviewFromApi?bookingIncome:bookingOverviewRows.reduce((sum,row)=>sum+Math.max(0,Number(row.cashDelta)||0),0);
   const finalBookingRecognized=overviewFromApi?bookingRecognized:bookingOverviewRows.reduce((sum,row)=>sum+Math.max(0,Number(row.recognizedRevenueDelta)||0),0);
+  const finalRecognized=overviewFromApi?recognized:(finalPackageRecognized+finalStoredValueConsumed+finalBookingRecognized);
+  const finalDeferred=overviewFromApi?deferred:(finalCash-finalRecognized);
   const renderStatCards=items=>items.map(item=>`<div class="tms-stat-card"><div class="tms-stat-label">${item.label}</div><div class="tms-stat-value${item.split?' finance-split-value':''}">${item.value}</div></div>`).join('');
   primaryHost.innerHTML=renderStatCards([
     {label:'总收入（实收）',value:financeCardValue(finalCash)},

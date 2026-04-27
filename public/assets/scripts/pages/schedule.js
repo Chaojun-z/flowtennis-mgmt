@@ -184,6 +184,9 @@ function scheduleLessonUnitsFromFields(){
   if(!Number.isFinite(mins)||mins<=0)return 1;
   return Math.max(0.5,Math.round((mins/60)*10)/10);
 }
+function refreshScheduleTimeDerivedFields(){
+  syncScheduleLessonCountFromTime();
+}
 function syncScheduleLessonCountFromTime(){
   const input=document.getElementById('sch_lc');
   if(!input)return;
@@ -221,8 +224,8 @@ function openScheduleModal(id,seed={}){
   toggleScheduleCancelReason();
   toggleScheduleLocationType();
   refreshScheduleSettlementMode();
-  ['sch_startTime','sch_endTime'].forEach(fieldId=>document.getElementById(fieldId)?.addEventListener('change',syncScheduleLessonCountFromTime));
-  syncScheduleLessonCountFromTime();
+  ['sch_startTime','sch_endTime'].forEach(fieldId=>document.getElementById(fieldId)?.addEventListener('change',refreshScheduleTimeDerivedFields));
+  refreshScheduleTimeDerivedFields();
   refreshSchEntitlementOptions();
 }
 function toggleScheduleCancelReason(){
@@ -234,12 +237,65 @@ function toggleScheduleCancelReason(){
   refreshSchEntitlementOptions();
 }
 function openCancelScheduleModal(id){
-  openScheduleModal(id);
-  const status=document.getElementById('sch_status');
-  if(status)status.value='已取消';
-  toggleScheduleCancelReason();
-  const advanced=document.querySelector('.schedule-advanced');
-  if(advanced)advanced.open=true;
+  const s=schedules.find(x=>x.id===id);
+  if(!s){toast('排课不存在','warn');return;}
+  const repeatTargets=scheduleRepeatCancelableTargets(s);
+  const repeatBlock=s.scheduleSource==='循环排课'?`<div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">取消范围</label><div class="finput tms-form-control" style="display:flex;flex-direction:column;gap:10px"><label class="tms-checkbox-wrap"><input type="radio" name="sch_cancel_scope" value="single" checked> <span>只取消这一节</span></label><label class="tms-checkbox-wrap"><input type="radio" name="sch_cancel_scope" value="future"> <span>取消本节及后续未上课的循环课（共 ${repeatTargets.length+1} 节）</span></label><div style="font-size:12px;color:var(--ts)">已经上过课的不会动。循环课如果要整组取消，这里只会处理当前这节开始的未上课记录。</div></div></div></div>`:'';
+  const body=`<div class="tms-audit-note" style="margin-bottom:14px">${fmtDt(s.startTime)} · ${esc(scheduleListStudentSummary(s))} · ${esc(s.coach||'—')} · ${esc(scheduleLocationText(s))}</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">取消原因 *</label>${renderCourtDropdownHtml('sch_cancelReasonQuick','取消原因',[{value:'',label:'— 选择取消原因 —'},...SCH_CANCEL_REASONS.map(t=>({value:t,label:t}))],'',true)}</div></div>${repeatBlock}`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">返回</button><button class="tms-btn tms-btn-danger" id="scheduleCancelBtn" onclick="confirmScheduleCancel('${s.id}')">确认取消</button>`;
+  setCourtModalFrame('取消排课',body,footer,'modal-tight');
+}
+function scheduleRepeatIdentityKey(s){
+  return [
+    s.classId||'',
+    scheduleCourseType(s)||'',
+    s.coach||'',
+    s.locationType||'own',
+    s.campus||'',
+    s.venue||'',
+    s.externalVenueName||'',
+    s.externalCourtName||'',
+    lessonUnitsText(s.lessonCount||0),
+    (parseArr(s.expectedStudentIds).length?parseArr(s.expectedStudentIds):parseArr(s.studentIds)).slice().sort().join('|'),
+    String(s.startTime||'').slice(11,16),
+    String(s.endTime||'').slice(11,16)
+  ].join('::');
+}
+function scheduleRepeatCancelableTargets(schedule){
+  if(!schedule||schedule.scheduleSource!=='循环排课')return [];
+  const key=scheduleRepeatIdentityKey(schedule);
+  const startMs=dateMs(schedule.startTime);
+  return schedules.filter(item=>{
+    if(item.id===schedule.id)return false;
+    if(item.scheduleSource!=='循环排课')return false;
+    if(scheduleRepeatIdentityKey(item)!==key)return false;
+    if(effectiveScheduleStatus(item)!=='已排课')return false;
+    return dateMs(item.startTime)>=startMs;
+  }).sort((a,b)=>String(a.startTime||'').localeCompare(String(b.startTime||'')));
+}
+async function confirmScheduleCancel(id){
+  const schedule=schedules.find(item=>item.id===id);
+  if(!schedule){toast('排课不存在','warn');return;}
+  const reason=document.getElementById('sch_cancelReasonQuick')?.value||'';
+  if(!reason){toast('请选择取消原因','warn');return;}
+  const scope=document.querySelector('input[name="sch_cancel_scope"]:checked')?.value||'single';
+  const targets=scope==='future'?[schedule,...scheduleRepeatCancelableTargets(schedule)].filter(item=>effectiveScheduleStatus(item)==='已排课'):[schedule];
+  if(!targets.length){toast('当前没有可取消的未上课排课','warn');return;}
+  if(!window.confirm(scope==='future'?`确认取消本节及后续 ${targets.length} 节未上课排课？`:'确认取消这节排课？'))return;
+  const btn=document.getElementById('scheduleCancelBtn');
+  if(btn){btn.disabled=true;btn.textContent='取消中…';}
+  try{
+    for(const item of targets){
+      const result=await apiCall('PUT','/schedule/'+item.id,{status:'已取消',cancelReason:reason});
+      mergeScheduleSaveResult(result,item.id);
+    }
+    closeModal();
+    toast(scope==='future'?'循环排课已取消 ✓':'排课已取消 ✓','success');
+    renderSchedule();renderClasses();renderPlans();renderCoachOps();renderMySchedule();
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='确认取消';}
+    toast('取消失败：'+e.message,'error');
+  }
 }
 function onSchClassChange(){
   const cid=document.getElementById('sch_classId').value;if(!cid){updateSchClassHint();return;}

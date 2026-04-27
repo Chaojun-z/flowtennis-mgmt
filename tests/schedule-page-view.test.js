@@ -44,7 +44,11 @@ assert.match(fnBody('toggleScheduleLocationType'), /renderScheduleVenueField\(\)
 assert.match(fnBody('onScheduleCampusChange'), /renderScheduleVenueField\(\)[\s\S]*refreshSchEntitlementOptions\(\)/, 'changing schedule campus should refresh both venue strategy and entitlement recommendations');
 assert.match(fnBody('openScheduleModal'), /人和课程[\s\S]*关联班次[\s\S]*本次参与人[\s\S]*上课信息[\s\S]*上课日期与时间[\s\S]*课程类型[\s\S]*教练[\s\S]*消课时数[\s\S]*扣减课包[\s\S]*地点/, 'schedule modal should follow the simplified create/edit flow');
 assert.match(source, /function syncScheduleLessonCountFromTime\(/, 'schedule modal should auto-sync lesson units from the selected time range');
+assert.match(source, /function refreshScheduleTimeDerivedFields\(/, 'schedule modal should expose a shared time-derived refresh helper');
 assert.match(fnBody('syncScheduleLessonCountFromTime'), /lessonUnitsText\(scheduleLessonUnitsFromFields\(\)\)/, 'lesson units should render fractional hours like 1.5');
+assert.match(fnBody('openCancelScheduleModal'), /确认取消/, 'schedule cancel should use a dedicated confirm modal instead of reopening the edit form');
+assert.match(fnBody('openCancelScheduleModal'), /取消本节及后续未上课的循环课/, 'repeat schedules should expose a future-lessons cancel option');
+assert.match(fnBody('confirmScheduleCancel'), /effectiveScheduleStatus\(item\)==='已排课'/, 'repeat cancellation should only touch not-yet-started lessons');
 assert.match(fnBody('refreshSchEntitlementOptions'), /scheduleId:editId\|\|''/, 'editing a schedule should tell the entitlement recommender which schedule is being edited');
 assert.match(fnBody('openScheduleModal'), /上课日期与时间[\s\S]*课程类型[\s\S]*每周重复/, 'weekly repeat should stay with lesson time settings');
 assert.match(fnBody('openScheduleModal'), /sch_externalVenueName[\s\S]*sch_externalCourtName[\s\S]*sch_externalNotes/, 'external venue schedules should capture venue, court, and notes');
