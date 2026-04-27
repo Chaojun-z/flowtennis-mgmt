@@ -1176,6 +1176,16 @@ button::after {
   --course-bg: #f0fae8;
 }
 
+.tt-course-ended {
+  --course-accent: #94a3b8;
+  --course-bg: #f1f5f9;
+}
+
+.tt-course-ended .tt-course-name,
+.tt-course-ended .tt-course-meta {
+  color: #64748b;
+}
+
 .tt-course-top {
   display: flex;
   justify-content: space-between;
@@ -2598,7 +2608,6 @@ button::after {
 .feedback-poster-canvas {
   display: block;
   width: 560rpx;
-  height: 996rpx;
   margin: 0 auto;
   border-radius: 32rpx;
   overflow: hidden;
