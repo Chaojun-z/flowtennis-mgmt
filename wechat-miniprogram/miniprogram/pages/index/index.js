@@ -12,6 +12,9 @@ function assertCoachLoginUser(user = {}) {
     throw new Error('当前账号不是教练账号，无法进入教练端');
   }
 }
+function shouldBindWechatAfterLogin(user = {}) {
+  return !user.wechatBound && !user.wechatOpenId;
+}
 
 Page({
   data: {
@@ -60,7 +63,7 @@ Page({
         assertCoachLoginUser(data.user || {});
         return data;
       })
-      .then(() => bindWechatAfterLogin())
+      .then((data) => (shouldBindWechatAfterLogin(data.user || {}) ? bindWechatAfterLogin() : Promise.resolve()).then(() => data))
       .then(() => {
         const app = getApp();
         if (app && app.globalData) app.globalData.privacyAccepted = true;
