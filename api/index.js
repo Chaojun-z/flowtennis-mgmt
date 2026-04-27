@@ -1997,29 +1997,54 @@ function buildMatchStatusHint({match,registrations=[],attendanceRows=[],feeRecor
 }
 function toMatchView(row,registrations=[],viewerId='',feeSplits=[],viewerAttendance=null,attendanceRows=[],feeRecord=null){
   const attendanceByUser=new Map((attendanceRows||[]).map(item=>[String(item.userid||item.userId),item]));
-  const mappedRegistrations=(registrations||[]).map(item=>({...item,finalAttendanceStatus:attendanceByUser.get(String(item.userid||item.userId))?.finalstatus||attendanceByUser.get(String(item.userid||item.userId))?.finalStatus||''}));
-  const active=(mappedRegistrations||[]).filter(r=>String(r.registrationstatus||r.registrationStatus)==='registered');
+  const mappedRegistrations=(registrations||[]).map(item=>{
+    const attendance=attendanceByUser.get(String(item.userid||item.userId));
+    const confirmedCount=Number(item.confirmedattendancecount||item.confirmedAttendanceCount||0);
+    const attendedCount=Number(item.attendedcount||item.attendedCount||0);
+    const userId=String(item.userid||item.userId||'');
+    const phone=String(item.phone||'').trim();
+    const fallbackName=phone?`${phone.slice(0,3)}****${phone.slice(-4)}`:(userId?'球友':'');
+    return {
+      ...item,
+      userId,
+      userName:String(item.nickname||item.nickName||item.username||item.userName||fallbackName||'球友'),
+      registrationStatus:item.registrationstatus||item.registrationStatus||'',
+      ntrpText:String(item.ntrplevel||item.ntrpLevel||'').trim()||'未设水平',
+      attendanceRateText:confirmedCount>0?`${Math.round(attendedCount*100/confirmedCount)}%`:'暂无守约率',
+      finalAttendanceStatus:attendance?.finalstatus||attendance?.finalStatus||''
+    };
+  });
+  const active=(mappedRegistrations||[]).filter(r=>String(r.registrationStatus||r.registrationstatus)==='registered');
   const viewerRegistration=(registrations||[]).find(r=>String(r.userid||r.userId)===String(viewerId));
   const finalFee=normalizeMoney(row.finalcourtfee||row.finalCourtFee);
+  const estimatedCourtFee=normalizeMoney(row.estimatedcourtfee||row.estimatedCourtFee);
+  const targetHeadcount=Number(row.targetheadcount||row.targetHeadcount||0);
   const activeCount=active.length;
   const viewerFeeSplit=(feeSplits||[]).find(row=>String(row.userid||row.userId)===String(viewerId))||null;
   const viewerFinalAttendanceStatus=viewerAttendance?.finalstatus||viewerAttendance?.finalStatus||'';
   const statusMeta=buildMatchStatusHint({match:row,registrations:mappedRegistrations,attendanceRows,feeRecord});
+  const aaAmount=finalFee>0&&activeCount>0
+    ? Math.ceil(finalFee/activeCount)
+    : estimatedCourtFee>0&&targetHeadcount>0
+      ? Math.ceil(estimatedCourtFee/targetHeadcount)
+      : 0;
   return {
     id:row.id,
     creatorUserId:row.creatoruserid||row.creatorUserId,
     title:row.title,
     matchType:row.matchtype||row.matchType,
-    targetHeadcount:Number(row.targetheadcount||row.targetHeadcount||0),
+    targetHeadcount,
     currentHeadcount:activeCount,
     startTime:row.starttime||row.startTime,
     endTime:row.endtime||row.endTime,
     venueName:row.venuename||row.venueName||'',
     venueAddress:row.venueaddress||row.venueAddress||'',
+    venueLatitude:Number(row.venuelatitude||row.venueLatitude||0),
+    venueLongitude:Number(row.venuelongitude||row.venueLongitude||0),
     ntrpMin:Number(row.ntrpmin||row.ntrpMin||0),
     ntrpMax:Number(row.ntrpmax||row.ntrpMax||0),
     genderPreference:row.genderpreference||row.genderPreference||'不限',
-    estimatedCourtFee:normalizeMoney(row.estimatedcourtfee||row.estimatedCourtFee),
+    estimatedCourtFee,
     finalCourtFee:finalFee,
     status:deriveMatchStatus(row),
     statusText:matchStatusText(deriveMatchStatus(row)),
@@ -2031,7 +2056,7 @@ function toMatchView(row,registrations=[],viewerId='',feeSplits=[],viewerAttenda
     needsOperatorTakeover:statusMeta.needsOperatorTakeover,
     attendanceLocked:statusMeta.attendanceLocked,
     statusHintText:statusMeta.statusHintText,
-    aaDisplayText:finalFee>0&&activeCount>0?`AA 约 ${Math.ceil(finalFee/activeCount)} 元/人`:'AA 待定',
+    aaDisplayText:aaAmount>0?`约 ¥${aaAmount}/人`:'AA待定',
     viewerFeeSplit,
     offlinePaymentText:viewerFeeSplit&&String(viewerFeeSplit.paystatus||viewerFeeSplit.payStatus)==='pending'?'请线下联系运营收款，付款后由管理端确认':'',
     registrations:active
@@ -2135,7 +2160,21 @@ async function getMatchForViewer(matchId,viewerId){
   const match=await pool.query('SELECT * FROM match_posts WHERE id=$1',[matchId]);
   if(!match.rows[0])return null;
   const [regs,splits,attendance,feeRecord]=await Promise.all([
-    pool.query('SELECT r.*,u.nickName,u.avatarUrl,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId WHERE r.matchId=$1',[matchId]),
+    pool.query(`
+      SELECT r.*,u.nickName,u.avatarUrl,u.phone,u.ntrpLevel,
+        COALESCE(stats.confirmedCount,0) AS confirmedAttendanceCount,
+        COALESCE(stats.attendedCount,0) AS attendedCount
+      FROM match_registrations r
+      LEFT JOIN match_users u ON u.id=r.userId
+      LEFT JOIN (
+        SELECT userId,
+          COUNT(*) FILTER (WHERE finalStatus IN ('attended','absent'))::int AS confirmedCount,
+          COUNT(*) FILTER (WHERE finalStatus='attended')::int AS attendedCount
+        FROM match_attendance
+        GROUP BY userId
+      ) stats ON stats.userId=r.userId
+      WHERE r.matchId=$1
+    `,[matchId]),
     pool.query('SELECT * FROM match_fee_splits WHERE matchId=$1',[matchId]),
     pool.query('SELECT * FROM match_attendance WHERE matchId=$1',[matchId]),
     pool.query('SELECT * FROM match_fee_records WHERE matchId=$1 LIMIT 1',[matchId])

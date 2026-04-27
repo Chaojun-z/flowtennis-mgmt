@@ -183,6 +183,39 @@ assert.equal(detailResponse.match.id, 'm1');
 assert.equal(detailResponse.registrations.length, 1);
 assert.equal(detailResponse.id, 'm1');
 
+const matchView = rules.toMatchView({
+  id: 'm2',
+  creatorUserId: 'creator',
+  title: '周二双打',
+  matchType: 'double',
+  targetHeadcount: 6,
+  startTime: '2026-04-28T10:00:00.000Z',
+  endTime: '2026-04-28T12:00:00.000Z',
+  venueName: '网球兄弟·马坡',
+  venueAddress: '北京市顺义区白马路65号',
+  venueLatitude: 40.1,
+  venueLongitude: 116.6,
+  ntrpMin: 2.5,
+  ntrpMax: 3,
+  genderPreference: '不限',
+  estimatedCourtFee: 440,
+  status: 'open'
+}, [{
+  id: 'reg-1',
+  userId: 'u1',
+  registrationStatus: 'registered',
+  nickName: '球友A',
+  ntrpLevel: '3.0',
+  confirmedAttendanceCount: 2,
+  attendedCount: 1
+}], 'u1');
+assert.equal(matchView.venueLatitude, 40.1);
+assert.equal(matchView.venueLongitude, 116.6);
+assert.equal(matchView.aaDisplayText, '约 ¥74/人');
+assert.equal(matchView.registrations[0].userName, '球友A');
+assert.equal(matchView.registrations[0].ntrpText, '3.0');
+assert.equal(matchView.registrations[0].attendanceRateText, '50%');
+
 assert.throws(() => rules.assertMatchBookingInput({}), /请填写最终场地费/);
 const booking = rules.assertMatchBookingInput({
   venueNameFinal: '马坡网球馆',
