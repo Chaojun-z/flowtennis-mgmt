@@ -6,10 +6,6 @@ function syncViewportMode(){
 }
 
 let courts=[],students=[],products=[],packages=[],purchases=[],entitlements=[],entitlementLedger=[],financialLedger=[],membershipPlans=[],membershipAccounts=[],membershipOrders=[],membershipBenefitLedger=[],membershipAccountEvents=[],pricePlans=[],plans=[],schedules=[],coaches=[],classes=[],campuses=[],feedbacks=[],adminUsers=[],matches=[];
-let financeOverviewData=null,financeNormalizedLedgerRows=[];
-function financeNormalizedRows(){
-  return Array.isArray(financeNormalizedLedgerRows)?financeNormalizedLedgerRows:[];
-}
 window.coachWorkbenchStats=window.coachWorkbenchStats||{};
 let adminUsersLoaded=false;
 let modalCleanupTimer=null;
@@ -17,7 +13,7 @@ let lastDataSyncAt=0,isSyncingAll=false,dataRequestVersion=0;
 let loadedDatasets=new Set();
 const DATA_CACHE_PREFIX='ft_dataset_cache_';
 const DATA_CACHE_VERSION_KEY='ft_dataset_cache_version';
-const DATA_CACHE_VERSION='2026-04-27-cachefix-schedule-finance';
+const DATA_CACHE_VERSION='2026-04-18-safe-list-cache';
 const DATASETS_EXCLUDED_FROM_CACHE=new Set(['entitlementLedger']);
 const datasetLoadPromises=new Map();
 const PAGE_DATA_REQUIREMENTS={
@@ -42,7 +38,7 @@ const PAGE_DATA_REQUIREMENTS={
   prices:['campuses','pricePlans'],
   campusmgr:['campuses'],
   workbench:[],
-  myschedule:[],
+  postfeedback:[],
   mystudents:[],
   myclasses:[]
 };
@@ -56,7 +52,7 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   matches:['matchesPage'],
   memberships:['membershipsPage'],
   workbench:['workbenchPage'],
-  myschedule:['campuses','students','classes','schedule','feedbacks'],
+  postfeedback:['workbenchPage'],
   mystudents:['campuses','students','classes','schedule','feedbacks','entitlements'],
   myclasses:['students','classes','products']
 };
@@ -216,7 +212,7 @@ function renderPageLoading(pg){
   if(pg==='matches')renderTableBodyLoading('matchTbody',9,'约球数据加载中...');
   if(pg==='memberships')renderBlockLoading('membershipTabBody','会员数据加载中...');
   if(pg==='workbench')renderBlockLoading('workbenchBody','教练工作台加载中...');
-  if(pg==='myschedule')renderBlockLoading('myScheduleBody','课表加载中...');
+  if(pg==='postfeedback')renderBlockLoading('postFeedbackBody','课后评价加载中...');
   if(pg==='mystudents')renderBlockLoading('myStudentsBody','学员数据加载中...');
   if(pg==='myclasses')renderBlockLoading('myClassesBody','班次数据加载中...');
 }
@@ -266,8 +262,6 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
       setDatasetValue('membershipOrders',data.membershipOrders||[]);
       setDatasetValue('membershipBenefitLedger',data.membershipBenefitLedger||[]);
       setDatasetValue('membershipAccountEvents',data.membershipAccountEvents||[]);
-      financeOverviewData=data.financeOverviewData||null;
-      financeNormalizedLedgerRows=Array.isArray(data.financeNormalizedRows)?data.financeNormalizedRows:[];
       loadedDatasets.add('financePage');
       return;
     }
@@ -305,6 +299,7 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
       setDatasetValue('classes',data.classes||[]);
       setDatasetValue('schedule',data.schedule||[]);
       setDatasetValue('feedbacks',data.feedbacks||[]);
+      setDatasetValue('purchases',data.purchases||[]);
       window.coachWorkbenchStats=data.stats||{};
       loadedDatasets.add('workbenchPage');
       return;
@@ -339,19 +334,19 @@ function clearLoadedData(){
   courts=[];students=[];products=[];packages=[];purchases=[];entitlements=[];entitlementLedger=[];financialLedger=[];
   membershipPlans=[];membershipAccounts=[];membershipOrders=[];membershipBenefitLedger=[];membershipAccountEvents=[];pricePlans=[];
   plans=[];schedules=[];coaches=[];classes=[];campuses=[];feedbacks=[];adminUsers=[];matches=[];adminUsersLoaded=false;
-  financeOverviewData=null;financeNormalizedLedgerRows=[];
   loadedDatasets=new Set();
 }
 function normalizeCurrentPageForRole(){
   const isCoach=currentUser?.role==='editor'&&currentUser?.coachName;
+  if(currentPage==='myschedule')currentPage='workbench';
   if(isCoach){
-    if(!['workbench','myschedule','mystudents','myclasses'].includes(currentPage))currentPage='workbench';
+    if(!['workbench','postfeedback','mystudents','myclasses'].includes(currentPage))currentPage='workbench';
     localStorage.setItem(PAGE_KEY,currentPage);
     campus='all';
     localStorage.setItem(CAMPUS_KEY,campus);
     return;
   }
-  if(currentUser?.role==='admin'&&['workbench','myschedule','mystudents','myclasses'].includes(currentPage)){
+  if(currentUser?.role==='admin'&&['workbench','postfeedback','mystudents','myclasses'].includes(currentPage)){
     currentPage='students';
     localStorage.setItem(PAGE_KEY,currentPage);
   }
@@ -378,8 +373,6 @@ function applyLoadedData(data){
   campuses=Array.isArray(data?.campuses)?data.campuses:[];
   feedbacks=Array.isArray(data?.feedbacks)?data.feedbacks:[];
   matches=Array.isArray(data?.matches)?data.matches:[];
-  financeOverviewData=data?.financeOverviewData||null;
-  financeNormalizedLedgerRows=Array.isArray(data?.financeNormalizedRows)?data.financeNormalizedRows:[];
   loadedDatasets=new Set(['courts','students','products','packages','purchases','entitlements','entitlementLedger','financialLedger','membershipPlans','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents','pricePlans','plans','schedule','coaches','classes','campuses','feedbacks','matches']);
   if(data?.user){
     currentUser=data.user;
@@ -464,8 +457,9 @@ function renderAll(){
   const scf=document.getElementById('schCampusFilter');
   if(scf)scf.innerHTML='<option value="">全部校区</option>'+campuses.map(c=>`<option value="${c.code||c.id}">${esc(c.name)}</option>`).join('');
   const isCoach=currentUser?.role==='editor'&&currentUser?.coachName;
-  if(isCoach&&!['workbench','myschedule','mystudents','myclasses'].includes(currentPage))currentPage='workbench';
-  else if(currentUser?.role==='admin'&&['workbench','myschedule','mystudents','myclasses'].includes(currentPage))currentPage='students';
+  if(currentPage==='myschedule')currentPage='workbench';
+  if(isCoach&&!['workbench','postfeedback','mystudents','myclasses'].includes(currentPage))currentPage='workbench';
+  else if(currentUser?.role==='admin'&&['workbench','postfeedback','mystudents','myclasses'].includes(currentPage))currentPage='students';
   else if(currentUser?.role!=='admin'&&!isCoach){doLogout();return;}
   renderPageData(currentPage);
   goPage(currentPage,null,true);
@@ -497,7 +491,7 @@ function renderPageData(pg){
   if(pg==='membership-plans')renderMembershipPlans();
   if(pg==='campusmgr')renderCampuses();
   if(pg==='workbench')renderWorkbench();
-  if(pg==='myschedule')renderMySchedule();
+  if(pg==='postfeedback')renderPostClassFeedback();
   if(pg==='mystudents')renderMyStudents();
   if(pg==='myclasses')renderMyClasses();
 }
