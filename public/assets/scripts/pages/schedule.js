@@ -23,6 +23,12 @@ function scheduleLocationText(s){
   }
   return `${cn(s?.campus)||'—'} · ${s?.venue||'—'}`;
 }
+function campusOptionLabel(campusRecord){
+  return campusRecord?.name||cn(campusRecord?.code||campusRecord?.id)||campusRecord?.code||campusRecord?.id||'—';
+}
+function venueOptionsForCampus(){
+  return VENUES.map(name=>({value:name,label:name}));
+}
 function scheduleStatusLabel(status){
   if(status==='已结束')return '已下课';
   if(status==='已排课')return '待上课';
@@ -30,6 +36,17 @@ function scheduleStatusLabel(status){
 }
 function scheduleStatusTagClass(status){
   return status==='已排课'?'tms-tag-tier-blue':status==='已结束'?'tms-tag-green':status==='已取消'?'tms-tag-tier-slate':'tms-tag-tier-slate';
+}
+function scheduleRepeatGroupRows(schedule){
+  if(!schedule||schedule.scheduleSource!=='循环排课')return [];
+  const key=scheduleRepeatIdentityKey(schedule);
+  return schedules.filter(item=>item.scheduleSource==='循环排课'&&scheduleRepeatIdentityKey(item)===key)
+    .sort((a,b)=>String(a.startTime||'').localeCompare(String(b.startTime||'')));
+}
+function scheduleRepeatDisplayText(schedule){
+  if(!schedule||schedule.scheduleSource!=='循环排课')return '-';
+  const count=scheduleRepeatGroupRows(schedule).length;
+  return count>1?`循环${count}周`:'循环课';
 }
 function renderSchedule(){
   syncScheduleFilterOptions();
@@ -60,8 +77,8 @@ function renderSchedule(){
     const status=s._effectiveStatus||effectiveScheduleStatus(s);
     const dateText=String(s.startTime||'').slice(0,10)||'—';
     const timeText=s.startTime?`${s.startTime.slice(11,16)}-${(s.endTime||'').slice(11,16)}`:'—';
-    return `<tr><td style="padding-left:14px">${renderCourtCellText(dateText,false)}</td><td>${renderCourtCellText(timeText,false)}</td><td>${renderCourtCellText(scheduleDurationText(s),false)}</td><td><div class="tms-cell-text" title="${esc(s.externalNotes||scheduleLocationText(s))}">${esc(scheduleLocationText(s))}</div></td><td>${renderCourtCellText(s.coach,false)}</td><td><div class="tms-text-primary">${esc(scheduleListStudentSummary(s))}</div></td><td><span class="tms-tag ${productTypeTagClass(scheduleCourseType(s))}">${esc(scheduleCourseType(s))}</span></td><td><span class="tms-action-link" onclick="openFeedbackModal('${s.id}')">${scheduleFeedbackStatusText(s)}</span></td><td><span class="tms-tag ${scheduleStatusTagClass(status)}">${scheduleStatusLabel(status)}</span>${status==='已取消'&&s.cancelReason?`<div class="tms-text-secondary" style="margin-top:6px">${esc(s.cancelReason)}</div>`:''}</td><td class="tms-sticky-r tms-action-cell schedule-action-cell"><span class="tms-action-link" onclick="openScheduleDetail('${s.id}')">查看</span><span class="tms-action-link" onclick="openScheduleModal('${s.id}')">编辑</span><span class="tms-action-link" onclick="openCancelScheduleModal('${s.id}')">取消</span>${scheduleCanDeleteMistake(s)?`<span class="tms-action-link" onclick="confirmDel('${s.id}','误建排课','schedule')">删除</span>`:''}</td></tr>`;
-  }).join(''):'<tr><td colspan="10"><div class="empty"><div class="empty-ico">📅</div><p>暂无排课</p></div></td></tr>';
+    return `<tr><td style="padding-left:14px">${renderCourtCellText(dateText,false)}</td><td>${renderCourtCellText(timeText,false)}</td><td>${renderCourtCellText(scheduleDurationText(s),false)}</td><td><div class="tms-cell-text" title="${esc(s.externalNotes||scheduleLocationText(s))}">${esc(scheduleLocationText(s))}</div></td><td>${renderCourtCellText(s.coach,false)}</td><td><div class="tms-text-primary">${esc(scheduleListStudentSummary(s))}</div></td><td><span class="tms-tag ${productTypeTagClass(scheduleCourseType(s))}">${esc(scheduleCourseType(s))}</span></td><td>${renderCourtCellText(scheduleRepeatDisplayText(s),false)}</td><td><span class="tms-action-link" onclick="openFeedbackModal('${s.id}')">${scheduleFeedbackStatusText(s)}</span></td><td><span class="tms-tag ${scheduleStatusTagClass(status)}">${scheduleStatusLabel(status)}</span>${status==='已取消'&&s.cancelReason?`<div class="tms-text-secondary" style="margin-top:6px">${esc(s.cancelReason)}</div>`:''}</td><td class="tms-sticky-r tms-action-cell schedule-action-cell"><span class="tms-action-link" onclick="openScheduleDetail('${s.id}')">查看</span><span class="tms-action-link" onclick="openScheduleModal('${s.id}')">编辑</span><span class="tms-action-link" onclick="openCancelScheduleModal('${s.id}')">取消</span>${scheduleCanDeleteMistake(s)?`<span class="tms-action-link" onclick="confirmDel('${s.id}','误建排课','schedule')">删除</span>`:''}</td></tr>`;
+  }).join(''):'<tr><td colspan="11"><div class="empty"><div class="empty-ico">📅</div><p>暂无排课</p></div></td></tr>';
 }
 function scheduleStudentTextByIds(ids){
   return parseArr(ids).map(id=>{
@@ -156,8 +173,66 @@ function toggleScheduleLocationType(){
   const external=document.getElementById('sch_externalLocationRow');
   if(own)own.style.display=type==='external'?'none':'flex';
   if(external)external.style.display=type==='external'?'flex':'none';
-  if(type==='own')syncScheduleHomeCampusFromStudents(parseArr(document.getElementById('sch_stuIds')?.value||'[]'),!editId);
+  if(type==='own'){
+    syncScheduleHomeCampusFromStudents(parseArr(document.getElementById('sch_stuIds')?.value||'[]'),!editId);
+    renderScheduleVenueField();
+  }
   refreshSchEntitlementOptions();
+}
+function renderScheduleVenueField(){
+  const host=document.getElementById('sch_venueHost');
+  if(!host)return;
+  const campus=document.getElementById('sch_campus')?.value||'';
+  const currentValue=document.getElementById('sch_venue')?.value||'';
+  host.innerHTML=`<label class="tms-form-label">场地 *</label>${renderCourtDropdownHtml('sch_venue','场地',venueOptionsForCampus(campus),currentValue||'1号场',true)}`;
+}
+function onScheduleCampusChange(){
+  renderScheduleVenueField();
+  refreshSchEntitlementOptions();
+}
+function scheduleLessonUnitsFromFields(){
+  const start=scheduleComposeDateTime('sch_date','sch_startTime');
+  const end=scheduleComposeDateTime('sch_date','sch_endTime');
+  if(!start||!end)return 1;
+  const mins=durMin(start,end);
+  if(!Number.isFinite(mins)||mins<=0)return 1;
+  return Math.max(0.5,Math.round((mins/60)*10)/10);
+}
+function refreshScheduleTimeDerivedFields(){
+  syncScheduleLessonCountFromTime();
+}
+function syncScheduleLessonCountFromTime(){
+  const input=document.getElementById('sch_lc');
+  if(!input)return;
+  input.value=lessonUnitsText(scheduleLessonUnitsFromFields());
+  refreshSchEntitlementOptions();
+}
+function refreshScheduleSettlementMode(){
+  const lateChecked=!!document.getElementById('sch_coachLateFree')?.checked;
+  const lateWrap=document.getElementById('sch_lateFieldsWrap');
+  if(lateWrap)lateWrap.style.display=lateChecked?'':'none';
+}
+function scheduleSaveSummaryHtml(data,selectedEntitlement){
+  const lines=[
+    ['本次参与', scheduleStudentTextByIds(data.studentIds)||'—'],
+    [parseArr(data.absentStudentIds).length?'本次缺勤':'', parseArr(data.absentStudentIds).length?scheduleStudentTextByIds(data.absentStudentIds):''],
+    ['时间', `${fmtDt(data.startTime)} - ${fmtDt(data.endTime)}`],
+    ['教练', data.coach||'—'],
+    ['校区/场地', scheduleLocationText(data)],
+    ['班次', data.classId?scheduleClassName(data):'—'],
+    ['课程', normalizeCourseType(data.courseType)||'—'],
+    ['消课时数', `${lessonUnitsText(data.lessonCount||0)} 小时`],
+    ['扣减课包', data.studentIds.length>1?'系统按参与学员自动扣课':(selectedEntitlement?selectedEntitlement.packageName:'未选择可用课包，本次不会扣减课包余额')]
+  ].filter(item=>item[0]&&item[1]);
+  if(data.coachLateFree)lines.push(['迟到免费',`本节不扣学员课时，教练承担场地费 ¥${fmt(data.coachLateFieldFeeAmount||0)}`]);
+  if(data.status==='已取消')lines.push(['取消原因',data.cancelReason||'未填写']);
+  return `<div class="schedule-save-summary">${lines.map(([label,value])=>`<div class="schedule-save-row"><div class="schedule-save-label">${esc(label)}</div><div class="schedule-save-value">${esc(value)}</div></div>`).join('')}</div>`;
+}
+function openScheduleSaveConfirmModal(data,selectedEntitlement){
+  _pending=[{type:'schedule-save',data,selectedEntitlement,editId:editId||''}];
+  const body=`<div class="schedule-save-summary-title">确认保存这节课？</div>${scheduleSaveSummaryHtml(data,selectedEntitlement)}`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="scheduleConfirmBtn" onclick="submitScheduleSaveConfirm()">确认保存</button>`;
+  setCourtModalFrame(editId?'确认保存排课':'确认新建排课',body,footer,'modal-wide modal-schedule-confirm');
 }
 // schedule modal field ids: id="sch_date" id="sch_startTime" id="sch_endTime" id="sch_cancelReason" id="sch_scheduleSource"
 function openScheduleModal(id,seed={}){
@@ -165,8 +240,7 @@ function openScheduleModal(id,seed={}){
   const classOptions=[{value:'',label:'— 不关联 —'},...classes.filter(c=>c.status==='已排班').map(c=>{const rem=(parseInt(c.totalLessons)||0)-(parseInt(c.usedLessons)||0);return {value:c.id,label:`${c.className} 剩余${rem}节`};})];
   const courseTypeOptions=PRODUCT_TYPES.map(t=>({value:t,label:t}));
   const coachOptions=[{value:'',label:'— 选择 —'},...activeCoachNames().map(c=>({value:c,label:c}))];
-  const campusOptions=[{value:'',label:'— 选择 —'},...campuses.map(c=>({value:c.code||c.id,label:c.name||c.code||c.id}))];
-  const venueOptions=['1号场','2号场','3号场','4号场'].map(v=>({value:v,label:v}));
+  const campusOptions=[{value:'',label:'— 选择 —'},...campuses.map(c=>({value:c.code||c.id,label:campusOptionLabel(c)}))];
   const cancelOptions=[{value:'',label:'— 未取消 —'},...SCH_CANCEL_REASONS.map(t=>({value:t,label:t}))];
   const selectedStudentIds=parseArr(rv(s,'studentIds','[]'));
   const expectedStudentIds=parseArr(rv(s,'expectedStudentIds','[]')).length?parseArr(rv(s,'expectedStudentIds','[]')):selectedStudentIds;
@@ -177,9 +251,12 @@ function openScheduleModal(id,seed={}){
   const endTimeValue=endRaw&&endRaw.length>=16?endRaw.slice(11,16):(seed.endTime?String(seed.endTime).slice(11,16):'10:00');
   const scheduleSource=rv(s,'scheduleSource',seed.scheduleSource||'排课表');
   const lateChecked=!!s?.coachLateFree;
+  const giftChecked=!!s?.giftLesson;
   const locationType=isExternalSchedule(s)?'external':'own';
   const externalParts=scheduleExternalVenueParts(s);
-  const body=[`<input type="hidden" id="sch_stuIds" value="${rv(s,'studentIds','[]')}"><input type="hidden" id="sch_expectedStuIds" value="${esc(JSON.stringify(expectedStudentIds))}"><input type="hidden" id="sch_scheduleSource" value="${scheduleSource}"><input type="hidden" id="sch_status" value="${rv(s,'status','已排课')}"><div class="tms-audit-note" style="margin-bottom:18px;color:#8C5C3A;background:rgba(217,119,6,0.12)">排课会校验时间冲突；关联班次后默认勾选全员，取消勾选的人本次记为缺勤，不扣课时。</div>`,`<div class="tms-section-header" style="margin-top:0;">人和课程</div><div class="tms-form-row"><div class="tms-form-item" style="flex:0 0 34%"><label class="tms-form-label">关联班次</label>${renderCourtDropdownHtml('sch_classId','关联班次',classOptions,rv(s,'classId'),true,'onSchClassChange')}<div id="sch_class_hint" style="font-size:12px;color:var(--ts);margin-top:8px"></div></div><div class="tms-form-item" style="flex:1"><label class="tms-form-label">本次参与人 *</label><input class="finput tms-form-control" id="sch_stuSearch" placeholder="搜索姓名 / 手机号 / 校区" oninput="applyScheduleStudentFilter()"><div id="sch_stuPickerWrap" style="margin-top:8px">${renderScheduleStudentPicker(selectedStudentIds)}</div><div id="sch_stuSummary" style="font-size:12px;color:var(--ts);margin-top:8px">${esc(scheduleStudentTextByIds(selectedStudentIds)||'未选择学员')}</div><div id="sch_homeCampusSummary" style="font-size:12px;color:var(--ts);margin-top:4px">${esc(scheduleSelectedStudentHomeCampusMeta(selectedStudentIds).text)}</div></div></div>`,`<div class="tms-section-header">上课信息</div><div class="tms-form-row schedule-time-course-row"><div class="tms-form-item schedule-time-field"><label class="tms-form-label">上课日期与时间 *</label>${scheduleTimeRangeControls(dateValue,startTimeValue,endTimeValue)}</div><div class="tms-form-item schedule-course-field"><label class="tms-form-label">课程类型</label>${renderCourtDropdownHtml('sch_courseType','课程类型',courseTypeOptions,normalizeCourseType(rv(s,'courseType')||seed.courseType)||PRODUCT_TYPES[0],true,'refreshSchEntitlementOptions')}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">每周重复</label><div class="finput tms-form-control" style="display:flex;align-items:center;gap:10px"><input type="checkbox" class="tms-checkbox" id="sch_repeatEnabled" ${id?'disabled':''}><span>${id?'编辑时不支持批量重排':'按周生成多节课'}</span></div></div><div class="tms-form-item"><label class="tms-form-label">连续周数</label><input class="finput tms-form-control" id="sch_repeatWeeks" type="number" min="1" max="12" value="1" ${id?'disabled':''}></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">教练 *</label>${renderCourtDropdownHtml('sch_coach','教练',coachOptions,rv(s,'coach')||seed.coach,true,'refreshSchEntitlementOptions')}</div><div class="tms-form-item"><label class="tms-form-label">消课节数</label><input class="finput tms-form-control" id="sch_lc" type="number" value="${rv(s,'lessonCount',seed.lessonCount||1)}" onchange="refreshSchEntitlementOptions()"></div><div class="tms-form-item"><label class="tms-form-label">扣减课包</label><select class="finput tms-form-control" id="sch_entitlement"><option value="${rv(s,'entitlementId','')}">${rv(s,'packageName','- 自动推荐可用课包 -')||'- 自动推荐可用课包 -'}</option></select><div id="sch_ent_hint" style="font-size:12px;color:var(--ts);margin-top:8px"></div></div></div>`,`<div class="tms-section-header">地点</div><div class="tms-form-row schedule-location-row"><div class="tms-form-item schedule-location-type"><label class="tms-form-label">地点类型</label>${renderCourtDropdownHtml('sch_locationType','地点类型',[{value:'own',label:'校区内'},{value:'external',label:'校区外'}],locationType,true,'toggleScheduleLocationType')}</div><div class="schedule-location-fields" id="sch_ownLocationRow"><div class="tms-form-item"><label class="tms-form-label">上课校区 *</label>${renderCourtDropdownHtml('sch_campus','上课校区',campusOptions,locationType==='own'?(rv(s,'campus')||seed.campus):'',true,'refreshSchEntitlementOptions')}</div><div class="tms-form-item"><label class="tms-form-label">场地 *</label>${renderCourtDropdownHtml('sch_venue','场地',venueOptions,locationType==='own'?rv(s,'venue','1号场'):'1号场',true)}</div></div><div class="schedule-location-fields" id="sch_externalLocationRow" style="display:none"><div class="tms-form-item"><label class="tms-form-label">外部场馆 *</label><input class="finput tms-form-control" id="sch_externalVenueName" value="${esc(externalParts.name)}" placeholder="例：奥森网球中心"></div><div class="tms-form-item"><label class="tms-form-label">场地号 *</label><input class="finput tms-form-control" id="sch_externalCourtName" value="${esc(externalParts.court)}" placeholder="例：A1 / 学员自订"></div><div class="tms-form-item"><label class="tms-form-label">说明</label><input class="finput tms-form-control" id="sch_externalNotes" value="${esc(rv(s,'externalNotes'))}" placeholder="可不填"></div></div></div>`,`<details class="schedule-advanced"><summary>更多设置</summary><div class="tms-section-header">教练迟到处理</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">教练迟到免费</label><div class="finput tms-form-control" style="display:flex;align-items:center;gap:10px"><input type="checkbox" class="tms-checkbox" id="sch_coachLateFree" ${lateChecked?'checked':''} onchange="refreshScheduleLateFee()"><span>本节不扣学员课时</span></div></div><div class="tms-form-item"><label class="tms-form-label">迟到分钟</label><input class="finput tms-form-control" id="sch_lateMinutes" type="number" min="0" value="${parseInt(rv(s,'lateMinutes',0))||0}"></div><div class="tms-form-item"><label class="tms-form-label">教练承担场地费</label><input class="finput tms-form-control" id="sch_lateFieldFee" type="number" min="0" value="${parseFloat(rv(s,'coachLateFieldFeeAmount',0))||0}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">取消原因</label>${renderCourtDropdownHtml('sch_cancelReason','取消原因',cancelOptions,rv(s,'cancelReason'),true)}</div><div class="tms-form-item"><label class="tms-form-label">迟到原因</label><input class="finput tms-form-control" id="sch_lateReason" value="${esc(rv(s,'lateReason'))}" placeholder="例如：教练迟到，本节课免费"></div></div></details><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="sch_notes">${esc(rv(s,'notes'))}</textarea></div></div>`].join('');
+  const ownCampusValue=locationType==='own'?(rv(s,'campus')||seed.campus):'';
+  const ownVenueValue=locationType==='own'?rv(s,'venue','1号场'):'1号场';
+  const body=[`<input type="hidden" id="sch_stuIds" value="${rv(s,'studentIds','[]')}"><input type="hidden" id="sch_expectedStuIds" value="${esc(JSON.stringify(expectedStudentIds))}"><input type="hidden" id="sch_scheduleSource" value="${scheduleSource}"><input type="hidden" id="sch_status" value="${rv(s,'status','已排课')}"><div class="tms-audit-note" style="margin-bottom:18px;color:#8C5C3A;background:rgba(217,119,6,0.12)">排课会校验时间冲突；关联班次后默认勾选全员，取消勾选的人本次记为缺勤，不扣课时。</div>`,`<div class="tms-section-header" style="margin-top:0;">人和课程</div><div class="tms-form-row"><div class="tms-form-item" style="flex:0 0 34%"><label class="tms-form-label">关联班次</label>${renderCourtDropdownHtml('sch_classId','关联班次',classOptions,rv(s,'classId'),true,'onSchClassChange')}<div id="sch_class_hint" style="font-size:12px;color:var(--ts);margin-top:8px"></div></div><div class="tms-form-item" style="flex:1"><label class="tms-form-label">本次参与人 *</label><input class="finput tms-form-control" id="sch_stuSearch" placeholder="搜索姓名 / 手机号 / 校区" oninput="applyScheduleStudentFilter()"><div id="sch_stuPickerWrap" style="margin-top:8px">${renderScheduleStudentPicker(selectedStudentIds)}</div><div id="sch_stuSummary" style="font-size:12px;color:var(--ts);margin-top:8px">${esc(scheduleStudentTextByIds(selectedStudentIds)||'未选择学员')}</div><div id="sch_homeCampusSummary" style="font-size:12px;color:var(--ts);margin-top:4px">${esc(scheduleSelectedStudentHomeCampusMeta(selectedStudentIds).text)}</div></div></div>`,`<div class="tms-section-header">上课信息</div><div class="tms-form-row schedule-time-course-row"><div class="tms-form-item schedule-time-field"><label class="tms-form-label">上课日期与时间 *</label>${scheduleTimeRangeControls(dateValue,startTimeValue,endTimeValue)}</div><div class="tms-form-item schedule-course-field"><label class="tms-form-label">课程类型</label>${renderCourtDropdownHtml('sch_courseType','课程类型',courseTypeOptions,normalizeCourseType(rv(s,'courseType')||seed.courseType)||PRODUCT_TYPES[0],true,'refreshSchEntitlementOptions')}</div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">每周重复</label><div class="finput tms-form-control" style="display:flex;align-items:center;gap:10px"><input type="checkbox" class="tms-checkbox" id="sch_repeatEnabled" ${id?'disabled':''}><span>${id?'当前先只支持修改这一节；整组调整请取消后重新批量创建':'按周生成多节课'}</span></div></div><div class="tms-form-item"><label class="tms-form-label">连续周数</label><input class="finput tms-form-control" id="sch_repeatWeeks" type="number" min="1" max="12" value="1" ${id?'disabled':''}></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">教练 *</label>${renderCourtDropdownHtml('sch_coach','教练',coachOptions,rv(s,'coach')||seed.coach,true,'refreshSchEntitlementOptions')}</div><div class="tms-form-item"><label class="tms-form-label">消课时数</label><input class="finput tms-form-control" id="sch_lc" type="number" min="0.5" step="0.5" value="${lessonUnitsText(rv(s,'lessonCount',seed.lessonCount||1))}" readonly></div><div class="tms-form-item"><label class="tms-form-label">扣减课包</label><select class="finput tms-form-control" id="sch_entitlement"><option value="${rv(s,'entitlementId','')}">${rv(s,'packageName','- 自动推荐可用课包 -')||'- 自动推荐可用课包 -'}</option></select><div id="sch_ent_hint" style="font-size:12px;color:var(--ts);margin-top:8px"></div></div></div>`,`<div class="tms-section-header">地点</div><div class="tms-form-row schedule-location-row"><div class="tms-form-item schedule-location-type"><label class="tms-form-label">地点类型</label>${renderCourtDropdownHtml('sch_locationType','地点类型',[{value:'own',label:'校区内'},{value:'external',label:'校区外'}],locationType,true,'toggleScheduleLocationType')}</div><div class="schedule-location-fields" id="sch_ownLocationRow"><div class="tms-form-item"><label class="tms-form-label">上课校区 *</label>${renderCourtDropdownHtml('sch_campus','上课校区',campusOptions,ownCampusValue,true,'onScheduleCampusChange')}</div><div class="tms-form-item" id="sch_venueHost"><label class="tms-form-label">场地 *</label>${renderCourtDropdownHtml('sch_venue','场地',venueOptionsForCampus(ownCampusValue),ownVenueValue,true)}</div></div><div class="schedule-location-fields" id="sch_externalLocationRow" style="display:none"><div class="tms-form-item"><label class="tms-form-label">外部场馆 *</label><input class="finput tms-form-control" id="sch_externalVenueName" value="${esc(externalParts.name)}" placeholder="例：奥森网球中心"></div><div class="tms-form-item"><label class="tms-form-label">场地号 *</label><input class="finput tms-form-control" id="sch_externalCourtName" value="${esc(externalParts.court)}" placeholder="例：A1 / 学员自订"></div><div class="tms-form-item"><label class="tms-form-label">说明</label><input class="finput tms-form-control" id="sch_externalNotes" value="${esc(rv(s,'externalNotes'))}" placeholder="可不填"></div></div></div>`,`<details class="schedule-advanced"><summary>更多设置</summary><div class="tms-section-header">课时结算</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">赠送上课</label><div class="finput tms-form-control" style="display:flex;align-items:center;gap:10px"><input type="checkbox" class="tms-checkbox" id="sch_giftLesson" ${giftChecked?'checked':''} onchange="refreshScheduleSettlementMode();refreshSchEntitlementOptions()"><span>本节不扣学员课时，原因写在备注里</span></div></div><div class="tms-form-item"><label class="tms-form-label">教练迟到免费</label><div class="finput tms-form-control" style="display:flex;align-items:center;gap:10px"><input type="checkbox" class="tms-checkbox" id="sch_coachLateFree" ${lateChecked?'checked':''} onchange="refreshScheduleSettlementMode();refreshSchEntitlementOptions();refreshScheduleLateFee()"><span>本节不扣学员课时</span></div></div></div><div id="sch_lateFieldsWrap" style="display:${lateChecked?'':'none'}"><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">迟到分钟</label><input class="finput tms-form-control" id="sch_lateMinutes" type="number" min="0" value="${parseInt(rv(s,'lateMinutes',0))||0}"></div><div class="tms-form-item"><label class="tms-form-label">教练承担场地费</label><input class="finput tms-form-control" id="sch_lateFieldFee" type="number" min="0" value="${parseFloat(rv(s,'coachLateFieldFeeAmount',0))||0}"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">迟到原因</label><input class="finput tms-form-control" id="sch_lateReason" value="${esc(rv(s,'lateReason'))}" placeholder="例如：教练迟到，本节课免费"></div></div></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">取消原因</label>${renderCourtDropdownHtml('sch_cancelReason','取消原因',cancelOptions,rv(s,'cancelReason'),true)}</div></div></details><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="sch_notes">${esc(rv(s,'notes'))}</textarea></div></div>`].join('');
   const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button>${id&&scheduleCanDeleteMistake(s)?`<button class="tms-btn tms-btn-danger" onclick="confirmDel('${s.id}','误建排课','schedule')">误建删除</button>`:''}<button class="tms-btn tms-btn-primary" id="scheduleSaveBtn" onclick="saveSchedule()">保存</button>`;
   setCourtModalFrame(id?'编辑排课':'添加排课',body,footer,'modal-wide');
   updateSchClassHint();
@@ -187,6 +264,9 @@ function openScheduleModal(id,seed={}){
   updateScheduleStudentSummary(selectedStudentIds);
   toggleScheduleCancelReason();
   toggleScheduleLocationType();
+  refreshScheduleSettlementMode();
+  ['sch_startTime','sch_endTime'].forEach(fieldId=>document.getElementById(fieldId)?.addEventListener('change',refreshScheduleTimeDerivedFields));
+  refreshScheduleTimeDerivedFields();
   refreshSchEntitlementOptions();
 }
 function toggleScheduleCancelReason(){
@@ -198,12 +278,64 @@ function toggleScheduleCancelReason(){
   refreshSchEntitlementOptions();
 }
 function openCancelScheduleModal(id){
-  openScheduleModal(id);
-  const status=document.getElementById('sch_status');
-  if(status)status.value='已取消';
-  toggleScheduleCancelReason();
-  const advanced=document.querySelector('.schedule-advanced');
-  if(advanced)advanced.open=true;
+  const s=schedules.find(x=>x.id===id);
+  if(!s){toast('排课不存在','warn');return;}
+  const repeatTargets=scheduleRepeatCancelableTargets(s);
+  const repeatBlock=s.scheduleSource==='循环排课'?`<div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">取消范围</label><div class="schedule-cancel-scope"><label class="tms-checkbox-wrap"><input type="radio" name="sch_cancel_scope" value="single" checked> <span>只取消这一节</span></label><label class="tms-checkbox-wrap"><input type="radio" name="sch_cancel_scope" value="future"> <span>取消本节及后续未上课的循环课（共 ${repeatTargets.length+1} 节）</span></label><div class="schedule-cancel-help">已经上过课的不会动。循环课如果要整组取消，这里只会处理当前这节开始的未上课记录。</div></div></div></div>`:'';
+  const body=`<div class="schedule-cancel-summary"><div>${esc(fmtDt(s.startTime))}</div><div>${esc(scheduleListStudentSummary(s))}</div><div>${esc(s.coach||'—')}</div><div>${esc(scheduleLocationText(s))}</div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">取消原因 *</label>${renderCourtDropdownHtml('sch_cancelReasonQuick','取消原因',[{value:'',label:'— 选择取消原因 —'},...SCH_CANCEL_REASONS.map(t=>({value:t,label:t}))],'',true)}</div></div>${repeatBlock}`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">返回</button><button class="tms-btn tms-btn-danger" id="scheduleCancelBtn" onclick="confirmScheduleCancel('${s.id}')">确认取消</button>`;
+  setCourtModalFrame('取消排课',body,footer,'modal-tight modal-schedule-cancel');
+}
+function scheduleRepeatIdentityKey(s){
+  return [
+    s.classId||'',
+    scheduleCourseType(s)||'',
+    s.coach||'',
+    s.locationType||'own',
+    s.campus||'',
+    s.venue||'',
+    s.externalVenueName||'',
+    s.externalCourtName||'',
+    lessonUnitsText(s.lessonCount||0),
+    (parseArr(s.expectedStudentIds).length?parseArr(s.expectedStudentIds):parseArr(s.studentIds)).slice().sort().join('|'),
+    String(s.startTime||'').slice(11,16),
+    String(s.endTime||'').slice(11,16)
+  ].join('::');
+}
+function scheduleRepeatCancelableTargets(schedule){
+  if(!schedule||schedule.scheduleSource!=='循环排课')return [];
+  const key=scheduleRepeatIdentityKey(schedule);
+  const startMs=dateMs(schedule.startTime);
+  return schedules.filter(item=>{
+    if(item.id===schedule.id)return false;
+    if(item.scheduleSource!=='循环排课')return false;
+    if(scheduleRepeatIdentityKey(item)!==key)return false;
+    if(effectiveScheduleStatus(item)!=='已排课')return false;
+    return dateMs(item.startTime)>=startMs;
+  }).sort((a,b)=>String(a.startTime||'').localeCompare(String(b.startTime||'')));
+}
+async function confirmScheduleCancel(id){
+  const schedule=schedules.find(item=>item.id===id);
+  if(!schedule){toast('排课不存在','warn');return;}
+  const reason=document.getElementById('sch_cancelReasonQuick')?.value||'';
+  if(!reason){toast('请选择取消原因','warn');return;}
+  const scope=document.querySelector('input[name="sch_cancel_scope"]:checked')?.value||'single';
+  const targets=scope==='future'?[schedule,...scheduleRepeatCancelableTargets(schedule)].filter(item=>effectiveScheduleStatus(item)==='已排课'):[schedule];
+  if(!targets.length){toast('当前没有可取消的未上课排课','warn');return;}
+  const btn=document.getElementById('scheduleCancelBtn');
+  if(btn){btn.disabled=true;btn.textContent='取消中…';}
+  try{
+    for(const item of targets){
+      const result=await apiCall('PUT','/schedule/'+item.id,{status:'已取消',cancelReason:reason});
+      mergeScheduleSaveResult(result,item.id);
+    }
+    closeModal();
+    toast(scope==='future'?'循环排课已取消 ✓':'排课已取消 ✓','success');
+    renderSchedule();renderClasses();renderPlans();renderCoachOps();renderMySchedule();
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='确认取消';}
+    toast('取消失败：'+e.message,'error');
+  }
 }
 function onSchClassChange(){
   const cid=document.getElementById('sch_classId').value;if(!cid){updateSchClassHint();return;}
@@ -299,7 +431,7 @@ async function refreshSchEntitlementOptions(){
   if(!ids.length||!startRaw||!endRaw){sel.innerHTML='<option value="">— 先选本次参与人和时间 —</option>';hint.textContent='';return;}
   if(ids.length>1){sel.innerHTML='<option value="">— 系统按参与学员自动扣课 —</option>';hint.textContent='多人班次会按勾选的参与学员分别扣各自可用课包，未勾选学员不扣课。';return;}
   try{
-    const res=await apiCall('POST','/entitlements/recommend',{studentIds:ids,courseType:document.getElementById('sch_courseType')?.value||'',coach:document.getElementById('sch_coach')?.value||'',coachId:document.getElementById('sch_coach')?.value||'',campus:document.getElementById('sch_campus')?.value||'',startTime:startRaw,endTime:endRaw,lessonCount:parseInt(document.getElementById('sch_lc')?.value)||1,status:document.getElementById('sch_status')?.value||'已排课'});
+    const res=await apiCall('POST','/entitlements/recommend',{studentIds:ids,courseType:document.getElementById('sch_courseType')?.value||'',coach:document.getElementById('sch_coach')?.value||'',coachId:document.getElementById('sch_coach')?.value||'',campus:document.getElementById('sch_campus')?.value||'',startTime:startRaw,endTime:endRaw,lessonCount:parseFloat(document.getElementById('sch_lc')?.value)||1,status:document.getElementById('sch_status')?.value||'已排课',scheduleId:editId||''});
     sel.innerHTML=(res.options||[]).filter(x=>x.selectable).map(x=>`<option value="${x.entitlementId}"${(document.getElementById('sch_entitlement').dataset.keep||document.getElementById('sch_entitlement').value||'')===x.entitlementId?' selected':''}>${esc(x.packageName)} · 剩余${x.remainingLessons}/${x.totalLessons} · ${esc(x.timeBand)||'全天'} · 到期${esc(x.validUntil)||'—'}</option>`).join('')||'<option value="">— 无可用课包 —</option>';
     hint.textContent=res.recommended?`推荐课包：${res.recommended.packageName}，剩余 ${res.recommended.remainingLessons}/${res.recommended.totalLessons}，${res.recommended.timeBand||'全天'}，到期 ${res.recommended.validUntil||'—'}`:'当前没有可用课包';
   }catch(e){sel.innerHTML='<option value="">— 无可用课包 —</option>';hint.textContent=e.message;}
@@ -329,7 +461,7 @@ async function saveSchedule(){
   if(endTime&&endTime<=startTime){toast('下课时间不能早于上课时间','warn');return;}
   if(endTime&&startTime.slice(0,10)!==endTime.slice(0,10)){toast('上课时间不能跨天','warn');return;}
   const classId=document.getElementById('sch_classId').value;
-  const lc=parseInt(document.getElementById('sch_lc').value)||1;
+  const lc=parseFloat(document.getElementById('sch_lc').value)||1;
   const studentIds=parseArr(document.getElementById('sch_stuIds').value);
   const expectedStudentIds=parseArr(document.getElementById('sch_expectedStuIds')?.value||'[]');
   const expectedBase=expectedStudentIds.length?expectedStudentIds:studentIds;
@@ -360,13 +492,18 @@ async function saveSchedule(){
   const lateReason=document.getElementById('sch_lateReason')?.value.trim()||'';
   if(coachLateFree&&!lateReason){toast('请填写迟到原因','warn');return;}
   const data={startTime,endTime,classId,studentIds,expectedStudentIds:expectedBase,absentStudentIds,studentName:scheduleStudentTextByIds(studentIds).replace(/（[^）]*）/g,''),courseType:selectedCourseType,isTrial:selectedCourseType==='体验课',coach,coachId:coach,locationType,venue,campus:campusValue,externalVenueName:locationType==='external'?externalVenueName:'',externalCourtName:locationType==='external'?externalCourtName:'',externalNotes:locationType==='external'?externalNotes:'',lessonCount:lc,status,entitlementId:studentIds.length===1?selectedEntitlementId:'',packageName:studentIds.length===1?(selectedEntitlement?.packageName||''):'',purchaseId:studentIds.length===1?(selectedEntitlement?.purchaseId||''):'',timeBand:studentIds.length===1?(selectedEntitlement?.timeBand||''):'',cancelReason,notifyStatus:'',confirmStatus:'',scheduleSource:document.getElementById('sch_scheduleSource')?.value||'排课表',coachLateFree,lateMinutes:parseInt(document.getElementById('sch_lateMinutes')?.value)||0,lateReason,coachLateFieldFeeAmount:parseFloat(document.getElementById('sch_lateFieldFee')?.value)||0,coachLateHandledAt:coachLateFree?new Date().toISOString():'',coachLateHandledBy:coachLateFree?(currentUser?.name||''):'',notes:document.getElementById('sch_notes').value.trim()};
-  if(!window.confirm(scheduleSaveConfirmText(data,selectedEntitlement)))return;
-  const btn=document.getElementById('scheduleSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
+  openScheduleSaveConfirmModal(data,selectedEntitlement);
+}
+async function submitScheduleSaveConfirm(){
+  const pending=_pending.find(item=>item?.type==='schedule-save');
+  if(!pending){toast('待保存排课已失效，请重新提交','warn');return;}
+  const { data, selectedEntitlement, editId:pendingEditId='' }=pending;
+  const btn=document.getElementById('scheduleConfirmBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   try{
     let result;
-    if(editId){
-      result=await apiCall('PUT','/schedule/'+editId,data);
-      mergeScheduleSaveResult(result,editId);
+    if(pendingEditId){
+      result=await apiCall('PUT','/schedule/'+pendingEditId,data);
+      mergeScheduleSaveResult(result,pendingEditId);
     }else{
       const seeds=buildRepeatScheduleSeeds(data);
       let warnings=[];
@@ -379,10 +516,10 @@ async function saveSchedule(){
       }
       if(result)result.warnings=warnings;
     }
-    closeModal();toast(editId?'修改成功 ✓':'排课成功 ✓','success');
+    closeModal();_pending=[];toast(pendingEditId?'修改成功 ✓':'排课成功 ✓','success');
     if(result?.warnings?.length)toast(result.warnings.join('；'),'warn');
     renderSchedule();renderClasses();renderPlans();renderCoachOps();renderMySchedule();
-  }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
+  }catch(e){toast('保存失败：'+e.message,'error');if(btn){btn.disabled=false;btn.textContent='确认保存';}}
 }
 function scheduleRemainingLessons(s){
   const cls=s?.classId?classes.find(c=>c.id===s.classId):null;
