@@ -846,14 +846,22 @@ function posterMeasureTextBlock(ctx, text, w, maxLines) {
 
 function posterLayout(ctx, data) {
   const contentWidth = 570;
-  const sections = [
+  const baseSections = [
     { key: 'practicedToday', label: '今天练习了', text: data.practicedToday },
     { key: 'knowledgePoint', label: '练习情况', text: data.knowledgePoint },
     { key: 'nextTraining', label: '下次练习', text: data.nextTraining }
-  ].map(section => ({
-    ...section,
-    ...posterMeasureTextBlock(ctx, section.text, contentWidth, Infinity)
-  }));
+  ];
+  const sections = baseSections.map((section) => {
+    const measured = posterMeasureTextBlock(ctx, section.text, contentWidth, Infinity);
+    return {
+      key: section.key,
+      label: section.label,
+      text: section.text,
+      lines: measured.lines,
+      boxHeight: measured.boxHeight,
+      consumedHeight: measured.consumedHeight
+    };
+  });
   const contentStartY = 320;
   let currentY = contentStartY;
   sections.forEach(section => {
@@ -869,7 +877,10 @@ function posterLayout(ctx, data) {
 }
 
 function posterDrawTextBlock(ctx, tpl, section, x, w) {
-  const { label, lines, boxHeight, y } = section;
+  const label = section.label;
+  const lines = section.lines;
+  const boxHeight = section.boxHeight;
+  const y = section.y;
   ctx.font = '400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
   const paddingTop = 32;
   const titleSpace = 52;
