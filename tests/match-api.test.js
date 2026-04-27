@@ -4,7 +4,12 @@ const path = require('path');
 const api = require('../api');
 
 const rules = api._test;
-const migration = fs.readFileSync(path.join(__dirname, '..', 'migrations', '20260421_match_real_launch.sql'), 'utf8');
+const migrationDir = path.join(__dirname, '..', 'migrations');
+const migration = fs.readdirSync(migrationDir)
+  .filter((file) => file.endsWith('.sql'))
+  .sort()
+  .map((file) => fs.readFileSync(path.join(migrationDir, file), 'utf8'))
+  .join('\n');
 const apiSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
 
 assert.ok(rules.assertMatchPostInput, 'api._test should expose match post validation');
@@ -64,6 +69,11 @@ assert.match(apiSource, /path==='\/match-attendance'/, 'API should expose self a
 assert.match(apiSource, /path==='\/match-attendance\/creator-confirm'/, 'API should expose creator attendance endpoint');
 assert.match(apiSource, /path==='\/match-notifications'/, 'API should expose match notifications endpoint');
 assert.match(apiSource, /path==='\/match-players'/, 'API should expose match players endpoint');
+assert.match(apiSource, /DEFAULT_ADMIN_BOOTSTRAP_PASSWORD/, 'bootstrap password should come from env instead of hardcoded source');
+assert.doesNotMatch(apiSource, /wqxd2026/, 'default admin password must not be hardcoded');
+assert.match(apiSource, /已超过发起者确认时限，请联系运营处理/, 'creator attendance confirmation should expire into ops fallback');
+assert.match(apiSource, /请先完成全部到场确认，再生成AA/, 'AA generation should wait for full attendance confirmation');
+assert.match(apiSource, /已生成AA，不能再修改到场名单/, 'attendance should lock after fee generation');
 assert.match(apiSource, /viewerFeeSplit/, 'match detail should include viewer fee split');
 assert.match(apiSource, /offlinePaymentText/, 'match detail should include offline payment text');
 assert.match(apiSource, /feeSplitsByMatch/, 'admin match list should include fee splits');
@@ -71,6 +81,9 @@ assert.match(apiSource, /operationLogs/, 'admin match list should include operat
 assert.match(apiSource, /match_operation_logs ORDER BY createdAt DESC/, 'admin match list should load latest operation logs');
 assert.match(apiSource, /MATCH_WECHAT_TEMPLATE_ID/, 'match notifications should have a dedicated template id env');
 assert.match(apiSource, /notifyMatchUsers/, 'match operations should trigger subscribe notification helper');
+assert.match(apiSource, /levelMode/, 'match posts should persist level mode');
+assert.match(apiSource, /formationStatus/, 'match posts should persist formation status');
+assert.match(apiSource, /prepayDeadlineAt/, 'match posts should persist prepay deadline');
 
 assert.throws(() => rules.assertMatchPostInput({}), /请填写标题/);
 assert.throws(() => rules.assertMatchPostInput({
@@ -95,11 +108,43 @@ assert.throws(() => rules.assertMatchPostInput({
   startTime: '2026-04-22T10:00:00',
   endTime: '2026-04-22T12:00:00'
 }), /费用必须大于 0/);
+assert.throws(() => rules.assertMatchPostInput({
+  title: '周末双打',
+  matchType: 'double',
+  targetHeadcount: 4,
+  venueName: '',
+  venueAddress: '',
+  ntrpMin: 2.5,
+  ntrpMax: 3.5,
+  genderPreference: '不限',
+  estimatedCourtFee: 100,
+  startTime: '2026-04-22T10:00:00',
+  endTime: '2026-04-22T12:00:00'
+}), /请选择球场/);
+assert.throws(() => rules.assertMatchPostInput({
+  title: '周末双打',
+  matchType: 'double',
+  targetHeadcount: 4,
+  venueName: '马坡网球馆',
+  venueAddress: '马坡',
+  venueLatitude: 40.1,
+  venueLongitude: 116.2,
+  ntrpMin: 2.5,
+  ntrpMax: 3.5,
+  genderPreference: '不限',
+  estimatedCourtFee: 100,
+  startTime: '2026-04-22T23:00:00',
+  endTime: '2026-04-23T01:00:00'
+}), /不能跨天/);
 
 const valid = rules.assertMatchPostInput({
   title: '周末双打',
   matchType: '双打',
   targetHeadcount: 4,
+  venueName: '马坡网球馆',
+  venueAddress: '马坡',
+  venueLatitude: 40.1,
+  venueLongitude: 116.2,
   ntrpMin: 2.5,
   ntrpMax: 3.5,
   genderPreference: '不限',
@@ -109,6 +154,26 @@ const valid = rules.assertMatchPostInput({
 });
 assert.equal(valid.status, 'open');
 assert.equal(valid.matchType, 'double');
+assert.equal(valid.levelMode, 'preset');
+
+const firstJoinLevelMatch = rules.assertMatchPostInput({
+  title: '明晚双打',
+  matchType: '双打',
+  targetHeadcount: 4,
+  venueName: '朝阳公园网球场',
+  venueAddress: '朝阳公园',
+  venueLatitude: 40.1,
+  venueLongitude: 116.2,
+  ntrpMin: '',
+  ntrpMax: '',
+  genderPreference: '不限',
+  estimatedCourtFee: 400,
+  startTime: '2026-04-22T19:00:00',
+  endTime: '2026-04-22T21:00:00'
+});
+assert.equal(firstJoinLevelMatch.levelMode, 'first_join');
+assert.equal(firstJoinLevelMatch.ntrpMin, 0);
+assert.equal(firstJoinLevelMatch.ntrpMax, 0);
 
 assert.deepEqual(rules.splitAaFee(500, ['u1', 'u2', 'u3']).map(x => x.amount), [167, 167, 166]);
 assert.equal(rules.splitAaFee(500, ['u1', 'u2', 'u3']).reduce((sum, row) => sum + row.amount, 0), 500);
@@ -154,6 +219,9 @@ const ledger = rules.buildMatchFeeLedger({
   matchId: 'm1',
   estimatedCourtFee: 480,
   finalCourtFee: 500,
+  matchType: 'double',
+  startTime: '2026-04-22 10:00',
+  endTime: '2026-04-22 12:00',
   participants: [
     { userId: 'u1', finalStatus: 'attended' },
     { userId: 'u2', finalStatus: 'attended' },
@@ -165,12 +233,55 @@ assert.equal(ledger.record.finalCourtFee, 500);
 assert.deepEqual(ledger.splits.map(x => x.amount), [167, 167, 166]);
 assert.equal(ledger.splits.reduce((sum, row) => sum + row.amount, 0), 500);
 
+const singleTwoHourLedger = rules.buildMatchFeeLedger({
+  matchId: 'm2',
+  estimatedCourtFee: 200,
+  finalCourtFee: 200,
+  matchType: 'single',
+  startTime: '2026-04-22 10:00',
+  endTime: '2026-04-22 12:00',
+  participants: [
+    { userId: 'u1', finalStatus: 'attended' },
+    { userId: 'u2', finalStatus: 'attended' }
+  ]
+});
+assert.equal(singleTwoHourLedger.record.finalCourtFee, 260);
+assert.deepEqual(singleTwoHourLedger.splits.map(x => x.amount), [130, 130]);
+
 assert.throws(() => rules.buildMatchFeeLedger({
   matchId: 'm1',
   estimatedCourtFee: 480,
   finalCourtFee: 500,
+  matchType: 'double',
+  startTime: '2026-04-22 10:00',
+  endTime: '2026-04-22 12:00',
   participants: [{ userId: 'u1', finalStatus: 'absent' }]
-}), /没有可计费参与人/);
+}), /1人默认取消/);
+
+assert.equal(
+  rules.matchTimelineStatus({
+    status: 'open',
+    startTime: '2026-04-28 10:00',
+    endTime: '2026-04-28 12:00'
+  }, new Date('2026-04-27T12:00:00+08:00')),
+  '待开始'
+);
+assert.equal(
+  rules.matchTimelineStatus({
+    status: 'open',
+    startTime: '2026-04-27 10:00',
+    endTime: '2026-04-27 12:00'
+  }, new Date('2026-04-27T11:00:00+08:00')),
+  '进行中'
+);
+assert.equal(
+  rules.matchTimelineStatus({
+    status: 'open',
+    startTime: '2026-04-27 10:00',
+    endTime: '2026-04-27 12:00'
+  }, new Date('2026-04-27T13:00:00+08:00')),
+  '已结束'
+);
 
 const withdrawal = rules.assertBookedWithdrawalInput({ financialResponsibility: 'charge', reason: '临时有事' });
 assert.equal(withdrawal.financialResponsibility, 'charge');
@@ -195,8 +306,9 @@ assert.equal(profileStats.createdCount, 2);
 assert.equal(profileStats.joinedCount, 2);
 assert.equal(profileStats.matchCreatedCount, 2);
 assert.equal(profileStats.matchJoinedCount, 2);
-assert.equal(profileStats.attendanceRate, 50);
-assert.equal(profileStats.attendanceRateText, '50%');
+assert.equal(profileStats.matchCompletedCount, 3);
+assert.equal(profileStats.attendanceRate, 67);
+assert.equal(profileStats.attendanceRateText, '67%');
 assert.equal(profileStats.totalFeeAmount, 333);
 
 const matchCourtHistoryRow = rules.buildMatchCourtFinanceHistoryRow({
