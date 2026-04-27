@@ -87,6 +87,7 @@ let importedLedgerRepairChecked=false;
 
 let tsClient;
 const wechatAccessTokenCacheByApp = new Map();
+const wechatAccessTokenCache = wechatAccessTokenCacheByApp;
 let matchSqlPool;
 function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
 function getMatchSqlPool(){
