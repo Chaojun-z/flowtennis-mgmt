@@ -28,6 +28,7 @@ assert.ok(rules.requireMatchAdminPermission, 'api._test should expose match perm
 assert.ok(rules.buildMatchCourtFinanceHistoryRow, 'api._test should expose match court finance row builder');
 assert.ok(rules.buildMatchCourtFinanceRefundRow, 'api._test should expose match court finance refund row builder');
 assert.ok(rules.assertMatchFeeSplitUpdateInput, 'api._test should expose match fee update validation');
+assert.ok(rules.assertMatchReplacementTransferInput, 'api._test should expose replacement transfer validation');
 assert.ok(rules.buildMatchFinanceDailyReport, 'api._test should expose match finance daily report builder');
 
 for (const table of [
@@ -38,7 +39,8 @@ for (const table of [
   'match_bookings',
   'match_fee_records',
   'match_fee_splits',
-  'match_operation_logs'
+  'match_operation_logs',
+  'match_replacements'
 ]) {
   assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`), `${table} migration is required`);
 }
@@ -54,7 +56,10 @@ assert.match(apiSource, /adminFeeConfirmM=path\.match/, 'API should expose admin
 assert.match(apiSource, /requireMatchAdminPermission\(user,'match_ops'\)/, 'match booking and attendance admin APIs should require ops permission');
 assert.match(apiSource, /requireMatchAdminPermission\(user,'match_finance'\)/, 'match fee admin APIs should require finance permission');
 assert.match(apiSource, /adminWithdrawalM=path\.match/, 'API should expose booked withdrawal handling endpoint');
+assert.match(apiSource, /adminReplacementM=path\.match/, 'API should expose replacement transfer endpoint');
+assert.match(apiSource, /adminTransferMatchReplacement/, 'API should implement replacement transfer flow');
 assert.match(migration, /financialResponsibility/, 'registrations should persist booked withdrawal financial responsibility');
+assert.match(migration, /CREATE TABLE IF NOT EXISTS match_replacements/, 'replacement transfer records should persist in SQL');
 assert.match(apiSource, /syncMatchFeeSplitToCourtFinance/, 'paid match fee splits should sync into court finance ledger');
 assert.match(apiSource, /syncMatchFeeSplitRefundToCourtFinance/, 'refunded match fee splits should sync refund into court finance ledger');
 assert.match(apiSource, /match-court-finance/, 'match finance should use a dedicated court finance account');
@@ -97,6 +102,8 @@ assert.match(apiSource, /运营接管/, 'match operations should record admin ta
 assert.match(apiSource, /levelMode/, 'match posts should persist level mode');
 assert.match(apiSource, /formationStatus/, 'match posts should persist formation status');
 assert.match(apiSource, /prepayDeadlineAt/, 'match posts should persist prepay deadline');
+assert.match(apiSource, /仅支持四人局替补转让/, 'replacement transfer should stay scoped to four-player groups');
+assert.match(apiSource, /替补用户不存在，请先让对方登录小程序并完成手机号授权/, 'replacement flow should require a real mini-program user');
 
 assert.throws(() => rules.assertMatchPostInput({}), /请填写标题/);
 assert.throws(() => rules.assertMatchPostInput({
@@ -311,6 +318,17 @@ assert.throws(() => rules.buildMatchFeeLedger({
   endTime: '2026-04-22 12:00',
   participants: [{ userId: 'u1', finalStatus: 'absent' }]
 }), /1人默认取消/);
+
+assert.throws(() => rules.assertMatchReplacementTransferInput({}), /请选择原报名人/);
+assert.throws(() => rules.assertMatchReplacementTransferInput({ fromUserId:'u1', replacementPhone:'123', refundNote:'test' }), /手机号/);
+assert.throws(() => rules.assertMatchReplacementTransferInput({ fromUserId:'u1', replacementPhone:'13800000000' }), /请填写转让说明/);
+assert.deepEqual(rules.assertMatchReplacementTransferInput({ fromUserId:'u1', replacementPhone:'13800000000', replacementPayStatus:'pending', refundNote:'原用户退赛' }), {
+  fromUserId:'u1',
+  replacementPhone:'13800000000',
+  replacementPayStatus:'pending',
+  refundNote:'原用户退赛',
+  transferNote:''
+});
 
 assert.equal(
   rules.matchTimelineStatus({
