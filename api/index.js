@@ -30,7 +30,7 @@ const MATCH_PREPAY_WINDOW_HOURS = 2;
 
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_FINANCIAL_LEDGER='ft_financial_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
 const MATCH_COURT_FINANCE_ACCOUNT_ID='match-court-finance';
-const MATCH_SQL_TABLES=['match_users','match_posts','match_registrations','match_attendance','match_bookings','match_fee_records','match_fee_splits','match_operation_logs'];
+const MATCH_SQL_TABLES=['match_users','match_posts','match_registrations','match_attendance','match_bookings','match_fee_records','match_fee_splits','match_operation_logs','match_replacements'];
 const MEMBERSHIP_TABLES=[T_MEMBERSHIP_PLANS,T_MEMBERSHIP_ACCOUNTS,T_MEMBERSHIP_ORDERS,T_MEMBERSHIP_BENEFIT_LEDGER,T_MEMBERSHIP_ACCOUNT_EVENTS];
 const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_CLASS_NOS,T_PRICE_PLANS,...MEMBERSHIP_TABLES];
 const TEST_DATA_RESET_TABLES=[
@@ -2205,6 +2205,22 @@ function assertMatchFeeSplitUpdateInput(input={}){
   const paidAmount=input.paidAmount==null?null:normalizeMoney(input.paidAmount);
   return {payStatus,paidAmount,note};
 }
+function assertMatchReplacementTransferInput(input={}){
+  const fromUserId=String(input.fromUserId||'').trim();
+  if(!fromUserId)throw new Error('请选择原报名人');
+  const replacementPhone=assertPhone(input.replacementPhone||input.phone||'');
+  const replacementPayStatus=String(input.replacementPayStatus||'paid').trim();
+  if(!['pending','paid'].includes(replacementPayStatus))throw new Error('替补付款状态不正确');
+  const refundNote=String(input.refundNote||input.note||'').trim();
+  if(!refundNote)throw new Error('请填写转让说明');
+  return {
+    fromUserId,
+    replacementPhone,
+    replacementPayStatus,
+    refundNote,
+    transferNote:String(input.transferNote||'').trim()
+  };
+}
 function resolveFinalAttendanceStatus(row){
   if(row?.creatorStatus==='attended'||row?.creatorstatus==='attended')return 'attended';
   if(row?.creatorStatus==='absent'||row?.creatorstatus==='absent')return 'absent';
@@ -2239,6 +2255,20 @@ function buildGroupPrepayLedger({matchId,estimatedCourtFee=0,participantIds=[]}=
     },
     splits:splits.map(row=>({id:uuidv4(),matchId,userId:row.userId,amount:row.amount,payStatus:'pending',paidAmount:0}))
   };
+}
+async function syncMatchFeeRecordState(client,matchId,{isPrepay=false}={}){
+  const activeSplitsRes=await client.query("SELECT payStatus FROM match_fee_splits WHERE matchId=$1 AND payStatus NOT IN ('cancelled','refunded')",[matchId]);
+  const settled=activeSplitsRes.rows.length>0&&activeSplitsRes.rows.every(row=>['paid','waived'].includes(row.paystatus||row.payStatus));
+  if(isPrepay){
+    const status=settled?'prepay_paid':'prepay_pending';
+    await client.query('UPDATE match_fee_records SET status=$1,updatedAt=NOW() WHERE matchId=$2',[status,matchId]);
+    await client.query("UPDATE match_posts SET formationStatus=$2,updatedAt=NOW() WHERE id=$1",[matchId,settled?'group_locked':'group_ready']);
+    return {settled,status};
+  }
+  const status=settled?'settled':'confirmed';
+  await client.query('UPDATE match_fee_records SET status=$1,updatedAt=NOW() WHERE matchId=$2',[status,matchId]);
+  if(settled)await client.query("UPDATE match_posts SET status='settled',updatedAt=NOW() WHERE id=$1",[matchId]);
+  return {settled,status};
 }
 function buildMatchFeeLedger({matchId,estimatedCourtFee=0,finalCourtFee,matchType,startTime,endTime,participants=[]}={}){
   const billable=(participants||[]).filter(row=>row.finalStatus==='attended'||row.finalstatus==='attended'||row.chargeAbsent===true);
@@ -2492,6 +2522,122 @@ async function adminHandleBookedWithdrawal(matchId,userId,operatorId,input={}){
     await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'booked_withdrawal',JSON.stringify(reg),JSON.stringify(withdrawal)]);
     return {success:true,financialResponsibility:withdrawal.financialResponsibility};
   });
+}
+async function adminTransferMatchReplacement(matchId,operatorId,input={}){
+  const transfer=assertMatchReplacementTransferInput(input);
+  const financeSync={refund:null,paid:null};
+  const result=await withMatchSqlTransaction(async(client)=>{
+    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
+    const match=matchRes.rows[0];
+    if(!match)throw new Error('球局不存在');
+    if(!isFourPlayerGroupMatch(match))throw new Error('当前仅支持四人局替补转让');
+    const formationStatus=String(match.formationstatus||match.formationStatus||'free_open');
+    if(!['group_ready','group_locked'].includes(formationStatus))throw new Error('当前状态无需替补转让');
+    const [fromRegRes,replacementUserRes]=await Promise.all([
+      client.query("SELECT r.*,u.nickName,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId WHERE r.matchId=$1 AND r.userId=$2 AND r.registrationStatus='registered' FOR UPDATE",[matchId,transfer.fromUserId]),
+      client.query('SELECT * FROM match_users WHERE phone=$1 ORDER BY updatedAt DESC LIMIT 1',[transfer.replacementPhone])
+    ]);
+    const fromReg=fromRegRes.rows[0];
+    if(!fromReg)throw new Error('原报名记录不存在');
+    const replacementUser=replacementUserRes.rows[0];
+    if(!replacementUser)throw new Error('替补用户不存在，请先让对方登录小程序并完成手机号授权');
+    const replacementUserId=String(replacementUser.id||'');
+    if(replacementUserId===String(transfer.fromUserId))throw new Error('替补用户不能和原报名人相同');
+    const replacementDupRes=await client.query("SELECT id FROM match_registrations WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered' LIMIT 1",[matchId,replacementUserId]);
+    if(replacementDupRes.rowCount>0)throw new Error('替补用户已经在本局报名名单里');
+    const replacementLevel=Number(replacementUser.ntrplevel||replacementUser.ntrpLevel||0);
+    const matchMinLevel=Number(match.ntrpmin||match.ntrpMin||0);
+    if(!isValidNtrp(replacementLevel))throw new Error('替补用户还没有设置真实水平');
+    if(isValidNtrp(matchMinLevel)&&replacementLevel<matchMinLevel)throw new Error(`本局最低水平为 ${matchMinLevel.toFixed(1)}，替补不符合要求`);
+    const feeRecordRes=await client.query('SELECT * FROM match_fee_records WHERE matchId=$1 FOR UPDATE',[matchId]);
+    const feeRecord=feeRecordRes.rows[0]||null;
+    const isPrepay=/^prepay_/.test(String(feeRecord?.status||''));
+    let previousSplit=null;
+    if(feeRecord){
+      const splitRes=await client.query('SELECT * FROM match_fee_splits WHERE matchId=$1 AND userId=$2 FOR UPDATE',[matchId,transfer.fromUserId]);
+      previousSplit=splitRes.rows[0]||null;
+      if(!previousSplit)throw new Error('原报名人的账单不存在');
+    }
+
+    const replacementRegistrationId=uuidv4();
+    await client.query(
+      "UPDATE match_registrations SET registrationStatus='cancelled',cancelledAt=NOW(),financialResponsibility='transferred',withdrawalReason=$1,withdrawalHandledBy=$2,withdrawalHandledAt=NOW() WHERE id=$3",
+      [transfer.refundNote,operatorId,fromReg.id]
+    );
+    await client.query(
+      "INSERT INTO match_registrations(id,matchId,userId,registrationStatus,createdAt,financialResponsibility,withdrawalReason) VALUES($1,$2,$3,'registered',NOW(),$4,$5)",
+      [replacementRegistrationId,matchId,replacementUserId,'replacement',transfer.transferNote||'']
+    );
+    await client.query('DELETE FROM match_attendance WHERE matchId=$1 AND userId=$2',[matchId,replacementUserId]);
+
+    let replacementSplitId='';
+    let originalSplitStatus='';
+    if(previousSplit){
+      const amount=normalizeMoney(previousSplit.amount);
+      const previousPaidAmount=normalizeMoney(previousSplit.paidamount||previousSplit.paidAmount);
+      originalSplitStatus=previousPaidAmount>0?'refunded':'cancelled';
+      await client.query(
+        'UPDATE match_fee_splits SET payStatus=$1,paidAmount=$2,paidAt=$3,note=$4,updatedAt=NOW() WHERE matchId=$5 AND userId=$6',
+        [originalSplitStatus,previousPaidAmount,originalSplitStatus==='refunded'?new Date():null,transfer.refundNote,matchId,transfer.fromUserId]
+      );
+      replacementSplitId=uuidv4();
+      const replacementPaidAmount=transfer.replacementPayStatus==='paid'?amount:0;
+      await client.query(
+        'INSERT INTO match_fee_splits(id,matchId,userId,amount,payStatus,paidAmount,paidAt,note,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())',
+        [replacementSplitId,matchId,replacementUserId,amount,transfer.replacementPayStatus,replacementPaidAmount,transfer.replacementPayStatus==='paid'?new Date():null,transfer.transferNote||transfer.refundNote]
+      );
+      if(feeRecord){
+        const nextFeeState=await syncMatchFeeRecordState(client,matchId,{isPrepay});
+        if(isPrepay&&nextFeeState.status==='prepay_pending'){
+          await client.query("UPDATE match_posts SET status='full',updatedAt=NOW() WHERE id=$1",[matchId]);
+        }
+      }
+      financeSync.refund=!isPrepay&&originalSplitStatus==='refunded'?{needed:true}:null;
+      financeSync.paid=!isPrepay&&transfer.replacementPayStatus==='paid'?{needed:true,userId:replacementUserId}:null;
+    }
+
+    const replacementRowId=uuidv4();
+    await client.query(
+      'INSERT INTO match_replacements(id,matchId,fromUserId,toUserId,operatorUserId,originalSplitAmount,originalSplitRefundedAmount,replacementSplitAmount,replacementPayStatus,reason,note,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())',
+      [
+        replacementRowId,
+        matchId,
+        transfer.fromUserId,
+        replacementUserId,
+        operatorId,
+        normalizeMoney(previousSplit?.amount||0),
+        normalizeMoney(previousSplit?.paidamount||previousSplit?.paidAmount||0),
+        normalizeMoney(previousSplit?.amount||0),
+        transfer.replacementPayStatus,
+        transfer.refundNote,
+        transfer.transferNote||''
+      ]
+    );
+    await client.query(
+      'INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',
+      [
+        uuidv4(),
+        matchId,
+        'admin_user',
+        operatorId,
+        'replacement_transfer',
+        JSON.stringify({fromUserId:transfer.fromUserId,fromPhone:fromReg.phone||'',fromNickName:fromReg.nickname||fromReg.nickName||''}),
+        JSON.stringify({toUserId:replacementUserId,toPhone:replacementUser.phone||'',toNickName:replacementUser.nickname||replacementUser.nickName||'',replacementPayStatus:transfer.replacementPayStatus,reason:transfer.refundNote,note:transfer.transferNote||''})
+      ]
+    );
+    return {
+      success:true,
+      fromUserId:transfer.fromUserId,
+      toUserId:replacementUserId,
+      replacementPayStatus:transfer.replacementPayStatus,
+      replacementNickName:replacementUser.nickname||replacementUser.nickName||maskPhone(replacementUser.phone)||replacementUserId,
+      message:transfer.replacementPayStatus==='paid'?'替补已入局并完成付款':'替补名额已转让，等待替补付款'
+    };
+  });
+  if(financeSync.refund?.needed)result.refundSync=await syncMatchFeeSplitRefundToCourtFinance(matchId,transfer.fromUserId,operatorId,transfer.refundNote);
+  if(financeSync.paid?.needed)result.paidSync=await syncMatchFeeSplitToCourtFinance(matchId,financeSync.paid.userId,operatorId);
+  notifyMatchUsers(matchId,'match_update').catch(()=>null);
+  return result;
 }
 async function selfConfirmMatchAttendance(matchId,userId){
   return withMatchSqlTransaction(async(client)=>{
@@ -4373,6 +4519,13 @@ module.exports = async (req, res) => {
       try{return sendJson(res,await adminHandleBookedWithdrawal(adminWithdrawalM[1],adminWithdrawalM[2],user.id,body));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
+    const adminReplacementM=path.match(/^\/admin\/matches\/([^/]+)\/replacements\/transfer$/);
+    if(adminReplacementM&&method==='POST'){
+      requireMatchAdminPermission(user,'match_ops');
+      requireMatchAdminPermission(user,'match_finance');
+      try{return sendJson(res,await adminTransferMatchReplacement(adminReplacementM[1],user.id,body));}
+      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
+    }
     const adminFeeConfirmM=path.match(/^\/admin\/matches\/([^/]+)\/fees\/confirm$/);
     if(adminFeeConfirmM&&method==='POST'){
       requireMatchAdminPermission(user,'match_finance');
@@ -5228,6 +5381,7 @@ module.exports._test={
   ,assertMatchBookingInput
   ,assertBookedWithdrawalInput
   ,assertMatchFeeSplitUpdateInput
+  ,assertMatchReplacementTransferInput
   ,resolveFinalAttendanceStatus
   ,buildMatchFeeLedger
   ,listMatchesForViewer
@@ -5240,6 +5394,7 @@ module.exports._test={
   ,adminBookMatch
   ,confirmMatchAttendance
   ,adminHandleBookedWithdrawal
+  ,adminTransferMatchReplacement
   ,selfConfirmMatchAttendance
   ,creatorConfirmMatchAttendance
   ,generateMatchFeeLedger
