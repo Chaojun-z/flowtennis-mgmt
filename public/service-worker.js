@@ -1,4 +1,4 @@
-const SW_VERSION = 'flowtennis-shell-v8';
+const SW_VERSION = 'flowtennis-shell-v9';
 const APP_SHELL = [
   '/',
   '/index.html',
