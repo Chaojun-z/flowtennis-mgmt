@@ -218,4 +218,22 @@ assert.match(
   'schedule list should expose the feedback status text helper'
 );
 
+assert.match(
+  html,
+  /let scheduleLocalMutationAt=0/,
+  'schedule refresh should track local schedule mutations'
+);
+
+assert.match(
+  html,
+  /setScheduleRowsFromRemote\(/,
+  'remote page-data refreshes should pass schedule rows through a stale-data guard'
+);
+
+assert.match(
+  html,
+  /noteScheduleLocalMutation\(\)/,
+  'schedule save should mark local schedule mutations before rendering coach ops'
+);
+
 console.log('coach ops view tests passed');

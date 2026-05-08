@@ -550,10 +550,15 @@ async function saveSchedule(){
       }
       if(result)result.warnings=warnings;
     }
+    noteScheduleLocalMutation();
     closeModal();toast(editId?'修改成功 ✓':'排课成功 ✓','success');
     if(result?.warnings?.length)toast(result.warnings.join('；'),'warn');
     renderSchedule();renderClasses();renderPlans();renderCoachOps();renderMySchedule();
-  }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
+  }catch(e){toast('保存失败：'+e.message,'error');resetScheduleSaveButton();}
+}
+function resetScheduleSaveButton(){
+  const btn=document.getElementById('scheduleSaveBtn');
+  if(btn){btn.disabled=false;btn.textContent='保存';}
 }
 function scheduleRemainingLessons(s){
   const cls=s?.classId?classes.find(c=>c.id===s.classId):null;
