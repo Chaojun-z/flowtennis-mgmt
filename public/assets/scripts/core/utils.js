@@ -857,7 +857,7 @@ function scheduleEntitlementSummary(s){
   return `${ent.packageName||'—'} · ${charge} · 剩余 ${lessonQty(ent.remainingLessons)}/${lessonQty(ent.totalLessons)} 节`;
 }
 function studentEntitlementSummaryHtml(stu){
-  const rows=entitlements.filter(e=>e.studentId===stu?.id).sort((a,b)=>String(a.validUntil||'9999-12-31').localeCompare(String(b.validUntil||'9999-12-31')));
+  const rows=entitlements.filter(e=>e.studentId===stu?.id).sort((a,b)=>String(a.purchaseDate||a.createdAt||a.validFrom||'').localeCompare(String(b.purchaseDate||b.createdAt||b.validFrom||'')));
   if(!rows.length)return '<div style="color:var(--td);font-size:12px">暂无已购课包</div>';
   return rows.map(e=>{
     const used=Number(e.usedLessons)||0;

@@ -17,7 +17,7 @@ function getFilteredPurchases(){
     if(dateFrom&&String(p.purchaseDate||'')<dateFrom)return false;
     if(dateTo&&String(p.purchaseDate||'')>dateTo)return false;
     return true;
-  }).sort((a,b)=>String(b.purchaseDate||b.createdAt||'').localeCompare(String(a.purchaseDate||a.createdAt||'')));
+  }).sort((a,b)=>String(a.purchaseDate||a.createdAt||'').localeCompare(String(b.purchaseDate||b.createdAt||'')));
 }
 function renderPurchases(){
   refreshPurchaseFilters();
@@ -88,6 +88,32 @@ function purchasePriceSummaryHtml(p){
   const overrideReason=String(p.overrideReason||'').trim();
   return `<div class="fg"><div class="flabel">系统价格</div><div class="finput">¥${fmt(systemAmount)}</div></div><div class="fg"><div class="flabel">成交金额</div><div class="finput">¥${fmt(finalAmount)}</div></div><div class="fg"><div class="flabel">是否改价</div><div class="finput">${systemAmount!==finalAmount?'是':'否'}</div></div><div class="fg full"><div class="flabel">改价原因</div><div class="finput" style="min-height:42px">${esc(overrideReason)||'—'}</div></div>`;
 }
+function purchaseStudentSearchRows(keyword=''){
+  const q=String(keyword||'').trim().toLowerCase();
+  return students.filter(s=>{
+    if(!q)return true;
+    return [s.name,s.phone,cn(s.campus),s.primaryCoach].some(v=>String(v||'').toLowerCase().includes(q));
+  }).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'zh-CN')).slice(0,80);
+}
+function purchaseStudentPickerHtml(selectedId='',keyword=''){
+  const rows=purchaseStudentSearchRows(keyword);
+  if(!rows.length)return '<div style="font-size:12px;color:var(--td);padding:10px 0">没有匹配到学员，请换个关键词。</div>';
+  return `<div class="tms-checkbox-matrix purchase-student-picker">${rows.map(s=>`<label class="tms-checkbox-wrap ${s.id===selectedId?'active':''}" onclick="selectPurchaseStudent('${s.id}')"><input type="radio" class="tms-checkbox" name="purStudentPick" ${s.id===selectedId?'checked':''}><span>${esc(s.name)}${s.phone?` · ${esc(s.phone)}`:''}${s.campus?` · ${esc(cn(s.campus))}`:''}</span></label>`).join('')}</div>`;
+}
+function renderPurchaseStudentPicker(){
+  const host=document.getElementById('pur_studentPickerWrap');
+  if(!host)return;
+  host.innerHTML=purchaseStudentPickerHtml(document.getElementById('pur_studentId')?.value||'',document.getElementById('pur_studentSearch')?.value||'');
+}
+function selectPurchaseStudent(studentId){
+  const input=document.getElementById('pur_studentId');
+  if(input)input.value=studentId||'';
+  const stu=students.find(s=>s.id===studentId);
+  if(stu?.primaryCoach)setCourtDropdownValue('pur_ownerCoach',stu.primaryCoach,stu.primaryCoach);
+  const search=document.getElementById('pur_studentSearch');
+  if(search&&stu)search.value=stu.phone?`${stu.name} · ${stu.phone}`:stu.name;
+  renderPurchaseStudentPicker();
+}
 
 function openPurchaseEntryModal(){
   openPurchaseModal();
@@ -97,10 +123,10 @@ function openPurchaseModal(studentId=''){
   if(studentId&&!stu){toast('学员不存在','error');return;}
   editId=null;
   const payOptions=[{value:'微信',label:'微信'},{value:'支付宝',label:'支付宝'},{value:'现金',label:'现金'},{value:'转账',label:'转账'},{value:'其他',label:'其他'}];
-  const studentOptions=students.map(s=>({value:s.id,label:`${s.name}${s.phone?` · ${s.phone}`:''}`}));
   const ownerOptions=[{value:'',label:'— 未分配 —'},...activeCoachNames().map(name=>({value:name,label:name}))];
-  const body=`<div class="tms-section-header" style="margin-top:0;">学员信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_studentId','选择学员',studentOptions,stu?.id||'',true)}</div></div><div class="tms-section-header">购买信息</div><div class="tms-form-row purchase-compact-row"><div class="tms-form-item" style="flex:2"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_packageId','选择课包',packages.filter(p=>p.status!=='inactive').map(p=>({value:p.id,label:`${p.name} · ¥${fmt(p.price)} · ${p.lessons||0}节`})), '', true, 'onPurchasePackageChange')}</div><div class="tms-form-item"><label class="tms-form-label">主归属教练</label>${renderCourtDropdownHtml('pur_ownerCoach','主归属教练',ownerOptions,stu?.primaryCoach||'',true)}</div></div><div class="tms-form-row purchase-compact-row"><div class="tms-form-item"><label class="tms-form-label">支付日期</label>${courtDateButtonHtml('pur_purchaseDate',today(),'支付日期')}</div><div class="tms-form-item"><label class="tms-form-label">系统价格</label><input class="finput tms-form-control" id="pur_systemAmount" type="number" value="0" readonly></div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_amountPaid" type="number" value="0" oninput="purchasePriceOverrideChanged('pur')"></div><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_payMethod','支付方式',payOptions,'微信',true)}</div></div><div class="tms-form-row" id="pur_overrideReasonWrap" style="display:none"><div class="tms-form-item full-width"><label class="tms-form-label">改价原因</label><input class="finput tms-form-control" id="pur_overrideReason" placeholder="实际成交价与系统价格不一致时必填"></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">可上课教练</label><div class="choice-wrap purchase-coach-wrap">${purchaseAllowedCoachChecks([], 'pur-allowed-coach-cb')}</div></div></div><div class="tms-form-row purchase-notes-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_notes"></textarea></div></div>`;
-  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" onclick="savePurchase()">保存</button>`;
+  const studentSearchValue=stu?(stu.phone?`${stu.name} · ${stu.phone}`:stu.name):'';
+  const body=`<div class="tms-section-header" style="margin-top:0;">学员信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label><input type="hidden" id="pur_studentId" value="${esc(stu?.id||'')}"><input class="finput tms-form-control" id="pur_studentSearch" value="${esc(studentSearchValue)}" placeholder="搜索姓名 / 手机号 / 校区 / 教练" oninput="renderPurchaseStudentPicker()"><div id="pur_studentPickerWrap" style="margin-top:8px">${purchaseStudentPickerHtml(stu?.id||'',studentSearchValue)}</div></div></div><div class="tms-section-header">购买信息</div><div class="tms-form-row purchase-compact-row"><div class="tms-form-item" style="flex:2"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_packageId','选择课包',packages.filter(p=>p.status!=='inactive').map(p=>({value:p.id,label:`${p.name} · ¥${fmt(p.price)} · ${p.lessons||0}节`})), '', true, 'onPurchasePackageChange')}</div><div class="tms-form-item"><label class="tms-form-label">主归属教练</label>${renderCourtDropdownHtml('pur_ownerCoach','主归属教练',ownerOptions,stu?.primaryCoach||'',true)}</div></div><div class="tms-form-row purchase-compact-row"><div class="tms-form-item"><label class="tms-form-label">支付日期</label>${courtDateButtonHtml('pur_purchaseDate',today(),'支付日期')}</div><div class="tms-form-item"><label class="tms-form-label">系统价格</label><input class="finput tms-form-control" id="pur_systemAmount" type="number" value="0" readonly></div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_amountPaid" type="number" value="0" oninput="purchasePriceOverrideChanged('pur')"></div><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_payMethod','支付方式',payOptions,'微信',true)}</div></div><div class="tms-form-row" id="pur_overrideReasonWrap" style="display:none"><div class="tms-form-item full-width"><label class="tms-form-label">改价原因</label><input class="finput tms-form-control" id="pur_overrideReason" placeholder="实际成交价与系统价格不一致时必填"></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">可上课教练</label><div class="choice-wrap purchase-coach-wrap">${purchaseAllowedCoachChecks([], 'pur-allowed-coach-cb')}</div></div></div><div class="tms-form-row purchase-notes-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_notes"></textarea></div></div>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="purchaseSaveBtn" onclick="savePurchase()">保存</button>`;
   setCourtModalFrame('课包购买',body,footer,'modal-wide');
   fillPurchasePackageMeta();
 }
@@ -132,7 +158,7 @@ function openPurchaseEditModal(id){
   const payOptions=[{value:'微信',label:'微信'},{value:'支付宝',label:'支付宝'},{value:'现金',label:'现金'},{value:'转账',label:'转账'},{value:'其他',label:'其他'}];
   const ownerOptions=[{value:'',label:'— 未分配 —'},...activeCoachNames().map(name=>({value:name,label:name}))];
   const body=`${locked?'<div class="tms-audit-note" style="margin-bottom:18px">该购买记录已有课时消耗，只能修改备注。</div>':''}<div class="tms-section-header" style="margin-top:0;">购买信息</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">学员 *</label>${renderCourtDropdownHtml('pur_edit_studentId','选择学员',studentOptions,p.studentId,true)}</div></div><div class="tms-form-row purchase-compact-row"><div class="tms-form-item" style="flex:2"><label class="tms-form-label">选择课包 *</label>${renderCourtDropdownHtml('pur_edit_packageId','选择课包',packages.filter(pkg=>pkg.status!=='inactive'||pkg.id===p.packageId).map(pkg=>({value:pkg.id,label:`${pkg.name} · ¥${fmt(pkg.price)} · ${pkg.lessons||0}节${pkg.status==='inactive'?' · 已停用':''}`})),p.packageId,true,'onPurchaseEditPackageChange')}</div><div class="tms-form-item"><label class="tms-form-label">主归属教练</label>${renderCourtDropdownHtml('pur_edit_ownerCoach','主归属教练',ownerOptions,p.ownerCoach||'',true)}</div></div><div class="tms-form-row purchase-compact-row"><div class="tms-form-item"><label class="tms-form-label">支付日期</label>${courtDateButtonHtml('pur_edit_purchaseDate',p.purchaseDate||today(),'支付日期')}</div><div class="tms-form-item"><label class="tms-form-label">系统价格</label><input class="finput tms-form-control" id="pur_edit_systemAmount" type="number" value="${Number(p.systemAmount??p.packagePrice??0)||0}" readonly></div><div class="tms-form-item"><label class="tms-form-label">实收金额</label><input class="finput tms-form-control" id="pur_edit_amountPaid" type="number" value="${parseFloat(p.finalAmount??p.amountPaid)||0}"${locked?' readonly':''} oninput="purchasePriceOverrideChanged('pur_edit')"></div><div class="tms-form-item"><label class="tms-form-label">支付方式</label>${renderCourtDropdownHtml('pur_edit_payMethod','支付方式',payOptions,p.payMethod||'微信',true)}</div></div><div class="tms-form-row" id="pur_edit_overrideReasonWrap" style="display:${Number(p.systemAmount??p.packagePrice??0)!==Number(p.finalAmount??p.amountPaid??0)?'block':'none'}"><div class="tms-form-item full-width"><label class="tms-form-label">改价原因</label><input class="finput tms-form-control" id="pur_edit_overrideReason" value="${esc(p.overrideReason||'')}" ${locked?'readonly':''} placeholder="实际成交价与系统价格不一致时必填"></div></div><div class="tms-form-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">可上课教练</label><div class="choice-wrap purchase-coach-wrap">${purchaseAllowedCoachChecks(p.allowedCoaches, 'pur-edit-allowed-coach-cb')}</div></div></div><div class="tms-form-row purchase-notes-row" style="margin-bottom:0"><div class="tms-form-item full-width"><label class="tms-form-label">备注</label><textarea class="finput tms-form-control" id="pur_edit_notes">${esc(p.notes||'')}</textarea></div></div>`;
-  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" onclick="savePurchaseEdit('${p.id}')">保存</button>`;
+  const footer=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="purchaseEditSaveBtn" onclick="savePurchaseEdit('${p.id}')">保存</button>`;
   setCourtModalFrame('编辑购买记录',body,footer,'modal-wide');
   if(locked){
     ['pur_edit_studentId_dropdown','pur_edit_packageId_dropdown','pur_edit_payMethod_dropdown','pur_edit_ownerCoach_dropdown'].forEach(id=>{
@@ -150,10 +176,10 @@ function fillPurchaseEditPackageMeta(){
   purchasePriceOverrideChanged('pur_edit');
 }
 async function savePurchaseEdit(id){
-  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  const btn=document.getElementById('purchaseEditSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const data={studentId:document.getElementById('pur_edit_studentId')?.value||'',packageId:document.getElementById('pur_edit_packageId')?.value||'',ownerCoach:document.getElementById('pur_edit_ownerCoach')?.value||'',allowedCoaches:[...document.querySelectorAll('.pur-edit-allowed-coach-cb:checked')].map(cb=>cb.value),purchaseDate:document.getElementById('pur_edit_purchaseDate')?.value||'',amountPaid:parseFloat(document.getElementById('pur_edit_amountPaid')?.value)||0,overrideReason:document.getElementById('pur_edit_overrideReason')?.value.trim()||'',payMethod:document.getElementById('pur_edit_payMethod')?.value||'',notes:document.getElementById('pur_edit_notes')?.value.trim()||''};
   const systemAmount=Number(document.getElementById('pur_edit_systemAmount')?.value)||0;
-  if(!purchaseHasLedger(id)&&systemAmount!==Number(data.amountPaid||0)&&!data.overrideReason){toast('请填写改价原因','warn');btn.disabled=false;btn.textContent='保存';return;}
+  if(!purchaseHasLedger(id)&&systemAmount!==Number(data.amountPaid||0)&&!data.overrideReason){toast('请填写改价原因','warn');if(btn){btn.disabled=false;btn.textContent='保存';}return;}
   try{
     const res=await apiCall('PUT','/purchases/'+id,data);
     if(res.purchase){
@@ -167,7 +193,7 @@ async function savePurchaseEdit(id){
       });
     }
     closeModal();toast('购买记录已更新','success');renderStudents();renderPurchases();renderEntitlements();
-  }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
+  }catch(e){toast('保存失败：'+e.message,'error');if(btn){btn.disabled=false;btn.textContent='保存';}}
 }
 function openPurchaseVoidModal(id){
   const p=purchases.find(x=>x.id===id);if(!p){toast('购买记录不存在','error');return;}
@@ -198,16 +224,16 @@ async function savePurchase(){
   if(!studentId){toast('请选择学员','warn');return;}
   const packageId=document.getElementById('pur_packageId').value;
   if(!packageId){toast('请选择课包','warn');return;}
-  const btn=document.querySelector('.btn-save');btn.disabled=true;btn.textContent='保存中…';
+  const btn=document.getElementById('purchaseSaveBtn');if(btn){btn.disabled=true;btn.textContent='保存中…';}
   const data={studentId,packageId,ownerCoach:document.getElementById('pur_ownerCoach')?.value||'',allowedCoaches:[...document.querySelectorAll('.pur-allowed-coach-cb:checked')].map(cb=>cb.value),purchaseDate:document.getElementById('pur_purchaseDate').value,amountPaid:parseFloat(document.getElementById('pur_amountPaid').value)||0,overrideReason:document.getElementById('pur_overrideReason')?.value.trim()||'',payMethod:document.getElementById('pur_payMethod').value,notes:document.getElementById('pur_notes').value.trim()};
   const systemAmount=Number(document.getElementById('pur_systemAmount')?.value)||0;
-  if(systemAmount!==Number(data.amountPaid||0)&&!data.overrideReason){toast('请填写改价原因','warn');btn.disabled=false;btn.textContent='保存';return;}
+  if(systemAmount!==Number(data.amountPaid||0)&&!data.overrideReason){toast('请填写改价原因','warn');if(btn){btn.disabled=false;btn.textContent='保存';}return;}
   try{
     const res=await apiCall('POST','/purchases',data);
     if(res.purchase)purchases.unshift(res.purchase);
     if(res.entitlement)entitlements.unshift(res.entitlement);
     closeModal();toast('购买成功','success');renderStudents();renderPurchases();renderEntitlements();
-  }catch(e){toast('保存失败：'+e.message,'error');btn.disabled=false;btn.textContent='保存';}
+  }catch(e){toast('保存失败：'+e.message,'error');if(btn){btn.disabled=false;btn.textContent='保存';}}
 }
 function focusPurchaseByPackage(packageId){
   goPage('purchases');

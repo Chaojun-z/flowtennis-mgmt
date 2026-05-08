@@ -916,7 +916,7 @@ assert.deepStrictEqual(
       status: '已排课'
     }]
   ),
-  ['跨校区提醒：朝珺上一节在 mabao，下一节在 guowang，中间仅 10 分钟'],
+  ['跨校区提醒：朝珺上一节在 马坡，下一节在 国家网球中心，中间仅 10 分钟'],
   'cross-campus schedules less than 60 minutes apart should return a warning'
 );
 

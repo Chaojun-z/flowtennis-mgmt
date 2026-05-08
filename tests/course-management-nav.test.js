@@ -1,13 +1,28 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const { appSource: html } = require('./helpers/read-index-bundle');
+const courseSource = [
+  fs.readFileSync(path.join(__dirname, '..', 'public', 'assets', 'scripts', 'pages', 'products.js'), 'utf8'),
+  fs.readFileSync(path.join(__dirname, '..', 'public', 'assets', 'scripts', 'pages', 'packages.js'), 'utf8')
+].join('\n');
 
-assert.match(html, /<div class="sb-sec">教学管理<\/div>/, 'sidebar should group teaching pages');
-assert.match(html, /<div class="sb-sec">课程管理<\/div>/, 'sidebar should group course pages');
-assert.match(html, /<div class="sb-sec">场地与资源<\/div>/, 'sidebar should group resource pages');
+function fnBody(name){
+  const start = html.indexOf(`function ${name}(`);
+  assert.notStrictEqual(start, -1, `${name} should exist`);
+  const nextFunction = html.indexOf('\nfunction ', start + 1);
+  const nextAsync = html.indexOf('\nasync function ', start + 1);
+  const candidates = [nextFunction, nextAsync].filter(i => i !== -1);
+  const next = candidates.length ? Math.min(...candidates) : -1;
+  return html.slice(start, next === -1 ? html.length : next);
+}
+
+assert.match(html, /<div class="sb-sec">教学中心<\/div>/, 'sidebar should group teaching pages');
+assert.match(html, /<div class="sb-sec">场地运营<\/div>/, 'sidebar should group court operation pages');
+assert.match(html, /<div class="sb-sec">资源管理<\/div>/, 'sidebar should group resource pages');
 
 assert.match(html, /goPage\('products',this\)[\s\S]*?课程产品/, 'sidebar should keep products page');
 assert.match(html, /goPage\('packages',this\)[\s\S]*?售卖课包/, 'sidebar should add packages page');
-assert.match(html, /goPage\('purchases',this\)[\s\S]*?购买记录/, 'sidebar should add purchases page');
 assert.match(html, /goPage\('admin-users',this\)[\s\S]*?账号管理/, 'sidebar should add account management page');
 assert.doesNotMatch(html, /goPage\('entitlements',this\)[\s\S]*?权益账户/, 'sidebar should hide the old entitlement page entry');
 
@@ -17,6 +32,8 @@ assert.match(html, /course-showcase/, 'course product page should use the new sh
 assert.match(html, /course-package-showcase/, 'package page should use the new showcase container');
 assert.match(html, /product-card-shell/, 'product page should render the gemini-style product cards');
 assert.match(html, /package-card-shell/, 'package page should render the gemini-style package cards');
+assert.match(html, /function renderPackages[\s\S]*String\(a\.createdAt\|\|''\)\.localeCompare\(String\(b\.createdAt\|\|''\)\)/, 'package list should sort older package records first');
+assert.match(html, /showcase-kv-label">创建时间<\/div><div class="showcase-kv-value is-mono">\$\{esc\(fmtDt\(p\.createdAt\)\)\}<\/div>/, 'package cards should show created time for order verification');
 assert.match(html, /归属教练[\s\S]*购买时选择[\s\S]*可上课教练/, 'package card should distinguish sale owner coach from teachable coaches');
 assert.match(html, /主归属教练[\s\S]*可上课教练/, 'purchase records should expose owner coach and teachable coaches');
 assert.match(html, /系统价格[\s\S]*实收金额[\s\S]*改价原因/, 'purchase modal should expose system price, actual paid amount and override reason');
@@ -33,7 +50,14 @@ assert.match(html, /function openPurchaseDetailModal/, 'purchase page should hav
 assert.match(html, /function openPurchaseEditModal/, 'purchase page should have edit modal');
 assert.match(html, /function savePurchaseEdit/, 'purchase page should save purchase edits');
 assert.match(html, /function openPurchaseModal/, 'purchase page should provide the unified purchase modal');
-assert.match(html, /function openPurchaseModal[\s\S]*renderCourtDropdownHtml\('pur_studentId','选择学员'/, 'purchase modal should pick the student in the same step');
+assert.match(html, /function purchaseStudentPickerHtml\(/, 'purchase modal should expose a searchable student picker helper');
+assert.match(html, /function selectPurchaseStudent\(/, 'purchase modal should allow selecting a student from search results');
+assert.match(html, /id="pur_studentSearch"/, 'purchase modal should provide a student search input');
+assert.match(html, /id="purchaseSaveBtn"[\s\S]*onclick="savePurchase\(\)"/, 'purchase create save button should have a stable id used by the save handler');
+assert.match(html, /id="purchaseEditSaveBtn"[\s\S]*onclick="savePurchaseEdit/, 'purchase edit save button should have a stable id used by the edit save handler');
+assert.doesNotMatch(fnBody('savePurchase'), /document\.querySelector\('\.btn-save'\)/, 'purchase create save should not depend on the legacy btn-save class');
+assert.doesNotMatch(fnBody('savePurchaseEdit'), /document\.querySelector\('\.btn-save'\)/, 'purchase edit save should not depend on the legacy btn-save class');
+assert.match(html, /function getFilteredPurchases[\s\S]*String\(a\.purchaseDate\|\|a\.createdAt\|\|''\)\.localeCompare\(String\(b\.purchaseDate\|\|b\.createdAt\|\|''\)\)/, 'purchase list should sort older purchase records first');
 assert.match(html, /function openPurchaseModal[\s\S]*支付方式[\s\S]*margin-bottom:0[\s\S]*可上课教练/, 'purchase modal should put pay method and allowed coach fields on separate rows to avoid layout overlap');
 assert.match(html, /＋ 课包购买/, 'purchase page should expose a direct package purchase entry button');
 assert.match(html, /<th style="width:100px;padding-left:20px">购买日期<\/th><th style="width:120px">学员\/支付<\/th><th style="width:170px">课包\/课程<\/th><th style="width:90px">实收<\/th><th style="width:95px">余额<\/th><th style="width:135px">有效期<\/th><th style="width:80px">状态<\/th><th style="width:95px">归属教练<\/th>/, 'purchase table should split validity and status into compact purchase, balance and owner coach columns');
@@ -54,6 +78,6 @@ assert.match(html, /体验课/, 'course pages should expose 体验课 as a fixed
 assert.match(html, /训练营/, 'course pages should expose 训练营 as a fixed type');
 assert.match(html, /大师课/, 'course pages should expose 大师课 as a fixed type');
 assert.doesNotMatch(html, /课程性质/, 'course pages should not mention the removed 课程性质 field');
-assert.doesNotMatch(html, /正式课/, 'course pages should not keep the old 正式课 wording');
+assert.doesNotMatch(courseSource, /正式课/, 'course pages should not keep the old 正式课 wording');
 
 console.log('course management nav tests passed');

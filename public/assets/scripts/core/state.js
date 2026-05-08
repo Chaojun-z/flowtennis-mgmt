@@ -17,6 +17,7 @@ window.coachWorkbenchStats=window.coachWorkbenchStats||{};
 let adminUsersLoaded=false;
 let modalCleanupTimer=null;
 let lastDataSyncAt=0,isSyncingAll=false,dataRequestVersion=0;
+let scheduleLocalMutationAt=0;
 let loadedDatasets=new Set();
 const DATA_CACHE_PREFIX='ft_dataset_cache_';
 const DATA_CACHE_VERSION_KEY='ft_dataset_cache_version';
@@ -137,6 +138,10 @@ function readDatasetCache(name){
 }
 function setDatasetValue(name,data,{persist=true}={}){
   const rows=Array.isArray(data)?data:[];
+  if(name==='schedule'){
+    setScheduleRowsFromRemote(rows,{persist});
+    return;
+  }
   if(name==='leads')leads=rows;
   if(name==='leadFollowups')leadFollowups=rows;
   if(name==='courts')courts=rows;
@@ -154,7 +159,6 @@ function setDatasetValue(name,data,{persist=true}={}){
   if(name==='membershipAccountEvents')membershipAccountEvents=rows;
   if(name==='pricePlans')pricePlans=rows;
   if(name==='plans')plans=rows;
-  if(name==='schedule')schedules=rows;
   if(name==='coaches')coaches=rows;
   if(name==='classes')classes=rows;
   if(name==='campuses')campuses=rows;
@@ -162,6 +166,21 @@ function setDatasetValue(name,data,{persist=true}={}){
   if(name==='matches')matches=rows;
   loadedDatasets.add(name);
   if(persist)persistDatasetCache(name,rows);
+}
+function noteScheduleLocalMutation(){
+  scheduleLocalMutationAt=Date.now();
+}
+function setScheduleRowsFromRemote(rows,{persist=true}={}){
+  const next=Array.isArray(rows)?rows:[];
+  const justSaved=Date.now()-scheduleLocalMutationAt<30000;
+  if(justSaved&&schedules.length&&next.length<schedules.length){
+    loadedDatasets.add('schedule');
+    if(persist)persistDatasetCache('schedule',schedules);
+    return;
+  }
+  schedules=next;
+  loadedDatasets.add('schedule');
+  if(persist)persistDatasetCache('schedule',next);
 }
 function hydrateDatasetsFromCache(){
   ensureDatasetCacheVersion();
