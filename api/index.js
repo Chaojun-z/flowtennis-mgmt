@@ -2060,7 +2060,7 @@ function financeCourtHistoryBusinessType(row){
     return '散客订场';
   }
   if(/课|班课|训练营|体验/.test(category))return '课程';
-  return '散客订场';
+  return '其他';
 }
 function financeRecognizedAmountForConsumeRow(row,entitlement,purchase){
   const lessonDelta=Math.abs(Number(row?.lessonDelta)||0);
@@ -2218,7 +2218,6 @@ function buildFinanceUnifiedRows({campuses=[],students=[],purchases=[],entitleme
     return normalizeCourtHistory(court.history).map(historyRow=>{
       const noteText=`${historyRow.note||''} ${historyRow.category||''} ${historyRow.sourceCategory||''} ${historyRow.payMethod||''}`;
       const rowCampusName=campusName.fromHints(baseCampusName,historyRow.campus,historyRow.note,historyRow.category,historyRow.source,historyRow.importSource,historyRow.sourceCategory)||'—';
-      if(historyRow.type==='充值'&&historyRow.membershipOrderId)return null;
       const differenceReason=financeDifferenceReason(noteText);
       const businessType=financeCourtHistoryBusinessType(historyRow);
       const amount=Math.round((Number(historyRow.amount)||0)*100)/100;
@@ -2289,7 +2288,7 @@ function buildFinanceUnifiedRows({campuses=[],students=[],purchases=[],entitleme
       };
     }).filter(Boolean);
   });
-  return [...courseReceiptRows,...membershipReceiptRows,...courseConsumeRows,...courtRows]
+  return [...courseReceiptRows,...courseConsumeRows,...courtRows]
     .sort((a,b)=>String(b.businessDate||'').localeCompare(String(a.businessDate||''))||String(b.id||'').localeCompare(String(a.id||'')));
 }
 function buildFinanceSettlementRows({campuses=[],schedule=[]}={}){

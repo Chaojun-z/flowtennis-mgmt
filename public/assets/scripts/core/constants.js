@@ -3,7 +3,7 @@ let CAMPUS={};
 function campusDisplayName(value){
   const raw=String(value??'').trim();
   if(!raw||raw==='undefined'||raw==='null')return '';
-  if(raw==='__external__'||raw==='external')return '校区外';
+  if(raw==='__external__'||raw==='external')return '外部场馆';
   if(raw==='mabao'||raw==='顺义马坡')return '马坡';
   return raw;
 }

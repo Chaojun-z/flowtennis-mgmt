@@ -428,7 +428,7 @@ function financeCourtHistoryBusinessType(historyRow){
     return '散客订场';
   }
   if(/课|班课|训练营|体验/.test(category))return '课程';
-  return '散客订场';
+  return '其他';
 }
 function financeLedgerCampusName(row){
   const direct=financeCampusNameFromValue(row?.campusName||row?.campusId||row?.campus||'');
@@ -697,7 +697,7 @@ function financePrepaidRows(){
   });
   return filteredRows.sort((a,b)=>Number(b.deferredAmount)-Number(a.deferredAmount));
 }
-function financeLedgerBaseRows(){
+function financeLegacyUnifiedRows(){
   if(Array.isArray(financialLedger)&&financialLedger.length){
     return financialLedger.filter(row=>String(row?.status||'active')!=='voided').map(row=>({
       id:`financial-ledger-${row.id}`,
@@ -775,6 +775,16 @@ function financeLedgerBaseRows(){
   });
   return [...courseReceiptRows,...courseConsumeRows,...courtRows];
 }
+function financeUnifiedRows(){
+  const snapshotRows=financeNormalizedRows();
+  if(loadedDatasets.has('financePage')){
+    return snapshotRows.filter(row=>financeMatchesCampusName(row.campusName));
+  }
+  return financeLegacyUnifiedRows();
+}
+function financeLedgerBaseRows(){
+  return financeUnifiedRows();
+}
 function financeLedgerRows(){
   const businessTypeFilter=String(document.getElementById('financeLedgerBusinessTypeFilter')?.value||'').trim();
   const actionFilter=String(document.getElementById('financeLedgerActionFilter')?.value||'').trim();
@@ -813,18 +823,17 @@ function renderFinanceOverview(){
   const packageIncome=positiveCashRows.filter(row=>row.businessType==='课程').reduce((sum,row)=>sum+(Number(row.cashDelta)||0),0);
   const packageRecognized=businessRows.filter(row=>row.businessType==='课程').reduce((sum,row)=>sum+(Number(row.recognizedRevenueDelta)||0),0);
   const storedValueIncome=positiveCashRows.filter(row=>row.businessType==='会员储值').reduce((sum,row)=>sum+(Number(row.cashDelta)||0),0);
-  const storedValueConsumed=businessRows.filter(row=>row.businessType==='会员订场').reduce((sum,row)=>sum+(Number(row.recognizedRevenueDelta)||0),0);
-  const bookingOverviewRows=financeBookingOverviewRows();
-  const bookingIncome=bookingOverviewRows.reduce((sum,row)=>sum+(Number(row.incomeAmount)||0),0);
-  const bookingRecognized=bookingOverviewRows.reduce((sum,row)=>sum+(Number(row.recognizedAmount)||0),0);
+  const storedValueRecognized=businessRows.filter(row=>row.businessType==='会员储值').reduce((sum,row)=>sum+(Number(row.recognizedRevenueDelta)||0),0);
+  const finalBookingIncome=positiveCashRows.filter(row=>['散客订场','约球局'].includes(row.businessType)).reduce((sum,row)=>sum+(Number(row.cashDelta)||0),0);
+  const finalBookingRecognized=businessRows.filter(row=>['散客订场','约球局'].includes(row.businessType)).reduce((sum,row)=>sum+(Number(row.recognizedRevenueDelta)||0),0);
   const renderStatCards=items=>items.map(item=>`<div class="tms-stat-card"><div class="tms-stat-label">${item.label}</div><div class="tms-stat-value${item.split?' finance-split-value':''}">${item.value}</div></div>`).join('');
   primaryHost.innerHTML=renderStatCards([
     {label:'总收入（实收）',value:financeCardValue(cash)},
     {label:'总已入账',value:financeCardValue(recognized)},
     {label:'总未入账',value:financeCardValue(deferred)},
     {label:'课包收入 / 已入账',value:financeCardValue(packageIncome,packageRecognized),split:true},
-    {label:'会员储值收入 / 已消耗',value:financeCardValue(storedValueIncome,storedValueConsumed),split:true},
-    {label:'订场收入 / 已入账',value:financeCardValue(bookingIncome,bookingRecognized),split:true}
+    {label:'会员储值 / 已入账',value:financeCardValue(storedValueIncome,storedValueRecognized),split:true},
+    {label:'订场收入 / 已入账',value:financeCardValue(finalBookingIncome,finalBookingRecognized),split:true}
   ]);
   secondaryHost.innerHTML='';
   secondaryHost.style.display='none';
@@ -884,7 +893,7 @@ function renderFinancePrepaidBalance(){
   ].map(([label,val,formatter])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${formatter(val)}</div></div>`).join('');
   body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.customer,false)}</td><td>${renderCourtCellText(row.campusName,false)}</td><td>${renderCourtCellText(row.deferredType==='课包待确认'?'课包':'会员储值',false)}</td><td>${financeAmountText(row.deferredAmount)}</td><td>${renderCourtCellText(row.source,false)}</td><td><div class="tms-text-remark">${esc(renderCourtEmptyText(row.notes))}</div></td></tr>`).join(''):`<tr><td colspan="6"><div class="empty"><p>暂无待确认收入</p></div></td></tr>`;
 }
-function financeSettlementRows(){
+function financeLegacySettlementRows(){
   const monthInput=document.getElementById('financeSettlementMonth');
   const monthValue=(monthInput?.value||today().slice(0,7)).slice(0,7);
   if(monthInput&&!monthInput.value)monthInput.value=monthValue;
@@ -918,16 +927,30 @@ function financeSettlementRows(){
       return String(a.coach||'').localeCompare(String(b.coach||''),'zh-Hans-CN');
     });
 }
+function financeSettlementRows(){
+  const monthInput=document.getElementById('financeSettlementMonth');
+  const monthValue=(monthInput?.value||today().slice(0,7)).slice(0,7);
+  if(monthInput&&!monthInput.value)monthInput.value=monthValue;
+  if(loadedDatasets.has('financePage')){
+    return financeSettlementRowsFromSnapshot().filter(row=>String(row.month||'')===monthValue&&financeMatchesCampusName(row.campusName))
+      .sort((a,b)=>{
+        if((Number(b.lateFeeAmount)||0)!==(Number(a.lateFeeAmount)||0))return (Number(b.lateFeeAmount)||0)-(Number(a.lateFeeAmount)||0);
+        return String(a.coach||'').localeCompare(String(b.coach||''),'zh-Hans-CN');
+      });
+  }
+  return financeLegacySettlementRows();
+}
 function renderFinanceSettlementSummary(){
   const host=document.getElementById('financeSettlementStats');
   const body=document.getElementById('financeSettlementTbody');
   if(!host||!body)return;
   const rows=financeSettlementRows();
+  const coachCount=new Set(rows.map(row=>row.coach)).size;
   const totalLessons=rows.reduce((sum,row)=>sum+(Number(row.lessonUnits)||0),0);
   const totalLateCount=rows.reduce((sum,row)=>sum+(Number(row.lateCount)||0),0);
   const totalLateFee=rows.reduce((sum,row)=>sum+(Number(row.lateFeeAmount)||0),0);
   host.innerHTML=[
-    ['结算教练数',rows.length,'人'],
+    ['结算教练数',coachCount,'人'],
     ['已完成课时数',lessonUnitsText(totalLessons),'节'],
     ['迟到记录',totalLateCount,'条'],
     ['承担场地费',`¥${fmt(totalLateFee)}`,'']

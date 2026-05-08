@@ -47,6 +47,15 @@ const snapshot = _test.buildFinancePageSnapshot({
       type:'消费',
       amount:200,
       payMethod:'微信'
+    },{
+      id:'court-row-recharge',
+      date:'2026-04-22',
+      occurredDate:'2026-04-22',
+      category:'会员充值',
+      type:'充值',
+      amount:5000,
+      payMethod:'会员充值',
+      membershipOrderId:'member-order-1'
     }]
   }],
   membershipOrders:[{
