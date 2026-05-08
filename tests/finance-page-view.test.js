@@ -3,11 +3,7 @@ const { appSource: source } = require('./helpers/read-index-bundle');
 
 assert.match(source,/data-finance-panel="ledger"[\s\S]*?财务总览[\s\S]*data-finance-panel="revenue"[\s\S]*?收入流水[\s\S]*data-finance-panel="recognized"[\s\S]*?已入账流水[\s\S]*data-finance-panel="settlement"[\s\S]*?教练结算/,'sidebar should expose the verified finance menu entries');
 assert.match(source,/id="page-finance"/,'finance center page should exist');
-assert.match(source,/总账[\s\S]*收入流水[\s\S]*已入账流水[\s\S]*教练结算/,'finance center tabs should follow the simplified order');
-assert.match(source,/id="financeTabLedger"/,'finance center should expose ledger tab');
-assert.match(source,/id="financeTabRevenue"/,'finance center should expose revenue tab');
-assert.match(source,/id="financeTabRecognized"/,'finance center should expose recognized tab');
-assert.match(source,/id="financeTabSettlement"/,'finance center should expose settlement tab');
+assert.doesNotMatch(source,/id="financeTabLedger"|id="financeTabRevenue"|id="financeTabRecognized"|id="financeTabSettlement"/,'finance center should not keep duplicate top tabs after sidebar split');
 assert.match(source,/id="financeLedgerPanel"/,'finance center should render ledger panel');
 assert.match(source,/id="financeRevenuePanel"/,'finance center should render revenue panel');
 assert.match(source,/id="financeRecognizedPanel"/,'finance center should render recognized panel');
@@ -43,7 +39,9 @@ assert.doesNotMatch(source,/总流水笔数/,'ledger summary should not keep tot
 assert.match(source,/课包收入 \/ 已入账[\s\S]*会员储值 \/ 已入账[\s\S]*订场收入 \/ 已入账/,'ledger summary should keep the three owner-facing business cards in the latest wording');
 assert.match(source,/function financeRevenueBaseRows\(\)\{[\s\S]*return financeUnifiedRows\(\)\.filter/,'revenue report should read from the unified finance snapshot');
 assert.match(source,/function financeRecognizedRows\(\)\{[\s\S]*return financeUnifiedRows\(\)\.filter/,'recognized report should read from the unified finance snapshot');
+assert.match(source,/const businessRows=rows\.filter\(row=>!row\.differenceReason\);[\s\S]*const diffRows=rows\.filter\(row=>row\.differenceReason\);[\s\S]*bookingIncome=businessRows\.filter\(row=>\['会员订场','散客订场','约球局'\]\.includes\(row\.sourceBusinessCategory\)\)/,'revenue stats should count booking income by original business category and split diff rows');
 assert.match(source,/storedValueRecognized=businessRows\.filter\(row=>row\.businessType==='会员订场'\)/,'stored value recognized amount should use member booking consumption rows');
+assert.doesNotMatch(source,/resetFinanceRevenuePage\(|resetFinanceConsumePage\(|financeRevenuePagerInfo|financeConsumePagerInfo/,'finance center should not import unfinished revenue/recognized pagination hooks');
 assert.match(source,/id="financeLedgerPagerInfo"/,'ledger should expose pager info');
 assert.match(source,/id="financeLedgerPageSize"/,'ledger should expose page size selector');
 assert.match(source,/id="financeLedgerPagerBtns"/,'ledger should expose pager buttons');

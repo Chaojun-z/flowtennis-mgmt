@@ -618,16 +618,19 @@ function renderFinanceRevenueReport(){
   const baseRows=financeRevenueBaseRows().filter(row=>coachOpsDateWithinRange(row.purchaseDate,from,to));
   renderFinanceRevenueFilterDropdowns(baseRows);
   const rows=financeRevenueRows();
-  const totalIncome=rows.reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
-  const courseIncome=rows.filter(row=>row.revenueCategory==='课程').reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
-  const bookingIncome=rows.filter(row=>['会员订场','散客订场','约球局'].includes(row.revenueCategory)).reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
-  const storedValueIncome=rows.filter(row=>row.revenueCategory==='会员储值').reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
+  const businessRows=rows.filter(row=>!row.differenceReason);
+  const diffRows=rows.filter(row=>row.differenceReason);
+  const totalIncome=businessRows.reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
+  const courseIncome=businessRows.filter(row=>row.sourceBusinessCategory==='课程').reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
+  const bookingIncome=businessRows.filter(row=>['会员订场','散客订场','约球局'].includes(row.sourceBusinessCategory)).reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
+  const storedValueIncome=businessRows.filter(row=>row.sourceBusinessCategory==='会员储值').reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0);
   stats.innerHTML=[
     ['成交笔数',rows.length,'笔'],
     ['实收合计',`¥${fmt(totalIncome)}`,''],
     ['课程收入',`¥${fmt(courseIncome)}`,''],
     ['订场收入',`¥${fmt(bookingIncome)}`,''],
-    ['会员储值',`¥${fmt(storedValueIncome)}`,'']
+    ['会员储值',`¥${fmt(storedValueIncome)}`,''],
+    ['差异项',`¥${fmt(diffRows.reduce((sum,row)=>sum+(Number(row.actualAmount)||0),0))}`,'']
   ].map(([label,val,unit])=>`<div class="tms-stat-card"><div class="tms-stat-label">${label}</div><div class="tms-stat-value">${val}${unit?`<span>${unit}</span>`:''}</div></div>`).join('');
   body.innerHTML=rows.length?rows.map(row=>`<tr><td style="padding-left:20px">${renderCourtCellText(row.purchaseDate,false)}</td><td>${renderCourtCellText(row.weekdayText,false)}</td><td>${renderCourtCellText(row.timeText,false)}</td><td>${renderCourtCellText(row.studentName,false)}</td><td>${renderCourtCellText(row.incomeType,false)}</td><td>${renderCourtCellText(row.payMethod,false)}</td><td>${financeAmountText(row.receivableAmount)}</td><td>${financeAmountText(row.actualAmount)}</td><td>${financeSignedAmountText(row.priceDiff)}</td><td>${renderCourtCellText(row.priceDiffReason,false)}</td><td>${renderCourtCellText(row.collector,false)}</td><td><div class="tms-text-remark" title="${esc(row.notes||'')}">${esc(renderCourtEmptyText(row.notes))}</div></td><td>${renderCourtCellText(row.campusName,false)}</td><td><span class="tms-tag ${row.status==='voided'?'tms-tag-tier-slate':'tms-tag-green'}">${esc(row.systemStatus)}</span></td><td class="tms-sticky-r" style="padding-right:20px">${renderCourtCellText(row.relatedDocument,false)}</td></tr>`).join(''):`<tr><td colspan="15"><div class="empty"><p>暂无收入表记录</p></div></td></tr>`;
 }
