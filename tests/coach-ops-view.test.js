@@ -142,8 +142,8 @@ assert.match(
 
 assert.match(
   source,
-  /function financeConsumeRows\([\s\S]*aggregateHistoricalMonthlyLedgerRows\(dedupeEntitlementLedgerForDisplay\(entitlementLedger\)\)/,
-  'finance consume report should reuse the unified entitlement ledger dedupe and monthly aggregation'
+  /function financeRecognizedRows\([\s\S]*financeUnifiedRows\(\)/,
+  'finance recognized report should reuse the unified finance snapshot'
 );
 
 assert.doesNotMatch(

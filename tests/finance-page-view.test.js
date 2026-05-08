@@ -1,7 +1,7 @@
 const assert = require('assert');
 const { appSource: source } = require('./helpers/read-index-bundle');
 
-assert.match(source,/goPage\('finance',this\)[\s\S]*?财务中心/,'sidebar should expose finance center page');
+assert.match(source,/data-finance-panel="ledger"[\s\S]*?财务总览[\s\S]*data-finance-panel="revenue"[\s\S]*?收入流水[\s\S]*data-finance-panel="recognized"[\s\S]*?已入账流水[\s\S]*data-finance-panel="settlement"[\s\S]*?教练结算/,'sidebar should expose the verified finance menu entries');
 assert.match(source,/id="page-finance"/,'finance center page should exist');
 assert.match(source,/总账[\s\S]*收入流水[\s\S]*已入账流水[\s\S]*教练结算/,'finance center tabs should follow the simplified order');
 assert.match(source,/id="financeTabLedger"/,'finance center should expose ledger tab');
@@ -41,6 +41,9 @@ assert.doesNotMatch(source,/未入账明细/,'ledger should no longer show a sec
 assert.match(source,/总收入（实收）[\s\S]*总已入账[\s\S]*总未入账/,'ledger summary should use plain-language owner terms');
 assert.doesNotMatch(source,/总流水笔数/,'ledger summary should not keep total flow count card');
 assert.match(source,/课包收入 \/ 已入账[\s\S]*会员储值 \/ 已入账[\s\S]*订场收入 \/ 已入账/,'ledger summary should keep the three owner-facing business cards in the latest wording');
+assert.match(source,/function financeRevenueBaseRows\(\)\{[\s\S]*return financeUnifiedRows\(\)\.filter/,'revenue report should read from the unified finance snapshot');
+assert.match(source,/function financeRecognizedRows\(\)\{[\s\S]*return financeUnifiedRows\(\)\.filter/,'recognized report should read from the unified finance snapshot');
+assert.match(source,/storedValueRecognized=businessRows\.filter\(row=>row\.businessType==='会员订场'\)/,'stored value recognized amount should use member booking consumption rows');
 assert.match(source,/id="financeLedgerPagerInfo"/,'ledger should expose pager info');
 assert.match(source,/id="financeLedgerPageSize"/,'ledger should expose page size selector');
 assert.match(source,/id="financeLedgerPagerBtns"/,'ledger should expose pager buttons');
