@@ -1,14 +1,14 @@
 let currentPage=localStorage.getItem(PAGE_KEY)||'students',campus=localStorage.getItem(CAMPUS_KEY)||'all',editId=null,delId=null,delType=null,_pending=[];
 let batchDeleteCourtIds=[];
-let stuPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1,financeLedgerPage=1;
-let courtSortKey='',courtSortDir='desc',courtOwnerFilterValue='',courtAccountTypeFilterValue='',courtPageSize=20,financeLedgerPageSize=20,selectedCourtIds=new Set(),courtBatchMode=false;
+let stuPage=1,leadPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1,financeLedgerPage=1;
+let courtSortKey='',courtSortDir='desc',courtOwnerFilterValue='',courtAccountTypeFilterValue='',leadPageSize=20,courtPageSize=20,financeLedgerPageSize=20,selectedCourtIds=new Set(),courtBatchMode=false;
 let coachOpsMode='day',coachOpsPanel='schedule',coachOpsPickerMonth=null,financePanel='ledger';
 
 function goPage(pg,el,skipRender=false){
   syncViewportMode();
   if(pg==='entitlements')pg='students';
   if(pg==='myschedule')pg='workbench';
-  const adminPages=['students','classes','plans','schedule','coachops','products','packages','purchases','finance','coaches','admin-users','courts','memberships','membership-orders','membership-ledger','membership-plans','prices','campusmgr','matches'];
+  const adminPages=['students','leads','classes','plans','schedule','coachops','products','packages','purchases','finance','coaches','admin-users','courts','memberships','membership-orders','membership-ledger','membership-plans','prices','campusmgr','matches'];
   const coachPages=['workbench','postfeedback','mystudents','myclasses'];
   const isCoach=currentUser?.role==='editor'&&currentUser?.coachName;
   if(currentUser?.role!=='admin'&&adminPages.includes(pg))pg=isCoach?'workbench':'';
@@ -35,7 +35,7 @@ function goPage(pg,el,skipRender=false){
     currentPage=pg;
     localStorage.setItem(PAGE_KEY,currentPage);
     document.getElementById('campusTabs').style.display=['students','courts','finance','matches'].includes(pg)?'flex':'none';
-    const t={students:'学员管理',classes:'班次管理',plans:'学习计划',schedule:'排课表',coachops:'教练运营',products:'课程产品',packages:'售卖课包',purchases:'购买记录',finance:'财务总览',coaches:'教练管理','admin-users':'账号管理',courts:'订场用户',memberships:'订场会员','membership-orders':'会员购买记录','membership-ledger':'会员权益流水','membership-plans':'会员方案',prices:'价格方案',campusmgr:'校区管理',matches:'约球管理',workbench:'工作台',postfeedback:'课后评价',mystudents:'我的学员',myclasses:'我的班次'};
+    const t={students:'学员管理',leads:'线索池',classes:'班次管理',plans:'学习计划',schedule:'排课表',coachops:'教练运营',products:'课程产品',packages:'售卖课包',purchases:'购买记录',finance:'财务总览',coaches:'教练管理','admin-users':'账号管理',courts:'订场用户',memberships:'订场会员','membership-orders':'会员购买记录','membership-ledger':'会员权益流水','membership-plans':'会员方案',prices:'价格方案',campusmgr:'校区管理',matches:'约球管理',workbench:'工作台',postfeedback:'课后评价',mystudents:'我的学员',myclasses:'我的班次'};
     const financeTitleMap={ledger:'财务总览',revenue:'收入流水',recognized:'已入账流水',settlement:'教练结算'};
     document.getElementById('topTitle').textContent=pg==='finance'?(financeTitleMap[financePanel]||t[pg]||''):(t[pg]||'');
     if(!skipRender)loadPageDataAndRender(pg,{quiet:true});
