@@ -460,6 +460,7 @@ async function refreshSchEntitlementOptions(){
   }
   clearTimeout(schEntitlementRefreshTimer);
   const refreshSeq=++schEntitlementRefreshSeq;
+  sel.innerHTML='<option value="">— 正在重新计算可用课包 —</option>';
   hint.textContent='正在匹配可用课包…';
   schEntitlementRefreshTimer=setTimeout(async ()=>{
     try{
