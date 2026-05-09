@@ -648,8 +648,8 @@ function packageRefIds(values){
 }
 function validatePackageInput(pkg,refs={}){
   if(!String(pkg?.name||'').trim())throw new Error('请填写课包名称');
-  if(!pkg?.productId)throw new Error('请选择课程产品');
-  if(refs.products&&!(refs.products||[]).some(p=>p.id===pkg.productId))throw new Error('课程产品不存在');
+  if(!String(pkg?.courseType||pkg?.type||'').trim())throw new Error('请填写课程类型');
+  if(pkg?.productId&&refs.products&&!(refs.products||[]).some(p=>p.id===pkg.productId))throw new Error('课程产品不存在');
   if((parseInt(pkg.lessons)||0)<=0)throw new Error('课时必须大于 0');
   if(normalizeMoney(pkg.price)<=0)throw new Error('价格必须大于 0');
   if((parseInt(pkg.validDays)||0)<=0)throw new Error('有效天数必须大于 0');
@@ -673,7 +673,18 @@ function validatePackageInput(pkg,refs={}){
 }
 function normalizePackageRecord(input,old=null,refs={},now=new Date().toISOString()){
   const base={...(old||{}),...(input||{})};
-  const r={...base,lessons:parseInt(base.lessons)||0,price:normalizeMoney(base.price),validDays:parseInt(base.validDays)||0,maxStudents:parseInt(base.maxStudents)||0,status:base.status||'active',updatedAt:now};
+  const r={
+    ...base,
+    productId:String(base.productId||'').trim(),
+    productName:String(base.productName||'').trim(),
+    courseType:String(base.courseType||base.type||'').trim(),
+    lessons:parseInt(base.lessons)||0,
+    price:normalizeMoney(base.price),
+    validDays:parseInt(base.validDays)||0,
+    maxStudents:parseInt(base.maxStudents)||0,
+    status:base.status||'active',
+    updatedAt:now
+  };
   validatePackageInput(r,refs);
   return r;
 }
