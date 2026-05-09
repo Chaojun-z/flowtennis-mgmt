@@ -338,6 +338,22 @@ assert.doesNotThrow(
   'sold package allowed coaches should be usable in scheduling'
 );
 
+assert.doesNotThrow(
+  () => rules.validateEntitlementForSchedule({ ...entitlement, coachIds: [], coachNames: [], ownerCoach: 'chaojun', allowedCoaches: [] }, {
+    id: 'sch-owner-alias',
+    studentIds: ['stu-1'],
+    courseType: '私教课',
+    coach: '朝珺',
+    coachRefs: [{ id: 'chaojun', name: '朝珺' }],
+    campus: 'mabao',
+    startTime: '2026-05-04 09:00',
+    endTime: '2026-05-04 10:00',
+    lessonCount: 1,
+    status: '已排课'
+  }),
+  'owner coach id should match the same coach display name during scheduling'
+);
+
 assert.throws(
   () => rules.validateEntitlementForSchedule({ ...entitlement, coachIds: [], coachNames: [], ownerCoach: '朝珺', allowedCoaches: ['mira'] }, {
     id: 'sch-owner-block',
