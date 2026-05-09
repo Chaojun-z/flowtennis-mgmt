@@ -232,6 +232,17 @@ assert.throws(
   'package must reference an existing product'
 );
 
+assert.doesNotThrow(
+  () => rules.validatePackageInput({ ...pkg, productId: '', productName: '' }, { products: [{ id: 'prod-1' }], coaches: [{ id: 'coach-1', name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  'package-only rule should allow package without product id when course type is present'
+);
+
+assert.throws(
+  () => rules.validatePackageInput({ ...pkg, courseType: '', type: '' }, { products: [{ id: 'prod-1' }], coaches: [{ id: 'coach-1', name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  /请填写课程类型/,
+  'package should require course type even when product still exists'
+);
+
 assert.throws(
   () => rules.validatePackageInput({ ...pkg, saleStartDate: '2026-06-01', saleEndDate: '2026-05-01' }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
   /活动结束时间不能早于活动开始时间/,
@@ -305,6 +316,37 @@ assert.throws(
   () => rules.validatePurchaseInputForPackage({ ...pkg, saleStartDate: '2026-06-01', saleEndDate: '2026-06-30' }, purchase),
   /不在课包活动购买时间内/,
   'purchase date must be inside sale window'
+);
+
+const packageOnlyPurchase = rules.buildPurchaseRecord(
+  { ...pkg, productId: '', productName: '' },
+  purchase,
+  { id: 'stu-1', name: '张三', phone: '13800000000' },
+  { id: 'pur-package-only', now: '2026-04-12T00:00:00.000Z', operator: '管理员' }
+);
+
+const packageOnlyEntitlement = rules.buildEntitlementFromPurchase(
+  { ...pkg, productId: '', productName: '' },
+  { ...purchase, id: 'pur-package-only' },
+  { id: 'stu-1', name: '张三' },
+  'ent-package-only',
+  '2026-04-12T00:00:00.000Z'
+);
+
+assert.deepStrictEqual(
+  {
+    purchaseProductId: packageOnlyPurchase.productId,
+    purchaseCourseType: packageOnlyPurchase.courseType,
+    entitlementProductId: packageOnlyEntitlement.productId,
+    entitlementCourseType: packageOnlyEntitlement.courseType
+  },
+  {
+    purchaseProductId: '',
+    purchaseCourseType: '私教课',
+    entitlementProductId: '',
+    entitlementCourseType: '私教课'
+  },
+  'package-only purchase chain should keep empty product id while preserving required course type'
 );
 
 assert.doesNotThrow(
