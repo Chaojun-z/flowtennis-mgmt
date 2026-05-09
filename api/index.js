@@ -6053,7 +6053,7 @@ module.exports = async (req, res) => {
       if(method==='GET')return sendJson(res,normalizeEntitlementLedgerRowsForView(await getCachedScan(T_ENTITLEMENT_LEDGER).catch(()=>[])));
     }
     if(path==='/entitlements'){await init();if(method==='GET'){const sid=query.get('studentId')||'';if(user.role==='admin'&&sid)return sendJson(res,await getIndexedActiveEntitlementsForStudents([sid]));const rows=await getCachedScan(T_ENTITLEMENTS).catch(()=>[]);if(user.role==='admin')return sendJson(res,sid?rows.filter(e=>e.studentId===sid):rows);const [students,schedule,classes,coaches,users]=await Promise.all([getCachedScan(T_STUDENTS).catch(()=>[]),getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CLASSES).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});const scoped=filterLoadAllForUser({students,schedule,classes,entitlements:rows,coaches},user,coachRefs).entitlements;return sendJson(res,sid?scoped.filter(e=>e.studentId===sid):scoped);}}
-    if(path==='/entitlements/recommend'&&method==='POST'){await init();const [rows,coachRows,userRows]=await Promise.all([getIndexedActiveEntitlementsForStudents(parseArr(body.studentIds)),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches:coachRows,users:userRows});return sendJson(res,recommendEntitlements(rows,{...body,coachRefs}));}
+    if(path==='/entitlements/recommend'&&method==='POST'){await init();const rows=await getIndexedActiveEntitlementsForStudents(parseArr(body.studentIds));return sendJson(res,recommendEntitlements(rows,{...body,coachRefs:LEGACY_STATIC_COACH_REFS}));}
     const entM=path.match(/^\/entitlements\/(.+)$/);if(entM){const id=entM[1];if(method==='GET')return sendJson(res,await getCachedRow(T_ENTITLEMENTS,id));if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const old=await getCachedRow(T_ENTITLEMENTS,id).catch(()=>null);assertCanDeleteEntitlement(id,await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]),await scan(T_ENTITLEMENTS).catch(()=>[]));await del(T_ENTITLEMENTS,id);await syncStudentActiveEntitlementIndexes(old,null);return sendJson(res,{success:true});}}
     if(path==='/plans'){await init();if(method==='GET')return sendJson(res,await scan(T_PLANS));return sendJson(res,{error:'学习计划由班次自动生成，不能独立新增、修改或删除'},400);}
     const plM=path.match(/^\/plans\/(.+)$/);if(plM){const id=plM[1];if(method==='GET')return sendJson(res,await get(T_PLANS,id));return sendJson(res,{error:'学习计划由班次自动生成，不能独立新增、修改或删除'},400);}
@@ -6102,8 +6102,8 @@ module.exports = async (req, res) => {
           const {risk,entitlementDeltas}=await timed('schedule create validate',async()=>{
             const risk=await validateScheduleSave(r,null);
             assertScheduleEntitlementRequired(r);
-            const [entitlementRows,coachRows,userRows]=await Promise.all([getCachedScan(T_ENTITLEMENTS).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
-            const coachRefs=buildCoachRefs({coaches:coachRows,users:userRows});
+            const entitlementRows=await getCachedScan(T_ENTITLEMENTS).catch(()=>[]);
+            const coachRefs=LEGACY_STATIC_COACH_REFS;
             const entitlementDeltas=resolveScheduleEntitlementDeltas({...r,coachRefs},entitlementRows);
             r.entitlementIds=entitlementDeltas.map(d=>d.entitlementId);
             r.entitlementId=r.entitlementIds.length===1?r.entitlementIds[0]:'';
@@ -6203,8 +6203,8 @@ module.exports = async (req, res) => {
             );
             const oldEntDeltas=scheduleEntitlementDeltas(ex);
             const oldEntIds=new Set(oldEntDeltas.map(d=>d.entitlementId));
-            const [entitlementRows,coachRows,userRows]=await Promise.all([getCachedScan(T_ENTITLEMENTS).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
-            const coachRefs=buildCoachRefs({coaches:coachRows,users:userRows});
+            const entitlementRows=await getCachedScan(T_ENTITLEMENTS).catch(()=>[]);
+            const coachRefs=LEGACY_STATIC_COACH_REFS;
             const nextBaseRows=entitlementRows.map(ent=>oldEntIds.has(ent.id)?{...ent,status:'active',remainingLessons:parseLessonValue(ent.remainingLessons)+(oldEntDeltas.find(d=>d.entitlementId===ent.id)?.delta||0)}:ent);
             const nextEntDeltas=resolveScheduleEntitlementDeltas({...r,coachRefs},nextBaseRows);
             r.entitlementIds=nextEntDeltas.map(d=>d.entitlementId);
