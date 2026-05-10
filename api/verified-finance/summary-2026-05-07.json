@@ -1,0 +1,34 @@
+{
+  "只读": true,
+  "耗时毫秒": 54685,
+  "数据量": {
+    "purchases": 63,
+    "courts": 668,
+    "sourceRows": 1053,
+    "duplicateRows": 26,
+    "mabaoRows": 934
+  },
+  "分来源汇总": {
+    "课包购买": {
+      "条数": 61,
+      "金额": 347900
+    },
+    "订场现金/微信收入": {
+      "条数": 905,
+      "金额": 255038
+    },
+    "会员储值充值": {
+      "条数": 22,
+      "金额": 80330
+    },
+    "储值扣款已入账": {
+      "条数": 65,
+      "金额": 15697
+    }
+  },
+  "文件": {
+    "sourceFile": "/Users/shaobaolu/Desktop/FlowTennis/财务只读拆账-2026-05-07.csv",
+    "dupFile": "/Users/shaobaolu/Desktop/FlowTennis/财务疑似重复清单-2026-05-07.csv",
+    "summaryFile": "/Users/shaobaolu/Desktop/FlowTennis/财务只读核对摘要-2026-05-07.json"
+  }
+}

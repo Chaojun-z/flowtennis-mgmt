@@ -2429,9 +2429,8 @@ function parseSimpleCsv(text=''){
   return rows;
 }
 function loadVerifiedFinanceArtifacts(campuses=[]){
-  const baseDir=path.join(__dirname,'..','..','..','..');
-  const summaryPath=path.join(baseDir,'财务只读核对摘要-2026-05-07.json');
-  const sourcePath=path.join(baseDir,'财务只读拆账-2026-05-07.csv');
+  const summaryPath=path.join(__dirname,'verified-finance','summary-2026-05-07.json');
+  const sourcePath=path.join(__dirname,'verified-finance','rows-2026-05-07.csv');
   if(!fs.existsSync(summaryPath)||!fs.existsSync(sourcePath))return null;
   const raw=JSON.parse(fs.readFileSync(summaryPath,'utf8'));
   const {fromHints}=buildFinanceCampusResolvers(campuses);
