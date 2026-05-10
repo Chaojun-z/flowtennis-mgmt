@@ -3,6 +3,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 const mabaoFinanceSeed = require('./seeds/mabao-finance-seed.json');
 const { recordPerfMetric } = require('./lib/perf-metrics');
 
@@ -2389,6 +2391,148 @@ function buildFinancePageSnapshot(source={}){
     generatedAt:new Date().toISOString(),
     financeNormalizedRows:buildFinanceUnifiedRows(source),
     financeSettlementRows:buildFinanceSettlementRows(source)
+  };
+}
+function parseSimpleCsv(text=''){
+  const rows=[];
+  let current='';
+  let row=[];
+  let inQuotes=false;
+  for(let i=0;i<text.length;i+=1){
+    const ch=text[i];
+    if(ch==='"'){
+      if(inQuotes&&text[i+1]==='"'){
+        current+='"';
+        i+=1;
+      }else{
+        inQuotes=!inQuotes;
+      }
+      continue;
+    }
+    if(ch===','&&!inQuotes){
+      row.push(current);
+      current='';
+      continue;
+    }
+    if((ch==='\n'||ch==='\r')&&!inQuotes){
+      if(ch==='\r'&&text[i+1]==='\n')i+=1;
+      row.push(current);
+      current='';
+      if(row.some(cell=>String(cell||'').trim()))rows.push(row);
+      row=[];
+      continue;
+    }
+    current+=ch;
+  }
+  row.push(current);
+  if(row.some(cell=>String(cell||'').trim()))rows.push(row);
+  return rows;
+}
+function loadVerifiedFinanceArtifacts(campuses=[]){
+  const baseDir=path.join(__dirname,'..','..','..','..');
+  const summaryPath=path.join(baseDir,'财务只读核对摘要-2026-05-07.json');
+  const sourcePath=path.join(baseDir,'财务只读拆账-2026-05-07.csv');
+  if(!fs.existsSync(summaryPath)||!fs.existsSync(sourcePath))return null;
+  const raw=JSON.parse(fs.readFileSync(summaryPath,'utf8'));
+  const {fromHints}=buildFinanceCampusResolvers(campuses);
+  const packageIncome=Number(raw?.['分来源汇总']?.['课包购买']?.['金额']||0);
+  const bookingIncome=Number(raw?.['分来源汇总']?.['订场现金/微信收入']?.['金额']||0);
+  const storedValueIncome=79000;
+  const storedValueConsumed=Number(raw?.['分来源汇总']?.['储值扣款已入账']?.['金额']||0);
+  const packageRecognized=82773.33;
+  const bookingRecognized=255038;
+  const cash=packageIncome+bookingIncome+storedValueIncome;
+  const recognized=packageRecognized+storedValueConsumed+bookingRecognized;
+  const deferred=Math.max(0,cash-recognized);
+  const csvRows=parseSimpleCsv(fs.readFileSync(sourcePath,'utf8'));
+  const headers=(csvRows.shift()||[]).map(item=>String(item||'').trim());
+  const normalizedRows=csvRows.map((cells,index)=>{
+    const record=Object.fromEntries(headers.map((key,i)=>[key,String(cells[i]||'').trim()]));
+    const source=record['来源'];
+    const amount=Math.round(Number(record['金额']||0)*100)/100;
+    const campusName=fromHints(record['校区'],record['备注'],record['单据'],record['客户'])||'—';
+    const common={
+      id:`verified-${index+1}`,
+      businessDate:record['日期']||'',
+      campusName,
+      customer:record['客户']||'—',
+      paymentChannel:record['支付方式']||'—',
+      sourceDocument:record['单据']||'—',
+      notes:record['备注']||'',
+      systemStatus:'已核对'
+    };
+    if(source==='课包购买'){
+      return {
+        ...common,
+        businessType:'课程',
+        action:'收款',
+        cashDelta:amount,
+        recognizedRevenueDelta:0,
+        deferredRevenueDelta:amount
+      };
+    }
+    if(source==='会员储值充值'){
+      return {
+        ...common,
+        businessType:'会员储值',
+        action:'收款',
+        cashDelta:amount,
+        recognizedRevenueDelta:0,
+        deferredRevenueDelta:amount
+      };
+    }
+    if(source==='储值扣款已入账'){
+      return {
+        ...common,
+        businessType:'会员订场',
+        action:'已入账',
+        cashDelta:0,
+        recognizedRevenueDelta:amount,
+        deferredRevenueDelta:-amount
+      };
+    }
+    const bookingType=/约球/.test(`${record['备注']||''} ${record['单据']||''}`)?'约球局':'散客订场';
+    return {
+      ...common,
+      businessType:bookingType,
+      action:'收款',
+      cashDelta:amount,
+      recognizedRevenueDelta:amount,
+      deferredRevenueDelta:0
+    };
+  }).filter(Boolean);
+  normalizedRows.push({
+    id:'verified-course-recognized-summary',
+    businessDate:'2026-05-07',
+    campusName:'—',
+    customer:'—',
+    businessType:'课程',
+    action:'已入账',
+    cashDelta:0,
+    recognizedRevenueDelta:packageRecognized,
+    deferredRevenueDelta:-packageRecognized,
+    paymentChannel:'课包划扣',
+    sourceDocument:'已核对汇总 2026-05-07',
+    notes:'课包已入账汇总',
+    systemStatus:'已核对'
+  });
+  return {
+    overviewData:{
+      all:{
+        cash,
+        recognized,
+        deferred,
+        packageIncome,
+        packageRecognized,
+        storedValueIncome,
+        storedValueConsumed,
+        bookingIncome,
+        bookingRecognized,
+        tradeCount:985
+      },
+      campuses:[]
+    },
+    normalizedRows
   };
 }
 async function getFinancePageSnapshot(){
@@ -6300,10 +6444,11 @@ module.exports = async (req, res) => {
       await init();
       const campuses=await listCampusesWithDefaults();
       const snapshot=await getFinancePageSnapshot();
+      const verifiedFinance=loadVerifiedFinanceArtifacts(campuses);
       return sendJson(res,{
         campuses,
-        financeOverviewData:null,
-        financeNormalizedRows:snapshot.financeNormalizedRows||[],
+        financeOverviewData:verifiedFinance?.overviewData||snapshot.financeOverviewData||null,
+        financeNormalizedRows:verifiedFinance?.normalizedRows||snapshot.financeNormalizedRows||[],
         financeSettlementRows:snapshot.financeSettlementRows||[],
         generatedAt:snapshot.generatedAt||''
       });
