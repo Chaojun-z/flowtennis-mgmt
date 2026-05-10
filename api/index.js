@@ -14,11 +14,46 @@ const TS_INSTANCE = process.env.TS_INSTANCE || 'flowtennis';
 const TS_KEY_ID = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID;
 const TS_KEY_SEC = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET;
 const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET'];
-const ENABLE_DEFAULT_USER_BOOTSTRAP = process.env.ENABLE_DEFAULT_USER_BOOTSTRAP === 'true';
-const ENABLE_TABLE_BOOTSTRAP = process.env.ENABLE_TABLE_BOOTSTRAP === 'true';
-const ENABLE_RUNTIME_TABLE_ENSURE = process.env.ENABLE_RUNTIME_TABLE_ENSURE === 'true';
-const ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP = process.env.ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP === 'true';
-const ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP = process.env.ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP === 'true';
+function readBooleanEnv(env,name){return String(env?.[name]||'').trim().toLowerCase()==='true';}
+function resolveRuntimeStage(env=process.env){
+  const vercelEnv=String(env?.VERCEL_ENV||'').trim().toLowerCase();
+  if(vercelEnv)return vercelEnv;
+  const nodeEnv=String(env?.NODE_ENV||'').trim().toLowerCase();
+  return nodeEnv||'development';
+}
+function buildBootstrapSafetyFlags(env=process.env){
+  const runtimeStage=resolveRuntimeStage(env);
+  const isProduction=runtimeStage==='production';
+  const allowProductionBootstrapWrites=readBooleanEnv(env,'ALLOW_PRODUCTION_BOOTSTRAP_WRITES');
+  const allowHighRiskBootstrapWrites=!isProduction||allowProductionBootstrapWrites;
+  return {
+    runtimeStage,
+    isProduction,
+    allowProductionBootstrapWrites,
+    enableDefaultUserBootstrap:readBooleanEnv(env,'ENABLE_DEFAULT_USER_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
+    enableTableBootstrap:readBooleanEnv(env,'ENABLE_TABLE_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
+    enableRuntimeTableEnsure:readBooleanEnv(env,'ENABLE_RUNTIME_TABLE_ENSURE'),
+    enableDefaultPricePlanBootstrap:readBooleanEnv(env,'ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
+    enableMabaoFinanceSeedBootstrap:readBooleanEnv(env,'ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
+    enableImportedLedgerAutoRepair:readBooleanEnv(env,'ENABLE_IMPORTED_LEDGER_AUTO_REPAIR')&&allowHighRiskBootstrapWrites
+  };
+}
+function logBlockedAutoWrite(action){
+  console.warn(`[api-guard] ${action} skipped in production. 如需执行，请仅在获批运维修复场景下显式设置 ALLOW_PRODUCTION_BOOTSTRAP_WRITES=true。`);
+}
+const BOOTSTRAP_SAFETY_FLAGS=buildBootstrapSafetyFlags();
+const RAW_ENABLE_DEFAULT_USER_BOOTSTRAP=readBooleanEnv(process.env,'ENABLE_DEFAULT_USER_BOOTSTRAP');
+const RAW_ENABLE_TABLE_BOOTSTRAP=readBooleanEnv(process.env,'ENABLE_TABLE_BOOTSTRAP');
+const RAW_ENABLE_RUNTIME_TABLE_ENSURE=readBooleanEnv(process.env,'ENABLE_RUNTIME_TABLE_ENSURE');
+const RAW_ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP=readBooleanEnv(process.env,'ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP');
+const RAW_ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP=readBooleanEnv(process.env,'ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP');
+const RAW_ENABLE_IMPORTED_LEDGER_AUTO_REPAIR=readBooleanEnv(process.env,'ENABLE_IMPORTED_LEDGER_AUTO_REPAIR');
+const ENABLE_DEFAULT_USER_BOOTSTRAP = BOOTSTRAP_SAFETY_FLAGS.enableDefaultUserBootstrap;
+const ENABLE_TABLE_BOOTSTRAP = BOOTSTRAP_SAFETY_FLAGS.enableTableBootstrap;
+const ENABLE_RUNTIME_TABLE_ENSURE = BOOTSTRAP_SAFETY_FLAGS.enableRuntimeTableEnsure;
+const ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP = BOOTSTRAP_SAFETY_FLAGS.enableDefaultPricePlanBootstrap;
+const ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP = BOOTSTRAP_SAFETY_FLAGS.enableMabaoFinanceSeedBootstrap;
+const ENABLE_IMPORTED_LEDGER_AUTO_REPAIR = BOOTSTRAP_SAFETY_FLAGS.enableImportedLedgerAutoRepair;
 const DEFAULT_ADMIN_BOOTSTRAP_PASSWORD = process.env.DEFAULT_ADMIN_BOOTSTRAP_PASSWORD || '';
 const WECHAT_MINIPROGRAM_APPID = process.env.WECHAT_MINIPROGRAM_APPID || 'wx7acb7603ee803923';
 const WECHAT_MINIPROGRAM_SECRET = process.env.WECHAT_MINIPROGRAM_SECRET;
@@ -1998,6 +2033,10 @@ async function replaceMabaoSeedLedgerRows(seedRows=[],tag=''){
   await putSeedRows(T_ENTITLEMENT_LEDGER,seedRows);
 }
 async function repairImportedLedgerDuplicates(){
+  if(!ENABLE_IMPORTED_LEDGER_AUTO_REPAIR){
+    if(RAW_ENABLE_IMPORTED_LEDGER_AUTO_REPAIR&&BOOTSTRAP_SAFETY_FLAGS.isProduction&&!BOOTSTRAP_SAFETY_FLAGS.allowProductionBootstrapWrites)logBlockedAutoWrite('repairImportedLedgerDuplicates');
+    return 0;
+  }
   const existingRows=await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]);
   const duplicateIds=collectDuplicateImportedLedgerIds(existingRows);
   if(!duplicateIds.length)return 0;
@@ -2044,7 +2083,10 @@ async function isMabaoFinanceSeedCurrent(){
   return true;
 }
 async function bootstrapMabaoFinanceSeed(){
-  if(!ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP)return;
+  if(!ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP){
+    if(RAW_ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction&&!BOOTSTRAP_SAFETY_FLAGS.allowProductionBootstrapWrites)logBlockedAutoWrite('bootstrapMabaoFinanceSeed');
+    return;
+  }
   if(await isMabaoFinanceSeedCurrent())return;
   const tag=mabaoFinanceSeed?.meta?.tag||'';
   await deleteSeedRows(T_PURCHASES,mabaoFinanceSeed?.meta?.deletePurchases||[]);
@@ -2562,6 +2604,11 @@ async function init(){
     const startedAt=Date.now();
     const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
     if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
+    if(RAW_ENABLE_DEFAULT_USER_BOOTSTRAP&&!ENABLE_DEFAULT_USER_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('bootstrapDefaultUsers');
+    if(RAW_ENABLE_TABLE_BOOTSTRAP&&!ENABLE_TABLE_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('ENABLE_TABLE_BOOTSTRAP');
+    if(RAW_ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&!ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('syncDefaultPricePlans');
+    if(RAW_ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP&&!ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('bootstrapMabaoFinanceSeed');
+    if(RAW_ENABLE_IMPORTED_LEDGER_AUTO_REPAIR&&!ENABLE_IMPORTED_LEDGER_AUTO_REPAIR&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('repairImportedLedgerDuplicates');
     if(ENABLE_RUNTIME_TABLE_ENSURE||ENABLE_TABLE_BOOTSTRAP){
       const stepStartedAt=Date.now();
       for(const t of RUNTIME_ENSURED_TABLES)await mkTable(t);
@@ -2591,7 +2638,7 @@ async function init(){
       await bootstrapMabaoFinanceSeed();
       console.log(`[api-init] bootstrapMabaoFinanceSeed done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
     }
-    {
+    if(ENABLE_IMPORTED_LEDGER_AUTO_REPAIR){
       const stepStartedAt=Date.now();
       const repairedCount=await repairImportedLedgerDuplicates();
       console.log(`[api-init] repairImportedLedgerDuplicates done ${Date.now()-stepStartedAt}ms, removed ${repairedCount} rows (total ${Date.now()-startedAt}ms)`);
@@ -2601,9 +2648,6 @@ async function init(){
       const stepStartedAt=Date.now();
       await syncDefaultPricePlans().catch(err=>console.error('[api-bootstrap] sync default price plans failed',err));
       console.log(`[api-init] syncDefaultPricePlans done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-    }else if(!defaultPricePlanSyncStarted){
-      defaultPricePlanSyncStarted=true;
-      Promise.resolve().then(()=>syncDefaultPricePlans()).catch(err=>console.error('[api-bootstrap] sync default price plans failed',err));
     }
     {
       const stepStartedAt=Date.now();
@@ -5809,7 +5853,7 @@ module.exports = async (req, res) => {
     if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
       await init();
-      await maybeRepairImportedLedgerDuplicates();
+      if(ENABLE_IMPORTED_LEDGER_AUTO_REPAIR)await maybeRepairImportedLedgerDuplicates();
       const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,financialLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
         timed('load-all scan courts',()=>getCachedScan(T_COURTS).catch(()=>[])),
         timed('load-all scan students',()=>scan(T_STUDENTS)),
@@ -6865,6 +6909,7 @@ module.exports._test={
   buildFinanceUnifiedRows,
   buildFinanceSettlementRows,
   buildFinancePageSnapshot,
+  buildBootstrapSafetyFlags,
   getRuntimeEnsuredTables,
   getTestDataResetTables,
   clearTables
