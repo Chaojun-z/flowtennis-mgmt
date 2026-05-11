@@ -7,16 +7,62 @@ const mabaoFinanceSeed = require('./seeds/mabao-finance-seed.json');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const TS_ENDPOINT = process.env.TS_ENDPOINT;
-const TS_INSTANCE = process.env.TS_INSTANCE || 'flowtennis';
+const TS_INSTANCE = process.env.TS_INSTANCE;
 const TS_KEY_ID = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID;
 const TS_KEY_SEC = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET;
-const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET'];
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'TS_INSTANCE', 'ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET'];
+const PREVIEW_TS_INSTANCE = 'flow-staging';
+const RUNTIME_DEBUG_TABLES = ['ft_users','ft_students','ft_purchases','ft_entitlement_ledger','ft_courts','ft_membership_orders'];
 function readBooleanEnv(env,name){return String(env?.[name]||'').trim().toLowerCase()==='true';}
 function resolveRuntimeStage(env=process.env){
   const vercelEnv=String(env?.VERCEL_ENV||'').trim().toLowerCase();
   if(vercelEnv)return vercelEnv;
   const nodeEnv=String(env?.NODE_ENV||'').trim().toLowerCase();
   return nodeEnv||'development';
+}
+function resolveDataStage(env=process.env){
+  const appEnv=String(env?.APP_ENV||'').trim().toLowerCase();
+  if(appEnv)return appEnv;
+  const dataEnv=String(env?.DATA_ENV||'').trim().toLowerCase();
+  if(dataEnv)return dataEnv;
+  return '';
+}
+function runtimeDebugEnvValue(env,name){return String(env?.[name]||'').trim();}
+function assertRuntimeDebugReadable(env=process.env){
+  if(resolveRuntimeStage(env)==='production')throw new Error('production 环境已禁用该调试接口');
+}
+async function inspectRuntimeDebugTable(storage,tableName){
+  try{
+    const rows=await storage.scan(tableName);
+    const rowCount=Array.isArray(rows)?rows.length:0;
+    return {tableName,exists:true,isEmpty:rowCount===0,rowCount,status:rowCount>0?'has_rows':'empty'};
+  }catch(err){
+    if(isTableMissingError(err))return {tableName,exists:false,isEmpty:true,rowCount:0,status:'missing'};
+    throw err;
+  }
+}
+async function buildRuntimeDataSourceDebugSnapshot(storage={scan},env=process.env){
+  const tableStates=await Promise.all(RUNTIME_DEBUG_TABLES.map(tableName=>inspectRuntimeDebugTable(storage,tableName)));
+  return {
+    generatedAt:new Date().toISOString(),
+    runtimeStage:resolveRuntimeStage(env),
+    APP_ENV:runtimeDebugEnvValue(env,'APP_ENV'),
+    DATA_ENV:runtimeDebugEnvValue(env,'DATA_ENV'),
+    TS_INSTANCE:runtimeDebugEnvValue(env,'TS_INSTANCE'),
+    TS_ENDPOINT:runtimeDebugEnvValue(env,'TS_ENDPOINT'),
+    previewExpectedTSInstance:PREVIEW_TS_INSTANCE,
+    tables:tableStates
+  };
+}
+function assertTableStoreTarget(env=process.env){
+  const runtimeStage=resolveRuntimeStage(env);
+  const dataStage=resolveDataStage(env);
+  const tsInstance=String(env?.TS_INSTANCE||'').trim();
+  if(!tsInstance)return;
+  const shouldUsePreviewInstance=runtimeStage==='preview'||dataStage==='staging';
+  if(shouldUsePreviewInstance&&tsInstance!==PREVIEW_TS_INSTANCE){
+    throw new Error(`Preview/staging 环境只允许连接 ${PREVIEW_TS_INSTANCE}，当前 TS_INSTANCE=${tsInstance}`);
+  }
 }
 function buildBootstrapSafetyFlags(env=process.env){
   const runtimeStage=resolveRuntimeStage(env);
@@ -1907,6 +1953,7 @@ async function init(){
     const startedAt=Date.now();
     const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
     if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
+    assertTableStoreTarget(process.env);
     if(RAW_ENABLE_DEFAULT_USER_BOOTSTRAP&&!ENABLE_DEFAULT_USER_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('bootstrapDefaultUsers');
     if(RAW_ENABLE_TABLE_BOOTSTRAP&&!ENABLE_TABLE_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('ENABLE_TABLE_BOOTSTRAP');
     if(RAW_ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&!ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('syncDefaultPricePlans');
@@ -4526,6 +4573,10 @@ module.exports = async (req, res) => {
   const body=req.body||{};
   try{
     if(path==='/health')return sendJson(res,{status:'ok',time:new Date().toISOString()});
+    if(path==='/debug/runtime-source'&&method==='GET'){
+      assertRuntimeDebugReadable(process.env);
+      return sendJson(res,await buildRuntimeDataSourceDebugSnapshot({scan},process.env));
+    }
     if(path==='/cron/course-reminders'&&method==='GET'){
       const ua=String(req.headers['user-agent']||'');
       if(process.env.CRON_SECRET){
@@ -5453,6 +5504,12 @@ module.exports = async (req, res) => {
 };
 
 module.exports._test={
+  PREVIEW_TS_INSTANCE,
+  RUNTIME_DEBUG_TABLES,
+  resolveDataStage,
+  assertRuntimeDebugReadable,
+  buildRuntimeDataSourceDebugSnapshot,
+  assertTableStoreTarget,
   MEMBERSHIP_TABLES,
   TEST_DATA_RESET_TABLES,
   scheduleLessonDelta,
