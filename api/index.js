@@ -5465,7 +5465,21 @@ module.exports = async (req, res) => {
         getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]),
         getCachedScan(T_COACHES).catch(()=>[])
       ]);
-      return sendJson(res,{campuses,students,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,membershipPlans,coaches});
+      const normalizedMembershipPlans=(Array.isArray(membershipPlans)?membershipPlans:[]).map(normalizeMembershipPlanViewRecord);
+      const membershipPlanMap=new Map(normalizedMembershipPlans.map(p=>[p.id,p]));
+      const normalizedMembershipOrders=(Array.isArray(membershipOrders)?membershipOrders:[]).map(order=>normalizeMembershipOrderViewRecord(order,membershipPlanMap.get(order.membershipPlanId)));
+      const reconciled=await runMembershipReconcile({accounts:membershipAccounts,courts});
+      return sendJson(res,{
+        campuses,
+        students,
+        courts:reconciled.courts||courts,
+        membershipAccounts:Array.isArray(reconciled.accounts)?reconciled.accounts:[],
+        membershipOrders:normalizedMembershipOrders,
+        membershipBenefitLedger:Array.isArray(membershipBenefitLedger)?membershipBenefitLedger:[],
+        membershipAccountEvents:[...(Array.isArray(membershipAccountEvents)?membershipAccountEvents:[]),...(reconciled.events||[])],
+        membershipPlans:normalizedMembershipPlans,
+        coaches
+      });
     }
     if(path==='/page-data/workbench'&&method==='GET'){
       await init();
