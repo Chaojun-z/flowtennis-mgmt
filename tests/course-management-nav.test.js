@@ -23,6 +23,7 @@ assert.match(html, /<div class="sb-sec">资源管理<\/div>/, 'sidebar should gr
 
 assert.match(html, /goPage\('products',this\)[\s\S]*?课程产品/, 'sidebar should keep products page');
 assert.match(html, /goPage\('packages',this\)[\s\S]*?售卖课包/, 'sidebar should add packages page');
+assert.doesNotMatch(html, /<div class="sb-item" onclick="goPage\('purchases',this\)">[\s\S]*?购买记录<\/div>/, 'sidebar should remove purchases as a standalone first-level nav entry');
 assert.match(html, /goPage\('admin-users',this\)[\s\S]*?账号管理/, 'sidebar should add account management page');
 assert.doesNotMatch(html, /goPage\('entitlements',this\)[\s\S]*?权益账户/, 'sidebar should hide the old entitlement page entry');
 
