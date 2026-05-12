@@ -201,6 +201,37 @@ function withTimeout(promise,ms,fallback){
   return Promise.race([promise,new Promise((res)=>setTimeout(()=>res(fallback),ms))]);
 }
 function isTableMissingError(err){return /not.*exist|table.*not.*exist|OTSObjectNotExist/i.test(String(err?.message||err||''));}
+const LOGIN_STORAGE_TIMEOUT_ERROR='登录服务暂时超时，请重试';
+const LOGIN_ROW_TIMEOUT_MS=1500;
+const LOGIN_SCAN_TIMEOUT_MS=1500;
+function isTransientLoginStorageError(err){
+  return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN|timeout/i.test(String(err?.message||err||''));
+}
+async function loadLoginUser(username){
+  const rowTimeout=Symbol('login-row-timeout');
+  const scanTimeout=Symbol('login-scan-timeout');
+  try{
+    const user=await withTimeout(getCachedRow(T_USERS,username),LOGIN_ROW_TIMEOUT_MS,rowTimeout);
+    if(user!==rowTimeout)return user;
+    console.warn(`[auth/login] ft_users row lookup timed out for ${username}, falling back to user scan cache`);
+  }catch(err){
+    if(!isTableMissingError(err)&&!isTransientLoginStorageError(err))throw err;
+    if(isTableMissingError(err))return null;
+    console.warn(`[auth/login] ft_users row lookup failed for ${username}: ${err.message||err}`);
+  }
+  try{
+    const rows=await withTimeout(getCachedScan(T_USERS).catch((err)=>{
+      if(isTableMissingError(err))return [];
+      throw err;
+    }),LOGIN_SCAN_TIMEOUT_MS,scanTimeout);
+    if(rows===scanTimeout)return {__loginTimeout:true};
+    return (Array.isArray(rows)?rows:[]).find((item)=>String(item?.id||'')===String(username))||null;
+  }catch(err){
+    if(isTableMissingError(err))return null;
+    if(isTransientLoginStorageError(err))return {__loginTimeout:true};
+    throw err;
+  }
+}
 function campusDisplayName(value,externalVenueName=''){
   const raw=String(value||'').trim();
   if(!raw)return '';
@@ -5587,7 +5618,7 @@ module.exports = async (req, res) => {
       await init();
       return sendJson(res,await sendCourseReminders());
     }
-    if(path==='/auth/login'&&method==='POST'){return timedEndpointMetric('auth.login',async()=>{const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await getCachedRow(T_USERS,username);if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});});}
+    if(path==='/auth/login'&&method==='POST'){return timedEndpointMetric('auth.login',async()=>{const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await loadLoginUser(username);if(user?.__loginTimeout)return sendJson(res,{error:LOGIN_STORAGE_TIMEOUT_ERROR},503);if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});});}
     if(path==='/auth/wechat-login'&&method==='POST'){
       const code=String(body.code||'').trim();
       if(!code)return sendJson(res,{error:'缺少微信登录凭证'},400);
