@@ -202,8 +202,9 @@ function withTimeout(promise,ms,fallback){
 }
 function isTableMissingError(err){return /not.*exist|table.*not.*exist|OTSObjectNotExist/i.test(String(err?.message||err||''));}
 const LOGIN_STORAGE_TIMEOUT_ERROR='登录服务暂时超时，请重试';
-const LOGIN_ROW_TIMEOUT_MS=1500;
-const LOGIN_SCAN_TIMEOUT_MS=1500;
+const LOGIN_ROW_TIMEOUT_MS=4500;
+const LOGIN_SCAN_TIMEOUT_MS=4500;
+const LOGIN_ROW_RETRY_LIMIT=2;
 const LOGIN_INVALID_ACCOUNT_ERROR='账号数据异常，请联系管理员处理';
 function isTransientLoginStorageError(err){
   return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN|timeout/i.test(String(err?.message||err||''));
@@ -211,15 +212,18 @@ function isTransientLoginStorageError(err){
 async function loadLoginUser(username){
   const rowTimeout=Symbol('login-row-timeout');
   const scanTimeout=Symbol('login-scan-timeout');
-  try{
-    const user=await withTimeout(getCachedRow(T_USERS,username),LOGIN_ROW_TIMEOUT_MS,rowTimeout);
-    if(user!==rowTimeout)return user;
-    console.warn(`[auth/login] ft_users row lookup timed out for ${username}, falling back to user scan cache`);
-  }catch(err){
-    if(!isTableMissingError(err)&&!isTransientLoginStorageError(err))throw err;
-    if(isTableMissingError(err))return null;
-    console.warn(`[auth/login] ft_users row lookup failed for ${username}: ${err.message||err}`);
+  for(let attempt=1;attempt<=LOGIN_ROW_RETRY_LIMIT;attempt++){
+    try{
+      const user=await withTimeout(getCachedRow(T_USERS,username),LOGIN_ROW_TIMEOUT_MS,rowTimeout);
+      if(user!==rowTimeout)return user;
+      console.warn(`[auth/login] ft_users row lookup timed out for ${username} on attempt ${attempt}/${LOGIN_ROW_RETRY_LIMIT}`);
+    }catch(err){
+      if(!isTableMissingError(err)&&!isTransientLoginStorageError(err))throw err;
+      if(isTableMissingError(err))return null;
+      console.warn(`[auth/login] ft_users row lookup failed for ${username} on attempt ${attempt}/${LOGIN_ROW_RETRY_LIMIT}: ${err.message||err}`);
+    }
   }
+  console.warn(`[auth/login] ft_users row lookup exhausted for ${username}, falling back to user scan cache`);
   try{
     const rows=await withTimeout(getCachedScan(T_USERS).catch((err)=>{
       if(isTableMissingError(err))return [];
