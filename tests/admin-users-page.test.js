@@ -19,11 +19,12 @@ assert.doesNotMatch(coachSidebar[0], /goPage\('admin-users',this\)[\s\S]*?账号
 assert.match(adminSidebar[0], /goPage\('admin-users',this\)[\s\S]*?账号管理/, 'admin sidebar should expose account management');
 assert.match(source, /goPage\('admin-users',this\)[\s\S]*?账号管理/, 'sidebar should provide account management entry');
 assert.match(source, /id="page-admin-users"[\s\S]*class="tms-toolbar"/, 'account page should use the shared toolbar shell');
-assert.match(source, /id="adminUserSearch"[\s\S]*placeholder="搜索账号、姓名或绑定教练"/, 'account page should provide a search field');
+assert.match(source, /id="adminUserSearch"[\s\S]*placeholder="搜索账号、姓名、手机号或绑定教练"/, 'account page should provide a search field');
 assert.match(source, /<button class="tms-btn tms-btn-primary" onclick="openAdminUserModal\(null\)"/, 'account page should provide add button');
 assert.match(source, /id="page-admin-users"[\s\S]*class="tms-table-card"[\s\S]*class="tms-table-wrapper"[\s\S]*class="tms-table"/, 'account page should use the shared table shell');
 assert.match(fnBody('renderAdminUsers'), /adminUserTbody/, 'account page should render rows into adminUserTbody');
 assert.match(fnBody('renderAdminUsers'), /绑定教练/, 'account rows should show coach binding text');
+assert.match(fnBody('renderAdminUsers'), /手机号/, 'account rows should show phone text');
 assert.match(fnBody('renderAdminUsers'), /微信通知/, 'account rows should show wechat notification binding text');
 assert.match(fnBody('renderAdminUsers'), /unbindAdminUserWechat/, 'account rows should expose wechat unbind action');
 assert.match(fnBody('renderAdminUsers'), /停用|启用/, 'account rows should expose enable and disable actions');
@@ -32,11 +33,13 @@ assert.match(fnBody('openAdminUserModal'), /setCourtModalFrame/, 'account modal 
 assert.match(fnBody('openAdminUserModal'), /au_id/, 'account modal should include account id field');
 assert.match(fnBody('openAdminUserModal'), /au_password/, 'account modal should include password field for create');
 assert.match(fnBody('openAdminUserModal'), /au_role/, 'account modal should include role field');
+assert.match(fnBody('openAdminUserModal'), /au_phone/, 'account modal should include phone field');
 assert.match(fnBody('openAdminUserModal'), /au_coachId/, 'account modal should include coach binding field');
 assert.match(fnBody('openAdminUserModal'), /au_match_ops/, 'account modal should configure match ops permission');
 assert.match(fnBody('openAdminUserModal'), /au_match_finance/, 'account modal should configure match finance permission');
 assert.match(fnBody('openAdminUserModal'), /账号创建后用于登录。教练账号绑定教练后，登录会进入教练工作台。/, 'account create modal should describe login by account in neutral wording');
 assert.doesNotMatch(fnBody('openAdminUserModal'), /请用这里的账号ID登录，不是姓名/, 'account create modal should not force account-id-only wording');
+assert.match(fnBody('saveAdminUser'), /phone/, 'account save should submit phone');
 assert.match(fnBody('saveAdminUser'), /matchPermissions/, 'account save should submit match permissions');
 assert.match(fnBody('saveAdminUser'), /\/admin\/create-user/, 'account create should call create-user api');
 assert.match(fnBody('saveAdminUser'), /\/admin\/update-user/, 'account edit should call update-user api');

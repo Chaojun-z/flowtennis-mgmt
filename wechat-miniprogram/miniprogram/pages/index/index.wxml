@@ -31,5 +31,16 @@
       <view wx:if="{{loggingIn}}" class="login-spinner"></view>
       <text>登录</text>
     </button>
+
+    <view class="match-divider">
+      <text class="match-divider-line"></text>
+      <text class="match-divider-text">约球入口</text>
+      <text class="match-divider-line"></text>
+    </view>
+
+    <button class="match-btn" bindtap="enterMatchMini">
+      <view wx:if="{{matchLoggingIn}}" class="match-spinner"></view>
+      <text>微信进入约球</text>
+    </button>
   </view>
 </view>

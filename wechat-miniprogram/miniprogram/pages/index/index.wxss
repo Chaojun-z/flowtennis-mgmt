@@ -152,6 +152,52 @@ page {
   width: 4px;
 }
 
+.match-divider {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.match-divider-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(43, 58, 85, 0.14);
+}
+
+.match-divider-text {
+  color: #7b8794;
+  font-size: 12px;
+}
+
+.match-btn {
+  width: 100%;
+  height: 48px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.match-btn::after {
+  border: 0;
+}
+
+.match-spinner {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: loginSpin 0.8s linear infinite;
+}
+
 .entry-orb {
   position: absolute;
   border-radius: 999px;

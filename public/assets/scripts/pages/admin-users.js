@@ -7,6 +7,9 @@ function adminUserStatusText(status){
 function adminUserCoachText(user){
   return user.role==='editor'?(user.coachName||coaches.find(c=>c.id===user.coachId)?.name||'未绑定'):'—';
 }
+function adminUserPhoneText(user){
+  return user.phone||'未填写';
+}
 function adminUserWechatText(user){
   if(user.role!=='editor')return '—';
   return user.wechatBound?`已绑定${user.wechatBoundAt?' · '+String(user.wechatBoundAt).slice(0,10):''}`:'未绑定';
@@ -30,15 +33,15 @@ async function loadAdminUsers(force=false){
 function renderAdminUsers(){
   const tbody=document.getElementById('adminUserTbody');if(!tbody)return;
   const q=(document.getElementById('adminUserSearch')?.value||'').toLowerCase();
-  const list=adminUsers.filter(u=>searchHit(q,u.id,u.name,adminUserRoleText(u.role),adminUserStatusText(u.status),u.coachName,adminUserCoachText(u),adminUserWechatText(u)));
+  const list=adminUsers.filter(u=>searchHit(q,u.id,u.name,u.phone,adminUserRoleText(u.role),adminUserStatusText(u.status),u.coachName,adminUserCoachText(u),adminUserPhoneText(u),adminUserWechatText(u)));
   tbody.innerHTML=list.length?list.map(u=>{
     const statusText=adminUserStatusText(u.status);
     const statusClass=u.status==='inactive'?'':'tms-tag-green';
     const toggleText=u.status==='inactive'?'启用':'停用';
     const wechatClass=u.wechatBound?'tms-tag-green':'tms-tag-tier-slate';
     const wechatAction=u.wechatBound?`<span class="tms-action-link" onclick="unbindAdminUserWechat('${u.id}')">解绑微信</span>`:'';
-    return `<tr><td style="padding-left:20px">${renderCourtCellText(u.id,false)}</td><td>${renderCourtCellText(u.name,false)}</td><td><span class="tms-tag ${u.role==='admin'?'':'tms-tag-green'}">${adminUserRoleText(u.role)}</span></td><td><span class="tms-tag ${statusClass}">${statusText}</span></td><td><span title="绑定教练">${renderCourtCellText(adminUserCoachText(u))}</span></td><td><span title="微信通知"><span class="tms-tag ${wechatClass}">${adminUserWechatText(u)}</span></span></td><td>${renderCourtCellText(adminUserNoteText(u))}</td><td class="tms-sticky-r tms-action-cell" style="width:220px;padding-right:20px;text-align:right">${wechatAction}<span class="tms-action-link" onclick="openAdminUserModal('${u.id}')">编辑</span><span class="tms-action-link" onclick="toggleAdminUserStatus('${u.id}')">${toggleText}</span></td></tr>`;
-  }).join(''):'<tr><td colspan="8"><div class="empty"><p>暂无账号</p></div></td></tr>';
+    return `<tr><td style="padding-left:20px">${renderCourtCellText(u.id,false)}</td><td>${renderCourtCellText(u.name,false)}</td><td><span title="手机号">${renderCourtCellText(adminUserPhoneText(u))}</span></td><td><span class="tms-tag ${u.role==='admin'?'':'tms-tag-green'}">${adminUserRoleText(u.role)}</span></td><td><span class="tms-tag ${statusClass}">${statusText}</span></td><td><span title="绑定教练">${renderCourtCellText(adminUserCoachText(u))}</span></td><td><span title="微信通知"><span class="tms-tag ${wechatClass}">${adminUserWechatText(u)}</span></span></td><td>${renderCourtCellText(adminUserNoteText(u))}</td><td class="tms-sticky-r tms-action-cell" style="width:220px;padding-right:20px;text-align:right">${wechatAction}<span class="tms-action-link" onclick="openAdminUserModal('${u.id}')">编辑</span><span class="tms-action-link" onclick="toggleAdminUserStatus('${u.id}')">${toggleText}</span></td></tr>`;
+  }).join(''):'<tr><td colspan="9"><div class="empty"><p>暂无账号</p></div></td></tr>';
 }
 async function toggleAdminUserStatus(id){
   const user=adminUsers.find(x=>x.id===id);if(!user)return;
@@ -82,7 +85,7 @@ function openAdminUserModal(id){
   const accountHint=id?'<div style="font-size:12px;color:var(--ts);line-height:1.6;margin-top:8px">已有账号暂不支持在这里改密码，先保留姓名和绑定教练的修改。</div>':'<div style="font-size:12px;color:var(--ts);line-height:1.6;margin-top:8px">账号创建后用于登录。教练账号绑定教练后，登录会进入教练工作台。</div>';
   const statusRow=id?`<div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前状态</label><input class="finput tms-form-control" id="au_status" value="${adminUserStatusText(user?.status)}" readonly></div></div>`:'';
   const matchPermissionRow=`<div class="tms-section-header">约球权限</div><div class="tms-form-row"><label class="choice-tag"><input type="checkbox" id="au_match_ops" ${perms.includes('match_ops')?'checked':''}>约球运营</label><label class="choice-tag"><input type="checkbox" id="au_match_finance" ${perms.includes('match_finance')?'checked':''}>约球财务</label></div>`;
-  const body=`<div class="tms-section-header" style="margin-top:0;">基础信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">账号ID *</label><input class="finput tms-form-control" id="au_id" value="${rv(user,'id')}" placeholder="例：coach_zhang"${id?' readonly':''}></div><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input class="finput tms-form-control" id="au_name" value="${rv(user,'name')}" placeholder="显示名称"></div></div>${passwordRow}<div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">角色</label>${roleControl}</div><div class="tms-form-item" id="au_coach_wrap" style="display:${!id||user?.role==='editor'?'':'none'}"><label class="tms-form-label">绑定教练</label>${renderCourtDropdownHtml('au_coachId','绑定教练',coachOptions,rv(user,'coachId'),true)}</div></div>${statusRow}${matchPermissionRow}${accountHint}`;
+  const body=`<div class="tms-section-header" style="margin-top:0;">基础信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">账号ID *</label><input class="finput tms-form-control" id="au_id" value="${rv(user,'id')}" placeholder="例：coach_zhang"${id?' readonly':''}></div><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input class="finput tms-form-control" id="au_name" value="${rv(user,'name')}" placeholder="显示名称"></div></div>${passwordRow}<div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">手机号</label><input class="finput tms-form-control" id="au_phone" value="${rv(user,'phone')}" placeholder="用于关联约球小程序"></div><div class="tms-form-item"><label class="tms-form-label">角色</label>${roleControl}</div></div><div class="tms-form-row"><div class="tms-form-item" id="au_coach_wrap" style="display:${!id||user?.role==='editor'?'':'none'}"><label class="tms-form-label">绑定教练</label>${renderCourtDropdownHtml('au_coachId','绑定教练',coachOptions,rv(user,'coachId'),true)}</div></div>${statusRow}${matchPermissionRow}${accountHint}`;
   const actions=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="adminUserSaveBtn" onclick="saveAdminUser()">保存</button>`;
   setCourtModalFrame(id?'编辑账号':'新增账号',body,actions,'modal-tight');
   toggleAdminUserCoachBinding();
@@ -96,6 +99,7 @@ function collectAdminUserMatchPermissions(){
 async function saveAdminUser(){
   const id=document.getElementById('au_id').value.trim();
   const name=document.getElementById('au_name').value.trim();
+  const phone=document.getElementById('au_phone')?.value.trim()||'';
   const roleValue=editId?(adminUsers.find(x=>x.id===editId)?.role||'editor'):(document.getElementById('au_role')?.value||'editor');
   const coachId=document.getElementById('au_coachId')?.value||'';
   const coach=coaches.find(c=>c.id===coachId);
@@ -109,9 +113,9 @@ async function saveAdminUser(){
   try{
     if(editId){
       const current=adminUsers.find(x=>x.id===editId)||{};
-      await apiCall('POST','/admin/update-user',{id,name,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',status:current.status||'active',matchPermissions:collectAdminUserMatchPermissions()});
+      await apiCall('POST','/admin/update-user',{id,name,phone,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',status:current.status||'active',matchPermissions:collectAdminUserMatchPermissions()});
     }else{
-      await apiCall('POST','/admin/create-user',{id,name,password:document.getElementById('au_password').value.trim(),role:roleValue,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',matchPermissions:collectAdminUserMatchPermissions()});
+      await apiCall('POST','/admin/create-user',{id,name,phone,password:document.getElementById('au_password').value.trim(),role:roleValue,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',matchPermissions:collectAdminUserMatchPermissions()});
     }
     await loadAdminUsers(true);
     closeModal();
