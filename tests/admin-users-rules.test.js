@@ -10,6 +10,7 @@ assert.ok(rules.extractWechatOpenId, 'api._test should expose wechat openid help
 assert.ok(rules.buildWechatBoundUser, 'api._test should expose wechat bind helper');
 assert.ok(rules.buildAdminUserView, 'api._test should expose admin user view helper');
 assert.ok(rules.buildWechatUnboundUser, 'api._test should expose wechat unbind helper');
+assert.ok(rules.findAdminUserByPhone, 'api._test should expose admin phone matcher');
 
 assert.doesNotThrow(
   () => rules.assertAuthUserActive({ id: 'coach_1', status: 'active' }),
@@ -92,6 +93,18 @@ assert.deepStrictEqual(
   }),
   { id: 'coach_1', name: '朝珺', wechatOpenId: '', wechatBoundAt: '' },
   'wechat unbind helper should clear openid and bind time'
+);
+
+assert.strictEqual(
+  rules.findAdminUserByPhone(
+    [
+      { id: 'baiyangj', phone: '15896660870', role: 'editor', matchPermissions: ['match_ops'] },
+      { id: 'other', phone: '13800138000', role: 'editor', matchPermissions: [] }
+    ],
+    '15896660870'
+  )?.id,
+  'baiyangj',
+  'admin phone matcher should resolve backend users by phone field'
 );
 
 console.log('admin user rules tests passed');

@@ -2713,6 +2713,14 @@ function canMatchUserCreateByAdminUser(adminUser){
   const permissions=userMatchPermissions(adminUser);
   return adminUser.role==='admin'||permissions.includes('match_ops');
 }
+function findAdminUserByPhone(users=[],phone=''){
+  const normalizedPhone=normalizePhone(phone);
+  if(!normalizedPhone)return null;
+  const list=Array.isArray(users)?users:[];
+  const matchedByPhone=list.find((user)=>normalizePhone(user?.phone||'')===normalizedPhone);
+  if(matchedByPhone)return matchedByPhone;
+  return list.find((user)=>String(user?.id||'').trim()===normalizedPhone)||null;
+}
 async function canMatchUserCreate(userId){
   const pool=getMatchSqlPool();
   const userRes=await pool.query('SELECT * FROM match_users WHERE id=$1',[userId]);
@@ -6918,6 +6926,7 @@ module.exports._test={
   ,requireAdminUser
   ,requireMatchUser
   ,canMatchUserCreateByAdminUser
+  ,findAdminUserByPhone
   ,ensureMatchUserResponse
   ,canMatchUserCreateByAdminUser
   ,buildMatchUserToken
