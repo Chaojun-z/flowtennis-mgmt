@@ -82,6 +82,7 @@ assert.match(apiSource, /path==='\/match-profile'/, 'API should expose match pro
 assert.match(apiSource, /path==='\/match-profile\/phone'/, 'API should expose match phone endpoint');
 assert.match(apiSource, /path==='\/match-profile\/phone-code'/, 'API should expose WeChat phone code endpoint');
 assert.match(apiSource, /getuserphonenumber/, 'API should exchange WeChat phone code');
+assert.match(apiSource, /findAdminUserByPhone\(await scan\(T_USERS\)\.catch\(\(\)=>\[\]\),phone\)/, 'match creator permission should resolve backend users by phone field instead of treating phone as ft_users row id');
 assert.match(apiSource, /matchUpdateM=path\.match/, 'API should expose match update endpoint');
 assert.match(apiSource, /matchCancelM=path\.match/, 'API should expose match cancel endpoint');
 assert.match(apiSource, /path==='\/match-attendance\/creator-confirm'/, 'API should expose creator attendance endpoint');

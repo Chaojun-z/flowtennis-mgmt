@@ -2719,7 +2719,7 @@ async function canMatchUserCreate(userId){
   const user=userRes.rows[0]||{};
   const phone=normalizePhone(user.phone||'');
   if(!phone)return false;
-  const adminUser=await getCachedRow(T_USERS,phone).catch(()=>null);
+  const adminUser=findAdminUserByPhone(await scan(T_USERS).catch(()=>[]),phone);
   return canMatchUserCreateByAdminUser(adminUser);
 }
 function buildMatchUserToken(user){
