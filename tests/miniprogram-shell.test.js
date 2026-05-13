@@ -17,7 +17,7 @@ assert.strictEqual(projectConfig.miniprogramRoot, 'miniprogram/', 'project.confi
 assert.strictEqual(projectConfig.appid, 'wx7acb7603ee803923', 'project.config.json should use the real mini program AppID');
 
 const appConfig = readJson('wechat-miniprogram/miniprogram/app.json');
-assert.deepStrictEqual(appConfig.pages, ['pages/index/index', 'pages/schedule/schedule', 'pages/detail/detail', 'pages/agreement/agreement', 'pages/privacy/privacy'], 'mini program should keep only native entry pages plus agreement and privacy pages');
+assert.deepStrictEqual(appConfig.pages, ['pages/index/index', 'pages/schedule/schedule', 'pages/detail/detail', 'pages/profile/index', 'pages/match-create/index', 'pages/agreement/agreement', 'pages/privacy/privacy'], 'mini program should register coach pages plus the match mini entry pages');
 assert.strictEqual(appConfig.sitemapLocation, 'sitemap.json', 'mini program should include sitemap config');
 assert.strictEqual(appConfig.lazyCodeLoading, 'requiredComponents', 'mini program should enable component lazy injection');
 assert.strictEqual(appConfig.__usePrivacyCheck__, true, 'mini program should enable the WeChat privacy check mechanism');

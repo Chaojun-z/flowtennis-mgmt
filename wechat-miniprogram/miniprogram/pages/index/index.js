@@ -1,5 +1,5 @@
 const { SCHEDULE_TEMPLATE_ID, COURSE_REMINDER_TEMPLATE_ID } = require('../../config');
-const { loginWithPassword, bindWechatAfterLogin, TOKEN_KEY, USER_KEY } = require('../../utils/api');
+const { loginWithPassword, bindWechatAfterLogin, loginMatchWithWechat, loadMatchProfile, TOKEN_KEY, USER_KEY } = require('../../utils/api');
 
 function enterCoachPortal() {
   wx.redirectTo({ url: '/pages/schedule/schedule' });
@@ -20,7 +20,8 @@ Page({
     account: '',
     password: '',
     agreed: false,
-    loggingIn: false
+    loggingIn: false,
+    matchLoggingIn: false
   },
   onAccountInput(event) {
     this.setData({ account: event.detail.value });
@@ -80,6 +81,34 @@ Page({
       })
       .finally(() => {
         this.setData({ loggingIn: false });
+      });
+  },
+  enterMatchMini() {
+    if (!this.data.agreed) {
+      wx.showToast({ title: '请先同意用户协议和隐私政策', icon: 'none' });
+      return;
+    }
+    if (this.data.matchLoggingIn) return;
+    this.setData({ matchLoggingIn: true });
+    loginMatchWithWechat()
+      .then(async (data) => {
+        const app = getApp();
+        const profile = await loadMatchProfile().catch(() => ({ user: data.user || {} }));
+        if (app && app.globalData) {
+          app.globalData.privacyAccepted = true;
+          app.globalData.matchUser = (profile && profile.user) || data.user || null;
+          app.globalData.matchProfile = profile || null;
+        }
+        wx.navigateTo({ url: '/pages/profile/index' });
+      })
+      .catch((error) => {
+        wx.showToast({
+          title: error.message || '进入约球失败',
+          icon: 'none'
+        });
+      })
+      .finally(() => {
+        this.setData({ matchLoggingIn: false });
       });
   }
 });
