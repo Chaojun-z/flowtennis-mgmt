@@ -60,6 +60,7 @@ assert.deepStrictEqual(
   rules.buildAdminUserView({
     id: 'coach_1',
     name: '朝珺',
+    phone: '13800138000',
     role: 'editor',
     status: 'active',
     coachId: 'coach-id',
@@ -70,6 +71,7 @@ assert.deepStrictEqual(
   {
     id: 'coach_1',
     name: '朝珺',
+    phone: '13800138000',
     role: 'editor',
     status: 'active',
     coachId: 'coach-id',
