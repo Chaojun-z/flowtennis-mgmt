@@ -1298,6 +1298,7 @@ function buildAdminUserView(u){
   return {
     id:u.id,
     name:u.name,
+    phone:u.phone||'',
     role:u.role,
     status:u.status||'active',
     coachId:u.coachId||'',
