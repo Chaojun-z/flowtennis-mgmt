@@ -6,6 +6,26 @@ const dayjs = require('dayjs');
 // ==========================================
 const BUG_WEBHOOK_URL = String(process.env.FEISHU_MONITOR_WEBHOOK_URL || '').trim();
 
+function formatChinaTime(input = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = Object.fromEntries(
+    formatter
+      .formatToParts(input instanceof Date ? input : new Date(input))
+      .filter((item) => item.type !== 'literal')
+      .map((item) => [item.type, item.value])
+  );
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
 // ==========================================
 // 2. 严格遵循 Codex 给定的 3 个巡检目标
 // ==========================================
@@ -100,7 +120,7 @@ async function sendAlert(errors) {
       elements: [
         {
           tag: "markdown",
-          content: `**触发时间：** ${dayjs().format('YYYY-MM-DD HH:mm:ss')}\n\n${errorBlocks}`
+          content: `**触发时间：** ${formatChinaTime()}\n\n${errorBlocks}`
         },
         {
           tag: "hr"
@@ -129,7 +149,7 @@ async function sendAlert(errors) {
 // 主流程
 // ==========================================
 async function runMonitors() {
-  console.log(`[Info] ${dayjs().format('HH:mm:ss')} 开始执行线上巡检...`);
+  console.log(`[Info] ${formatChinaTime()} 开始执行线上巡检...`);
   
   const results = await Promise.all(TARGETS.map(t => checkTarget(t)));
   const errors = results.filter(r => !r.success);
@@ -142,4 +162,10 @@ async function runMonitors() {
   }
 }
 
-runMonitors();
+if (require.main === module) {
+  runMonitors();
+}
+
+module.exports = {
+  formatChinaTime
+};
