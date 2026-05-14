@@ -41,8 +41,19 @@ jobs:
         run: npm ci
         working-directory: standalone-services
 
+      - name: Prepare production env file
+        run: |
+          cat > .env.production <<EOF
+          APP_ENV=production
+          TS_ENDPOINT=${TS_ENDPOINT}
+          TS_INSTANCE=${TS_INSTANCE}
+          ALIBABA_CLOUD_ACCESS_KEY_ID=${ALIBABA_CLOUD_ACCESS_KEY_ID}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET=${ALIBABA_CLOUD_ACCESS_KEY_SECRET}
+          ALLOW_PRODUCTION_BOOTSTRAP_WRITES=false
+          EOF
+
       - name: Export daily report snapshot
-        run: npm run export:daily-report-json
+        run: node scripts/export-schedule-report-json.js
 
       - name: Send Feishu daily report
         run: node feishu-report.js

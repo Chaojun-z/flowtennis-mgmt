@@ -1,0 +1,13 @@
+{
+  "name": "flowtennis-standalone-services",
+  "version": "1.0.0",
+  "description": "FlowTennis Independent Notification Services",
+  "main": "feishu-report.js",
+  "scripts": {
+    "test:feishu": "node feishu-report.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.8",
+    "dayjs": "^1.11.10"
+  }
+}
