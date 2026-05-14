@@ -2102,7 +2102,11 @@ async function bootstrapMabaoFinanceSeed(){
   await replaceMabaoSeedLedgerRows(mabaoFinanceSeed.entitlementLedger,tag);
 }
 async function listCampusesWithDefaults(){
-  const rows=await getCachedScan(T_CAMPUSES).catch(()=>[]);
+  const rows=await withTimeout(getCachedScan(T_CAMPUSES).catch(()=>[]),2500,null);
+  if(!Array.isArray(rows)){
+    console.error('[campuses] getCachedScan timeout, fallback to default campuses');
+    return DEFAULT_CAMPUSES;
+  }
   return rows.length?rows:DEFAULT_CAMPUSES;
 }
 function financeWeekdayText(value){
