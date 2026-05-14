@@ -93,6 +93,7 @@ assert.match(apiSource, /请先完成全部到场确认，再生成AA/, 'fee gen
 assert.match(apiSource, /已生成AA，不能再修改到场名单/, 'attendance should lock after AA generation');
 assert.match(apiSource, /path==='\/match-notifications'/, 'API should expose match notifications endpoint');
 assert.match(apiSource, /path==='\/match-players'/, 'API should expose match players endpoint');
+assert.match(apiSource, /if\(!\/\^\\\/admin\\\/matches\(\?:\\\/\|\$\)\/\.test\(path\)\)return false;/, 'non-match routes should bypass the admin match auth fallback');
 assert.match(apiSource, /DEFAULT_ADMIN_BOOTSTRAP_PASSWORD/, 'bootstrap password should come from env instead of hardcoded source');
 assert.doesNotMatch(apiSource, /wqxd2026/, 'default admin password must not be hardcoded');
 assert.match(apiSource, /已超过发起者确认时限，请联系运营处理/, 'creator attendance confirmation should expire into ops fallback');
