@@ -5610,16 +5610,24 @@ function parseLegacyCourtNotes(notes){
 }
 
 module.exports = async (req, res) => {
-  scheduleInitInBackground();
-  if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');return res.status(200).end();}
   const path=(req.url||'').replace(/^\/api/,'').split('?')[0];
-  const query=new URL(req.url||'/', 'http://local').searchParams;
   const method=req.method;
   const startedAt=Date.now();
   if(res&&typeof res.on==='function')res.on('finish',()=>{console.log(`[api] ${method} ${path} ${res.statusCode} ${Date.now()-startedAt}ms`);});
+  if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');return res.status(200).end();}
+  if(path==='/health'&&method==='GET'){
+    console.log('[health] GET bypass scheduleInitInBackground');
+    return sendJson(res,{status:'ok',time:new Date().toISOString()});
+  }
+  if(path==='/campuses'&&method==='GET'){
+    console.log('[campuses] GET bypass scheduleInitInBackground');
+    console.log('[campuses] GET using hard fallback DEFAULT_CAMPUSES');
+    return sendJson(res,DEFAULT_CAMPUSES);
+  }
+  scheduleInitInBackground();
+  const query=new URL(req.url||'/', 'http://local').searchParams;
   const body=req.body||{};
   try{
-    if(path==='/health')return sendJson(res,{status:'ok',time:new Date().toISOString()});
     if(path==='/cron/course-reminders'&&method==='GET'){
       const ua=String(req.headers['user-agent']||'');
       if(process.env.CRON_SECRET){
