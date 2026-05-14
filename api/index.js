@@ -5753,6 +5753,7 @@ module.exports = async (req, res) => {
       const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchPlayers()});
     }
+    if(!/^\/admin\/matches(?:\/|$)/.test(path))return false;
     let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
     if(user.type==='match_user')return sendJson(res,{error:'无管理端权限'},403);
     const storedAuthUser=await getCachedRow(T_USERS,user.id).catch(()=>null);
