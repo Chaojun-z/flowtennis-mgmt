@@ -1,12 +1,19 @@
 // ===== 订场用户 =====
-function renderCourtHeaderFilters(base){
+function renderCourtHeaderFilters(base,filterSource=null){
   const ownerHost=document.getElementById('courtOwnerFilter');
   const accountHost=document.getElementById('courtAccountTypeFilter');
   const moreHost=document.getElementById('courtMoreActions');
   const pageSizeHost=document.getElementById('courtPageSize');
-  const ownerOpts=[{value:'',label:'全部对接人'},...[...new Set(base.map(c=>String(c.owner||'').trim()).filter(Boolean))].map(v=>({value:v,label:v}))];
+  const owners=Array.isArray(filterSource?.owners)&&filterSource.owners.length
+    ? filterSource.owners.map(v=>String(v||'').trim()).filter(Boolean)
+    : [...new Set(base.map(c=>String(c.owner||'').trim()).filter(Boolean))];
+  const accountTypes=Array.isArray(filterSource?.accountTypes)&&filterSource.accountTypes.length
+    ? filterSource.accountTypes.map(v=>String(v||'').trim()).filter(Boolean)
+    : [...new Set(base.map(c=>String(c.accountType||courtMembershipSummary(c).accountType||'').trim()).filter(Boolean))];
+  const ownerOpts=[{value:'',label:'全部对接人'},...owners.map(v=>({value:v,label:v}))];
+  const accountOpts=[{value:'',label:'全部账户'},...accountTypes.map(v=>({value:v,label:v}))];
   if(ownerHost)ownerHost.innerHTML=renderCourtDropdownHtml('courtOwnerValue','全部对接人',ownerOpts,courtOwnerFilterValue,false,'onCourtToolbarFilterChange');
-  if(accountHost)accountHost.innerHTML=renderCourtDropdownHtml('courtAccountTypeValue','全部账户',[{value:'',label:'全部账户'},{value:'普通',label:'普通'},{value:'会员',label:'会员'},{value:'储值',label:'储值'}],courtAccountTypeFilterValue,false,'onCourtToolbarFilterChange');
+  if(accountHost)accountHost.innerHTML=renderCourtDropdownHtml('courtAccountTypeValue','全部账户',accountOpts,courtAccountTypeFilterValue,false,'onCourtToolbarFilterChange');
   if(moreHost)moreHost.innerHTML=renderCourtDropdownHtml('courtMoreActionValue','更多操作',[
     {value:courtBatchMode?'batch-exit':'batch-select',label:courtBatchMode?'退出批量':'批量选择'},
     {value:'import',label:'导入CSV'},
@@ -499,10 +506,94 @@ function getCourtTimeOptions(selected='08:00'){
   }
   return opts.map(opt=>({...opt,active:opt.value===selected}));
 }
-function renderCourts(){
+function courtAccountListViewSortMetric(item,key){
+  if(key==='balance')return {empty:false,value:Number(item?.balance)||0};
+  if(key==='spentAmount')return {empty:false,value:Number(item?.totalSpent)||0};
+  if(['validUntil','recentFollowUpDate','nextFollowUpDate'].includes(key)){
+    const raw=String((key==='validUntil'?item?.membershipValidUntil:item?.[key])||'').trim();
+    if(!raw||raw==='-'||raw==='—')return {empty:true,value:0};
+    const timeValue=dateMs(raw);
+    return {empty:Number.isNaN(timeValue),value:Number.isNaN(timeValue)?0:timeValue};
+  }
+  const numeric=parseFloat(item?.[key]);
+  return {empty:false,value:Number.isFinite(numeric)?numeric:0};
+}
+function summarizeCourtAccountListItems(items=[]){
+  return {
+    totalCount:items.length,
+    totalBalance:items.reduce((sum,item)=>sum+(Number(item?.balance)||0),0),
+    totalDeposit:items.reduce((sum,item)=>sum+(Number(item?.totalDeposit)||0),0),
+    totalSpent:items.reduce((sum,item)=>sum+(Number(item?.totalSpent)||0),0),
+    totalReceived:items.reduce((sum,item)=>sum+(Number(item?.totalReceived)||0),0)
+  };
+}
+function renderCourtAccountListView(){
   const q=(document.getElementById('courtSearch')?.value||'').toLowerCase();
   document.getElementById('page-courts')?.classList.toggle('court-batch-mode',courtBatchMode);
-  const visibleCourts=courts.filter(c=>isActiveCourtRecord(c));
+  window.__courtAccountListViewCompare=courtAccountListViewCompareData||null;
+  const visibleItems=(courtAccountListViewData?.items||[]).filter(Boolean);
+  const base=visibleItems.filter(item=>campus==='all'||item.campusCode===campus);
+  const filters=courtAccountListViewData?.filters||{};
+  const summary=courtAccountListViewData?.summary||{};
+  const scopedFilters={
+    owners:campus==='all'?filters.owners:[...new Set(base.map(item=>String(item.owner||'').trim()).filter(Boolean))],
+    accountTypes:campus==='all'?filters.accountTypes:[...new Set(base.map(item=>String(item.accountType||'').trim()).filter(Boolean))]
+  };
+  renderCourtHeaderFilters(base,scopedFilters);
+  let list=visibleItems.filter(item=>{
+    if(campus!=='all'&&item.campusCode!==campus)return false;
+    if(courtOwnerFilterValue&&String(item.owner||'').trim()!==courtOwnerFilterValue)return false;
+    if(courtAccountTypeFilterValue&&item.accountType!==courtAccountTypeFilterValue)return false;
+    return searchHit(q,item.displayName,item.phone,item.campusName,item.owner,item.depositAttitude,item.familiarity,item.recentFollowUpDate,item.nextFollowUpDate,item.notesSummary,item.balance,item.totalDeposit,item.totalSpent,item.totalReceived,item.linkedStudentSummary,item.membershipTierLabel,item.membershipStatus);
+  });
+  const sortedList=[...list];
+  if(courtSortKey){
+    sortedList.sort((a,b)=>{
+      const av=courtAccountListViewSortMetric(a,courtSortKey);
+      const bv=courtAccountListViewSortMetric(b,courtSortKey);
+      if(av.empty!==bv.empty)return av.empty?1:-1;
+      return courtSortDir==='desc'?bv.value-av.value:av.value-bv.value;
+    });
+  }else{
+    sortedList.sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+  }
+  const scopedSummary=campus==='all'?summary:summarizeCourtAccountListItems(base);
+  document.getElementById('courtStatsRow').innerHTML=`<div class="tms-stat-card"><div class="tms-stat-label">订场用户</div><div class="tms-stat-value">${Number(scopedSummary.totalCount)||0}<span>人</span></div></div><div class="tms-stat-card"><div class="tms-stat-label">余额合计</div><div class="tms-stat-value">¥${fmt(scopedSummary.totalBalance)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计充值</div><div class="tms-stat-value">¥${fmt(scopedSummary.totalDeposit)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计消费</div><div class="tms-stat-value">¥${fmt(scopedSummary.totalSpent)}</div></div><div class="tms-stat-card"><div class="tms-stat-label">累计实收</div><div class="tms-stat-value">¥${fmt(scopedSummary.totalReceived)}</div></div>`;
+  const total=sortedList.length,pages=Math.max(1,Math.ceil(total/courtPageSize));
+  if(courtPage>pages)courtPage=pages;
+  const slice=sortedList.slice((courtPage-1)*courtPageSize,courtPage*courtPageSize);
+  const pager=document.querySelector('#page-courts .tms-pagination');
+  if(pager)pager.style.display=pages>1?'flex':'none';
+  document.getElementById('courtPagerInfo').textContent=`共 ${total} 条`;
+  document.getElementById('courtPagerBtns').innerHTML=pages<=1?'':Array.from({length:pages},(_,i)=>`<div class="tms-page-btn${i+1===courtPage?' active':''}" onclick="courtPage=${i+1};renderCourts()">${i+1}</div>`).join('');
+  const selectAll=document.getElementById('courtSelectAll');
+  if(selectAll){
+    selectAll.checked=!!slice.length&&slice.every(item=>selectedCourtIds.has(item.id));
+    selectAll.disabled=!courtBatchMode;
+  }
+  document.getElementById('courtTbody').innerHTML=slice.length?slice.map(item=>{
+    const w=!!item.lowBalance;
+    const accountTagClass=item.accountType==='会员'?'tms-tag-green':item.accountType==='普通'?'':'tms-tag-red';
+    const memberTagClass=courtMembershipTierTagClass(item.membershipTierLabel);
+    const statusTagMeta=membershipStatusTagMeta(item.membershipStatusCode||'');
+    const memberCell=item.membershipTierLabel&&item.membershipTierLabel!=='-'?`<span class="tms-tag ${memberTagClass}">${esc(renderCourtEmptyText(item.membershipTierLabel))}</span>`:renderCourtCellText('-');
+    return `<tr class="${w?'warn-row':''}"><td class="tms-sticky-l" data-court-name-cell="1" style="padding-left:20px"><div class="tms-court-row-main"><input type="checkbox" class="tms-checkbox court-row-cb" value="${item.id}" ${selectedCourtIds.has(item.id)?'checked':''} onchange="toggleCourtSelection('${item.id}',this.checked)"><span class="tms-text-primary tms-court-name-cell">${esc(item.displayName)}</span></div></td><td>${renderCourtCellText(item.phone)}</td><td>${renderCourtCellText(item.campusName)}</td><td><span class="tms-tag ${accountTagClass}">${esc(item.accountType)}</span></td><td>${memberCell}</td><td><span class="tms-tag ${statusTagMeta.tagClass}">${statusTagMeta.text}</span></td><td>${renderCourtCellText(item.membershipDiscountText)}</td><td>${renderCourtCellText(item.membershipValidUntil)}</td><td>${renderCourtCellText(item.owner)}</td><td>${renderCourtCellText(item.familiarity)}</td><td>${renderCourtCellText(item.depositAttitude)}</td><td>${renderCourtCellText(item.recentFollowUpDate)}</td><td>${renderCourtCellText(item.nextFollowUpDate)}</td><td>${renderCourtMiniBar(item.balance,item.totalDeposit,w)}</td><td><div class="tms-cell-text">¥${fmt(item.totalSpent)}</div></td><td><div class="tms-text-remark" title="${esc(item.notesSummary||'')}">${esc(renderCourtEmptyText(item.notesSummary))}</div></td><td class="tms-sticky-r tms-action-cell" style="width:210px;padding-right:20px;justify-content:flex-end"><span class="tms-action-link" onclick="openCourtMembershipPanel('${item.id}')">会员账户</span><span class="tms-action-link" onclick="openCourtModal('${item.id}')">编辑</span><span class="tms-action-link" onclick="openCourtFinanceModal('${item.id}')">订场</span></td></tr>`;
+  }).join(''):'<tr><td colspan="17"><div class="empty"><div class="empty-ico">🏟️</div><p>暂无订场用户</p></div></td></tr>';
+  updateCourtBatchButton();
+  document.querySelectorAll('#page-courts .tms-sortable').forEach(el=>el.classList.remove('asc','desc'));
+  if(courtSortKey){
+    const active=document.querySelector(`#page-courts .tms-sortable[onclick="setCourtSort('${courtSortKey}')"]`);
+    if(active)active.classList.add(courtSortDir);
+  }
+}
+function renderCourts(){
+  if(shouldUseCourtReadModelByDefault()&&courtAccountListViewData){
+    renderCourtAccountListView();
+    return;
+  }
+  const q=(document.getElementById('courtSearch')?.value||'').toLowerCase();
+  document.getElementById('page-courts')?.classList.toggle('court-batch-mode',courtBatchMode);
+  const visibleCourts=courts.filter(c=>isActiveCourtRecord(c)&&c.id!=='match-court-finance');
   const base=visibleCourts.filter(c=>campus==='all'||c.campus===campus);
   renderCourtHeaderFilters(base);
   let list=visibleCourts.filter(c=>{
