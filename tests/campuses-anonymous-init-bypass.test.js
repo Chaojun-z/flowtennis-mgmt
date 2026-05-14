@@ -6,8 +6,8 @@ const apiSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'),
 
 assert.match(
   apiSource,
-  /if\(path==='\/campuses'\)\{if\(method==='GET'\)return sendJson\(res,await listCampusesWithDefaults\(\)\);await init\(\);if\(method==='POST'\)/,
-  'anonymous campuses GET should bypass init so readonly campus reads do not wait on cold-start repair work'
+  /if\(path==='\/campuses'\)\{[\s\S]*if\(method==='GET'\)\{[\s\S]*console\.log\('\[campuses\] GET route entered'\);[\s\S]*console\.log\('\[campuses\] GET using hard fallback DEFAULT_CAMPUSES'\);[\s\S]*return sendJson\(res,result\);[\s\S]*\}[\s\S]*await init\(\);[\s\S]*if\(method==='POST'\)/,
+  'anonymous campuses GET should bypass init and use the hard fallback route before any write-path init logic'
 );
 
 console.log('campuses anonymous init bypass tests passed');

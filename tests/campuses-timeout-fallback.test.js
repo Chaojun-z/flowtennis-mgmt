@@ -6,8 +6,8 @@ const apiSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'),
 
 assert.match(
   apiSource,
-  /async function listCampusesWithDefaults\(\)\{[\s\S]*withTimeout\(getCachedScan\(T_CAMPUSES\)\.catch\(\(\)=>\[\]\),2500,null\)[\s\S]*console\.error\('\[campuses\] getCachedScan timeout, fallback to default campuses'\)[\s\S]*return DEFAULT_CAMPUSES;/,
-  'campuses list should fall back to default campuses when campus table scan hangs'
+  /async function listCampusesWithDefaults\(\)\{[\s\S]*return DEFAULT_CAMPUSES;[\s\S]*\}/,
+  'campuses list should hard-return default campuses during the hotfix window'
 );
 
 console.log('campuses timeout fallback tests passed');
