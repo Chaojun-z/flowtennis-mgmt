@@ -1,22 +1,24 @@
-name: Feishu Monitor
+name: Feishu Monitor Daily Summary
 
 on:
   schedule:
-    - cron: '7 */4 * * *'
+    - cron: '23 0 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
-  issues: write
+  issues: read
+  actions: read
 
 jobs:
-  run-monitor:
+  send-monitor-daily-summary:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      TZ: Asia/Shanghai
+      FEISHU_MONITOR_WEBHOOK_URL: ${{ secrets.FEISHU_MONITOR_ALERT_WEBHOOK }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_REPOSITORY: ${{ github.repository }}
-      FEISHU_MONITOR_WEBHOOK_URL: ${{ secrets.FEISHU_MONITOR_ALERT_WEBHOOK }}
 
     steps:
       - name: Checkout
@@ -33,6 +35,6 @@ jobs:
         run: npm ci
         working-directory: standalone-services
 
-      - name: Run Feishu monitor
-        run: node feishu-monitor.js
+      - name: Send Feishu monitor daily summary
+        run: node feishu-monitor-daily-summary.js
         working-directory: standalone-services
