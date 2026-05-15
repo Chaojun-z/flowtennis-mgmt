@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const mabaoFinanceSeed = require('./seeds/mabao-finance-seed.json');
 const { recordPerfMetric } = require('./lib/perf-metrics');
+const { createCourtAccountListViewLoader, createCourtAccountListCompareLoader } = require('./page-data/court-account-read-model.js');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const TS_ENDPOINT = process.env.TS_ENDPOINT;
@@ -5187,6 +5188,23 @@ function normalizeMembershipOrderViewRecord(order,plan=null){
     benefitSnapshot
   };
 }
+const fixedCourtAcceptanceSamples=require('../docs/performance-governance/15-样板页固定验收样本.json');
+const loadCourtAccountListView=createCourtAccountListViewLoader({
+  listCampusesWithDefaults,
+  getCachedScan,
+  fixedSampleAccounts:fixedCourtAcceptanceSamples,
+  tables:{
+    students:T_STUDENTS,
+    courts:T_COURTS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipPlans:T_MEMBERSHIP_PLANS
+  }
+});
+const loadCourtAccountListViewCompare=createCourtAccountListCompareLoader({
+  loadCourtAccountListView,
+  fixedSampleAccounts:fixedCourtAcceptanceSamples
+});
 function membershipDateRange(startDate,validMonths=12,maxMonths=24){
   return {
     cycleStartDate:startDate,
@@ -6517,6 +6535,20 @@ module.exports = async (req, res) => {
         getCachedScan(T_PRICE_PLANS).catch(()=>[])
       ]);
       return sendJson(res,{campuses,students,courts,membershipAccounts,coaches,pricePlans});
+    }
+    if(path==='/page-data/court-account-list-view'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const ids=String(query?.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean);
+      const sample=String(query?.get('sample')||'').trim();
+      return sendJson(res,await loadCourtAccountListView({sampleIds:ids,sample}));
+    }
+    if(path==='/page-data/court-account-list-view-compare'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const ids=String(query?.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean);
+      const sample=String(query?.get('sample')||'').trim();
+      return sendJson(res,await loadCourtAccountListViewCompare({sampleIds:ids,sample}));
     }
     if(path==='/page-data/memberships'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
