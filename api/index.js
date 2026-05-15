@@ -4,6 +4,18 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const mabaoFinanceSeed = require('./seeds/mabao-finance-seed.json');
+const fixedCourtAcceptanceSampleIds = [
+  '00321e94-a16e-456b-aa1e-2a385d9c0bc4',
+  'a65ca92b-6d83-4106-965d-9a21d09e7af7',
+  '02b545d8-651e-4779-9f2b-6a5c5101812d',
+  '07c1c54a-8568-4093-bf9f-abfe1c2a9b4f',
+  '1c097e22-5582-4693-bfb9-9adf0c0957b8',
+  '4ebd2b73-7e7c-4c44-9582-d50920c2c2ef',
+  '0727353e-ab53-44f7-849e-959ff7b0751c',
+  '39018a54-6029-4362-94b6-91ecff7abaa5',
+  '59dfd7b4-6947-47e0-ae82-e2d1567d1827',
+  'c840ae23-51e4-48f2-a9ef-5b7486f6a185'
+];
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const TS_ENDPOINT = process.env.TS_ENDPOINT;
@@ -113,6 +125,27 @@ const LEGACY_STATIC_COACH_REFS=[{id:'legacy-coach-tianhao',name:'天昊'}];
 const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_FINANCIAL_LEDGER='ft_financial_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
 const HOT_CACHE_TTL_MS=10*60*1000;
 const MATCH_COURT_FINANCE_ACCOUNT_ID='match-court-finance';
+const COURT_ACCOUNT_LIST_PROJECTION_FIELDS=[
+  'name',
+  'phone',
+  'campus',
+  'owner',
+  'familiarity',
+  'depositAttitude',
+  'recentFollowUpDate',
+  'nextFollowUpDate',
+  'notes',
+  'studentId',
+  'studentIds',
+  'status',
+  'createdAt',
+  'updatedAt',
+  'cachedBalance',
+  'cachedTotalDeposit',
+  'cachedTotalSpent',
+  'cachedTotalReceived'
+];
+const COURT_ACCOUNT_COMPARE_DEFAULT_SAMPLE_SIZE=10;
 const MATCH_SQL_TABLES=['match_users','match_posts','match_registrations','match_attendance','match_bookings','match_fee_records','match_fee_splits','match_operation_logs','match_replacements'];
 const MEMBERSHIP_TABLES=[T_MEMBERSHIP_PLANS,T_MEMBERSHIP_ACCOUNTS,T_MEMBERSHIP_ORDERS,T_MEMBERSHIP_BENEFIT_LEDGER,T_MEMBERSHIP_ACCOUNT_EVENTS];
 const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_CLASS_NOS,T_PRICE_PLANS,...MEMBERSHIP_TABLES];
@@ -196,7 +229,21 @@ async function withStorageRetry(fn,maxAttempts=2){
   throw lastErr;
 }
 function cloneCacheValue(value){return JSON.parse(JSON.stringify(value));}
-function invalidateHotScanCache(t){hotScanCache.delete(t);}
+function normalizeScanOptions(options){
+  const columns=Array.isArray(options?.columns)
+    ? [...new Set(options.columns.map(item=>String(item||'').trim()).filter(Boolean))]
+    : [];
+  return columns.length?{columns}:null;
+}
+function hotScanCacheKey(t,options){
+  const normalized=normalizeScanOptions(options);
+  return normalized?`${t}::${normalized.columns.join('|')}`:t;
+}
+function invalidateHotScanCache(t){
+  for(const key of hotScanCache.keys()){
+    if(key===t||key.startsWith(`${t}::`))hotScanCache.delete(key);
+  }
+}
 function hotGetCacheKey(t,id){return `${t}:${String(id)}`;}
 function invalidateHotGetCache(t,id){
   if(id===undefined||id===null){
@@ -205,14 +252,15 @@ function invalidateHotGetCache(t,id){
   }
   hotGetCache.delete(hotGetCacheKey(t,id));
 }
-async function getCachedScan(t){
+async function getCachedScan(t,options){
   const cfg=HOT_SCAN_TABLES.get(t);
-  if(!cfg)return scan(t);
+  if(!cfg)return scan(t,options);
   const now=Date.now();
-  const cached=hotScanCache.get(t);
+  const key=hotScanCacheKey(t,options);
+  const cached=hotScanCache.get(key);
   if(cached&&cached.expiresAt>now)return cloneCacheValue(cached.rows);
-  const rows=await scan(t);
-  hotScanCache.set(t,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
+  const rows=await scan(t,options);
+  hotScanCache.set(key,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
   return rows;
 }
 async function getCachedRow(t,id){
@@ -239,7 +287,13 @@ function normalizeRangePrimaryKey(primaryKey){
     return item;
   });
 }
-function scan(t){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];function f(sk){gc().getRange({tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:normalizeRangePrimaryKey(sk)||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500},(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();}));}
+function scan(t,options){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];const normalized=normalizeScanOptions(options);function f(sk){const params={tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:normalizeRangePrimaryKey(sk)||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500};if(normalized?.columns?.length)params.columnsToGet=normalized.columns;gc().getRange(params,(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();}));}
+async function getCachedRowsByIds(t,ids=[]){
+  const normalizedIds=[...new Set((ids||[]).map(item=>String(item||'').trim()).filter(Boolean))];
+  if(!normalizedIds.length)return [];
+  const rows=await Promise.all(normalizedIds.map(id=>getCachedRow(t,id)));
+  return rows.filter(Boolean);
+}
 function del(t,id){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);return withStorageRetry(()=>new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));}));}
 async function clearTables(storage,tables){
   const result={success:true,total:0,tables:[]};
@@ -4449,6 +4503,151 @@ function reconcileMembershipAccounts({accounts=[],courts=[],today=new Date().toI
   }
   return {accounts:nextAccounts,events,historyRows};
 }
+function courtAccountMembershipStatusText(status){
+  return ({active:'正常',extended:'延续期',expired:'已到期',cleared:'已清零',voided:'已作废',inactive:'未启用'}[status]||status||'未开卡');
+}
+function courtAccountMembershipDisplayStatus(account){
+  if(!account)return '未开卡';
+  if(account.status==='voided')return '已作废';
+  if(account.status==='cleared')return '已清零';
+  if(account.status==='extended')return '延续期';
+  return courtAccountMembershipStatusText(account.status);
+}
+function selectCourtAccountMembershipAccount(courtId,membershipAccounts=[]){
+  const rows=(membershipAccounts||[]).filter(row=>row?.courtId===courtId);
+  if(!rows.length)return null;
+  const activeRow=rows.find(row=>row?.status!=='voided');
+  if(activeRow)return activeRow;
+  return rows.sort((a,b)=>String(b?.updatedAt||b?.createdAt||'').localeCompare(String(a?.updatedAt||a?.createdAt||'')))[0]||null;
+}
+function courtAccountMembershipTierLabel(account,membershipOrders=[],membershipPlans=[]){
+  if(!account)return '-';
+  const latestOrder=(membershipOrders||[])
+    .filter(row=>row?.membershipAccountId===account.id)
+    .sort((a,b)=>String(b?.purchaseDate||'').localeCompare(String(a?.purchaseDate||'')))[0]||null;
+  const plan=(membershipPlans||[]).find(row=>row?.id===(latestOrder?.membershipPlanId||account?.membershipPlanId))||{};
+  return account?.tierCode||latestOrder?.tierCode||plan?.tierCode||'-';
+}
+function courtAccountLinkedStudentSummary(court,students=[]){
+  const ids=[...new Set([
+    ...parseArr(court?.studentIds).map(item=>String(item||'').trim()).filter(Boolean),
+    String(court?.studentId||'').trim()
+  ].filter(Boolean))];
+  if(!ids.length)return '-';
+  const names=ids
+    .map(id=>(students||[]).find(student=>student?.id===id))
+    .filter(Boolean)
+    .map(student=>String(student?.name||'').trim())
+    .filter(Boolean);
+  return names.join('、')||'-';
+}
+function courtAccountDisplayName(court,studentSummary){
+  return String(court?.name||'').trim()||(studentSummary&&studentSummary!=='-'?studentSummary:'')||String(court?.phone||'').trim()||'未命名订场用户';
+}
+function buildCourtAccountType(account,finance){
+  if(!account)return finance.balance>0?'储值':'普通';
+  if(['voided','cleared'].includes(account.status))return '历史会员';
+  return ['active','extended'].includes(account.status)?'会员':'历史会员';
+}
+function buildCourtAccountLegacyItem(court,ctx){
+  const finance=computeCourtFinance(court||{history:[]});
+  const account=selectCourtAccountMembershipAccount(court?.id,ctx.membershipAccounts);
+  const studentSummary=courtAccountLinkedStudentSummary(court,ctx.students);
+  const tierLabel=courtAccountMembershipTierLabel(account,ctx.membershipOrders,ctx.membershipPlans);
+  return {
+    id:court.id,
+    displayName:courtAccountDisplayName(court,studentSummary),
+    phone:String(court?.phone||'').trim(),
+    campusCode:String(court?.campus||'').trim(),
+    campusName:ctx.campusMap.get(String(court?.campus||'').trim())||String(court?.campus||'').trim()||'-',
+    owner:String(court?.owner||'').trim(),
+    familiarity:String(court?.familiarity||'').trim(),
+    depositAttitude:String(court?.depositAttitude||'').trim(),
+    recentFollowUpDate:String(court?.recentFollowUpDate||'').trim(),
+    nextFollowUpDate:String(court?.nextFollowUpDate||'').trim(),
+    notesSummary:String(court?.notes||'').trim(),
+    accountType:buildCourtAccountType(account,finance),
+    membershipTierLabel:account&&!['voided','cleared'].includes(account.status)?tierLabel:'-',
+    membershipStatus:courtAccountMembershipDisplayStatus(account),
+    membershipStatusCode:account?.status||'',
+    membershipDiscountText:account&&!['voided','cleared'].includes(account.status)&&account?.discountRate?`${Math.round((Number(account.discountRate)||1)*100)/10} 折`:'-',
+    membershipValidUntil:account&&!['voided','cleared'].includes(account.status)?String(account?.validUntil||'').trim()||'-':'-',
+    linkedStudentSummary:studentSummary,
+    lowBalance:finance.balance>0&&finance.balance<=500,
+    balance:normalizeMoney(finance.balance),
+    totalDeposit:normalizeMoney(finance.totalDeposit),
+    totalSpent:normalizeMoney(finance.spentAmount),
+    totalReceived:normalizeMoney(finance.receivedAmount),
+    updatedAt:court?.updatedAt||court?.createdAt||'',
+    createdAt:court?.createdAt||''
+  };
+}
+function buildCourtAccountReadModelItem(court,ctx){
+  const legacy=buildCourtAccountLegacyItem(court,ctx);
+  const balance=court?.cachedBalance===''||court?.cachedBalance==null?legacy.balance:normalizeMoney(court?.cachedBalance);
+  const totalDeposit=court?.cachedTotalDeposit===''||court?.cachedTotalDeposit==null?legacy.totalDeposit:normalizeMoney(court?.cachedTotalDeposit);
+  const totalSpent=court?.cachedTotalSpent===''||court?.cachedTotalSpent==null?legacy.totalSpent:normalizeMoney(court?.cachedTotalSpent);
+  const totalReceived=court?.cachedTotalReceived===''||court?.cachedTotalReceived==null?legacy.totalReceived:normalizeMoney(court?.cachedTotalReceived);
+  return {...legacy,balance,totalDeposit,totalSpent,totalReceived,lowBalance:balance>0&&balance<=500};
+}
+function buildCourtAccountListSummary(items=[]){
+  return {
+    totalCount:items.length,
+    totalBalance:normalizeMoney(items.reduce((sum,item)=>sum+normalizeMoney(item?.balance),0)),
+    totalDeposit:normalizeMoney(items.reduce((sum,item)=>sum+normalizeMoney(item?.totalDeposit),0)),
+    totalSpent:normalizeMoney(items.reduce((sum,item)=>sum+normalizeMoney(item?.totalSpent),0)),
+    totalReceived:normalizeMoney(items.reduce((sum,item)=>sum+normalizeMoney(item?.totalReceived),0))
+  };
+}
+function buildCourtAccountListFilters({items=[],campuses=[]}={}){
+  const owners=[...new Set((items||[]).map(item=>String(item?.owner||'').trim()).filter(Boolean))].sort();
+  const accountTypes=[...new Set((items||[]).map(item=>String(item?.accountType||'').trim()).filter(Boolean))].sort();
+  return {
+    owners,
+    accountTypes,
+    campuses:(campuses||[]).map(campus=>({code:campus?.code||campus?.id||'',name:campus?.name||campus?.code||campus?.id||''})).filter(item=>item.code)
+  };
+}
+function resolveCourtAccountSampleIds({sampleIds=[],sample=''}={}){
+  if(Array.isArray(sampleIds)&&sampleIds.length)return sampleIds.map(item=>String(item||'').trim()).filter(Boolean);
+  if(String(sample||'').trim()==='fixed'){
+    return fixedCourtAcceptanceSampleIds.slice(0,COURT_ACCOUNT_COMPARE_DEFAULT_SAMPLE_SIZE).map(item=>String(item||'').trim()).filter(Boolean);
+  }
+  return [];
+}
+async function loadCourtAccountListContext({courts=null}={}){
+  const [campuses,students,membershipAccounts,membershipOrders,membershipPlans]=await Promise.all([
+    listCampusesWithDefaults(),
+    getCachedScan(T_STUDENTS).catch(()=>[]),
+    getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
+    getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
+    getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[])
+  ]);
+  return {campuses,students,courts,membershipAccounts,membershipOrders,membershipPlans};
+}
+function buildCourtAccountListViewPayload({courts=[],campuses=[],students=[],membershipAccounts=[],membershipOrders=[],membershipPlans=[],sampleIds=[],sample='',useLegacy=false}={}){
+  const campusMap=new Map((campuses||[]).map(row=>[String(row?.code||row?.id||'').trim(),row?.name||row?.code||row?.id||'']));
+  const ctx={campusMap,students,membershipAccounts,membershipOrders,membershipPlans};
+  const items=(courts||[])
+    .filter(row=>String(row?.status||'active')!=='inactive')
+    .filter(row=>String(row?.id||'')!==MATCH_COURT_FINANCE_ACCOUNT_ID)
+    .filter(row=>!sampleIds.length||sampleIds.includes(String(row?.id||'').trim()))
+    .map(court=>useLegacy?buildCourtAccountLegacyItem(court,ctx):buildCourtAccountReadModelItem(court,ctx))
+    .sort((a,b)=>String(b?.updatedAt||b?.createdAt||'').localeCompare(String(a?.updatedAt||a?.createdAt||'')));
+  return {
+    summary:buildCourtAccountListSummary(items),
+    filters:buildCourtAccountListFilters({items,campuses}),
+    items,
+    meta:{generatedAt:new Date().toISOString(),source:useLegacy?'legacy':'read-model',sampleIds,sample}
+  };
+}
+function projectCourtListRow(row={}){
+  const balance=row?.cachedBalance===''||row?.cachedBalance==null?row?.balance:row?.cachedBalance;
+  const totalDeposit=row?.cachedTotalDeposit===''||row?.cachedTotalDeposit==null?row?.totalDeposit:row?.cachedTotalDeposit;
+  const spentAmount=row?.cachedTotalSpent===''||row?.cachedTotalSpent==null?row?.spentAmount:row?.cachedTotalSpent;
+  const receivedAmount=row?.cachedTotalReceived===''||row?.cachedTotalReceived==null?row?.receivedAmount:row?.cachedTotalReceived;
+  return {...row,balance,totalDeposit,spentAmount,receivedAmount};
+}
 function legacyCourtFinanceWarnings(court){
   const total=normalizeMoney(court?.totalDeposit);
   const balance=normalizeMoney(court?.balance);
@@ -5444,12 +5643,76 @@ module.exports = async (req, res) => {
       const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.all([
         listCampusesWithDefaults(),
         getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
+        getCachedScan(T_COURTS,{columns:COURT_ACCOUNT_LIST_PROJECTION_FIELDS}).catch(()=>[]),
         getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
         getCachedScan(T_COACHES).catch(()=>[]),
         getCachedScan(T_PRICE_PLANS).catch(()=>[])
       ]);
-      return sendJson(res,{campuses,students,courts,membershipAccounts,coaches,pricePlans});
+      return sendJson(res,{campuses,students,courts:(courts||[]).map(projectCourtListRow),membershipAccounts,coaches,pricePlans});
+    }
+    const courtPageDataDetailMatch=path.match(/^\/page-data\/courts\/([^/]+)$/);
+    if(courtPageDataDetailMatch&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const court=await getCachedRow(T_COURTS,courtPageDataDetailMatch[1]).catch(()=>null);
+      if(!court)return sendJson(res,{error:'订场用户不存在'},404);
+      return sendJson(res,court);
+    }
+    if(path==='/page-data/court-account-list-view'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const sampleIds=resolveCourtAccountSampleIds({
+        sampleIds:String(query.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean),
+        sample:query.get('sample')||''
+      });
+      const [context,courts]=await Promise.all([
+        loadCourtAccountListContext(),
+        getCachedScan(T_COURTS,{columns:COURT_ACCOUNT_LIST_PROJECTION_FIELDS}).catch(()=>[])
+      ]);
+      return sendJson(res,buildCourtAccountListViewPayload({...context,courts,sampleIds,sample:query.get('sample')||'',useLegacy:false}));
+    }
+    if(path==='/page-data/court-account-list-view-compare'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const sampleIds=resolveCourtAccountSampleIds({
+        sampleIds:String(query.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean),
+        sample:query.get('sample')||''
+      });
+      const [context,projectedCourts]=await Promise.all([
+        loadCourtAccountListContext(),
+        getCachedScan(T_COURTS,{columns:COURT_ACCOUNT_LIST_PROJECTION_FIELDS}).catch(()=>[])
+      ]);
+      const view=buildCourtAccountListViewPayload({...context,courts:projectedCourts,sampleIds,sample:query.get('sample')||'',useLegacy:false});
+      const legacyCourts=sampleIds.length
+        ? await getCachedRowsByIds(T_COURTS,sampleIds).catch(()=>[])
+        : await getCachedScan(T_COURTS).catch(()=>[]);
+      const legacy=buildCourtAccountListViewPayload({...context,courts:legacyCourts,sampleIds,sample:query.get('sample')||'',useLegacy:true});
+      const rowFields=['displayName','phone','campusName','owner','accountType','membershipTierLabel','membershipStatus','membershipDiscountText','membershipValidUntil','linkedStudentSummary','balance','totalDeposit','totalSpent','totalReceived','lowBalance'];
+      const summaryFields=['totalCount','totalBalance','totalDeposit','totalSpent','totalReceived'];
+      const viewMap=new Map((view.items||[]).map(item=>[String(item?.id||''),item]));
+      const legacyMap=new Map((legacy.items||[]).map(item=>[String(item?.id||''),item]));
+      const ids=[...new Set([...legacyMap.keys(),...viewMap.keys()])];
+      const items=ids.map(id=>{
+        const legacyItem=legacyMap.get(id)||null;
+        const viewItem=viewMap.get(id)||null;
+        const diffs=rowFields
+          .filter(field=>JSON.stringify(legacyItem?.[field])!==JSON.stringify(viewItem?.[field]))
+          .map(field=>({field,legacyValue:legacyItem?.[field]??null,viewValue:viewItem?.[field]??null}));
+        return {id,displayName:viewItem?.displayName||legacyItem?.displayName||'-',legacy:legacyItem,view:viewItem,diffs};
+      });
+      const summaryDiffs=summaryFields
+        .filter(field=>JSON.stringify(legacy.summary?.[field])!==JSON.stringify(view.summary?.[field]))
+        .map(field=>({field,legacyValue:legacy.summary?.[field]??null,viewValue:view.summary?.[field]??null}));
+      return sendJson(res,{
+        meta:{
+          generatedAt:new Date().toISOString(),
+          sampleIds,
+          sample:query.get('sample')||'',
+          comparedFields:{summary:summaryFields,items:rowFields}
+        },
+        summaryDiffs,
+        items
+      });
     }
     if(path==='/page-data/memberships'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
