@@ -8,8 +8,10 @@ assert.ok(rules.assertAuthUserActive, 'api._test should expose auth user active 
 assert.ok(rules.buildWechatCode2SessionUrl, 'api._test should expose wechat session URL helper');
 assert.ok(rules.extractWechatOpenId, 'api._test should expose wechat openid helper');
 assert.ok(rules.buildWechatBoundUser, 'api._test should expose wechat bind helper');
+assert.ok(rules.buildOfficialAccountBoundUser, 'api._test should expose official account bind helper');
 assert.ok(rules.buildAdminUserView, 'api._test should expose admin user view helper');
 assert.ok(rules.buildWechatUnboundUser, 'api._test should expose wechat unbind helper');
+assert.ok(rules.buildOfficialAccountUnboundUser, 'api._test should expose official account unbind helper');
 
 assert.doesNotThrow(
   () => rules.assertAuthUserActive({ id: 'coach_1', status: 'active' }),
@@ -78,7 +80,9 @@ assert.deepStrictEqual(
     coachName: '朝珺',
     matchPermissions: [],
     wechatBound: true,
-    wechatBoundAt: '2026-04-19T12:00:00.000Z'
+    wechatBoundAt: '2026-04-19T12:00:00.000Z',
+    officialAccountBound: false,
+    officialAccountBoundAt: ''
   },
   'admin user view should expose binding status without leaking openid'
 );
@@ -92,6 +96,27 @@ assert.deepStrictEqual(
   }),
   { id: 'coach_1', name: '朝珺', wechatOpenId: '', wechatBoundAt: '' },
   'wechat unbind helper should clear openid and bind time'
+);
+
+assert.deepStrictEqual(
+  rules.buildOfficialAccountBoundUser(
+    { id: 'coach_1', name: '朝珺', role: 'editor', password: 'hashed' },
+    'oa-openid-123',
+    '2026-04-19T12:00:00.000Z'
+  ),
+  { id: 'coach_1', name: '朝珺', role: 'editor', password: 'hashed', officialAccountOpenId: 'oa-openid-123', officialAccountBoundAt: '2026-04-19T12:00:00.000Z' },
+  'official account bind helper should preserve user fields and attach openid'
+);
+
+assert.deepStrictEqual(
+  rules.buildOfficialAccountUnboundUser({
+    id: 'coach_1',
+    name: '朝珺',
+    officialAccountOpenId: 'oa-openid-123',
+    officialAccountBoundAt: '2026-04-19T12:00:00.000Z'
+  }),
+  { id: 'coach_1', name: '朝珺', officialAccountOpenId: '', officialAccountBoundAt: '' },
+  'official account unbind helper should clear service account openid and bind time'
 );
 
 console.log('admin user rules tests passed');

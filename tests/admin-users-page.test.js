@@ -26,7 +26,9 @@ assert.match(fnBody('renderAdminUsers'), /adminUserTbody/, 'account page should 
 assert.match(fnBody('renderAdminUsers'), /绑定教练/, 'account rows should show coach binding text');
 assert.match(fnBody('renderAdminUsers'), /手机号/, 'account rows should show phone text');
 assert.match(fnBody('renderAdminUsers'), /微信通知/, 'account rows should show wechat notification binding text');
+assert.match(fnBody('renderAdminUsers'), /服务号通知/, 'account rows should show official account binding text');
 assert.match(fnBody('renderAdminUsers'), /unbindAdminUserWechat/, 'account rows should expose wechat unbind action');
+assert.match(fnBody('renderAdminUsers'), /unbindAdminUserOfficialAccount/, 'account rows should expose official account unbind action');
 assert.match(fnBody('renderAdminUsers'), /停用|启用/, 'account rows should expose enable and disable actions');
 assert.match(fnBody('loadAdminUsers'), /apiCall\('GET','\/admin\/users'\)/, 'account page should load users from admin api');
 assert.match(fnBody('openAdminUserModal'), /setCourtModalFrame/, 'account modal should use shared modal shell');
@@ -35,11 +37,13 @@ assert.match(fnBody('openAdminUserModal'), /au_password/, 'account modal should 
 assert.match(fnBody('openAdminUserModal'), /au_role/, 'account modal should include role field');
 assert.match(fnBody('openAdminUserModal'), /au_phone/, 'account modal should include phone field');
 assert.match(fnBody('openAdminUserModal'), /au_coachId/, 'account modal should include coach binding field');
+assert.match(fnBody('openAdminUserModal'), /au_officialAccountOpenId/, 'account modal should include official account openid field');
 assert.match(fnBody('openAdminUserModal'), /au_match_ops/, 'account modal should configure match ops permission');
 assert.match(fnBody('openAdminUserModal'), /au_match_finance/, 'account modal should configure match finance permission');
 assert.match(fnBody('openAdminUserModal'), /账号创建后用于登录。教练账号绑定教练后，登录会进入教练工作台。/, 'account create modal should describe login by account in neutral wording');
 assert.doesNotMatch(fnBody('openAdminUserModal'), /请用这里的账号ID登录，不是姓名/, 'account create modal should not force account-id-only wording');
 assert.match(fnBody('saveAdminUser'), /phone/, 'account save should submit phone');
+assert.match(fnBody('saveAdminUser'), /officialAccountOpenId/, 'account save should submit official account openid');
 assert.match(fnBody('saveAdminUser'), /matchPermissions/, 'account save should submit match permissions');
 assert.match(fnBody('saveAdminUser'), /\/admin\/create-user/, 'account create should call create-user api');
 assert.match(fnBody('saveAdminUser'), /\/admin\/update-user/, 'account edit should call update-user api');
@@ -48,6 +52,7 @@ assert.doesNotMatch(fnBody('saveAdminUser'), /请用账号ID/, 'account create s
 assert.match(fnBody('toggleAdminUserStatus'), /\/admin\/update-user/, 'account status toggle should reuse update-user api');
 assert.match(fnBody('toggleAdminUserStatus'), /status/, 'account status toggle should send status field');
 assert.match(fnBody('unbindAdminUserWechat'), /clearWechat/, 'wechat unbind should send clearWechat flag');
+assert.match(fnBody('unbindAdminUserOfficialAccount'), /clearOfficialAccount/, 'official account unbind should send clearOfficialAccount flag');
 assert.doesNotMatch(source, /function defaultLandingPageForUser/, 'admin login flow should no longer force a landing page before shell bootstrap');
 
 console.log('admin users page tests passed');

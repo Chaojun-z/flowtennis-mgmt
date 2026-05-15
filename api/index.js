@@ -1,6 +1,7 @@
 const TableStore = require('tablestore');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
@@ -61,6 +62,13 @@ const MATCH_MINIPROGRAM_APPID = process.env.MATCH_MINIPROGRAM_APPID || '';
 const MATCH_MINIPROGRAM_SECRET = process.env.MATCH_MINIPROGRAM_SECRET || '';
 const WECHAT_SCHEDULE_TEMPLATE_ID = process.env.WECHAT_SCHEDULE_TEMPLATE_ID;
 const WECHAT_COURSE_REMINDER_TEMPLATE_ID = process.env.WECHAT_COURSE_REMINDER_TEMPLATE_ID;
+const WECHAT_OFFICIAL_ACCOUNT_APPID = process.env.WECHAT_OFFICIAL_ACCOUNT_APPID || '';
+const WECHAT_OFFICIAL_ACCOUNT_SECRET = process.env.WECHAT_OFFICIAL_ACCOUNT_SECRET || '';
+const WECHAT_OFFICIAL_ACCOUNT_REMINDER_TEMPLATE_ID = process.env.WECHAT_OFFICIAL_ACCOUNT_REMINDER_TEMPLATE_ID || '';
+const WECHAT_OFFICIAL_ACCOUNT_DIGEST_TEMPLATE_ID = process.env.WECHAT_OFFICIAL_ACCOUNT_DIGEST_TEMPLATE_ID || '';
+const WECHAT_OFFICIAL_ACCOUNT_MOCK_SEND = readBooleanEnv(process.env,'WECHAT_OFFICIAL_ACCOUNT_MOCK_SEND');
+const WECHAT_OFFICIAL_ACCOUNT_TOKEN = process.env.WECHAT_OFFICIAL_ACCOUNT_TOKEN || '';
+const WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY = process.env.WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY || '';
 const MATCH_WECHAT_TEMPLATE_ID = process.env.MATCH_WECHAT_TEMPLATE_ID;
 const MATCH_DATABASE_URL = process.env.MATCH_DATABASE_URL || process.env.DATABASE_URL;
 const MATCH_CREATOR_CONFIRM_DEADLINE_HOURS = 12;
@@ -1285,6 +1293,12 @@ function buildWechatBoundUser(user,openid,now=new Date().toISOString()){
 function buildWechatUnboundUser(user){
   return {...user,wechatOpenId:'',wechatBoundAt:''};
 }
+function buildOfficialAccountBoundUser(user,openid,now=new Date().toISOString()){
+  return {...user,officialAccountOpenId:String(openid||''),officialAccountBoundAt:now};
+}
+function buildOfficialAccountUnboundUser(user){
+  return {...user,officialAccountOpenId:'',officialAccountBoundAt:''};
+}
 function buildWechatUserIndexRow(user){
   return {
     userId:String(user?.id||''),
@@ -1305,11 +1319,45 @@ function buildAdminUserView(u){
     coachName:u.coachName||'',
     matchPermissions:userMatchPermissions(u),
     wechatBound:!!u.wechatOpenId,
-    wechatBoundAt:u.wechatBoundAt||''
+    wechatBoundAt:u.wechatBoundAt||'',
+    officialAccountBound:!!u.officialAccountOpenId,
+    officialAccountBoundAt:u.officialAccountBoundAt||''
   };
 }
 function buildWechatAccessTokenUrl(appid,secret){
   return `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${encodeURIComponent(appid)}&secret=${encodeURIComponent(secret)}`;
+}
+function buildWechatSignature(token,timestamp,nonce,encrypted=''){
+  return crypto.createHash('sha1').update([token,timestamp,nonce,encrypted].map(x=>String(x||'')).sort().join('')).digest('hex');
+}
+function officialAccountAesKeyBuffer(encodingAesKey=''){
+  const text=String(encodingAesKey||'').trim();
+  if(text.length!==43)throw new Error('服务号 EncodingAESKey 长度不正确');
+  return Buffer.from(`${text}=`, 'base64');
+}
+function pkcs7Unpad(buffer){
+  if(!Buffer.isBuffer(buffer)||!buffer.length)return buffer;
+  const pad=buffer[buffer.length-1];
+  if(!pad||pad>32)return buffer;
+  return buffer.subarray(0,buffer.length-pad);
+}
+function decryptWechatOfficialAccountMessage(encrypted,encodingAesKey,appId=''){
+  const aesKey=officialAccountAesKeyBuffer(encodingAesKey);
+  const iv=aesKey.subarray(0,16);
+  const decipher=crypto.createDecipheriv('aes-256-cbc',aesKey,iv);
+  decipher.setAutoPadding(false);
+  const decrypted=Buffer.concat([decipher.update(String(encrypted||''),'base64'),decipher.final()]);
+  const plain=pkcs7Unpad(decrypted);
+  const msgLength=plain.readUInt32BE(16);
+  const message=plain.subarray(20,20+msgLength).toString('utf8');
+  const fromAppId=plain.subarray(20+msgLength).toString('utf8');
+  if(appId&&fromAppId!==String(appId||''))throw new Error('服务号 AppID 不匹配');
+  return {message,appId:fromAppId};
+}
+function resolveOfficialAccountCallbackEcho({token,timestamp,nonce,signature,encryptedEcho,encodingAesKey,appId}){
+  const expected=buildWechatSignature(token,timestamp,nonce,encryptedEcho);
+  if(String(signature||'').trim()!==expected)throw new Error('服务号签名校验失败');
+  return decryptWechatOfficialAccountMessage(encryptedEcho,encodingAesKey,appId).message;
 }
 function extractWechatAccessToken(data){
   if(data?.access_token)return String(data.access_token);
@@ -1364,6 +1412,16 @@ function findWechatUserByOpenId(users=[],openid=''){
   if(!key)return null;
   const matched=(users||[]).filter(u=>String(u?.wechatOpenId||'').trim()===key);
   return matched.find(u=>String(u?.role||'')==='editor')||matched[0]||null;
+}
+function findOfficialAccountScheduleRecipient(schedule,users=[]){
+  const coachId=String(schedule?.coachId||'').trim();
+  const coachName=String(schedule?.coach||'').trim();
+  return (users||[]).find(u=>{
+    if(!u?.officialAccountOpenId)return false;
+    if(String(u.role||'')!=='editor')return false;
+    if(coachId&&String(u.coachId||'').trim()===coachId)return true;
+    return coachName&&String(u.coachName||u.name||'').trim()===coachName;
+  })||null;
 }
 async function putWechatUserIndex(openid,user){
   const key=String(openid||'').trim();
@@ -1635,6 +1693,170 @@ function buildCourseReminderSubscribeMessage({templateId,openid,schedule,crossCa
       thing4:{value:truncateWechatValue(schedule?.courseType||'课程')}
     }
   };
+}
+function resolveOfficialAccountSendMode({appId='',secret='',templateId='',forceMock=WECHAT_OFFICIAL_ACCOUNT_MOCK_SEND}={}){
+  if(forceMock)return 'mock';
+  if(!String(appId||'').trim()||!String(secret||'').trim()||!String(templateId||'').trim())return 'mock';
+  return 'live';
+}
+function collectCoachDailyDigestCandidates(rows=[],now=new Date()){
+  const baseDateKey=dateKey(now instanceof Date?now.toISOString():now);
+  const baseDate=new Date(`${baseDateKey}T12:00:00`);
+  baseDate.setDate(baseDate.getDate()+1);
+  const digestDate=baseDate.toISOString().slice(0,10);
+  const grouped=new Map();
+  (rows||[])
+    .filter(schedule=>{
+      if(effectiveScheduleStatus(schedule,now)!=='已排课')return false;
+      if(dateKey(schedule.startTime)!==digestDate)return false;
+      return String(schedule.coachDailyDigestSentDate||'').trim()!==digestDate;
+    })
+    .sort((a,b)=>dateMs(a.startTime)-dateMs(b.startTime))
+    .forEach(schedule=>{
+      const coachId=String(schedule.coachId||schedule.coach||'').trim();
+      const coachName=String(schedule.coach||'').trim();
+      const key=`${coachId}::${coachName}`;
+      if(!grouped.has(key)){
+        grouped.set(key,{coachId,coachName,digestDate,schedules:[],scheduleIds:[]});
+      }
+      const entry=grouped.get(key);
+      entry.schedules.push(schedule);
+      entry.scheduleIds.push(schedule.id);
+    });
+  return [...grouped.values()].map(entry=>({
+    ...entry,
+    lessonCount:entry.schedules.length
+  }));
+}
+function buildCoachDailyDigestMessage({coachName='',digestDate='',schedules=[]}={}){
+  const rows=(schedules||[]).slice().sort((a,b)=>dateMs(a.startTime)-dateMs(b.startTime));
+  return {
+    title:`${coachName||'教练'}教练次日课表`,
+    summary:`${digestDate} 共 ${rows.length} 节课`,
+    lines:rows.map(schedule=>`${String(schedule.startTime||'').slice(11,16)}-${String(schedule.endTime||'').slice(11,16)} ${schedule.courseType||'课程'}｜${schedule.studentName||'学员'}｜${[schedule.campus,schedule.venue||schedule.externalVenueName||schedule.externalCourtName].filter(Boolean).join(' ')}`)
+  };
+}
+async function fetchOfficialAccountAccessToken(){
+  const mode=resolveOfficialAccountSendMode({
+    appId:WECHAT_OFFICIAL_ACCOUNT_APPID,
+    secret:WECHAT_OFFICIAL_ACCOUNT_SECRET,
+    templateId:'placeholder'
+  });
+  if(mode==='mock')throw new Error('official_account_mock_mode');
+  const cacheKey=`official:${WECHAT_OFFICIAL_ACCOUNT_APPID}`;
+  const now=Date.now();
+  const cached=wechatAccessTokenCacheByApp.get(cacheKey);
+  if(cached&&cached.expiresAt>now)return cached.token;
+  const res=await fetch(buildWechatAccessTokenUrl(WECHAT_OFFICIAL_ACCOUNT_APPID,WECHAT_OFFICIAL_ACCOUNT_SECRET));
+  const data=await res.json();
+  const token=extractWechatAccessToken(data);
+  const ttlMs=Math.max(300000,((parseInt(data.expires_in)||7200)-300)*1000);
+  wechatAccessTokenCacheByApp.set(cacheKey,{token,expiresAt:now+ttlMs});
+  return token;
+}
+async function sendOfficialAccountTemplateMessage(message){
+  const token=await fetchOfficialAccountAccessToken();
+  const res=await fetch(`https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${encodeURIComponent(token)}`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(message)
+  });
+  const data=await res.json();
+  if(data.errcode&&data.errcode!==0)throw new Error(`服务号模板消息发送失败：${data.errmsg||data.errcode}`);
+  return data;
+}
+function buildOfficialAccountDigestTemplatePayload({templateId,openid,message}){
+  return {
+    touser:openid,
+    template_id:templateId,
+    data:{
+      first:{value:message.title},
+      keyword1:{value:message.digestDate||message.summary.split(' 共 ')[0]||''},
+      keyword2:{value:message.summary},
+      remark:{value:message.lines.join('\n')}
+    }
+  };
+}
+function verifyOfficialAccountCallbackRequest(query){
+  return resolveOfficialAccountCallbackEcho({
+    token:WECHAT_OFFICIAL_ACCOUNT_TOKEN,
+    timestamp:query.get('timestamp')||'',
+    nonce:query.get('nonce')||'',
+    signature:query.get('msg_signature')||query.get('signature')||'',
+    encryptedEcho:query.get('echostr')||'',
+    encodingAesKey:WECHAT_OFFICIAL_ACCOUNT_ENCODING_AES_KEY,
+    appId:WECHAT_OFFICIAL_ACCOUNT_APPID
+  });
+}
+async function sendOfficialAccountCourseReminders({now=new Date()}={}){
+  const [rows,users]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
+  const candidates=collectCourseReminderCandidates(rows,now);
+  const mode=resolveOfficialAccountSendMode({
+    appId:WECHAT_OFFICIAL_ACCOUNT_APPID,
+    secret:WECHAT_OFFICIAL_ACCOUNT_SECRET,
+    templateId:WECHAT_OFFICIAL_ACCOUNT_REMINDER_TEMPLATE_ID
+  });
+  const result={success:true,mode,checked:candidates.length,sent:0,failed:0,skipped:0,items:[]};
+  for(const item of candidates){
+    const recipient=findOfficialAccountScheduleRecipient(item.schedule,users);
+    if(!recipient){
+      result.skipped++;
+      result.items.push({id:item.schedule.id,skipped:true,reason:'missing_official_account_openid'});
+      continue;
+    }
+    if(mode==='mock'){
+      result.sent++;
+      result.items.push({id:item.schedule.id,sent:true,mocked:true});
+      continue;
+    }
+    try{
+      const message=buildCourseReminderSubscribeMessage({templateId:WECHAT_OFFICIAL_ACCOUNT_REMINDER_TEMPLATE_ID,openid:recipient.officialAccountOpenId,schedule:item.schedule,crossCampus:item.crossCampus});
+      await sendOfficialAccountTemplateMessage(message);
+      result.sent++;
+      result.items.push({id:item.schedule.id,sent:true});
+    }catch(err){
+      result.failed++;
+      result.items.push({id:item.schedule.id,sent:false,error:err.message});
+    }
+  }
+  return result;
+}
+async function sendOfficialAccountDailyDigests({now=new Date()}={}){
+  const [rows,users]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
+  const candidates=collectCoachDailyDigestCandidates(rows,now);
+  const mode=resolveOfficialAccountSendMode({
+    appId:WECHAT_OFFICIAL_ACCOUNT_APPID,
+    secret:WECHAT_OFFICIAL_ACCOUNT_SECRET,
+    templateId:WECHAT_OFFICIAL_ACCOUNT_DIGEST_TEMPLATE_ID
+  });
+  const result={success:true,mode,checked:candidates.length,sent:0,failed:0,skipped:0,items:[]};
+  for(const item of candidates){
+    const recipient=findOfficialAccountScheduleRecipient({coachId:item.coachId,coach:item.coachName},users);
+    if(!recipient){
+      result.skipped++;
+      result.items.push({coachId:item.coachId,skipped:true,reason:'missing_official_account_openid'});
+      continue;
+    }
+    const digestMessage=buildCoachDailyDigestMessage(item);
+    if(mode==='mock'){
+      result.sent++;
+      result.items.push({coachId:item.coachId,sent:true,mocked:true,lessonCount:item.lessonCount});
+      continue;
+    }
+    try{
+      await sendOfficialAccountTemplateMessage(buildOfficialAccountDigestTemplatePayload({
+        templateId:WECHAT_OFFICIAL_ACCOUNT_DIGEST_TEMPLATE_ID,
+        openid:recipient.officialAccountOpenId,
+        message:{...digestMessage,digestDate:item.digestDate}
+      }));
+      result.sent++;
+      result.items.push({coachId:item.coachId,sent:true,lessonCount:item.lessonCount});
+    }catch(err){
+      result.failed++;
+      result.items.push({coachId:item.coachId,sent:false,error:err.message});
+    }
+  }
+  return result;
 }
 async function sendCourseReminders({now=new Date()}={}){
   if(!WECHAT_COURSE_REMINDER_TEMPLATE_ID)return {success:true,skipped:true,reason:'missing_template',sent:0,failed:0};
@@ -2676,6 +2898,12 @@ function sendJson(res,body,code=200){
   res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');
   res.status(code).json(body);
+}
+function sendPlainText(res,text,code=200){
+  res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');
+  res.status(code).send(String(text||''));
 }
 function authUser(req){const token=(req.headers.authorization||'').replace('Bearer ','');if(!token)return null;try{return jwt.verify(token,JWT_SECRET);}catch{return null;}}
 function requireAdminUser(user){
@@ -5622,6 +5850,16 @@ module.exports = async (req, res) => {
   const body=req.body||{};
   try{
     if(path==='/health')return sendJson(res,{status:'ok',time:new Date().toISOString()});
+    if(path==='/official-account/callback'&&method==='GET'){
+      try{
+        return sendPlainText(res,verifyOfficialAccountCallbackRequest(query),200);
+      }catch(err){
+        return sendPlainText(res,String(err?.message||'invalid'),401);
+      }
+    }
+    if(path==='/official-account/callback'&&method==='POST'){
+      return sendPlainText(res,'success',200);
+    }
     if(path==='/cron/course-reminders'&&method==='GET'){
       const ua=String(req.headers['user-agent']||'');
       if(process.env.CRON_SECRET){
@@ -5632,6 +5870,28 @@ module.exports = async (req, res) => {
       }
       await init();
       return sendJson(res,await sendCourseReminders());
+    }
+    if(path==='/cron/official-account-reminders'&&method==='GET'){
+      const ua=String(req.headers['user-agent']||'');
+      if(process.env.CRON_SECRET){
+        const auth=String(req.headers.authorization||'');
+        if(auth!==`Bearer ${process.env.CRON_SECRET}`)return sendJson(res,{error:'无权限'},403);
+      }else if(!/vercel-cron/i.test(ua)){
+        return sendJson(res,{error:'无权限'},403);
+      }
+      await init();
+      return sendJson(res,await sendOfficialAccountCourseReminders());
+    }
+    if(path==='/cron/official-account-daily-digests'&&method==='GET'){
+      const ua=String(req.headers['user-agent']||'');
+      if(process.env.CRON_SECRET){
+        const auth=String(req.headers.authorization||'');
+        if(auth!==`Bearer ${process.env.CRON_SECRET}`)return sendJson(res,{error:'无权限'},403);
+      }else if(!/vercel-cron/i.test(ua)){
+        return sendJson(res,{error:'无权限'},403);
+      }
+      await init();
+      return sendJson(res,await sendOfficialAccountDailyDigests());
     }
     if(path==='/auth/login'&&method==='POST'){return timedEndpointMetric('auth.login',async()=>{const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await getCachedRow(T_USERS,username);if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});});}
     if(path==='/auth/wechat-login'&&method==='POST'){
@@ -5813,8 +6073,8 @@ module.exports = async (req, res) => {
       try{return sendJson(res,await markMatchFeeSplit(adminFeeSplitM[1],adminFeeSplitM[2],user.id,body));}
       catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
     }
-    if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');const matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions||[]});const phone=assertPhone(body.phone||'');await put(T_USERS,id,{id,name,phone,password:hashed,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,matchPermissions});return sendJson(res,{success:true,id,name,phone,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,matchPermissions});}
-    if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName,status}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);let updates={...u,coachId:coachId||'',status:status||u.status||'active'};if(body.name)updates.name=body.name;if(Object.prototype.hasOwnProperty.call(body,'phone'))updates.phone=assertPhone(body.phone||'');updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');if(Array.isArray(body.matchPermissions)||Array.isArray(body.permissions))updates.matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions});if(body.clearWechat){await unbindWechatUserWithIndex(updates);return sendJson(res,{success:true});}await put(T_USERS,id,updates);return sendJson(res,{success:true});}
+    if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');const matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions||[]});const phone=assertPhone(body.phone||'');const officialAccountOpenId=String(body.officialAccountOpenId||'').trim();await put(T_USERS,id,{id,name,phone,password:hashed,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,officialAccountOpenId,officialAccountBoundAt:officialAccountOpenId?new Date().toISOString():'',matchPermissions});return sendJson(res,{success:true,id,name,phone,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,officialAccountOpenId,matchPermissions});}
+    if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName,status}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);let updates={...u,coachId:coachId||'',status:status||u.status||'active'};if(body.name)updates.name=body.name;if(Object.prototype.hasOwnProperty.call(body,'phone'))updates.phone=assertPhone(body.phone||'');updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');if(Array.isArray(body.matchPermissions)||Array.isArray(body.permissions))updates.matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions});if(Object.prototype.hasOwnProperty.call(body,'officialAccountOpenId')){const officialAccountOpenId=String(body.officialAccountOpenId||'').trim();updates.officialAccountOpenId=officialAccountOpenId;updates.officialAccountBoundAt=officialAccountOpenId?(u.officialAccountOpenId===officialAccountOpenId?(u.officialAccountBoundAt||new Date().toISOString()):new Date().toISOString()):'';}if(body.clearWechat){await unbindWechatUserWithIndex(updates);return sendJson(res,{success:true});}if(body.clearOfficialAccount){updates=buildOfficialAccountUnboundUser(updates);}await put(T_USERS,id,updates);return sendJson(res,{success:true});}
     if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await getCachedScan(T_USERS);return sendJson(res,all.map(buildAdminUserView));}
     if(path==='/admin/clear-test-data'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
@@ -6868,14 +7128,23 @@ module.exports._test={
   buildWechatUnboundUser,
   buildAdminUserView,
   buildWechatAccessTokenUrl,
+  buildWechatSignature,
+  decryptWechatOfficialAccountMessage,
+  resolveOfficialAccountCallbackEcho,
   extractWechatAccessToken,
   fetchWechatPhoneNumber,
+  buildOfficialAccountBoundUser,
+  buildOfficialAccountUnboundUser,
   findWechatScheduleRecipient,
   findWechatUserByOpenId,
+  findOfficialAccountScheduleRecipient,
   buildScheduleSubscribeMessage,
   buildScheduleNotificationUpdate,
   collectCourseReminderCandidates,
   buildCourseReminderSubscribeMessage,
+  collectCoachDailyDigestCandidates,
+  buildCoachDailyDigestMessage,
+  resolveOfficialAccountSendMode,
   normalizeVenue,
   rangesOverlap,
   computeCourtFinance,

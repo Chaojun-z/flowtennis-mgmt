@@ -1,4 +1,5 @@
 const assert = require('assert');
+const crypto = require('crypto');
 const api = require('../api/index.js');
 
 const rules = api._test;
@@ -12,6 +13,15 @@ assert.ok(rules.findWechatScheduleRecipient, 'api._test should expose schedule r
 assert.ok(rules.buildScheduleSubscribeMessage, 'api._test should expose schedule subscribe message builder');
 assert.ok(rules.collectCourseReminderCandidates, 'api._test should expose course reminder candidate helper');
 assert.ok(rules.buildCourseReminderSubscribeMessage, 'api._test should expose course reminder message helper');
+assert.ok(rules.buildOfficialAccountBoundUser, 'api._test should expose official account bind helper');
+assert.ok(rules.buildOfficialAccountUnboundUser, 'api._test should expose official account unbind helper');
+assert.ok(rules.findOfficialAccountScheduleRecipient, 'api._test should expose official account recipient finder');
+assert.ok(rules.collectCoachDailyDigestCandidates, 'api._test should expose coach daily digest collector');
+assert.ok(rules.buildCoachDailyDigestMessage, 'api._test should expose coach daily digest message builder');
+assert.ok(rules.resolveOfficialAccountSendMode, 'api._test should expose official account send mode helper');
+assert.ok(rules.buildWechatSignature, 'api._test should expose wechat signature helper');
+assert.ok(rules.decryptWechatOfficialAccountMessage, 'api._test should expose official account decrypt helper');
+assert.ok(rules.resolveOfficialAccountCallbackEcho, 'api._test should expose official account callback echo helper');
 assert.ok(rules.assertCanWriteSchedule, 'api._test should expose schedule write permission guard');
 assert.ok(rules.buildWorkbenchStats, 'api._test should expose standard workbench stats helper');
 assert.ok(rules.resolveWorkbenchState, 'api._test should expose standard workbench state helper');
@@ -488,6 +498,50 @@ assert.deepStrictEqual(
   'skipped schedule notification should still leave a failure reason for traceability'
 );
 
+assert.deepStrictEqual(
+  rules.buildOfficialAccountBoundUser(
+    { id: 'coach_1', name: '朝珺', role: 'editor' },
+    'oa-openid-1',
+    '2026-05-15T09:00:00.000Z'
+  ),
+  {
+    id: 'coach_1',
+    name: '朝珺',
+    role: 'editor',
+    officialAccountOpenId: 'oa-openid-1',
+    officialAccountBoundAt: '2026-05-15T09:00:00.000Z'
+  },
+  'official account bind helper should attach service account openid'
+);
+
+assert.deepStrictEqual(
+  rules.buildOfficialAccountUnboundUser({
+    id: 'coach_1',
+    name: '朝珺',
+    officialAccountOpenId: 'oa-openid-1',
+    officialAccountBoundAt: '2026-05-15T09:00:00.000Z'
+  }),
+  {
+    id: 'coach_1',
+    name: '朝珺',
+    officialAccountOpenId: '',
+    officialAccountBoundAt: ''
+  },
+  'official account unbind helper should clear service account fields'
+);
+
+assert.deepStrictEqual(
+  rules.findOfficialAccountScheduleRecipient(
+    { coachId: 'coach-chaojun', coach: '朝珺' },
+    [
+      { id: 'coach_1', role: 'editor', coachId: 'coach-chaojun', coachName: '朝珺', officialAccountOpenId: 'oa-openid-1' },
+      { id: 'coach_2', role: 'editor', coachId: 'coach-other', coachName: '其他教练', officialAccountOpenId: 'oa-openid-2' }
+    ]
+  ),
+  { id: 'coach_1', role: 'editor', coachId: 'coach-chaojun', coachName: '朝珺', officialAccountOpenId: 'oa-openid-1' },
+  'official account recipient finder should match the bound coach'
+);
+
 const reminderRows = [
   { id: 'prev-cross', coach: '朝珺', startTime: '2026-04-20 09:00', endTime: '2026-04-20 10:00', campus: 'mabao', venue: '1号场', status: '已排课' },
   { id: 'due-cross', coach: '朝珺', startTime: '2026-04-20 11:00', endTime: '2026-04-20 12:00', campus: 'shunyi', venue: '2号场', courseType: '私教课', studentName: '小鹿', status: '已排课' },
@@ -522,6 +576,109 @@ assert.deepStrictEqual(
   },
   'course reminder message should use the selected class reminder template fields'
 );
+
+const digestCandidates = rules.collectCoachDailyDigestCandidates(
+  [
+    { id: 'dig-1', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-16 09:00', endTime: '2026-05-16 10:00', campus: 'mabao', venue: '1号场', courseType: '私教课', studentName: '小鹿', status: '已排课' },
+    { id: 'dig-2', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-16 14:00', endTime: '2026-05-16 15:00', campus: 'mabao', venue: '2号场', courseType: '双人课', studentName: 'Misha', status: '已排课' },
+    { id: 'dig-3', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-16 18:00', endTime: '2026-05-16 19:00', campus: 'mabao', venue: '3号场', courseType: '私教课', studentName: '已发', status: '已排课', coachDailyDigestSentDate: '2026-05-16' },
+    { id: 'dig-4', coachId: 'coach-other', coach: '其他教练', startTime: '2026-05-16 10:00', endTime: '2026-05-16 11:00', campus: 'guowang', venue: '1号场', courseType: '私教课', studentName: '学员B', status: '已排课' },
+    { id: 'dig-5', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-17 09:00', endTime: '2026-05-17 10:00', campus: 'mabao', venue: '1号场', courseType: '私教课', studentName: '后天', status: '已排课' },
+    { id: 'dig-6', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-16 11:00', endTime: '2026-05-16 12:00', campus: 'mabao', venue: '4号场', courseType: '私教课', studentName: '取消课', status: '已取消' }
+  ],
+  new Date('2026-05-15T21:00:00+08:00')
+);
+
+assert.deepStrictEqual(
+  digestCandidates.map(item => [item.coachId, item.digestDate, item.lessonCount, item.scheduleIds.join(',')]),
+  [
+    ['coach-chaojun', '2026-05-16', 2, 'dig-1,dig-2'],
+    ['coach-other', '2026-05-16', 1, 'dig-4']
+  ],
+  'coach daily digest collector should group tomorrow active unsent schedules by coach'
+);
+
+assert.deepStrictEqual(
+  rules.buildCoachDailyDigestMessage({
+    coachName: '朝珺',
+    digestDate: '2026-05-16',
+    schedules: digestCandidates[0].schedules
+  }),
+  {
+    title: '朝珺教练次日课表',
+    summary: '2026-05-16 共 2 节课',
+    lines: [
+      '09:00-10:00 私教课｜小鹿｜mabao 1号场',
+      '14:00-15:00 双人课｜Misha｜mabao 2号场'
+    ]
+  },
+  'coach daily digest message should build a concise next-day schedule summary'
+);
+
+assert.strictEqual(
+  rules.resolveOfficialAccountSendMode({
+    appId: 'wx-appid',
+    secret: '',
+    templateId: '',
+    forceMock: false
+  }),
+  'mock',
+  'official account send mode should fall back to mock when credentials are missing'
+);
+
+assert.strictEqual(
+  rules.resolveOfficialAccountSendMode({
+    appId: 'wx-appid',
+    secret: 'secret',
+    templateId: 'tpl',
+    forceMock: false
+  }),
+  'live',
+  'official account send mode should use live mode when credentials are complete'
+);
+
+{
+  const encodingAesKey='abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG';
+  const appId='wx4c76dc29b1d48df3';
+  const token='flowtennisoa2026';
+  const timestamp='1715763600';
+  const nonce='123456';
+  const echo='flowtennis-echo-ok';
+  const aesKey=Buffer.from(`${encodingAesKey}=`, 'base64');
+  const iv=aesKey.subarray(0,16);
+  const random16=Buffer.alloc(16, 1);
+  const msgBuf=Buffer.from(echo);
+  const lenBuf=Buffer.alloc(4);
+  lenBuf.writeUInt32BE(msgBuf.length,0);
+  const appIdBuf=Buffer.from(appId);
+  let plain=Buffer.concat([random16,lenBuf,msgBuf,appIdBuf]);
+  const pad=32-(plain.length%32||32);
+  plain=Buffer.concat([plain,Buffer.alloc(pad,pad)]);
+  const cipher=crypto.createCipheriv('aes-256-cbc',aesKey,iv);
+  cipher.setAutoPadding(false);
+  const encrypted=Buffer.concat([cipher.update(plain),cipher.final()]).toString('base64');
+  const signature=rules.buildWechatSignature(token,timestamp,nonce,encrypted);
+
+  assert.deepStrictEqual(
+    rules.decryptWechatOfficialAccountMessage(encrypted,encodingAesKey,appId),
+    { message: echo, appId },
+    'official account decrypt helper should decode the callback echo payload'
+  );
+
+  assert.strictEqual(
+    rules.resolveOfficialAccountCallbackEcho({
+      token,
+      timestamp,
+      nonce,
+      signature,
+      encryptedEcho: encrypted,
+      encodingAesKey,
+      appId
+    }),
+    echo,
+    'official account callback helper should validate signature and return the plain echo'
+  );
+}
 
 assert.deepStrictEqual(
   rules.scheduleLessonDelta({ classId: 'class-a', lessonCount: 1, status: '已排课' }),
