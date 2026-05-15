@@ -51,6 +51,13 @@ function summarizeText(input) {
   const lower = text.toLowerCase();
 
   if (!text) return '';
+  if (/runtime files/.test(lower) && /feishu/.test(lower) && /github actions/.test(lower)) return '补齐飞书自动推送运行配置';
+  if (/feishu/.test(lower) && /schedule/.test(lower) && /timezone/.test(lower)) return '修正飞书自动推送时间配置';
+  if (/campuses/.test(lower) && /bypass/.test(lower) && /auth fallback/.test(lower)) return '优化校区访问与约球后台鉴权稳定性';
+  if (/anonymous/.test(lower) && /campuses/.test(lower) && /reads/.test(lower)) return '优化未登录场景下的校区读取稳定性';
+  if (/public health/.test(lower) && /campuses/.test(lower)) return '优化公开访问场景下的健康检查与校区读取稳定性';
+  if (/scan timeout/.test(lower) && /campuses/.test(lower)) return '补强校区接口超时后的兜底稳定性';
+  if (/hard fallback/.test(lower) && /campuses/.test(lower)) return '补强校区接口异常时的兜底稳定性';
   if (/allow mini match login in preview/.test(lower)) return '约球小程序预览环境支持登录';
   if (/guard login/.test(lower) && /missing/.test(lower)) return '登录链路补上兜底保护，减少无法进入系统的情况';
   if (/campus/.test(lower) && /filter/.test(lower)) return '新增按校区筛选功能';
@@ -59,10 +66,24 @@ function summarizeText(input) {
   if (/preview/.test(lower) && /login/.test(lower)) return '预览环境登录能力已修复';
 
   text = text
+    .replace(/\bfeishu github actions\b/ig, '飞书自动推送')
+    .replace(/\bgithub actions\b/ig, '自动推送')
+    .replace(/\bruntime files?\b/ig, '运行配置')
+    .replace(/\bruntime\b/ig, '运行配置')
+    .replace(/\bschedule and timezone\b/ig, '时间配置')
+    .replace(/\btimezone\b/ig, '时间配置')
+    .replace(/\bautomation\b/ig, '自动推送')
+    .replace(/\banonymous\b/ig, '未登录')
+    .replace(/\breads?\b/ig, '读取')
+    .replace(/\bauth fallback\b/ig, '鉴权稳定性')
+    .replace(/\bfallback\b/ig, '兜底稳定性')
+    .replace(/\bbypass\b/ig, '优化')
+    .replace(/\binit\b/ig, '初始化')
     .replace(/\bft_users\b/ig, '账号表')
     .replace(/\bmini match\b/ig, '约球')
     .replace(/\bmatch\b/ig, '约球')
     .replace(/\bmembership\b/ig, '会员')
+    .replace(/\bcampuses\b/ig, '校区')
     .replace(/\bcampus\b/ig, '校区')
     .replace(/\bfilter\b/ig, '筛选')
     .replace(/\blogin\b/ig, '登录')
@@ -79,14 +100,29 @@ function summarizeText(input) {
     .replace(/\badd\b/ig, '新增')
     .replace(/\ballow\b/ig, '支持')
     .replace(/\bswitch\b/ig, '切换')
+    .replace(/\bpublic\b/ig, '公开')
+    .replace(/\bhealth\b/ig, '健康检查')
+    .replace(/\bscan timeout\b/ig, '接口超时')
+    .replace(/\bhard\b/ig, '增强')
     .replace(/\bto\b/ig, '')
     .replace(/\bby\b/ig, '')
+    .replace(/\bfor\b/ig, '')
+    .replace(/\bon\b/ig, '')
     .replace(/\s+/g, ' ')
     .trim();
 
   if (!/[。！？]$/.test(text)) {
     text = text.replace(/^(修复|新增|支持|切换)\s+/u, '$1');
   }
+
+  text = text
+    .replace(/^新增运行配置$/u, '补齐运行配置')
+    .replace(/^修复自动推送 时间配置$/u, '修正自动推送时间配置')
+    .replace(/^优化 初始化 未登录 校区 读取$/u, '优化未登录场景下的校区读取稳定性')
+    .replace(/^支持校区 优化 约球 admin 鉴权稳定性$/u, '优化校区访问与约球后台鉴权稳定性')
+    .replace(/\badmin\b/ig, '后台')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   return text;
 }

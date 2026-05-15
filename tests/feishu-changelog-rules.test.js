@@ -81,4 +81,39 @@ const silent = changelog.buildBusinessEntries(
 
 assert.strictEqual(silent.length, 0, '只有技术噪音时应静默不发');
 
+assert.strictEqual(
+  changelog.summarizeText('add runtime files for feishu github actions'),
+  '补齐飞书自动推送运行配置',
+  'runtime 相关英文应转成中文人话'
+);
+
+assert.strictEqual(
+  changelog.summarizeText('fix feishu automation schedule and timezone'),
+  '修正飞书自动推送时间配置',
+  'schedule 和 timezone 应转成普通用户看得懂的中文'
+);
+
+assert.strictEqual(
+  changelog.summarizeText('support campuses bypass match admin auth fallback'),
+  '优化校区访问与约球后台鉴权稳定性',
+  'bypass 和 auth fallback 不应直接出现在最终摘要里'
+);
+
+assert.strictEqual(
+  changelog.summarizeText('bypass init for anonymous campuses reads'),
+  '优化未登录场景下的校区读取稳定性',
+  'init 和 anonymous reads 应转成业务可读描述'
+);
+
+assert.doesNotMatch(
+  [
+    changelog.summarizeText('add runtime files for feishu github actions'),
+    changelog.summarizeText('fix feishu automation schedule and timezone'),
+    changelog.summarizeText('support campuses bypass match admin auth fallback'),
+    changelog.summarizeText('bypass init for anonymous campuses reads')
+  ].join('\n'),
+  /runtime|fallback|bypass|auth|timezone|anonymous|init/i,
+  '最终摘要不应直接带出技术底层英文术语'
+);
+
 console.log('feishu changelog rules tests passed');
