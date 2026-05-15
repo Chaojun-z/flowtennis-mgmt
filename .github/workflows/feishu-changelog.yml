@@ -2,7 +2,7 @@ name: Feishu Changelog
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '10 12 * * *'
   workflow_dispatch:
 
 permissions:
