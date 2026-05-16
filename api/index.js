@@ -253,13 +253,19 @@ function invalidateHotGetCache(t,id){
   hotGetCache.delete(hotGetCacheKey(t,id));
 }
 async function getCachedScan(t,options){
+  const shouldDebugCourts=t===T_COURTS;
+  if(shouldDebugCourts)console.log(`[courts-p0] storage getCachedScan start columns=${normalizeScanOptions(options)?.columns?.join(',')||'ALL'}`);
   const cfg=HOT_SCAN_TABLES.get(t);
   if(!cfg)return scan(t,options);
   const now=Date.now();
   const key=hotScanCacheKey(t,options);
   const cached=hotScanCache.get(key);
-  if(cached&&cached.expiresAt>now)return cloneCacheValue(cached.rows);
+  if(cached&&cached.expiresAt>now){
+    if(shouldDebugCourts)console.log(`[courts-p0] storage getCachedScan hot-cache-hit rows=${Array.isArray(cached.rows)?cached.rows.length:0}`);
+    return cloneCacheValue(cached.rows);
+  }
   const rows=await scan(t,options);
+  if(shouldDebugCourts)console.log(`[courts-p0] storage getCachedScan scan-finished rows=${Array.isArray(rows)?rows.length:0}`);
   hotScanCache.set(key,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
   return rows;
 }
@@ -287,7 +293,7 @@ function normalizeRangePrimaryKey(primaryKey){
     return item;
   });
 }
-function scan(t,options){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];const normalized=normalizeScanOptions(options);function f(sk){const params={tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:normalizeRangePrimaryKey(sk)||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500};if(normalized?.columns?.length)params.columnsToGet=normalized.columns;gc().getRange(params,(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();}));}
+function scan(t,options){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];const normalized=normalizeScanOptions(options);const shouldDebugCourts=t===T_COURTS;const startedAt=Date.now();function f(sk){const params={tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:normalizeRangePrimaryKey(sk)||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500};if(normalized?.columns?.length)params.columnsToGet=normalized.columns;if(shouldDebugCourts)console.log(`[courts-p0] storage scan getRange start pageRows=${rows.length} columns=${normalized?.columns?.join(',')||'ALL'}`);gc().getRange(params,(e,d)=>{if(e){if(shouldDebugCourts)console.error(`[courts-p0] storage scan getRange fail ${Date.now()-startedAt}ms ${String(e?.stack||e?.message||e)}`);return rej(e);}if(shouldDebugCourts)console.log(`[courts-p0] storage scan getRange ok batch=${(d.rows||[]).length} next=${Boolean(d.nextStartPrimaryKey)} elapsed=${Date.now()-startedAt}ms`);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();}));}
 async function getCachedRowsByIds(t,ids=[]){
   const normalizedIds=[...new Set((ids||[]).map(item=>String(item||'').trim()).filter(Boolean))];
   if(!normalizedIds.length)return [];
@@ -315,6 +321,53 @@ function mkTable(t){return new Promise(res=>{gc().createTable({tableMeta:{tableN
 async function timed(label,fn){const startedAt=Date.now();try{return await fn();}finally{console.log(`[api-timing] ${label} ${Date.now()-startedAt}ms`);}}
 function withTimeout(promise,ms,fallback){
   return Promise.race([promise,new Promise((res)=>setTimeout(()=>res(fallback),ms))]);
+}
+async function timedDebugStep(route,step,fn){
+  const startedAt=Date.now();
+  console.log(`[courts-p0] ${route} ${step} start`);
+  try{
+    const result=await fn();
+    console.log(`[courts-p0] ${route} ${step} ok ${Date.now()-startedAt}ms`);
+    return result;
+  }catch(err){
+    console.error(`[courts-p0] ${route} ${step} fail ${Date.now()-startedAt}ms ${String(err?.stack||err?.message||err)}`);
+    throw err;
+  }
+}
+function getHotScanStaleRows(t,options){
+  const key=hotScanCacheKey(t,options);
+  const cached=hotScanCache.get(key);
+  if(!cached)return null;
+  return cloneCacheValue(cached.rows);
+}
+async function loadCourtsProjectionForPage(route,{timeoutMs=2500}={}){
+  const options={columns:COURT_ACCOUNT_LIST_PROJECTION_FIELDS};
+  const staleRows=getHotScanStaleRows(T_COURTS,options);
+  const degradedFallback={__degraded:true,rows:Array.isArray(staleRows)?staleRows:[],reason:Array.isArray(staleRows)&&staleRows.length?'stale-cache-timeout':'empty-timeout'};
+  const result=await withTimeout(
+    timedDebugStep(route,'ft_courts projection getCachedScan',()=>getCachedScan(T_COURTS,options).catch(()=>[])),
+    timeoutMs,
+    degradedFallback
+  );
+  if(result&&result.__degraded){
+    console.warn(`[courts-p0] ${route} ft_courts projection timeout ${timeoutMs}ms fallback=${result.reason} rows=${Array.isArray(result.rows)?result.rows.length:0}`);
+    return {rows:result.rows||[],degraded:true,fallback:result.reason};
+  }
+  return {rows:Array.isArray(result)?result:[],degraded:false,fallback:''};
+}
+async function loadCourtRowsByIdsForCompare(route,ids=[],{timeoutMs=2500}={}){
+  const staleRows=(getHotScanStaleRows(T_COURTS)||[]).filter(row=>ids.includes(String(row?.id||'')));
+  const degradedFallback={__degraded:true,rows:staleRows,reason:staleRows.length?'stale-cache-timeout':'empty-timeout'};
+  const result=await withTimeout(
+    timedDebugStep(route,'ft_courts compare full rows by id',()=>getCachedRowsByIds(T_COURTS,ids).catch(()=>[])),
+    timeoutMs,
+    degradedFallback
+  );
+  if(result&&result.__degraded){
+    console.warn(`[courts-p0] ${route} ft_courts compare full rows timeout ${timeoutMs}ms fallback=${result.reason} rows=${Array.isArray(result.rows)?result.rows.length:0}`);
+    return {rows:result.rows||[],degraded:true,fallback:result.reason};
+  }
+  return {rows:Array.isArray(result)?result:[],degraded:false,fallback:''};
 }
 function isTableMissingError(err){return /not.*exist|table.*not.*exist|OTSObjectNotExist/i.test(String(err?.message||err||''));}
 async function putFeedback(id,row){
@@ -5639,16 +5692,26 @@ module.exports = async (req, res) => {
     }
     if(path==='/page-data/courts'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.all([
-        listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS,{columns:COURT_ACCOUNT_LIST_PROJECTION_FIELDS}).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[]),
-        getCachedScan(T_PRICE_PLANS).catch(()=>[])
+      const route='page-data/courts';
+      await timedDebugStep(route,'await init()',()=>init());
+      const [campuses,students,courtProjection,membershipAccounts,coaches,pricePlans]=await Promise.all([
+        timedDebugStep(route,'listCampusesWithDefaults',()=>listCampusesWithDefaults()),
+        timedDebugStep(route,'getCachedScan(ft_students)',()=>getCachedScan(T_STUDENTS).catch(()=>[])),
+        loadCourtsProjectionForPage(route,{timeoutMs:2500}),
+        timedDebugStep(route,'getCachedScan(ft_membership_accounts)',()=>getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])),
+        timedDebugStep(route,'getCachedScan(ft_coaches)',()=>getCachedScan(T_COACHES).catch(()=>[])),
+        timedDebugStep(route,'getCachedScan(ft_price_plans)',()=>getCachedScan(T_PRICE_PLANS).catch(()=>[]))
       ]);
-      return sendJson(res,{campuses,students,courts:(courts||[]).map(projectCourtListRow),membershipAccounts,coaches,pricePlans});
+      return sendJson(res,{
+        campuses,
+        students,
+        courts:(courtProjection.rows||[]).map(projectCourtListRow),
+        membershipAccounts,
+        coaches,
+        pricePlans,
+        degraded:Boolean(courtProjection.degraded),
+        degradedReason:courtProjection.fallback||''
+      });
     }
     const courtPageDataDetailMatch=path.match(/^\/page-data\/courts\/([^/]+)$/);
     if(courtPageDataDetailMatch&&method==='GET'){
@@ -5660,32 +5723,38 @@ module.exports = async (req, res) => {
     }
     if(path==='/page-data/court-account-list-view'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
+      const route='page-data/court-account-list-view';
+      await timedDebugStep(route,'await init()',()=>init());
       const sampleIds=resolveCourtAccountSampleIds({
         sampleIds:String(query.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean),
         sample:query.get('sample')||''
       });
-      const [context,courts]=await Promise.all([
-        loadCourtAccountListContext(),
-        getCachedScan(T_COURTS,{columns:COURT_ACCOUNT_LIST_PROJECTION_FIELDS}).catch(()=>[])
+      const [context,courtProjection]=await Promise.all([
+        timedDebugStep(route,'loadCourtAccountListContext',()=>loadCourtAccountListContext()),
+        loadCourtsProjectionForPage(route,{timeoutMs:2500})
       ]);
-      return sendJson(res,buildCourtAccountListViewPayload({...context,courts,sampleIds,sample:query.get('sample')||'',useLegacy:false}));
+      const payload=buildCourtAccountListViewPayload({...context,courts:courtProjection.rows,sampleIds,sample:query.get('sample')||'',useLegacy:false});
+      payload.meta.degraded=Boolean(courtProjection.degraded);
+      payload.meta.degradedReason=courtProjection.fallback||'';
+      return sendJson(res,payload);
     }
     if(path==='/page-data/court-account-list-view-compare'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
+      const route='page-data/court-account-list-view-compare';
+      await timedDebugStep(route,'await init()',()=>init());
       const sampleIds=resolveCourtAccountSampleIds({
         sampleIds:String(query.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean),
         sample:query.get('sample')||''
       });
-      const [context,projectedCourts]=await Promise.all([
-        loadCourtAccountListContext(),
-        getCachedScan(T_COURTS,{columns:COURT_ACCOUNT_LIST_PROJECTION_FIELDS}).catch(()=>[])
+      const [context,courtProjection]=await Promise.all([
+        timedDebugStep(route,'loadCourtAccountListContext',()=>loadCourtAccountListContext()),
+        loadCourtsProjectionForPage(route,{timeoutMs:2500})
       ]);
-      const view=buildCourtAccountListViewPayload({...context,courts:projectedCourts,sampleIds,sample:query.get('sample')||'',useLegacy:false});
-      const legacyCourts=sampleIds.length
-        ? await getCachedRowsByIds(T_COURTS,sampleIds).catch(()=>[])
-        : await getCachedScan(T_COURTS).catch(()=>[]);
+      const view=buildCourtAccountListViewPayload({...context,courts:courtProjection.rows,sampleIds,sample:query.get('sample')||'',useLegacy:false});
+      const legacyLoad=sampleIds.length
+        ? await loadCourtRowsByIdsForCompare(route,sampleIds,{timeoutMs:2500})
+        : await loadCourtsProjectionForPage(route,{timeoutMs:2500});
+      const legacyCourts=legacyLoad.rows||[];
       const legacy=buildCourtAccountListViewPayload({...context,courts:legacyCourts,sampleIds,sample:query.get('sample')||'',useLegacy:true});
       const rowFields=['displayName','phone','campusName','owner','accountType','membershipTierLabel','membershipStatus','membershipDiscountText','membershipValidUntil','linkedStudentSummary','balance','totalDeposit','totalSpent','totalReceived','lowBalance'];
       const summaryFields=['totalCount','totalBalance','totalDeposit','totalSpent','totalReceived'];
@@ -5708,7 +5777,9 @@ module.exports = async (req, res) => {
           generatedAt:new Date().toISOString(),
           sampleIds,
           sample:query.get('sample')||'',
-          comparedFields:{summary:summaryFields,items:rowFields}
+          comparedFields:{summary:summaryFields,items:rowFields},
+          degraded:Boolean(courtProjection.degraded||legacyLoad.degraded),
+          degradedReason:[courtProjection.fallback,legacyLoad.fallback].filter(Boolean).join(',')
         },
         summaryDiffs,
         items
