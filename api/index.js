@@ -20,6 +20,8 @@ const ENABLE_TABLE_BOOTSTRAP = process.env.ENABLE_TABLE_BOOTSTRAP === 'true';
 const ENABLE_RUNTIME_TABLE_ENSURE = process.env.ENABLE_RUNTIME_TABLE_ENSURE === 'true';
 const ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP = process.env.ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP === 'true';
 const ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP = process.env.ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP === 'true';
+const RUNTIME_STAGE = String(process.env.VERCEL_ENV || process.env.NODE_ENV || '').trim().toLowerCase();
+const IS_PRODUCTION_RUNTIME = RUNTIME_STAGE === 'production';
 const DEFAULT_ADMIN_BOOTSTRAP_PASSWORD = process.env.DEFAULT_ADMIN_BOOTSTRAP_PASSWORD || '';
 const WECHAT_MINIPROGRAM_APPID = process.env.WECHAT_MINIPROGRAM_APPID || 'wx7acb7603ee803923';
 const WECHAT_MINIPROGRAM_SECRET = process.env.WECHAT_MINIPROGRAM_SECRET;
@@ -2651,6 +2653,7 @@ async function getFinancePageSnapshot(){
 }
 function scheduleInitInBackground(){
   if(REQUIRED_ENV_VARS.some((k)=>!process.env[k]))return;
+  if(IS_PRODUCTION_RUNTIME)return;
   if(inited||initPromise)return;
   init().catch(err=>console.error('[api-init] background init failed',err));
 }
@@ -2661,6 +2664,11 @@ async function init(){
     const startedAt=Date.now();
     const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
     if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
+    if(IS_PRODUCTION_RUNTIME){
+      inited=true;
+      console.log(`[api-init] production request-ready without heavy bootstrap ${Date.now()-startedAt}ms`);
+      return;
+    }
     if(ENABLE_RUNTIME_TABLE_ENSURE||ENABLE_TABLE_BOOTSTRAP){
       const stepStartedAt=Date.now();
       for(const t of RUNTIME_ENSURED_TABLES)await mkTable(t);
@@ -5934,7 +5942,6 @@ module.exports = async (req, res) => {
     if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
       await init();
-      await maybeRepairImportedLedgerDuplicates();
       const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,financialLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
         timed('load-all scan courts',()=>getCachedScan(T_COURTS).catch(()=>[])),
         timed('load-all scan students',()=>scan(T_STUDENTS)),

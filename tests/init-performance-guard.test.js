@@ -15,9 +15,11 @@ assert.doesNotMatch(apiSource, /if\(ENABLE_TABLE_BOOTSTRAP\)\{[\s\S]*?\}\s*await
 assert.doesNotMatch(apiSource, /if\(path==='\/auth\/login'&&method==='POST'\)\{await init\(\);/, 'login should not block on init');
 assert.doesNotMatch(apiSource, /\}else\{\s*const stepStartedAt=Date\.now\(\);\s*await ensureDefaultCampuses\(\);/s, 'normal runtime cold start should not write default campuses');
 assert.match(apiSource, /function scheduleInitInBackground\(\)/, 'api should expose a background init scheduler');
+assert.match(apiSource, /if\(IS_PRODUCTION_RUNTIME\)return;/, 'production request path should bypass background init dispatch');
+assert.match(apiSource, /if\(IS_PRODUCTION_RUNTIME\)\{[\s\S]*production request-ready without heavy bootstrap/, 'production init should short-circuit before heavy bootstrap work');
 assert.match(apiSource, /console\.log\(`\[api-init\] ensureDefaultCampuses done \$\{Date\.now\(\)-stepStartedAt\}ms \(total \$\{Date\.now\(\)-startedAt\}ms\)`\);/, 'init should log the ensureDefaultCampuses step duration');
 assert.match(apiSource, /console\.log\(`\[api-init\] bootstrapMabaoFinanceSeed done \$\{Date\.now\(\)-stepStartedAt\}ms \(total \$\{Date\.now\(\)-startedAt\}ms\)`\);/, 'init should log the finance seed step duration');
-assert.match(apiSource, /if\(path==='\/load-all'&&method==='GET'\)\{[\s\S]*await maybeRepairImportedLedgerDuplicates\(\);[\s\S]*timed\('load-all scan entitlement ledger'/s, 'load-all should trigger imported ledger repair before scanning data so hot instances also self-heal');
+assert.doesNotMatch(apiSource, /if\(path==='\/load-all'&&method==='GET'\)\{[\s\S]*await maybeRepairImportedLedgerDuplicates\(\);/s, 'load-all should not trigger imported ledger repair from the request path');
 assert.match(apiSource, /console\.log\(`\[api-init\] prewarmHotScanCache dispatched \$\{Date\.now\(\)-stepStartedAt\}ms \(total \$\{Date\.now\(\)-startedAt\}ms\)`\);/, 'init should log when cache prewarm is dispatched');
 assert.doesNotMatch(stateSource, /load-all/, 'front-end page loading should not fall back to the heavy load-all endpoint');
 assert.match(stateSource, /const PERFORMANCE_PAGE_DATA_GUARD=\{[\s\S]*students:\['entitlements','entitlementLedger','classes','schedule','feedbacks','products','courts'\][\s\S]*workbench:\['workbenchPage'\][\s\S]*\};/, 'page data performance guard should lock the current lazy-loading strategy');
