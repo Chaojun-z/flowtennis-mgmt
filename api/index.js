@@ -6024,7 +6024,7 @@ module.exports = async (req, res) => {
               result.log.push(`First: ${pRows[0].primaryKey[0].value}, Last: ${pRows[pRows.length-1].primaryKey[0].value}`);
             }
             const nextStartPrimaryKey = d.nextStartPrimaryKey;
-            result.log.push(`Next token exists: ${!!nextStartPrimaryKey}`);
+            result.log.push(`Next token exists: ${!!nextStartPrimaryKey}, content: ${JSON.stringify(nextStartPrimaryKey)}`);
             if (pages > 15) {
               result.log.push("ABORTING INFINITE LOOP!");
               return res();
