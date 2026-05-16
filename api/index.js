@@ -348,7 +348,7 @@ function invalidateHotGetCache(t,id){
 function invalidateFinanceSnapshotCache(t){
   if(FINANCE_SNAPSHOT_SOURCE_TABLES.has(t))financeSnapshotCache=null;
 }
-async function getCachedScan(t){
+async function getCachedScan(t,{columns=[]}={}){
   const cfg=HOT_SCAN_TABLES.get(t);
   if(!cfg)return scan(t);
   const now=Date.now();
@@ -357,6 +357,9 @@ async function getCachedScan(t){
   const rows=await scan(t);
   hotScanCache.set(t,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
   return rows;
+}
+function cappedScan(t, limit=500){
+  return isProductionRuntime() ? scanLatestRowsDesc(t,{limit}).catch(()=>[]) : getCachedScan(t).catch(()=>[]);
 }
 async function getCachedRow(t,id){
   const cfg=HOT_GET_TABLES.get(t);
@@ -6096,26 +6099,26 @@ module.exports = async (req, res) => {
     if(path==='/load-all'&&method==='GET'){
       await init();
       const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,financialLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
-        timed('load-all scan courts',()=>getCachedScan(T_COURTS).catch(()=>[])),
-        timed('load-all scan students',()=>scan(T_STUDENTS)),
-        timed('load-all scan products',()=>scan(T_PRODUCTS)),
-        timed('load-all scan packages',()=>scan(T_PACKAGES).catch(()=>[])),
-        timed('load-all scan purchases',()=>scan(T_PURCHASES).catch(()=>[])),
-        timed('load-all scan entitlements',()=>getCachedScan(T_ENTITLEMENTS).catch(()=>[])),
-        timed('load-all scan entitlement ledger',()=>scan(T_ENTITLEMENT_LEDGER).catch(()=>[])),
-        timed('load-all scan financial ledger',()=>scan(T_FINANCIAL_LEDGER).catch(()=>[])),
-        timed('load-all scan membership plans',()=>scan(T_MEMBERSHIP_PLANS).catch(()=>[])),
-        timed('load-all scan membership accounts',()=>scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])),
-        timed('load-all scan membership orders',()=>scan(T_MEMBERSHIP_ORDERS).catch(()=>[])),
-        timed('load-all scan membership benefit ledger',()=>scan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[])),
-        timed('load-all scan membership account events',()=>scan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])),
-        timed('load-all scan price plans',()=>scan(T_PRICE_PLANS).catch(()=>[])),
-        timed('load-all scan plans',()=>scan(T_PLANS)),
-        timed('load-all scan schedule',()=>getCachedScan(T_SCHEDULE).catch(()=>[])),
-        timed('load-all scan coaches',()=>scan(T_COACHES).catch(()=>[])),
-        timed('load-all scan classes',()=>scan(T_CLASSES).catch(()=>[])),
+        timed('load-all scan courts',()=>cappedScan(T_COURTS)),
+        timed('load-all scan students',()=>cappedScan(T_STUDENTS)),
+        timed('load-all scan products',()=>cappedScan(T_PRODUCTS)),
+        timed('load-all scan packages',()=>cappedScan(T_PACKAGES)),
+        timed('load-all scan purchases',()=>cappedScan(T_PURCHASES)),
+        timed('load-all scan entitlements',()=>cappedScan(T_ENTITLEMENTS)),
+        timed('load-all scan entitlement ledger',()=>cappedScan(T_ENTITLEMENT_LEDGER)),
+        timed('load-all scan financial ledger',()=>cappedScan(T_FINANCIAL_LEDGER)),
+        timed('load-all scan membership plans',()=>cappedScan(T_MEMBERSHIP_PLANS)),
+        timed('load-all scan membership accounts',()=>cappedScan(T_MEMBERSHIP_ACCOUNTS)),
+        timed('load-all scan membership orders',()=>cappedScan(T_MEMBERSHIP_ORDERS)),
+        timed('load-all scan membership benefit ledger',()=>cappedScan(T_MEMBERSHIP_BENEFIT_LEDGER)),
+        timed('load-all scan membership account events',()=>cappedScan(T_MEMBERSHIP_ACCOUNT_EVENTS)),
+        timed('load-all scan price plans',()=>cappedScan(T_PRICE_PLANS)),
+        timed('load-all scan plans',()=>cappedScan(T_PLANS)),
+        timed('load-all scan schedule',()=>cappedScan(T_SCHEDULE, PRODUCTION_PAGE_READ_LIMITS.schedule)),
+        timed('load-all scan coaches',()=>cappedScan(T_COACHES)),
+        timed('load-all scan classes',()=>cappedScan(T_CLASSES)),
         timed('load-all scan campuses',()=>listCampusesWithDefaults()),
-        timed('load-all scan feedbacks',()=>withTimeout(scanFeedbacks().catch(()=>[]),1500,[]))
+        timed('load-all scan feedbacks',()=>cappedScan(T_FEEDBACKS))
       ]);
       const normalizedMembershipPlans=(Array.isArray(membershipPlans)?membershipPlans:[]).map(normalizeMembershipPlanViewRecord);
       const membershipPlanMap=new Map(normalizedMembershipPlans.map(p=>[p.id,p]));
