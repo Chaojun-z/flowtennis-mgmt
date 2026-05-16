@@ -6,7 +6,7 @@ const apiSource = fs.readFileSync(path.join(__dirname, '../api/index.js'), 'utf8
 
 assert.match(
   apiSource,
-  /function scanLatestRowsDesc\(/,
+  /function scanFirstRows\(/,
   '生产应急恢复应提供按时间倒序限量读取 helper'
 );
 
@@ -42,25 +42,25 @@ assert.match(
 
 assert.match(
   apiSource,
-  /if\(method==='GET'\)\{if\(user\.role==='admin'\)return sendJson\(res,isProductionRuntime\(\)\?await scanLatestRowsDesc\(T_SCHEDULE,\{limit:PRODUCTION_PAGE_READ_LIMITS\.schedule,columns:SCHEDULE_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_SCHEDULE,\{columns:SCHEDULE_LIST_PROJECTION_FIELDS\}\)\);/,
+  /if\(method==='GET'\)\{if\(user\.role==='admin'\)return sendJson\(res,isProductionRuntime\(\)\?await scanFirstRows\(T_SCHEDULE,\{limit:PRODUCTION_PAGE_READ_LIMITS\.schedule,columns:SCHEDULE_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_SCHEDULE,\{columns:SCHEDULE_LIST_PROJECTION_FIELDS\}\)\);/,
   '管理员排课表首屏应在 production 改成限量轻投影读取'
 );
 
 assert.match(
   apiSource,
-  /const all=isProductionRuntime\(\)\?await scanLatestRowsDesc\(T_USERS,\{limit:PRODUCTION_PAGE_READ_LIMITS\.adminUsers,columns:ADMIN_USER_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_USERS,\{columns:ADMIN_USER_LIST_PROJECTION_FIELDS\}\);return sendJson\(res,all\.map\(buildAdminUserView\)\);/,
+  /const all=isProductionRuntime\(\)\?await scanFirstRows\(T_USERS,\{limit:PRODUCTION_PAGE_READ_LIMITS\.adminUsers,columns:ADMIN_USER_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_USERS,\{columns:ADMIN_USER_LIST_PROJECTION_FIELDS\}\);return sendJson\(res,all\.map\(buildAdminUserView\)\);/,
   '账号管理首屏应在 production 改成限量轻投影读取'
 );
 
 assert.match(
   apiSource,
-  /const rows=isProductionRuntime\(\)\?await scanLatestRowsDesc\(T_LEAD_FOLLOWUPS,\{limit:PRODUCTION_PAGE_READ_LIMITS\.leadFollowups,columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_LEAD_FOLLOWUPS,\{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\);/,
+  /const rows=isProductionRuntime\(\)\?await scanFirstRows\(T_LEAD_FOLLOWUPS,\{limit:PRODUCTION_PAGE_READ_LIMITS\.leadFollowups,columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_LEAD_FOLLOWUPS,\{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\);/,
   '线索跟进列表应在 production 改成限量轻投影读取'
 );
 
 assert.match(
   apiSource,
-  /const rows=isProductionRuntime\(\)\?await scanLatestRowsDesc\(T_LEADS,\{limit:PRODUCTION_PAGE_READ_LIMITS\.leads,columns:LEAD_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_LEADS,\{columns:LEAD_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\);/,
+  /const rows=isProductionRuntime\(\)\?await scanFirstRows\(T_LEADS,\{limit:PRODUCTION_PAGE_READ_LIMITS\.leads,columns:LEAD_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\):await getCachedScan\(T_LEADS,\{columns:LEAD_LIST_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\);/,
   '线索池列表应在 production 改成限量轻投影读取'
 );
 
