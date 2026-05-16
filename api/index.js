@@ -215,6 +215,12 @@ const HOT_GET_TABLES=new Map([
   [T_LEADS,{ttlMs:60000}],
   [T_LEAD_IMPORT_BATCHES,{ttlMs:60000}]
 ]);
+const PRODUCTION_PAGE_READ_LIMITS={
+  leads:300,
+  leadFollowups:1000,
+  schedule:800,
+  adminUsers:200
+};
 const hotScanCache=new Map();
 const hotGetCache=new Map();
 let financeSnapshotCache=null;
@@ -301,6 +307,35 @@ async function withStorageRetry(fn,maxAttempts=2){
   throw lastErr;
 }
 function cloneCacheValue(value){return JSON.parse(JSON.stringify(value));}
+function normalizeScanColumns(columns=[]){
+  return [...new Set((columns||[]).map(item=>String(item||'').trim()).filter(Boolean))];
+}
+function scanLatestRowsDesc(t,{limit=200,columns=[]}={}){
+  const normalizedLimit=Math.max(1,Math.min(parseInt(limit,10)||200,2000));
+  const normalizedColumns=normalizeScanColumns(columns);
+  return withStorageRetry(()=>runStorageOperation('getRangeLatest',{table:t,limit:normalizedLimit},(res,rej)=>{
+    gc().getRange({
+      tableName:t,
+      direction:TableStore.Direction.BACKWARD,
+      inclusiveStartPrimaryKey:[{id:TableStore.INF_MAX}],
+      exclusiveEndPrimaryKey:[{id:TableStore.INF_MIN}],
+      maxVersions:1,
+      limit:normalizedLimit,
+      ...(normalizedColumns.length?{columnsToGet:normalizedColumns}:{})
+    },(e,d)=>{
+      if(e)return rej(e);
+      const rows=(d.rows||[]).map(r=>{
+        if(!r.primaryKey)return null;
+        const obj={id:r.primaryKey[0].value};
+        (r.attributes||[]).forEach(a=>{
+          try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}
+        });
+        return obj;
+      }).filter(Boolean);
+      res(rows);
+    });
+  }));
+}
 function invalidateHotScanCache(t){hotScanCache.delete(t);}
 function hotGetCacheKey(t,id){return `${t}:${String(id)}`;}
 function invalidateHotGetCache(t,id){
@@ -2765,6 +2800,9 @@ async function getFinancePageSnapshot(){
   const snapshot=buildFinancePageSnapshot({campuses,students,purchases,entitlements,entitlementLedger,courts,membershipOrders,schedule});
   financeSnapshotCache=cloneCacheValue(snapshot);
   return snapshot;
+}
+function isProductionRuntime(){
+  return BOOTSTRAP_SAFETY_FLAGS.runtimeStage==='production';
 }
 function scheduleInitInBackground(){
   if(REQUIRED_ENV_VARS.some((k)=>!process.env[k]))return;
@@ -6016,7 +6054,7 @@ module.exports = async (req, res) => {
     }
     if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');const matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions||[]});const phone=assertPhone(body.phone||'');const officialAccountOpenId=String(body.officialAccountOpenId||'').trim();await put(T_USERS,id,{id,name,phone,password:hashed,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,officialAccountOpenId,officialAccountBoundAt:officialAccountOpenId?new Date().toISOString():'',matchPermissions});return sendJson(res,{success:true,id,name,phone,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,officialAccountOpenId,matchPermissions});}
     if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName,status}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);let updates={...u,coachId:coachId||'',status:status||u.status||'active'};if(body.name)updates.name=body.name;if(Object.prototype.hasOwnProperty.call(body,'phone'))updates.phone=assertPhone(body.phone||'');updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');if(Array.isArray(body.matchPermissions)||Array.isArray(body.permissions))updates.matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions});if(Object.prototype.hasOwnProperty.call(body,'officialAccountOpenId')){const officialAccountOpenId=String(body.officialAccountOpenId||'').trim();updates.officialAccountOpenId=officialAccountOpenId;updates.officialAccountBoundAt=officialAccountOpenId?(u.officialAccountOpenId===officialAccountOpenId?(u.officialAccountBoundAt||new Date().toISOString()):new Date().toISOString()):'';}if(body.clearWechat){await unbindWechatUserWithIndex(updates);return sendJson(res,{success:true});}if(body.clearOfficialAccount){updates=buildOfficialAccountUnboundUser(updates);}await put(T_USERS,id,updates);return sendJson(res,{success:true});}
-    if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await getCachedScan(T_USERS,{columns:ADMIN_USER_LIST_PROJECTION_FIELDS});return sendJson(res,all.map(buildAdminUserView));}
+    if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=isProductionRuntime()?await scanLatestRowsDesc(T_USERS,{limit:PRODUCTION_PAGE_READ_LIMITS.adminUsers,columns:ADMIN_USER_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_USERS,{columns:ADMIN_USER_LIST_PROJECTION_FIELDS});return sendJson(res,all.map(buildAdminUserView));}
     if(path==='/admin/clear-test-data'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       if(body.confirm!=='CLEAR_TEST_DATA')return sendJson(res,{error:'缺少清空确认'},400);
@@ -6483,7 +6521,7 @@ module.exports = async (req, res) => {
     }
     if(path==='/schedule'){
       await init();
-      if(method==='GET'){if(user.role==='admin')return sendJson(res,await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS}));const indexedRows=await getCoachIndexedScheduleForUser(user);if(indexedRows)return sendJson(res,indexedRows);const rows=await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS});return sendJson(res,filterLoadAllForUser({schedule:rows},user).schedule);}
+      if(method==='GET'){if(user.role==='admin')return sendJson(res,isProductionRuntime()?await scanLatestRowsDesc(T_SCHEDULE,{limit:PRODUCTION_PAGE_READ_LIMITS.schedule,columns:SCHEDULE_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS}));const indexedRows=await getCoachIndexedScheduleForUser(user);if(indexedRows)return sendJson(res,indexedRows);const rows=isProductionRuntime()?await scanLatestRowsDesc(T_SCHEDULE,{limit:PRODUCTION_PAGE_READ_LIMITS.schedule,columns:SCHEDULE_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS});return sendJson(res,filterLoadAllForUser({schedule:rows},user).schedule);}
       if(method==='POST'){
         return timedEndpointMetric('schedule.save',async()=>{
           try{assertCanWriteSchedule(user);}catch(e){return sendJson(res,{error:e.message},403);}
@@ -6689,8 +6727,8 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const campuses=await listCampusesWithDefaults();
-      const snapshot=await getFinancePageSnapshot();
       const verifiedFinance=loadVerifiedFinanceArtifacts(campuses);
+      const snapshot=verifiedFinance?null:await getFinancePageSnapshot();
       return sendJson(res,{
         campuses,
         financeOverviewData:verifiedFinance?.overviewData||snapshot.financeOverviewData||null,
@@ -6778,7 +6816,7 @@ module.exports = async (req, res) => {
       await init();
       await ensureLeadTables();
       const leadId=cleanLeadText(query.get('leadId'));
-      const rows=await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]);
+      const rows=isProductionRuntime()?await scanLatestRowsDesc(T_LEAD_FOLLOWUPS,{limit:PRODUCTION_PAGE_READ_LIMITS.leadFollowups,columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]);
       return sendJson(res,leadId?rows.filter(row=>String(row.leadId||'')===leadId):rows);
     }
     if(path==='/leads'){
@@ -6786,7 +6824,7 @@ module.exports = async (req, res) => {
       await init();
       await ensureLeadTables();
       if(method==='GET'){
-        const rows=await getCachedScan(T_LEADS,{columns:LEAD_LIST_PROJECTION_FIELDS}).catch(()=>[]);
+        const rows=isProductionRuntime()?await scanLatestRowsDesc(T_LEADS,{limit:PRODUCTION_PAGE_READ_LIMITS.leads,columns:LEAD_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_LEADS,{columns:LEAD_LIST_PROJECTION_FIELDS}).catch(()=>[]);
         const q=cleanLeadText(query.get('q')).toLowerCase();
         const source=cleanLeadText(query.get('source'));
         const consultType=cleanLeadText(query.get('consultType'));
@@ -6842,7 +6880,7 @@ module.exports = async (req, res) => {
       const lead=await get(T_LEADS,leadId).catch(()=>null);
       if(!lead)return sendJson(res,{error:'线索不存在'},404);
       if(method==='GET'){
-        const rows=(await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]))
+        const rows=((isProductionRuntime()?await scanLatestRowsDesc(T_LEAD_FOLLOWUPS,{limit:PRODUCTION_PAGE_READ_LIMITS.leadFollowups,columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[])))
           .filter(row=>String(row.leadId||'')===String(leadId))
           .sort((a,b)=>String(b.followupAt||b.createdAt||'').localeCompare(String(a.followupAt||a.createdAt||'')));
         return sendJson(res,rows);
