@@ -5897,8 +5897,29 @@ module.exports = async (req, res) => {
           });
         }catch(syncErr){clearTimeout(timer);rej(syncErr);}
       });
-      result.tests.push({table:T_CAMPUSES,status:'ok',rows,ms:Date.now()-startedAt});
+    result.tests.push({table:T_CAMPUSES,status:'ok',rows,ms:Date.now()-startedAt});
     }catch(e){result.tests.push({table:T_CAMPUSES,status:'error',error:String(e?.message||e),code:e?.code,ms:Date.now()-startedAt});}
+    // Test 2: ft_students single page
+    const t2Start=Date.now();
+    try{
+      const rows2=await new Promise((res,rej)=>{
+        const timer=setTimeout(()=>rej(new Error('ft_students getRange timeout after 8s')),8000);
+        try{
+          gc().getRange({tableName:T_STUDENTS,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:10},(e,d)=>{
+            clearTimeout(timer);
+            if(e)return rej(e);
+            const lastRow=(d.rows||[]).length?(d.rows||[])[(d.rows||[]).length-1]:null;
+            res({count:(d.rows||[]).length,hasNext:!!(lastRow&&lastRow.primaryKey&&lastRow.primaryKey[0])});
+          });
+        }catch(syncErr){clearTimeout(timer);rej(syncErr);}
+      });
+      result.tests.push({table:T_STUDENTS,status:'ok',rows:rows2,ms:Date.now()-t2Start});
+    }catch(e){result.tests.push({table:T_STUDENTS,status:'error',error:String(e?.message||e),code:e?.code,ms:Date.now()-t2Start});}
+    // Test 3: INF constants check
+    result.INF_MIN_type=typeof TableStore.INF_MIN;
+    result.INF_MAX_type=typeof TableStore.INF_MAX;
+    result.INF_MIN_val=JSON.stringify(TableStore.INF_MIN);
+    result.INF_MAX_val=JSON.stringify(TableStore.INF_MAX);
     return sendJson(res,result);
   }
   if(path==='/campuses'&&method==='GET'){
