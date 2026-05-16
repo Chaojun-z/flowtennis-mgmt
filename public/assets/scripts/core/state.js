@@ -125,7 +125,7 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   myclasses:['students','classes']
 };
 const PERFORMANCE_PAGE_DATA_GUARD={
-  students:['entitlements','entitlementLedger','classes','schedule','feedbacks','courts'],
+  students:['entitlements','entitlementLedger','classes','schedule','feedbacks','products','courts'],
   workbench:['workbenchPage']
 };
 function assertPageDataPerformanceGuard(){
