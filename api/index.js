@@ -6000,6 +6000,48 @@ module.exports = async (req, res) => {
     }
     return sendJson(res,result);
   }
+  if(path==='/diag2'&&method==='GET'){
+    const result = { log: [] };
+    const tStart = Date.now();
+    try {
+      await new Promise((res, rej) => {
+        let pages = 0;
+        function f(sk) {
+          result.log.push(`Page ${pages+1} starting, sk: ` + !!sk);
+          gc().getRange({
+            tableName: T_STUDENTS,
+            direction: TableStore.Direction.FORWARD,
+            inclusiveStartPrimaryKey: sk || [{ id: TableStore.INF_MIN }],
+            exclusiveEndPrimaryKey: [{ id: TableStore.INF_MAX }],
+            maxVersions: 1,
+            limit: 20
+          }, (e, d) => {
+            if (e) return rej(e);
+            pages++;
+            const pRows = (d.rows || []);
+            result.log.push(`Page ${pages} fetched ${pRows.length} rows.`);
+            if (pRows.length > 0) {
+              result.log.push(`First: ${pRows[0].primaryKey[0].value}, Last: ${pRows[pRows.length-1].primaryKey[0].value}`);
+            }
+            const nextStartPrimaryKey = d.nextStartPrimaryKey;
+            result.log.push(`Next token exists: ${!!nextStartPrimaryKey}`);
+            if (pages > 15) {
+              result.log.push("ABORTING INFINITE LOOP!");
+              return res();
+            }
+            nextStartPrimaryKey ? f(nextStartPrimaryKey) : res();
+          });
+        }
+        f();
+      });
+      result.ms = Date.now() - tStart;
+      result.status = 'ok';
+    } catch(e) {
+      result.status = 'error';
+      result.error = String(e);
+    }
+    return sendJson(res, result);
+  }
   if(path==='/campuses'&&method==='GET'){
     console.log('[campuses] GET bypass scheduleInitInBackground');
     console.log('[campuses] GET using hard fallback DEFAULT_CAMPUSES');
