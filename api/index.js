@@ -5885,7 +5885,7 @@ module.exports = async (req, res) => {
   }
   if(path==='/diag'&&method==='GET'){
     const startedAt=Date.now();
-    const result={ts:new Date().toISOString(),env:{TS_ENDPOINT:process.env.TS_ENDPOINT||'(missing)',TS_INSTANCE:process.env.TS_INSTANCE||'(missing)',KEY_ID_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_ID),KEY_SECRET_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET)},tests:[]};
+    const result={ts:new Date().toISOString(),env:{IS_PRODUCTION_RUNTIME:isProductionRuntime(),NODE_ENV:process.env.NODE_ENV||'(missing)',TS_ENDPOINT:process.env.TS_ENDPOINT||'(missing)',TS_INSTANCE:process.env.TS_INSTANCE||'(missing)',KEY_ID_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_ID),KEY_SECRET_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET)},tests:[]};
     try{
       const rows=await new Promise((res,rej)=>{
         const timer=setTimeout(()=>rej(new Error('TableStore getRange timeout after 8s')),8000);
@@ -5951,6 +5951,24 @@ module.exports = async (req, res) => {
     result.INF_MAX_type=typeof TableStore.INF_MAX;
     result.INF_MIN_val=JSON.stringify(TableStore.INF_MIN);
     result.INF_MAX_val=JSON.stringify(TableStore.INF_MAX);
+    // Test 4: concurrent cappedScan test (simulates /page-data/courts)
+    const t4Start=Date.now();
+    try{
+      const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.race([
+        Promise.all([
+          listCampusesWithDefaults(),
+          cappedScan(T_STUDENTS).catch(e=>{result.cappedScanError='STUDENTS: '+e;return [];}),
+          cappedScan(T_COURTS).catch(e=>{result.cappedScanError='COURTS: '+e;return [];}),
+          cappedScan(T_MEMBERSHIP_ACCOUNTS).catch(e=>{result.cappedScanError='ACCOUNTS: '+e;return [];}),
+          cappedScan(T_COACHES).catch(e=>{result.cappedScanError='COACHES: '+e;return [];}),
+          cappedScan(T_PRICE_PLANS).catch(e=>{result.cappedScanError='PRICE: '+e;return [];})
+        ]),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('concurrent cappedScan timeout after 8s')),8000))
+      ]);
+      result.tests.push({name:'concurrent_cappedScan',status:'ok',ms:Date.now()-t4Start,sizes:[campuses.length,students.length,courts.length,membershipAccounts.length,coaches.length,pricePlans.length]});
+    }catch(e){
+      result.tests.push({name:'concurrent_cappedScan',status:'error',error:String(e?.message||e),ms:Date.now()-t4Start});
+    }
     return sendJson(res,result);
   }
   if(path==='/campuses'&&method==='GET'){
