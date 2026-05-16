@@ -7,7 +7,7 @@ const stateSource = fs.readFileSync(path.join(__dirname, '../public/assets/scrip
 assert.match(
   stateSource,
   /async function loadCourtReadModelGuardData\(\{force=false\}=\{\}\)\{[\s\S]*const view=await DATASET_LOADERS\.courtAccountListViewPage\(\);/,
-  '默认正式链应保留单独的首屏主列表读模型加载函数'
+  '隐藏模式应保留单独的首屏主列表读模型加载函数'
 );
 assert.doesNotMatch(
   stateSource,
@@ -17,7 +17,7 @@ assert.doesNotMatch(
 assert.match(
   stateSource,
   /async function loadCourtReadModelCompareData\(\{force=false\}=\{\}\)\{[\s\S]*const compare=await DATASET_LOADERS\.courtAccountListViewComparePage\(\);/,
-  '正式链仍应把 compare 拆成独立后台加载函数'
+  '隐藏模式应把 compare 拆成独立后台加载函数'
 );
 assert.match(
   stateSource,
@@ -27,7 +27,7 @@ assert.match(
 assert.match(
   stateSource,
   /if\(pg==='courts'&&shouldUseCourtReadModelByDefault\(\)\)\{\s*return courtAccountListViewData\?\[\]:\['courtAccountListViewPage'\];\s*\}/,
-  '默认正式切换后订场用户页首屏门禁应改为读模型数据，不应继续等旧 courts 聚合数据'
+  '隐藏模式下订场用户页首屏门禁应改为读模型数据，不应继续等旧 courts 聚合数据'
 );
 
 console.log('court account hidden mode performance guard tests passed');

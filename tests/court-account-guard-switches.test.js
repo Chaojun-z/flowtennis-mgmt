@@ -12,14 +12,14 @@ assert.match(indexSource, /\/page-data\/court-account-list-view-compare/, 'api/i
 
 assert.match(stateSource, /const COURT_READ_MODEL_STORAGE_KEY='ft_court_read_model_mode';/, '前端应保留隐藏验证模式存储键');
 assert.match(stateSource, /const COURT_READ_MODEL_FORCE_LEGACY_KEY='ft_court_read_model_force_legacy';/, '前端应保留全局强退开关存储键');
-assert.match(stateSource, /function shouldUseCourtReadModelByDefault\(/, '前端应暴露订场用户页正式默认切换判断');
+assert.match(stateSource, /function shouldUseCourtReadModelByDefault\(/, '前端应暴露订场用户页新链总开关判断');
 assert.match(stateSource, /function isCourtReadModelPreviewEnabled\(/, '前端应暴露隐藏验证开关判断');
 assert.match(stateSource, /function isCourtReadModelRollbackForced\(/, '前端应暴露全局强退开关判断');
 assert.match(stateSource, /\/page-data\/court-account-list-view/, '前端应可加载订场用户隐藏读模型');
 assert.match(stateSource, /\/page-data\/court-account-list-view-compare/, '前端应可加载 compare 输出');
 
 assert.match(courtsSource, /function renderCourtAccountListView\(/, '订场用户页应增加隐藏读模型渲染入口');
-assert.match(courtsSource, /if\(shouldUseCourtReadModelByDefault\(\)&&courtAccountListViewData\)/, '订场用户页默认应使用新读模型，强退时再回旧链');
+assert.match(courtsSource, /if\(shouldUseCourtReadModelByDefault\(\)&&courtAccountListViewData\)/, '订场用户页只应在隐藏验证开启时使用新读模型，强退时回旧链');
 assert.match(courtsSource, /window\.__courtAccountListViewCompare=/, '前端应暴露最新 compare 输出供内部验证');
 assert.match(courtsSource, /const filters=courtAccountListViewData\?\.filters\|\|\{\};/, '隐藏读模型路径应直接消费后端 filters');
 assert.match(courtsSource, /const summary=courtAccountListViewData\?\.summary\|\|\{\};/, '隐藏读模型路径应直接消费后端 summary');

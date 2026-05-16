@@ -52,13 +52,10 @@ function shouldUseCourtReadModelByDefault(){
   const queryMode=String(COURT_GUARD_QUERY.get('courtView')||'').trim().toLowerCase();
   if(queryMode==='legacy')return false;
   if(queryMode==='read-model')return true;
-  return localStorage.getItem(COURT_READ_MODEL_STORAGE_KEY)!=='legacy';
+  return localStorage.getItem(COURT_READ_MODEL_STORAGE_KEY)==='read-model';
 }
 function isCourtReadModelPreviewEnabled(){
-  if(!shouldUseCourtReadModelByDefault())return false;
-  const queryMode=String(COURT_GUARD_QUERY.get('courtView')||'').trim().toLowerCase();
-  if(queryMode==='read-model')return true;
-  return localStorage.getItem(COURT_READ_MODEL_STORAGE_KEY)==='read-model';
+  return shouldUseCourtReadModelByDefault();
 }
 function shouldLoadCourtReadModelCompare(){
   if(!shouldUseCourtReadModelByDefault())return false;
@@ -69,7 +66,7 @@ window.enableCourtReadModelPreview=function(){
   localStorage.removeItem(COURT_READ_MODEL_FORCE_LEGACY_KEY);
 };
 window.disableCourtReadModelPreview=function(){
-  localStorage.setItem(COURT_READ_MODEL_STORAGE_KEY,'legacy');
+  localStorage.removeItem(COURT_READ_MODEL_STORAGE_KEY);
 };
 window.forceCourtReadModelRollback=function(){
   localStorage.setItem(COURT_READ_MODEL_FORCE_LEGACY_KEY,'1');
