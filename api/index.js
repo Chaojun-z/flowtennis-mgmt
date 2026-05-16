@@ -5913,7 +5913,38 @@ module.exports = async (req, res) => {
           });
         }catch(syncErr){clearTimeout(timer);rej(syncErr);}
       });
+      const lastRowId=rows2.count>0?null:null; // placeholder
       result.tests.push({table:T_STUDENTS,status:'ok',rows:rows2,ms:Date.now()-t2Start});
+      // Test 3: second-page scan of ft_students (simulate scan() pagination)
+      if(rows2.count>0){
+        const t3Start=Date.now();
+        try{
+          // First get the actual last row ID from a fresh getRange call
+          const lastId=await new Promise((res,rej)=>{
+            const timer=setTimeout(()=>rej(new Error('first page timeout')),8000);
+            gc().getRange({tableName:T_STUDENTS,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:10},(e,d)=>{
+              clearTimeout(timer);
+              if(e)return rej(e);
+              const last=(d.rows||[])[(d.rows||[]).length-1];
+              res(last&&last.primaryKey&&last.primaryKey[0]?String(last.primaryKey[0].value):null);
+            });
+          });
+          if(lastId){
+            const nextKey=[{id:lastId+'\u0000'}];
+            const page2=await new Promise((res,rej)=>{
+              const timer=setTimeout(()=>rej(new Error('page2 getRange timeout after 8s — pagination is hanging!')),8000);
+              gc().getRange({tableName:T_STUDENTS,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:nextKey,exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:10},(e,d)=>{
+                clearTimeout(timer);
+                if(e)return rej(e);
+                res({count:(d.rows||[]).length,lastId});
+              });
+            });
+            result.tests.push({table:T_STUDENTS+'_page2',status:'ok',rows:page2,ms:Date.now()-t3Start});
+          } else {
+            result.tests.push({table:T_STUDENTS+'_page2',status:'skipped',reason:'no lastId'});
+          }
+        }catch(e){result.tests.push({table:T_STUDENTS+'_page2',status:'error',error:String(e?.message||e),ms:Date.now()-t3Start});}
+      }
     }catch(e){result.tests.push({table:T_STUDENTS,status:'error',error:String(e?.message||e),code:e?.code,ms:Date.now()-t2Start});}
     // Test 3: INF constants check
     result.INF_MIN_type=typeof TableStore.INF_MIN;
