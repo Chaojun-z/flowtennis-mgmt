@@ -6695,14 +6695,14 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const [campuses,students,classes,plans,products,schedule,courts,entitlements]=await Promise.all([
-        getCachedScan(T_CAMPUSES).catch(()=>[]),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_CLASSES).catch(()=>[]),
-        getCachedScan(T_PLANS).catch(()=>[]),
-        getCachedScan(T_PRODUCTS).catch(()=>[]),
-        getCachedScan(T_SCHEDULE).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[])
+        cappedScan(T_CAMPUSES),
+        cappedScan(T_STUDENTS),
+        cappedScan(T_CLASSES),
+        cappedScan(T_PLANS),
+        cappedScan(T_PRODUCTS),
+        cappedScan(T_SCHEDULE, PRODUCTION_PAGE_READ_LIMITS.schedule),
+        cappedScan(T_COURTS),
+        cappedScan(T_ENTITLEMENTS)
       ]);
       return sendJson(res,{
         campuses:campuses.length?campuses:DEFAULT_CAMPUSES,
@@ -6719,10 +6719,10 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const [purchases,packages,students,entitlements]=await Promise.all([
-        getCachedScan(T_PURCHASES).catch(()=>[]),
-        getCachedScan(T_PACKAGES).catch(()=>[]),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[])
+        cappedScan(T_PURCHASES),
+        cappedScan(T_PACKAGES),
+        cappedScan(T_STUDENTS),
+        cappedScan(T_ENTITLEMENTS)
       ]);
       return sendJson(res,{purchases,packages,students,entitlements});
     }
@@ -6745,11 +6745,11 @@ module.exports = async (req, res) => {
       await init();
       const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.all([
         listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[]),
-        getCachedScan(T_PRICE_PLANS).catch(()=>[])
+        cappedScan(T_STUDENTS),
+        cappedScan(T_COURTS),
+        cappedScan(T_MEMBERSHIP_ACCOUNTS),
+        cappedScan(T_COACHES),
+        cappedScan(T_PRICE_PLANS)
       ]);
       return sendJson(res,{campuses,students,courts,membershipAccounts,coaches,pricePlans});
     }
@@ -6772,14 +6772,14 @@ module.exports = async (req, res) => {
       await init();
       const [campuses,students,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,membershipPlans,coaches]=await Promise.all([
         listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[])
+        cappedScan(T_STUDENTS),
+        cappedScan(T_COURTS),
+        cappedScan(T_MEMBERSHIP_ACCOUNTS),
+        cappedScan(T_MEMBERSHIP_ORDERS),
+        cappedScan(T_MEMBERSHIP_BENEFIT_LEDGER),
+        cappedScan(T_MEMBERSHIP_ACCOUNT_EVENTS),
+        cappedScan(T_MEMBERSHIP_PLANS),
+        cappedScan(T_COACHES)
       ]);
       return sendJson(res,{campuses,students,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,membershipPlans,coaches});
     }
@@ -6789,13 +6789,13 @@ module.exports = async (req, res) => {
         const indexedSchedule=user.role==='admin'?null:await getCoachIndexedScheduleForUser(user);
         const [campuses,students,classes,schedule,feedbacks,purchases]=await Promise.all([
           listCampusesWithDefaults(),
-          getCachedScan(T_STUDENTS).catch(()=>[]),
-          getCachedScan(T_CLASSES).catch(()=>[]),
-          Promise.resolve(indexedSchedule||null).then(rows=>rows||getCachedScan(T_SCHEDULE).catch(()=>[])),
-          withTimeout(scanFeedbacks().catch(()=>[]),3000,[]),
-          getCachedScan(T_PURCHASES).catch(()=>[])
+          cappedScan(T_STUDENTS),
+          cappedScan(T_CLASSES),
+          Promise.resolve(indexedSchedule||null).then(rows=>rows||cappedScan(T_SCHEDULE, PRODUCTION_PAGE_READ_LIMITS.schedule)),
+          cappedScan(T_FEEDBACKS),
+          cappedScan(T_PURCHASES)
         ]);
-        const [coaches,users]=await Promise.all([getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
+        const [coaches,users]=await Promise.all([cappedScan(T_COACHES),cappedScan(T_USERS, PRODUCTION_PAGE_READ_LIMITS.adminUsers)]);
         const coachRefs=buildCoachRefs({coaches,users});
         const scoped=filterLoadAllForUser({campuses,students,classes,schedule,feedbacks,purchases,coaches},user,coachRefs);
         const now=new Date();
