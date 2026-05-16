@@ -239,7 +239,7 @@ function getMatchSqlPool(){
 }
 function isTransientStorageError(err){
   const msg=String(err?.message||err||'');
-  return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN/i.test(msg);
+  return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN|\[storage-timeout\]/i.test(msg);
 }
 function formatStorageMeta(meta={}){
   return Object.entries(meta)
@@ -403,7 +403,36 @@ async function getCachedRow(t,id){
 function put(t,id,attrs){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>runStorageOperation('putRow',{table:t,id},(res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
 function putIfAbsent(t,id,attrs){return withStorageRetry(()=>runStorageOperation('putRowIfAbsent',{table:t,id},(res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.EXPECT_NOT_EXIST,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
 function get(t,id){return withStorageRetry(()=>runStorageOperation('getRow',{table:t,id},(res,rej)=>{gc().getRow({tableName:t,primaryKey:[{id:String(id)}],maxVersions:1},(e,d)=>{if(e)return rej(e);if(!d.row||!d.row.primaryKey)return res(null);const obj={id:d.row.primaryKey[0].value};(d.row.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});res(obj);});}));}
-function scan(t){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];function f(sk){gc().getRange({tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500},(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});const lastRow=(d.rows||[]).length?(d.rows||[])[(d.rows||[]).length-1]:null;const nextStartPrimaryKey=lastRow&&lastRow.primaryKey&&lastRow.primaryKey[0]?[{id:String(lastRow.primaryKey[0].value)+'\u0000'}]:null;nextStartPrimaryKey?f(nextStartPrimaryKey):res(rows);});}f();}));}
+function scan(t){
+  return withStorageRetry(()=>new Promise((res,rej)=>{
+    const rows=[];
+    function f(sk){
+      runStorageOperation('getRangePage',{table:t},(opRes,opRej)=>{
+        gc().getRange({
+          tableName:t,
+          direction:TableStore.Direction.FORWARD,
+          inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],
+          exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],
+          maxVersions:1,
+          limit:500
+        },(e,d)=>{
+          if(e)return opRej(e);
+          opRes(d);
+        });
+      }).then(d=>{
+        (d.rows||[]).forEach(r=>{
+          if(!r.primaryKey)return;
+          const obj={id:r.primaryKey[0].value};
+          (r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});
+          rows.push(obj);
+        });
+        const nextStartPrimaryKey=d.nextStartPrimaryKey;
+        nextStartPrimaryKey?f(nextStartPrimaryKey):res(rows);
+      }).catch(rej);
+    }
+    f();
+  }));
+}
 function del(t,id){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>runStorageOperation('deleteRow',{table:t,id},(res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));}));}
 async function clearTables(storage,tables){
   const result={success:true,total:0,tables:[]};
@@ -2833,7 +2862,7 @@ async function getFinancePageSnapshot(){
   return snapshot;
 }
 function isProductionRuntime(){
-  return BOOTSTRAP_SAFETY_FLAGS.runtimeStage==='production';
+  return RUNTIME_STAGE==='production';
 }
 function scheduleInitInBackground(){
   if(REQUIRED_ENV_VARS.some((k)=>!process.env[k]))return;
