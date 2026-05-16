@@ -5883,6 +5883,24 @@ module.exports = async (req, res) => {
     console.log('[health] GET bypass scheduleInitInBackground');
     return sendJson(res,{status:'ok',time:new Date().toISOString()});
   }
+  if(path==='/diag'&&method==='GET'){
+    const startedAt=Date.now();
+    const result={ts:new Date().toISOString(),env:{TS_ENDPOINT:process.env.TS_ENDPOINT||'(missing)',TS_INSTANCE:process.env.TS_INSTANCE||'(missing)',KEY_ID_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_ID),KEY_SECRET_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET)},tests:[]};
+    try{
+      const rows=await new Promise((res,rej)=>{
+        const timer=setTimeout(()=>rej(new Error('TableStore getRange timeout after 8s')),8000);
+        try{
+          gc().getRange({tableName:T_CAMPUSES,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:5},(e,d)=>{
+            clearTimeout(timer);
+            if(e)return rej(e);
+            res((d.rows||[]).length);
+          });
+        }catch(syncErr){clearTimeout(timer);rej(syncErr);}
+      });
+      result.tests.push({table:T_CAMPUSES,status:'ok',rows,ms:Date.now()-startedAt});
+    }catch(e){result.tests.push({table:T_CAMPUSES,status:'error',error:String(e?.message||e),code:e?.code,ms:Date.now()-startedAt});}
+    return sendJson(res,result);
+  }
   if(path==='/campuses'&&method==='GET'){
     console.log('[campuses] GET bypass scheduleInitInBackground');
     console.log('[campuses] GET using hard fallback DEFAULT_CAMPUSES');
