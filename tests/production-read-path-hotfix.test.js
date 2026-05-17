@@ -64,4 +64,34 @@ assert.match(
   '财务快照应对 courts 使用轻投影，避免 history 导致超时'
 );
 
+assert.match(
+  apiSource,
+  /if\(path==='\/page-data\/finance'&&method==='GET'\)\{[\s\S]*const verifiedFinance=loadVerifiedFinanceArtifacts\(campuses\);[\s\S]*financeOverviewData:verifiedFinance\?\.overviewData\|\|null[\s\S]*financeNormalizedRows:verifiedFinance\?\.normalizedRows\|\|\[\][\s\S]*financeSettlementRows:\[\]/,
+  '财务首屏应优先直接返回 verified finance / 轻量快照，并允许临时清空最重结算明细'
+);
+
+assert.doesNotMatch(
+  apiSource,
+  /if\(path==='\/page-data\/finance'&&method==='GET'\)\{[\s\S]*getFinancePageSnapshot\(/s,
+  '财务首屏读链不应继续同步构建重快照'
+);
+
+assert.match(
+  apiSource,
+  /const COURTS_PAGE_COURT_PROJECTION_FIELDS=\[/,
+  '订场用户页应定义首屏轻投影字段，避免继续全量读取 courts 大对象'
+);
+
+assert.match(
+  apiSource,
+  /const COURTS_PAGE_STUDENT_PROJECTION_FIELDS=\[/,
+  '订场用户页应定义首屏学员轻投影字段，避免继续全量读取 students'
+);
+
+assert.match(
+  apiSource,
+  /if\(path==='\/page-data\/courts'&&method==='GET'\)\{[\s\S]*getCachedScan\(T_STUDENTS,\{columns:COURTS_PAGE_STUDENT_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\)[\s\S]*getCachedScan\(T_COURTS,\{columns:COURTS_PAGE_COURT_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\)[\s\S]*membershipAccounts:\[\][\s\S]*coaches:\[\][\s\S]*pricePlans:\[\]/,
+  '订场用户首屏应改成 courts/students 轻投影，并允许临时清空会员账户、教练、价格方案扩展数据'
+);
+
 console.log('production read path hotfix tests passed');

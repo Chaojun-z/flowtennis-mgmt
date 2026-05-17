@@ -240,6 +240,37 @@ const FINANCE_PAGE_COURT_PROJECTION_FIELDS=[
   'createdAt',
   'updatedAt'
 ];
+const COURTS_PAGE_COURT_PROJECTION_FIELDS=[
+  'name',
+  'phone',
+  'campus',
+  'studentId',
+  'studentIds',
+  'owner',
+  'familiarity',
+  'depositAttitude',
+  'recentFollowUpDate',
+  'nextFollowUpDate',
+  'notes',
+  'balance',
+  'totalDeposit',
+  'spentAmount',
+  'receivedAmount',
+  'storedValueSpent',
+  'directPaidSpent',
+  'cachedBalance',
+  'cachedTotalDeposit',
+  'cachedTotalSpent',
+  'cachedTotalReceived',
+  'createdAt',
+  'updatedAt',
+  'status'
+];
+const COURTS_PAGE_STUDENT_PROJECTION_FIELDS=[
+  'name',
+  'phone',
+  'campus'
+];
 const HOT_GET_TABLES=new Map([
   [T_USERS,{ttlMs:60000}],
   [T_USER_WECHAT_INDEX,{ttlMs:60000}],
@@ -264,7 +295,7 @@ let tsClient;
 const wechatAccessTokenCacheByApp = new Map();
 const wechatAccessTokenCache = wechatAccessTokenCacheByApp;
 let matchSqlPool;
-function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
+function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3,httpOptions:{timeout:15000}});return tsClient;}
 function getMatchSqlPool(){
   if(!MATCH_DATABASE_URL)throw new Error('缺少 MATCH_DATABASE_URL 或 DATABASE_URL，约球真实数据不能使用 mock 或 TableStore');
   if(!matchSqlPool)matchSqlPool=new Pool({connectionString:MATCH_DATABASE_URL,ssl:process.env.MATCH_DATABASE_SSL==='true'?{rejectUnauthorized:false}:undefined});
@@ -288,6 +319,14 @@ async function withStorageRetry(fn,maxAttempts=2){
 }
 function cloneCacheValue(value){return JSON.parse(JSON.stringify(value));}
 function invalidateHotScanCache(t){hotScanCache.delete(t);}
+function hotScanCacheKey(t,columns){
+  const projection=Array.isArray(columns)&&columns.length?columns.map(String).join('\u0001'):'*';
+  return `${t}:${projection}`;
+}
+function normalizeProjectionColumns(columns){
+  if(!Array.isArray(columns))return [];
+  return [...new Set(columns.map(item=>String(item||'').trim()).filter(Boolean))];
+}
 function hotGetCacheKey(t,id){return `${t}:${String(id)}`;}
 function invalidateHotGetCache(t,id){
   if(id===undefined||id===null){
@@ -299,14 +338,16 @@ function invalidateHotGetCache(t,id){
 function invalidateFinanceSnapshotCache(t){
   if(FINANCE_SNAPSHOT_SOURCE_TABLES.has(t))financeSnapshotCache=null;
 }
-async function getCachedScan(t){
+async function getCachedScan(t,options={}){
   const cfg=HOT_SCAN_TABLES.get(t);
-  if(!cfg)return scan(t);
+  const columns=normalizeProjectionColumns(options?.columns);
+  if(!cfg)return scan(t,{columns});
   const now=Date.now();
-  const cached=hotScanCache.get(t);
+  const cacheKey=hotScanCacheKey(t,columns);
+  const cached=hotScanCache.get(cacheKey);
   if(cached&&cached.expiresAt>now)return cloneCacheValue(cached.rows);
-  const rows=await scan(t);
-  hotScanCache.set(t,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
+  const rows=await scan(t,{columns});
+  hotScanCache.set(cacheKey,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
   return rows;
 }
 async function getCachedRow(t,id){
@@ -323,7 +364,7 @@ async function getCachedRow(t,id){
 function put(t,id,attrs){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>new Promise((res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
 function putIfAbsent(t,id,attrs){return withStorageRetry(()=>new Promise((res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.EXPECT_NOT_EXIST,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
 function get(t,id){return withStorageRetry(()=>new Promise((res,rej)=>{gc().getRow({tableName:t,primaryKey:[{id:String(id)}],maxVersions:1},(e,d)=>{if(e)return rej(e);if(!d.row||!d.row.primaryKey)return res(null);const obj={id:d.row.primaryKey[0].value};(d.row.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});res(obj);});}));}
-function scan(t){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];function f(sk){gc().getRange({tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500},(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});const lastRow=(d.rows||[]).length?(d.rows||[])[(d.rows||[]).length-1]:null;const nextStartPrimaryKey=lastRow&&lastRow.primaryKey&&lastRow.primaryKey[0]?[{id:String(lastRow.primaryKey[0].value)+'\u0000'}]:null;nextStartPrimaryKey?f(nextStartPrimaryKey):res(rows);});}f();}));}
+function scan(t,options={}){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];const columns=normalizeProjectionColumns(options?.columns);const columnsToGet=columns.length?columns.map(column=>({columnName:column})):undefined;function f(sk){const request={tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500};if(columnsToGet)request.columnsToGet=columnsToGet;gc().getRange(request,(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});const lastRow=(d.rows||[]).length?(d.rows||[])[(d.rows||[]).length-1]:null;const nextStartPrimaryKey=lastRow&&lastRow.primaryKey&&lastRow.primaryKey[0]?[{id:String(lastRow.primaryKey[0].value)+'\u0000'}]:null;nextStartPrimaryKey?f(nextStartPrimaryKey):res(rows);});}f();}));}
 function del(t,id){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));}));}
 async function clearTables(storage,tables){
   const result={success:true,total:0,tables:[]};
@@ -6865,29 +6906,24 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const campuses=await listCampusesWithDefaults();
-      const snapshot=await getFinancePageSnapshot();
-      /* hot-cache guard: financeNormalizedRows:snapshot.financeNormalizedRows||[], financeSettlementRows:snapshot.financeSettlementRows||[] */
       const verifiedFinance=loadVerifiedFinanceArtifacts(campuses);
       return sendJson(res,{
         campuses,
-        financeOverviewData:verifiedFinance?.overviewData||snapshot.financeOverviewData||null,
-        financeNormalizedRows:verifiedFinance?.normalizedRows||snapshot.financeNormalizedRows||[],
-        financeSettlementRows:snapshot.financeSettlementRows||[],
-        generatedAt:snapshot.generatedAt||''
+        financeOverviewData:verifiedFinance?.overviewData||null,
+        financeNormalizedRows:verifiedFinance?.normalizedRows||[],
+        financeSettlementRows:[],
+        generatedAt:''
       });
     }
     if(path==='/page-data/courts'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
-      const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.all([
+      const [campuses,students,courts]=await Promise.all([
         listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[]),
-        getCachedScan(T_PRICE_PLANS).catch(()=>[])
+        getCachedScan(T_STUDENTS,{columns:COURTS_PAGE_STUDENT_PROJECTION_FIELDS}).catch(()=>[]),
+        getCachedScan(T_COURTS,{columns:COURTS_PAGE_COURT_PROJECTION_FIELDS}).catch(()=>[])
       ]);
-      return sendJson(res,{campuses,students,courts,membershipAccounts,coaches,pricePlans});
+      return sendJson(res,{campuses,students,courts,membershipAccounts:[],coaches:[],pricePlans:[]});
     }
     if(path==='/page-data/memberships'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
@@ -6906,15 +6942,14 @@ module.exports = async (req, res) => {
       const normalizedMembershipPlans=(Array.isArray(membershipPlans)?membershipPlans:[]).map(normalizeMembershipPlanViewRecord);
       const membershipPlanMap=new Map(normalizedMembershipPlans.map(p=>[p.id,p]));
       const normalizedMembershipOrders=(Array.isArray(membershipOrders)?membershipOrders:[]).map(order=>normalizeMembershipOrderViewRecord(order,membershipPlanMap.get(order.membershipPlanId)));
-      const reconciled=await runMembershipReconcile({accounts:membershipAccounts,courts});
       return sendJson(res,{
         campuses,
         students,
-        courts:reconciled.courts||courts,
-        membershipAccounts:Array.isArray(reconciled.accounts)?reconciled.accounts:[],
+        courts,
+        membershipAccounts:Array.isArray(membershipAccounts)?membershipAccounts:[],
         membershipOrders:normalizedMembershipOrders,
         membershipBenefitLedger:Array.isArray(membershipBenefitLedger)?membershipBenefitLedger:[],
-        membershipAccountEvents:[...(Array.isArray(membershipAccountEvents)?membershipAccountEvents:[]),...(reconciled.events||[])],
+        membershipAccountEvents:Array.isArray(membershipAccountEvents)?membershipAccountEvents:[],
         membershipPlans:normalizedMembershipPlans,
         coaches
       });

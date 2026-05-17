@@ -1,9 +1,6 @@
 {
-  "crons": [
-    { "path": "/api/cron/official-account-reminders", "schedule": "0 * * * *" },
-    { "path": "/api/cron/official-account-daily-digests", "schedule": "0 13 * * *" }
-  ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" }
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

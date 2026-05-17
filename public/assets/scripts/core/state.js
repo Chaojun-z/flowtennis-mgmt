@@ -53,7 +53,7 @@ const PAGE_DATA_REQUIREMENTS={
   myclasses:[]
 };
 const PAGE_DATA_BACKGROUND_REQUIREMENTS={
-  students:['entitlements','entitlementLedger','classes','schedule','feedbacks','products','courts'],
+  students:['classes','schedule','courts'],
   leads:['leadFollowups'],
   plans:['plansPage'],
   packages:['packages','products'],
@@ -67,8 +67,9 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   mystudents:['campuses','students','classes','schedule','feedbacks','entitlements'],
   myclasses:['students','classes','products']
 };
+const STUDENT_PAGE_DEFERRED_REQUIREMENTS=['entitlements','feedbacks','products'];
 const PERFORMANCE_PAGE_DATA_GUARD={
-  students:['entitlements','entitlementLedger','classes','schedule','feedbacks','products','courts'],
+  students:['classes','schedule','courts'],
   workbench:['workbenchPage']
 };
 function assertPageDataPerformanceGuard(){
@@ -352,20 +353,37 @@ async function ensurePageDatasets(pg,{force=false}={}){
   await ensureDatasetsByName(names,{force});
 }
 async function loadPageBackgroundDatasets(pg,requestVersion,{force=false}={}){
-  const names=backgroundDatasetsForPage(pg);
-  if(!names.length)return;
-  await Promise.allSettled(names.map(async name=>{
-    if(requestVersion!==dataRequestVersion)return;
-    try{
-      await ensureDatasetsByName([name],{force});
-    }catch(e){
+  const immediateNames=backgroundDatasetsForPage(pg);
+  if(immediateNames.length){
+    await Promise.allSettled(immediateNames.map(async name=>{
       if(requestVersion!==dataRequestVersion)return;
-      console.warn('deferred page data load failed',pg,name,e);
-    }
-  }));
+      try{
+        await ensureDatasetsByName([name],{force});
+      }catch(e){
+        if(requestVersion!==dataRequestVersion)return;
+        console.warn('deferred page data load failed',pg,name,e);
+      }
+    }));
+  }
   if(requestVersion!==dataRequestVersion)return;
   buildCampusTabs();
   renderAll();
+  if(pg==='students'&&STUDENT_PAGE_DEFERRED_REQUIREMENTS.length){
+    setTimeout(()=>{
+      if(requestVersion!==dataRequestVersion)return;
+      ensureDatasetsByName(STUDENT_PAGE_DEFERRED_REQUIREMENTS,{force})
+        .then(()=>{
+          if(requestVersion!==dataRequestVersion)return;
+          buildCampusTabs();
+          renderAll();
+        })
+        .catch(e=>{
+          if(requestVersion!==dataRequestVersion)return;
+          console.warn('deferred student data load failed',pg,e);
+        });
+    },1200);
+    return;
+  }
 }
 function clearLoadedData(){
   leads=[];leadFollowups=[];courts=[];students=[];products=[];packages=[];purchases=[];entitlements=[];entitlementLedger=[];financialLedger=[];

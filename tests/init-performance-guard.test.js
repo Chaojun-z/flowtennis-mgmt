@@ -23,7 +23,7 @@ assert.match(apiSource, /console\.log\(`\[api-init\] bootstrapMabaoFinanceSeed d
 assert.match(apiSource, /if\(path==='\/load-all'&&method==='GET'\)\{[\s\S]*if\(ENABLE_IMPORTED_LEDGER_AUTO_REPAIR\)await maybeRepairImportedLedgerDuplicates\(\);[\s\S]*timed\('load-all scan entitlement ledger'/s, 'load-all should only auto-repair imported ledger when the explicit repair switch is on');
 assert.match(apiSource, /console\.log\(`\[api-init\] prewarmHotScanCache dispatched \$\{Date\.now\(\)-stepStartedAt\}ms \(total \$\{Date\.now\(\)-startedAt\}ms\)`\);/, 'init should log when cache prewarm is dispatched');
 assert.doesNotMatch(stateSource, /load-all/, 'front-end page loading should not fall back to the heavy load-all endpoint');
-assert.match(stateSource, /const PERFORMANCE_PAGE_DATA_GUARD=\{[\s\S]*students:\['entitlements','entitlementLedger','classes','schedule','feedbacks','products','courts'\][\s\S]*workbench:\['workbenchPage'\][\s\S]*\};/, 'page data performance guard should lock the current lazy-loading strategy');
+assert.match(stateSource, /const PERFORMANCE_PAGE_DATA_GUARD=\{[\s\S]*students:\['classes','schedule','courts'\][\s\S]*workbench:\['workbenchPage'\][\s\S]*\};/, 'page data performance guard should lock the current students stop-bleeding loading strategy');
 assert.match(stateSource, /function assertPageDataPerformanceGuard\(\)/, 'state should expose a local guard against page-loading regressions');
 assert.match(stateSource, /assertPageDataPerformanceGuard\(\);[\s\S]*const DATASET_LOADERS=/, 'page-loading guard should run before dataset loaders are used');
 
