@@ -4,6 +4,36 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const mabaoFinanceSeed = require('./seeds/mabao-finance-seed.json');
+const {
+  PREVIEW_TS_INSTANCE,
+  readBooleanEnv,
+  resolveRuntimeStage,
+  resolveDataStage,
+  runtimeDebugEnvValue,
+  assertRuntimeDebugReadable,
+  assertTableStoreTarget,
+  buildBootstrapSafetyFlags,
+  logBlockedAutoWrite
+} = require('./runtime/bootstrap-guards.js');
+const { createInitRuntime } = require('./bootstrap/init-runtime.js');
+const { createStartupSideEffectsRunner } = require('./bootstrap/startup-side-effects.js');
+const { createPageDataHandler } = require('./page-data/aggregate-handlers.js');
+const {
+  COURT_ACCOUNT_LIST_PROJECTION_FIELDS,
+  createCourtAccountListViewLoader,
+  createCourtAccountListCompareLoader
+} = require('./page-data/court-account-read-model.js');
+const { createFinancePageDataLoader } = require('./page-data/finance-read-model.js');
+const { createMembershipWriteHandler } = require('./membership/write-handlers.js');
+const { createCourtsMembershipHandler } = require('./courts-membership/route-handlers.js');
+const { createCourtSortIndexService } = require('./courts/court-sort-index.js');
+const { createTeachingHandler } = require('./teaching/route-handlers.js');
+const { createPurchaseEntitlementWriteHandler } = require('./teaching/purchase-entitlement-write-handlers.js');
+const { createPurchaseVoidService } = require('./teaching/purchase-void-service.js');
+const { createPurchaseUpdateService } = require('./teaching/purchase-update-service.js');
+const { createAuthAdminHandler } = require('./auth-admin/route-handlers.js');
+const { createMatchModule } = require('./matches');
+const { createMatchFinanceBridge } = require('./matches/finance-bridge.js');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const TS_ENDPOINT = process.env.TS_ENDPOINT;
@@ -11,26 +41,7 @@ const TS_INSTANCE = process.env.TS_INSTANCE;
 const TS_KEY_ID = process.env.ALIBABA_CLOUD_ACCESS_KEY_ID;
 const TS_KEY_SEC = process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET;
 const REQUIRED_ENV_VARS = ['JWT_SECRET', 'TS_ENDPOINT', 'TS_INSTANCE', 'ALIBABA_CLOUD_ACCESS_KEY_ID', 'ALIBABA_CLOUD_ACCESS_KEY_SECRET'];
-const PREVIEW_TS_INSTANCE = 'flow-staging';
 const RUNTIME_DEBUG_TABLES = ['ft_users','ft_students','ft_purchases','ft_entitlement_ledger','ft_courts','ft_membership_orders'];
-function readBooleanEnv(env,name){return String(env?.[name]||'').trim().toLowerCase()==='true';}
-function resolveRuntimeStage(env=process.env){
-  const vercelEnv=String(env?.VERCEL_ENV||'').trim().toLowerCase();
-  if(vercelEnv)return vercelEnv;
-  const nodeEnv=String(env?.NODE_ENV||'').trim().toLowerCase();
-  return nodeEnv||'development';
-}
-function resolveDataStage(env=process.env){
-  const appEnv=String(env?.APP_ENV||'').trim().toLowerCase();
-  if(appEnv)return appEnv;
-  const dataEnv=String(env?.DATA_ENV||'').trim().toLowerCase();
-  if(dataEnv)return dataEnv;
-  return '';
-}
-function runtimeDebugEnvValue(env,name){return String(env?.[name]||'').trim();}
-function assertRuntimeDebugReadable(env=process.env){
-  if(resolveRuntimeStage(env)==='production')throw new Error('production 环境已禁用该调试接口');
-}
 async function inspectRuntimeDebugTable(storage,tableName){
   try{
     const rows=await storage.scan(tableName);
@@ -53,36 +64,6 @@ async function buildRuntimeDataSourceDebugSnapshot(storage={scan},env=process.en
     previewExpectedTSInstance:PREVIEW_TS_INSTANCE,
     tables:tableStates
   };
-}
-function assertTableStoreTarget(env=process.env){
-  const runtimeStage=resolveRuntimeStage(env);
-  const dataStage=resolveDataStage(env);
-  const tsInstance=String(env?.TS_INSTANCE||'').trim();
-  if(!tsInstance)return;
-  const shouldUsePreviewInstance=runtimeStage==='preview'||dataStage==='staging';
-  if(shouldUsePreviewInstance&&tsInstance!==PREVIEW_TS_INSTANCE){
-    throw new Error(`Preview/staging 环境只允许连接 ${PREVIEW_TS_INSTANCE}，当前 TS_INSTANCE=${tsInstance}`);
-  }
-}
-function buildBootstrapSafetyFlags(env=process.env){
-  const runtimeStage=resolveRuntimeStage(env);
-  const isProduction=runtimeStage==='production';
-  const allowProductionBootstrapWrites=readBooleanEnv(env,'ALLOW_PRODUCTION_BOOTSTRAP_WRITES');
-  const allowHighRiskBootstrapWrites=!isProduction||allowProductionBootstrapWrites;
-  return {
-    runtimeStage,
-    isProduction,
-    allowProductionBootstrapWrites,
-    enableDefaultUserBootstrap:readBooleanEnv(env,'ENABLE_DEFAULT_USER_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
-    enableTableBootstrap:readBooleanEnv(env,'ENABLE_TABLE_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
-    enableRuntimeTableEnsure:readBooleanEnv(env,'ENABLE_RUNTIME_TABLE_ENSURE'),
-    enableDefaultPricePlanBootstrap:readBooleanEnv(env,'ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
-    enableMabaoFinanceSeedBootstrap:readBooleanEnv(env,'ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP')&&allowHighRiskBootstrapWrites,
-    enableImportedLedgerAutoRepair:readBooleanEnv(env,'ENABLE_IMPORTED_LEDGER_AUTO_REPAIR')&&allowHighRiskBootstrapWrites
-  };
-}
-function logBlockedAutoWrite(action){
-  console.warn(`[api-guard] ${action} skipped in production. 如需执行，请仅在获批运维修复场景下显式设置 ALLOW_PRODUCTION_BOOTSTRAP_WRITES=true。`);
 }
 const BOOTSTRAP_SAFETY_FLAGS=buildBootstrapSafetyFlags();
 const RAW_ENABLE_DEFAULT_USER_BOOTSTRAP=readBooleanEnv(process.env,'ENABLE_DEFAULT_USER_BOOTSTRAP');
@@ -110,17 +91,40 @@ const MATCH_CREATOR_CONFIRM_DEADLINE_HOURS = 12;
 const MATCH_PREPAY_WINDOW_HOURS = 2;
 const LEGACY_STATIC_COACH_REFS=[{id:'legacy-coach-tianhao',name:'天昊'}];
 
-const T_USERS='ft_users',T_COURTS='ft_courts',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_PLANS='ft_plans',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_FINANCIAL_LEDGER='ft_financial_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
+const T_USERS='ft_users',T_COURTS='ft_courts',T_COURT_SORT_INDEX='ft_court_sort_index',T_STUDENTS='ft_students',T_PRODUCTS='ft_products',T_SCHEDULE='ft_schedule',T_COACHES='ft_coaches',T_CLASSES='ft_classes',T_CLASS_NOS='ft_class_nos',T_CAMPUSES='ft_campuses',T_FEEDBACKS='ft_feedbacks',T_PACKAGES='ft_packages',T_PURCHASES='ft_purchases',T_ENTITLEMENTS='ft_entitlements',T_ENTITLEMENT_LEDGER='ft_entitlement_ledger',T_FINANCIAL_LEDGER='ft_financial_ledger',T_MEMBERSHIP_PLANS='ft_membership_plans',T_MEMBERSHIP_ACCOUNTS='ft_membership_accounts',T_MEMBERSHIP_ORDERS='ft_membership_orders',T_MEMBERSHIP_BENEFIT_LEDGER='ft_membership_benefit_ledger',T_MEMBERSHIP_ACCOUNT_EVENTS='ft_membership_account_events',T_PRICE_PLANS='ft_price_plans';
 const HOT_CACHE_TTL_MS=10*60*1000;
 const MATCH_COURT_FINANCE_ACCOUNT_ID='match-court-finance';
+const FINANCE_PAGE_COURT_PROJECTION_FIELDS=[
+  'name',
+  'phone',
+  'campus',
+  'campusName',
+  'owner',
+  'notes',
+  'studentId',
+  'studentIds',
+  'balance',
+  'totalDeposit',
+  'spentAmount',
+  'receivedAmount',
+  'storedValueSpent',
+  'directPaidSpent',
+  'cachedBalance',
+  'cachedTotalDeposit',
+  'cachedTotalSpent',
+  'cachedTotalReceived',
+  'joinDate',
+  'createdAt',
+  'updatedAt'
+];
 const MATCH_SQL_TABLES=['match_users','match_posts','match_registrations','match_attendance','match_bookings','match_fee_records','match_fee_splits','match_operation_logs','match_replacements'];
 const MEMBERSHIP_TABLES=[T_MEMBERSHIP_PLANS,T_MEMBERSHIP_ACCOUNTS,T_MEMBERSHIP_ORDERS,T_MEMBERSHIP_BENEFIT_LEDGER,T_MEMBERSHIP_ACCOUNT_EVENTS];
-const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_CLASS_NOS,T_PRICE_PLANS,...MEMBERSHIP_TABLES];
+const RUNTIME_ENSURED_TABLES=[T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_CLASS_NOS,T_PRICE_PLANS,T_COURT_SORT_INDEX,...MEMBERSHIP_TABLES];
 const TEST_DATA_RESET_TABLES=[
   T_COURTS,
+  T_COURT_SORT_INDEX,
   T_STUDENTS,
   T_PRODUCTS,
-  T_PLANS,
   T_SCHEDULE,
   T_CLASSES,
   T_CLASS_NOS,
@@ -139,7 +143,6 @@ const HOT_SCAN_TABLES=new Map([
   [T_PRODUCTS,{ttlMs:HOT_CACHE_TTL_MS}],
   [T_SCHEDULE,{ttlMs:HOT_CACHE_TTL_MS}],
   [T_CLASSES,{ttlMs:HOT_CACHE_TTL_MS}],
-  [T_PLANS,{ttlMs:HOT_CACHE_TTL_MS}],
   [T_FEEDBACKS,{ttlMs:HOT_CACHE_TTL_MS}],
   [T_PACKAGES,{ttlMs:HOT_CACHE_TTL_MS}],
   [T_PURCHASES,{ttlMs:HOT_CACHE_TTL_MS}],
@@ -173,7 +176,7 @@ let tsClient;
 const wechatAccessTokenCacheByApp = new Map();
 const wechatAccessTokenCache = wechatAccessTokenCacheByApp;
 let matchSqlPool;
-function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3});return tsClient;}
+function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3,httpOptions:{timeout:15000}});return tsClient;}
 function getMatchSqlPool(){
   if(!MATCH_DATABASE_URL)throw new Error('缺少 MATCH_DATABASE_URL 或 DATABASE_URL，约球真实数据不能使用 mock 或 TableStore');
   if(!matchSqlPool)matchSqlPool=new Pool({connectionString:MATCH_DATABASE_URL,ssl:process.env.MATCH_DATABASE_SSL==='true'?{rejectUnauthorized:false}:undefined});
@@ -196,7 +199,21 @@ async function withStorageRetry(fn,maxAttempts=2){
   throw lastErr;
 }
 function cloneCacheValue(value){return JSON.parse(JSON.stringify(value));}
-function invalidateHotScanCache(t){hotScanCache.delete(t);}
+function normalizeScanOptions(options){
+  const columns=Array.isArray(options?.columns)
+    ? [...new Set(options.columns.map(item=>String(item||'').trim()).filter(Boolean))]
+    : [];
+  return columns.length?{columns}:null;
+}
+function hotScanCacheKey(t,options){
+  const normalized=normalizeScanOptions(options);
+  return normalized?`${t}::${normalized.columns.join('|')}`:t;
+}
+function invalidateHotScanCache(t){
+  for(const key of hotScanCache.keys()){
+    if(key===t||key.startsWith(`${t}::`))hotScanCache.delete(key);
+  }
+}
 function hotGetCacheKey(t,id){return `${t}:${String(id)}`;}
 function invalidateHotGetCache(t,id){
   if(id===undefined||id===null){
@@ -205,14 +222,15 @@ function invalidateHotGetCache(t,id){
   }
   hotGetCache.delete(hotGetCacheKey(t,id));
 }
-async function getCachedScan(t){
+async function getCachedScan(t,options){
   const cfg=HOT_SCAN_TABLES.get(t);
-  if(!cfg)return scan(t);
+  if(!cfg)return scan(t,options);
   const now=Date.now();
-  const cached=hotScanCache.get(t);
+  const key=hotScanCacheKey(t,options);
+  const cached=hotScanCache.get(key);
   if(cached&&cached.expiresAt>now)return cloneCacheValue(cached.rows);
-  const rows=await scan(t);
-  hotScanCache.set(t,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
+  const rows=await scan(t,options);
+  hotScanCache.set(key,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
   return rows;
 }
 async function getCachedRow(t,id){
@@ -239,7 +257,14 @@ function normalizeRangePrimaryKey(primaryKey){
     return item;
   });
 }
-function scan(t){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];function f(sk){gc().getRange({tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:normalizeRangePrimaryKey(sk)||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500},(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();}));}
+function scan(t,options){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];const normalized=normalizeScanOptions(options);function f(sk){const params={tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:normalizeRangePrimaryKey(sk)||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500};if(normalized?.columns?.length)params.columnsToGet=normalized.columns;gc().getRange(params,(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});d.nextStartPrimaryKey?f(d.nextStartPrimaryKey):res(rows);});}f();}));}
+async function getCachedRowsByIds(t,ids=[]){
+  const normalizedIds=[...new Set((ids||[]).map(item=>String(item||'').trim()).filter(Boolean))];
+  if(!normalizedIds.length)return [];
+  const rows=await Promise.all(normalizedIds.map(id=>getCachedRow(t,id)));
+  return rows.filter(Boolean);
+}
+function listTableRowsDesc(t,{limit=20,cursor=''}={}){return withStorageRetry(()=>new Promise((res,rej)=>{const normalizedLimit=Math.max(1,Math.min(parseInt(limit,10)||20,100));const normalizedCursor=String(cursor||'').trim();gc().getRange({tableName:t,direction:TableStore.Direction.BACKWARD,inclusiveStartPrimaryKey:normalizedCursor?[{id:normalizedCursor}]:[{id:TableStore.INF_MAX}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MIN}],maxVersions:1,limit:normalizedLimit+(normalizedCursor?1:0)},(e,d)=>{if(e)return rej(e);const rows=[];(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const id=r.primaryKey[0].value;if(normalizedCursor&&String(id)===normalizedCursor)return;const obj={id};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});const sliced=rows.slice(0,normalizedLimit);const hasMore=Boolean(d.nextStartPrimaryKey)||(rows.length>normalizedLimit);res({rows:sliced,nextCursor:hasMore&&sliced.length?String(sliced[sliced.length-1].id):''});});}));}
 function del(t,id){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);return withStorageRetry(()=>new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));}));}
 async function clearTables(storage,tables){
   const result={success:true,total:0,tables:[]};
@@ -301,24 +326,12 @@ async function applyLessonDelta(classId,delta,studentIds=[]){
   if(!cls)return null;
   const oldClass={...cls};
   const nextUsed=Math.max(0,parseLessonValue(cls.usedLessons)+delta);
-  const relatedPlans=(await timed('scan plans for lesson delta',()=>getCachedScan(T_PLANS))).filter((p)=>p.classId===classId&&p.status==='active');
-  const studentSet=new Set(parseArr(studentIds).filter(Boolean));
-  const chargedPlans=studentSet.size?relatedPlans.filter(p=>studentSet.has(p.studentId)):relatedPlans;
-  const oldPlans=relatedPlans.map((p)=>({...p}));
-  const updatedPlans=[];
   try{
     const nextClass={...cls,usedLessons:nextUsed,updatedAt:new Date().toISOString()};
     await put(T_CLASSES,classId,nextClass);
-    for(const p of chargedPlans){
-      const nextPlanUsed=Math.max(0,parseLessonValue(p.usedLessons)+delta);
-      const nextPlan={...p,usedLessons:nextPlanUsed,updatedAt:new Date().toISOString()};
-      await put(T_PLANS,p.id,nextPlan);
-      updatedPlans.push(nextPlan);
-    }
-    return {class:nextClass,plans:updatedPlans};
+    return {class:nextClass};
   }catch(err){
     await put(T_CLASSES,classId,oldClass).catch(()=>null);
-    for(const p of oldPlans)await put(T_PLANS,p.id,p).catch(()=>null);
     throw err;
   }
 }
@@ -327,6 +340,30 @@ function scheduleLessonDelta(rec){
   const lessonCount=parseLessonValue(rec.lessonCount);
   if(lessonCount<=0)return null;
   return {classId:rec.classId,delta:lessonCount};
+}
+function applyLinkedClassScheduleSnapshot(rec,linkedClass){
+  const base={...(rec||{})};
+  if(!base.classId)return {
+    ...base,
+    classNo:'',
+    className:'',
+    productId:'',
+    productName:''
+  };
+  if(!linkedClass)return base;
+  const classNo=firstNonEmptyText(linkedClass.classNo,base.classNo);
+  const className=firstNonEmptyText(linkedClass.className,base.className);
+  const productId=firstNonEmptyText(linkedClass.productId,base.productId);
+  const productName=firstNonEmptyText(linkedClass.productName,base.productName);
+  const courseType=firstNonEmptyText(base.courseType,linkedClass.courseType);
+  return {
+    ...base,
+    ...(classNo?{classNo}:{}),
+    ...(className?{className}:{}),
+    ...(productId?{productId}:{}),
+    ...(productName?{productName}:{}),
+    ...(courseType?{courseType}:{}),
+  };
 }
 function effectiveScheduleStatus(rec,now=new Date()){
   if(!rec)return '';
@@ -1122,7 +1159,6 @@ function filterLoadAllForUser(data,user,coachRefs=[]){
     membershipBenefitLedger:Array.isArray(data?.membershipBenefitLedger)?data.membershipBenefitLedger:[],
     membershipAccountEvents:Array.isArray(data?.membershipAccountEvents)?data.membershipAccountEvents:[],
     pricePlans:Array.isArray(data?.pricePlans)?data.pricePlans:[],
-    plans:Array.isArray(data?.plans)?data.plans:[],
     schedule:Array.isArray(data?.schedule)?data.schedule:[],
     coaches:Array.isArray(data?.coaches)?data.coaches:[],
     classes:Array.isArray(data?.classes)?data.classes:[],
@@ -1145,13 +1181,10 @@ function filterLoadAllForUser(data,user,coachRefs=[]){
   const scheduleIds=new Set(ownSchedule.map(s=>s.id).filter(Boolean));
   const scheduleClassIds=new Set(ownSchedule.map(s=>s.classId).filter(Boolean));
   const ownClasses=normalized.classes.filter(c=>rowMatchesCoach(c)||scheduleClassIds.has(c.id));
-  const classIds=new Set([...ownClasses.map(c=>c.id).filter(Boolean),...scheduleClassIds]);
   const studentIds=new Set();
   normalized.students.filter(rowMatchesCoach).forEach(s=>studentIds.add(s.id));
   ownSchedule.forEach(s=>parseArr(s.studentIds).forEach(id=>studentIds.add(id)));
   ownClasses.forEach(c=>parseArr(c.studentIds).forEach(id=>studentIds.add(id)));
-  const ownPlans=normalized.plans.filter(p=>studentIds.has(p.studentId)||classIds.has(p.classId));
-  ownPlans.forEach(p=>{if(p.studentId)studentIds.add(p.studentId);});
   const safeEntitlements=normalized.entitlements.filter(e=>studentIds.has(e.studentId)).map(e=>({
     id:e.id,studentId:e.studentId,studentName:e.studentName,packageName:e.packageName,courseType:e.courseType,totalLessons:e.totalLessons,usedLessons:e.usedLessons,remainingLessons:e.remainingLessons,validFrom:e.validFrom,validUntil:e.validUntil,timeBand:e.timeBand,status:e.status,ownerCoach:e.ownerCoach,allowedCoaches:parseArr(e.allowedCoaches)
   }));
@@ -1184,7 +1217,6 @@ function filterLoadAllForUser(data,user,coachRefs=[]){
     membershipBenefitLedger:[],
     membershipAccountEvents:[],
     pricePlans:[],
-    plans:ownPlans,
     schedule:ownSchedule,
     coaches:normalized.coaches.filter(c=>sameCoachName(c.id||c.name,coachId||coachName,coachRefs)),
     classes:ownClasses,
@@ -1270,8 +1302,8 @@ function extractWechatOpenId(data){
 function resolveWechatMiniConfig(kind='coach'){
   if(kind==='match'){
     return {
-      appid: MATCH_MINIPROGRAM_APPID || WECHAT_MINIPROGRAM_APPID,
-      secret: MATCH_MINIPROGRAM_SECRET || WECHAT_MINIPROGRAM_SECRET,
+      appid: MATCH_MINIPROGRAM_APPID,
+      secret: MATCH_MINIPROGRAM_SECRET,
       errorText: '缺少约球小程序密钥配置'
     };
   }
@@ -1299,6 +1331,7 @@ function buildAdminUserView(u){
   return {
     id:u.id,
     name:u.name,
+    phone:normalizePhone(u.phone||''),
     role:u.role,
     status:u.status||'active',
     coachId:u.coachId||'',
@@ -1390,39 +1423,6 @@ async function sendWechatSubscribeMessage(message){
   const data=await res.json();
   if(data.errcode&&data.errcode!==0)throw new Error(`微信订阅消息发送失败：${data.errmsg||data.errcode}`);
   return data;
-}
-function buildMatchSubscribeMessage({templateId,openid,match,content}){
-  return {
-    touser:openid,
-    template_id:templateId,
-    page:`pages/match-detail/index?id=${encodeURIComponent(String(match?.id||''))}`,
-    data:{
-      thing1:{value:truncateWechatValue(match?.title||'约球通知')},
-      thing2:{value:truncateWechatValue(content||'约球状态已更新')},
-      time3:{value:String(match?.starttime||match?.startTime||'').replace('T',' ').slice(0,16)}
-    }
-  };
-}
-async function notifyMatchUsers(matchId,action){
-  if(!MATCH_WECHAT_TEMPLATE_ID)return {skipped:true,reason:'missing_template'};
-  const pool=getMatchSqlPool();
-  const [matchRes,usersRes]=await Promise.all([
-    pool.query('SELECT * FROM match_posts WHERE id=$1',[matchId]),
-    pool.query("SELECT DISTINCT u.openid,u.id FROM match_users u LEFT JOIN match_registrations r ON r.userId=u.id WHERE r.matchId=$1 OR u.id=(SELECT creatorUserId FROM match_posts WHERE id=$1)",[matchId])
-  ]);
-  const match=matchRes.rows[0];
-  if(!match)return {skipped:true,reason:'missing_match'};
-  let sent=0,failed=0;
-  for(const user of usersRes.rows){
-    try{
-      await sendWechatSubscribeMessage(buildMatchSubscribeMessage({templateId:MATCH_WECHAT_TEMPLATE_ID,openid:user.openid,match,content:matchNotificationText(action,match.title)}));
-      sent++;
-    }catch(err){
-      failed++;
-      await pool.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user','system','notify_failed',JSON.stringify({userId:user.id,action}),JSON.stringify({error:String(err?.message||err)})]).catch(()=>null);
-    }
-  }
-  return {sent,failed};
 }
 async function notifyCoachScheduleCreated(schedule){
   if(!WECHAT_SCHEDULE_TEMPLATE_ID)return {skipped:true,reason:'missing_template'};
@@ -1526,7 +1526,7 @@ function buildCoachRenameUpdates(oldName,newName,data,now=new Date().toISOString
   return {
     classes:(data.classes||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach})),
     schedule:(data.schedule||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach})),
-    plans:(data.plans||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach})),
+    plans:[],
     users:(data.users||[]).filter(r=>sameCoachName(r.coachName,oldCoach)).map(r=>touch({...r,coachName:nextCoach})),
     feedbacks:(data.feedbacks||[]).filter(r=>sameCoachName(r.coach,oldCoach)).map(r=>touch({...r,coach:nextCoach}))
   };
@@ -1539,31 +1539,28 @@ function assertCanDeleteCoachName(name,data,coachId=''){
   const used=
     (data.classes||[]).some(r=>sameCoachName(r.coach,coach))||
     (data.schedule||[]).some(r=>sameCoachName(r.coach,coach))||
-    (data.plans||[]).some(r=>sameCoachName(r.coach,coach))||
     (data.users||[]).some(r=>sameCoachName(r.coachName,coach))||
     (data.feedbacks||[]).some(r=>sameCoachName(r.coach,coach))||
     (data.packages||[]).some(coachRefHit)||
     (data.entitlements||[]).some(coachRefHit);
-  if(used)throw new Error('该教练已有班次、排课、学习计划、账号、反馈、课包或权益关联，不能直接删除');
+  if(used)throw new Error('该教练已有班次、排课、账号、反馈、课包或权益关联，不能直接删除');
 }
 async function loadCoachReferenceData(){
-  const [classes,schedule,plans,users,feedbacks,packages,entitlements]=await Promise.all([
+  const [classes,schedule,users,feedbacks,packages,entitlements]=await Promise.all([
     timed('scan classes for coach references',()=>scan(T_CLASSES).catch(()=>[])),
     timed('scan schedule for coach references',()=>scan(T_SCHEDULE).catch(()=>[])),
-    timed('scan plans for coach references',()=>scan(T_PLANS).catch(()=>[])),
     timed('scan users for coach references',()=>scan(T_USERS).catch(()=>[])),
     timed('scan feedbacks for coach references',()=>withTimeout(getCachedFeedbacks(),3000,[])),
     timed('scan packages for coach references',()=>scan(T_PACKAGES).catch(()=>[])),
     timed('scan entitlements for coach references',()=>scan(T_ENTITLEMENTS).catch(()=>[]))
   ]);
-  return {classes,schedule,plans,users,feedbacks,packages,entitlements};
+  return {classes,schedule,plans:[],users,feedbacks,packages,entitlements};
 }
 async function applyCoachRename(oldName,newName){
   const updates=buildCoachRenameUpdates(oldName,newName,await loadCoachReferenceData());
   await Promise.all([
     ...updates.classes.map(r=>put(T_CLASSES,r.id,r)),
     ...updates.schedule.map(r=>put(T_SCHEDULE,r.id,r)),
-    ...updates.plans.map(r=>put(T_PLANS,r.id,r)),
     ...updates.users.map(r=>put(T_USERS,r.id,r)),
     ...updates.feedbacks.map(r=>putFeedback(r.id,r))
   ]);
@@ -1582,7 +1579,7 @@ function buildStudentIdentityUpdates(oldStudent,nextStudent,data,now=new Date().
   if(!changedName&&!changedPhone)return empty;
   const touch=row=>({...row,updatedAt:now});
   return {
-    plans:(data.plans||[]).filter(r=>r.studentId===id).map(r=>touch({...r,studentName:name||r.studentName,studentPhone:phone})),
+    plans:[],
     schedule:(data.schedule||[]).filter(r=>parseArr(r.studentIds).includes(id)||r.studentId===id).map(r=>touch({...r,studentName:name||r.studentName})),
     purchases:(data.purchases||[]).filter(r=>r.studentId===id).map(r=>touch({...r,studentName:name||r.studentName,studentPhone:phone})),
     entitlements:(data.entitlements||[]).filter(r=>r.studentId===id).map(r=>touch({...r,studentName:name||r.studentName})),
@@ -1597,20 +1594,18 @@ function buildStudentIdentityUpdates(oldStudent,nextStudent,data,now=new Date().
   };
 }
 async function loadStudentReferenceData(){
-  const [plans,schedule,purchases,entitlements,feedbacks,courts]=await Promise.all([
-    getCachedScan(T_PLANS).catch(()=>[]),
+  const [schedule,purchases,entitlements,feedbacks,courts]=await Promise.all([
     getCachedScan(T_SCHEDULE).catch(()=>[]),
     scan(T_PURCHASES).catch(()=>[]),
     getCachedScan(T_ENTITLEMENTS).catch(()=>[]),
     withTimeout(getCachedFeedbacks(),3000,[]),
     getCachedScan(T_COURTS).catch(()=>[])
   ]);
-  return {plans,schedule,purchases,entitlements,feedbacks,courts};
+  return {plans:[],schedule,purchases,entitlements,feedbacks,courts};
 }
 async function applyStudentIdentityUpdate(oldStudent,nextStudent){
   const updates=buildStudentIdentityUpdates(oldStudent,nextStudent,await loadStudentReferenceData());
   await Promise.all([
-    ...updates.plans.map(r=>put(T_PLANS,r.id,r)),
     ...updates.schedule.map(r=>put(T_SCHEDULE,r.id,r)),
     ...updates.purchases.map(r=>put(T_PURCHASES,r.id,r)),
     ...updates.entitlements.map(r=>put(T_ENTITLEMENTS,r.id,r)),
@@ -1635,8 +1630,6 @@ async function validateScheduleSave(nextRec,oldRec){
   return {warnings:collectScheduleRiskWarnings(nextRec,schedules,nextRec.id)};
 }
 
-let inited=false;
-let initPromise=null;
 const DEFAULT_COACH_USERS=['baiyangj','chendand','yuekez','zhoux','sunmingy'];
 const DEFAULT_CAMPUSES=[
   {id:'mabao',name:'顺义马坡',code:'mabao'},
@@ -1951,77 +1944,165 @@ async function listCampusesWithDefaults(){
   const rows=await getCachedScan(T_CAMPUSES).catch(()=>[]);
   return rows.length?rows:DEFAULT_CAMPUSES;
 }
-function scheduleInitInBackground(){
-  if(REQUIRED_ENV_VARS.some((k)=>!process.env[k]))return;
-  if(inited||initPromise)return;
-  init().catch(err=>console.error('[api-init] background init failed',err));
+const courtSortIndexService=createCourtSortIndexService({
+  tableName:T_COURT_SORT_INDEX,
+  listPageDesc:listTableRowsDesc,
+  put,
+  del,
+  scanAll:scan
+});
+async function syncCourtSortIndex(nextCourt,prevCourt=null){
+  return courtSortIndexService.syncCourt(nextCourt,prevCourt);
 }
-async function init(){
-  if(inited)return;
-  if(initPromise)return initPromise;
-  initPromise=(async()=>{
-    const startedAt=Date.now();
-    const missing=REQUIRED_ENV_VARS.filter((k)=>!process.env[k]);
-    if(missing.length)throw new Error('缺少环境变量：'+missing.join(', '));
-    assertTableStoreTarget(process.env);
-    if(RAW_ENABLE_DEFAULT_USER_BOOTSTRAP&&!ENABLE_DEFAULT_USER_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('bootstrapDefaultUsers');
-    if(RAW_ENABLE_TABLE_BOOTSTRAP&&!ENABLE_TABLE_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('ENABLE_TABLE_BOOTSTRAP');
-    if(RAW_ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&!ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('syncDefaultPricePlans');
-    if(RAW_ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP&&!ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('bootstrapMabaoFinanceSeed');
-    if(RAW_ENABLE_IMPORTED_LEDGER_AUTO_REPAIR&&!ENABLE_IMPORTED_LEDGER_AUTO_REPAIR&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('repairImportedLedgerDuplicates');
-    if(ENABLE_RUNTIME_TABLE_ENSURE||ENABLE_TABLE_BOOTSTRAP){
-      const stepStartedAt=Date.now();
-      for(const t of RUNTIME_ENSURED_TABLES)await mkTable(t);
-      console.log(`[api-init] ensure runtime tables done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-    }
-    if(ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP){
-      const stepStartedAt=Date.now();
-      for(const t of [T_STUDENTS,T_PRODUCTS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER])await mkTable(t);
-      console.log(`[api-init] ensure mabao seed tables done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-    }
-    if(ENABLE_TABLE_BOOTSTRAP){
-      let stepStartedAt=Date.now();
-      for(const t of[T_USERS,T_COURTS,T_STUDENTS,T_PRODUCTS,T_PLANS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CLASS_NOS,T_CAMPUSES,T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_PRICE_PLANS])await mkTable(t);
-      console.log(`[api-init] ensure bootstrap tables done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-      stepStartedAt=Date.now();
-      await bootstrapDefaultUsers();
-      console.log(`[api-init] bootstrapDefaultUsers done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-      stepStartedAt=Date.now();
-      await ensureDefaultCampuses();
-      console.log(`[api-init] ensureDefaultCampuses done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-      stepStartedAt=Date.now();
-      await ensureCoachBindings();
-      console.log(`[api-init] ensureCoachBindings done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-    }
-    if(ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP){
-      const stepStartedAt=Date.now();
-      await bootstrapMabaoFinanceSeed();
-      console.log(`[api-init] bootstrapMabaoFinanceSeed done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-    }
-    if(ENABLE_IMPORTED_LEDGER_AUTO_REPAIR){
-      const stepStartedAt=Date.now();
-      const repairedCount=await repairImportedLedgerDuplicates();
-      console.log(`[api-init] repairImportedLedgerDuplicates done ${Date.now()-stepStartedAt}ms, removed ${repairedCount} rows (total ${Date.now()-startedAt}ms)`);
-    }
-    inited=true;
-    if(ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP){
-      const stepStartedAt=Date.now();
-      await syncDefaultPricePlans().catch(err=>console.error('[api-bootstrap] sync default price plans failed',err));
-      console.log(`[api-init] syncDefaultPricePlans done ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-    }
-    {
-      const stepStartedAt=Date.now();
-      prewarmHotScanCache().catch(err=>console.error('[api-timing] prewarm hot tables failed',err));
-      console.log(`[api-init] prewarmHotScanCache dispatched ${Date.now()-stepStartedAt}ms (total ${Date.now()-startedAt}ms)`);
-    }
-    console.log(`[api-timing] init cold start ${Date.now()-startedAt}ms`);
-  })().catch(err=>{
-    initPromise=null;
-    inited=false;
-    throw err;
-  });
-  return initPromise;
+async function rebuildCourtSortIndex(courts=[],options={}){
+  return courtSortIndexService.rebuild(courts,options);
 }
+async function loadCourtSortPreviewPage({limit=20,cursor='',getCachedRow,tables}={}){
+  const page=await courtSortIndexService.listPage({limit,cursor});
+  const rows=await Promise.all((page.rows||[]).map(async(row)=>{
+    const court=await getCachedRow(tables.courts,row.courtId).catch(()=>null);
+    if(!court)return null;
+    return {
+      id:court.id,
+      name:court.name||'',
+      updatedAt:court.updatedAt||'',
+      createdAt:court.createdAt||'',
+      owner:court.owner||'',
+      campus:court.campus||'',
+      sortIndexId:row.id
+    };
+  }));
+  return {items:rows.filter(Boolean),nextCursor:page.nextCursor||''};
+}
+const loadFinancePageData=createFinancePageDataLoader({
+  listCampusesWithDefaults,
+  getCachedScan,
+  financeCourtProjectionFields:FINANCE_PAGE_COURT_PROJECTION_FIELDS,
+  tables:{
+    students:T_STUDENTS,
+    schedule:T_SCHEDULE,
+    entitlements:T_ENTITLEMENTS,
+    entitlementLedger:T_ENTITLEMENT_LEDGER,
+    financialLedger:T_FINANCIAL_LEDGER,
+    coaches:T_COACHES,
+    products:T_PRODUCTS,
+    purchases:T_PURCHASES,
+    packages:T_PACKAGES,
+    courts:T_COURTS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipBenefitLedger:T_MEMBERSHIP_BENEFIT_LEDGER,
+    membershipAccountEvents:T_MEMBERSHIP_ACCOUNT_EVENTS
+  }
+});
+const fixedCourtAcceptanceSamples=require('../docs/performance-governance/15-样板页固定验收样本.json');
+const loadCourtAccountListView=createCourtAccountListViewLoader({
+  listCampusesWithDefaults,
+  getCachedScan,
+  fixedSampleAccounts:fixedCourtAcceptanceSamples,
+  tables:{
+    students:T_STUDENTS,
+    courts:T_COURTS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipPlans:T_MEMBERSHIP_PLANS
+  }
+});
+const loadCourtAccountListViewCompare=createCourtAccountListCompareLoader({
+  listCampusesWithDefaults,
+  getCachedScan,
+  getCachedRowsByIds,
+  tables:{
+    students:T_STUDENTS,
+    courts:T_COURTS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipPlans:T_MEMBERSHIP_PLANS
+  },
+  fixedSampleAccounts:fixedCourtAcceptanceSamples
+});
+const handlePageDataRequest=createPageDataHandler({
+  init:()=>initRuntime.init(),
+  getCachedScan,
+  getCachedRow,
+  courtListProjectionFields:COURT_ACCOUNT_LIST_PROJECTION_FIELDS,
+  getCachedFeedbacks,
+  withTimeout,
+  loadFinancePageData,
+  loadCourtAccountListView,
+  loadCourtAccountListViewCompare,
+  loadCourtSortPreviewPage,
+  listCampusesWithDefaults,
+  tables:{
+    students:T_STUDENTS,
+    schedule:T_SCHEDULE,
+    entitlements:T_ENTITLEMENTS,
+    entitlementLedger:T_ENTITLEMENT_LEDGER,
+    financialLedger:T_FINANCIAL_LEDGER,
+    coaches:T_COACHES,
+    products:T_PRODUCTS,
+    purchases:T_PURCHASES,
+    packages:T_PACKAGES,
+    courts:T_COURTS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipBenefitLedger:T_MEMBERSHIP_BENEFIT_LEDGER,
+    membershipAccountEvents:T_MEMBERSHIP_ACCOUNT_EVENTS,
+    membershipPlans:T_MEMBERSHIP_PLANS,
+    pricePlans:T_PRICE_PLANS,
+    classes:T_CLASSES,
+    users:T_USERS
+  },
+  normalizeMembershipPlanViewRecord,
+  normalizeMembershipOrderViewRecord,
+  runMembershipReconcile,
+  buildCoachRefs,
+  filterLoadAllForUser,
+  decorateWorkbenchStudents,
+  decorateWorkbenchFeedbacks,
+  decorateWorkbenchScheduleRows,
+  decorateWorkbenchClasses,
+  buildWorkbenchStats
+});
+const startupSideEffects=createStartupSideEffectsRunner({
+  mkTable,
+  bootstrapDefaultUsers,
+  ensureDefaultCampuses,
+  ensureCoachBindings,
+  bootstrapMabaoFinanceSeed,
+  repairImportedLedgerDuplicates,
+  syncDefaultPricePlans
+});
+const initRuntime=createInitRuntime({
+  env:process.env,
+  logger:console,
+  requiredEnvVars:REQUIRED_ENV_VARS,
+  rawFlags:{
+    enableDefaultUserBootstrap:RAW_ENABLE_DEFAULT_USER_BOOTSTRAP,
+    enableTableBootstrap:RAW_ENABLE_TABLE_BOOTSTRAP,
+    enableDefaultPricePlanBootstrap:RAW_ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP,
+    enableMabaoFinanceSeedBootstrap:RAW_ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP,
+    enableImportedLedgerAutoRepair:RAW_ENABLE_IMPORTED_LEDGER_AUTO_REPAIR
+  },
+  flags:BOOTSTRAP_SAFETY_FLAGS,
+  enabledFlags:{
+    enableDefaultUserBootstrap:ENABLE_DEFAULT_USER_BOOTSTRAP,
+    enableTableBootstrap:ENABLE_TABLE_BOOTSTRAP,
+    enableRuntimeTableEnsure:ENABLE_RUNTIME_TABLE_ENSURE,
+    enableDefaultPricePlanBootstrap:ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP,
+    enableMabaoFinanceSeedBootstrap:ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP,
+    enableImportedLedgerAutoRepair:ENABLE_IMPORTED_LEDGER_AUTO_REPAIR
+  },
+  startupSideEffects,
+  runtimeEnsuredTables:RUNTIME_ENSURED_TABLES,
+  seedEnsureTables:[T_STUDENTS,T_PRODUCTS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER],
+  bootstrapTables:[T_USERS,T_COURTS,T_COURT_SORT_INDEX,T_STUDENTS,T_PRODUCTS,T_SCHEDULE,T_COACHES,T_CLASSES,T_CLASS_NOS,T_CAMPUSES,T_FEEDBACKS,T_PACKAGES,T_PURCHASES,T_ENTITLEMENTS,T_ENTITLEMENT_LEDGER,T_PRICE_PLANS],
+  assertTableStoreTarget,
+  logBlockedAutoWrite,
+  prewarmHotScanCache
+});
+const scheduleInitInBackground=()=>initRuntime.scheduleInitInBackground();
+const init=()=>initRuntime.init();
 
 scheduleInitInBackground();
 
@@ -2064,1032 +2145,13 @@ function canMatchUserCreateByAdminUser(adminUser){
   const permissions=userMatchPermissions(adminUser);
   return adminUser.role==='admin'||permissions.includes('match_ops');
 }
-async function canMatchUserCreate(userId){
-  const pool=getMatchSqlPool();
-  const userRes=await pool.query('SELECT * FROM match_users WHERE id=$1',[userId]);
-  const user=userRes.rows[0]||{};
-  const phone=normalizePhone(user.phone||'');
-  if(!phone)return false;
-  const adminUser=await getCachedRow(T_USERS,phone).catch(()=>null);
-  return canMatchUserCreateByAdminUser(adminUser);
-}
-function buildMatchUserToken(user){
-  return jwt.sign({id:user.id,type:'match_user',openid:user.openid},JWT_SECRET,{expiresIn:'7d'});
-}
-function assertMatchPostInput(input){
-  const title=String(input.title||'').trim();
-  if(!title)throw new Error('请填写标题');
-  const matchType=normalizeMatchType(input.matchType);
-  if(!['single','double'].includes(matchType))throw new Error('请选择约球类型');
-  const targetHeadcount=parseInt(input.targetHeadcount,10);
-  if(!Number.isInteger(targetHeadcount)||targetHeadcount<2)throw new Error('请填写有效人数');
-  const rawNtrpMin=String(input.ntrpMin??'').trim();
-  const rawNtrpMax=String(input.ntrpMax??'').trim();
-  const hasPresetLevel=rawNtrpMin!==''||rawNtrpMax!=='';
-  const ntrpMin=hasPresetLevel?Number(rawNtrpMin):0;
-  const ntrpMax=hasPresetLevel?Number(rawNtrpMax):0;
-  if(hasPresetLevel&&(!isValidNtrp(ntrpMin)||!isValidNtrp(ntrpMax)||ntrpMin>ntrpMax))throw new Error('NTRP 范围不正确');
-  if(!hasPresetLevel&&(rawNtrpMin!==rawNtrpMax))throw new Error('NTRP 范围不正确');
-  if(!['不限','男生','女生'].includes(input.genderPreference))throw new Error('请选择性别偏好');
-  const estimatedCourtFee=normalizeMoney(input.estimatedCourtFee);
-  if(estimatedCourtFee<=0)throw new Error('费用必须大于 0');
-  const venueName=String(input.venueName||'').trim();
-  if(!venueName)throw new Error('请选择球场');
-  const startMs=dateMs(input.startTime);
-  const endMs=dateMs(input.endTime);
-  if(!Number.isFinite(startMs))throw new Error('请选择开始时间');
-  if(!Number.isFinite(endMs)||endMs<=startMs)throw new Error('结束时间必须晚于开始时间');
-  if(String(input.startTime||'').slice(0,10)!==String(input.endTime||'').slice(0,10))throw new Error('不能跨天');
-  return {...input,title,matchType,targetHeadcount,ntrpMin,ntrpMax,levelMode:hasPresetLevel?'preset':'first_join',estimatedCourtFee,venueName,status:input.status||'open'};
-}
-function normalizeMatchType(value){
-  const raw=String(value||'').trim();
-  if(raw==='单打')return 'single';
-  if(raw==='双打')return 'double';
-  return raw;
-}
-function maskPhone(value=''){
-  const phone=normalizePhone(value);
-  if(!/^1\d{10}$/.test(phone))return '';
-  return `${phone.slice(0,3)}****${phone.slice(-4)}`;
-}
-function isValidNtrp(value){
-  return Number.isFinite(value)&&value>=1&&value<=5&&Math.abs(value*2-Math.round(value*2))<0.001;
-}
-function formatNtrpValue(value){
-  const num=Number(value);
-  if(!isValidNtrp(num))return '';
-  return num.toFixed(1);
-}
-function formatNtrpRangeText(minValue,maxValue){
-  const min=formatNtrpValue(minValue);
-  const max=formatNtrpValue(maxValue);
-  if(min&&max)return min===max?min:`${min}-${max}`;
-  return min||max||'待首位报名定级';
-}
-function activeMatchRegistrations(registrations=[]){
-  return (registrations||[]).filter(row=>String(row.registrationstatus||row.registrationStatus)==='registered');
-}
-function activeRegistrationLevels(registrations=[]){
-  return activeMatchRegistrations(registrations)
-    .map(row=>Number(row.ntrplevel||row.ntrpLevel||0))
-    .filter(isValidNtrp)
-    .sort((a,b)=>a-b);
-}
-function resolveEffectiveLevelRange(row,registrations=[]){
-  const levels=activeRegistrationLevels(registrations);
-  if(levels.length>0)return {min:levels[0],max:levels[levels.length-1],pending:false};
-  const min=Number(row.ntrpmin||row.ntrpMin||0);
-  const max=Number(row.ntrpmax||row.ntrpMax||0);
-  if(isValidNtrp(min)&&isValidNtrp(max))return {min,max,pending:false};
-  return {min:0,max:0,pending:true};
-}
-function matchTimelineStatus(match,now=new Date()){
-  const status=String(match?.status||'open');
-  if(status==='cancelled')return '已取消';
-  const nowMs=now instanceof Date?now.getTime():dateMs(now);
-  const startMs=dateMs(match.startTime||match.starttime);
-  const endMs=dateMs(match.endTime||match.endtime);
-  if(Number.isFinite(endMs)&&nowMs>=endMs)return '已结束';
-  if(Number.isFinite(startMs)&&nowMs<startMs)return '待开始';
-  return '进行中';
-}
-function deriveMatchStatus(match,now=new Date()){
-  const status=String(match?.status||'open');
-  if(['cancelled','settled','fee_pending'].includes(status))return status;
-  const nowMs=now instanceof Date?now.getTime():dateMs(now);
-  const startTime=match.startTime||match.starttime;
-  const endTime=match.endTime||match.endtime;
-  if(status==='booked'){
-    if(Number.isFinite(dateMs(endTime))&&nowMs>=dateMs(endTime))return 'attendance_pending';
-    if(Number.isFinite(dateMs(startTime))&&nowMs>=dateMs(startTime))return 'playing';
-  }
-  return status;
-}
-function matchDurationHours(startTime,endTime){
-  const startMs=dateMs(startTime);
-  const endMs=dateMs(endTime);
-  if(!Number.isFinite(startMs)||!Number.isFinite(endMs)||endMs<=startMs)return 0;
-  return (endMs-startMs)/(60*60*1000);
-}
-function isFourPlayerGroupMatch(match){
-  return Number(match?.targetheadcount||match?.targetHeadcount||0)===4;
-}
-function computeMatchSettlementAmount({matchType,startTime,endTime,finalCourtFee,participantCount}={}){
-  const base=Math.round(normalizeMoney(finalCourtFee));
-  const count=Number(participantCount||0);
-  if(count<=1)throw new Error('1人默认取消，不能生成AA');
-  let surcharge=0;
-  if(normalizeMatchType(matchType)==='single'&&count===2&&matchDurationHours(startTime,endTime)>=1.99)surcharge=60;
-  return base+surcharge;
-}
-function buildPreviewAaText({matchType,startTime,endTime,estimatedCourtFee=0,finalCourtFee=0,activeCount=0,targetHeadcount=0}={}){
-  const currentCount=Number(activeCount||0);
-  const previewCount=currentCount>1?currentCount:(currentCount===0?Number(targetHeadcount||0):0);
-  const finalFee=normalizeMoney(finalCourtFee);
-  const estimatedFee=normalizeMoney(estimatedCourtFee);
-  if(previewCount>1&&finalFee>0){
-    const total=computeMatchSettlementAmount({matchType,startTime,endTime,finalCourtFee:finalFee,participantCount:previewCount});
-    return `约 ¥${Math.ceil(total/previewCount)}/人`;
-  }
-  if(previewCount>1&&estimatedFee>0){
-    const total=computeMatchSettlementAmount({matchType,startTime,endTime,finalCourtFee:estimatedFee,participantCount:previewCount});
-    return `约 ¥${Math.ceil(total/previewCount)}/人`;
-  }
-  if(currentCount===1)return '待成团';
-  return 'AA待定';
-}
-function splitAaFee(finalCourtFee,participantIds){
-  const total=Math.round(normalizeMoney(finalCourtFee));
-  const ids=[...new Set((participantIds||[]).filter(Boolean).map(String))];
-  if(total<=0)throw new Error('最终费用必须大于 0');
-  if(ids.length<=0)throw new Error('没有可计费参与人');
-  const each=Math.ceil(total/ids.length);
-  return ids.map((userId,index)=>{
-    const amount=index===ids.length-1?total-each*(ids.length-1):each;
-    return {userId,amount};
-  });
-}
-async function withMatchSqlTransaction(fn){
-  const client=await getMatchSqlPool().connect();
-  try{
-    await client.query('BEGIN');
-    const result=await fn(client);
-    await client.query('COMMIT');
-    return result;
-  }catch(err){
-    await client.query('ROLLBACK').catch(()=>null);
-    throw err;
-  }finally{
-    client.release();
-  }
-}
-async function registerMatchUser(matchId,userId){
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    const status=deriveMatchStatus(match);
-    if(!['open','full'].includes(status))throw new Error('当前状态不能报名');
-    if(dateMs(match.starttime||match.startTime)<=Date.now())throw new Error('已开始，不能报名');
-    const [dup,activeRegsRes,userRes]=await Promise.all([
-      client.query("SELECT id FROM match_registrations WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered'",[matchId,userId]),
-      client.query("SELECT r.*,u.ntrpLevel FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId WHERE r.matchId=$1 AND r.registrationStatus='registered' ORDER BY r.createdAt ASC",[matchId]),
-      client.query('SELECT * FROM match_users WHERE id=$1',[userId])
-    ]);
-    if(dup.rowCount>0)throw new Error('已报名');
-    const user=userRes.rows[0];
-    if(!user)throw new Error('用户不存在');
-    const userNtrp=Number(user.ntrplevel||user.ntrpLevel||0);
-    if(!isValidNtrp(userNtrp))throw new Error('请先在“我的”页面设置真实水平');
-    const activeRegs=activeRegsRes.rows;
-    const count=activeRegs.length;
-    if(count>=Number(match.targetheadcount||match.targetHeadcount))throw new Error('名额已满');
-    const currentMin=Number(match.ntrpmin||match.ntrpMin||0);
-    const levelMode=String(match.levelmode||match.levelMode||'preset');
-    if(levelMode==='first_join'&&count===0&&currentMin<=0){
-      await client.query('UPDATE match_posts SET ntrpMin=$1,ntrpMax=$1,updatedAt=NOW() WHERE id=$2',[userNtrp,matchId]);
-    }else if(isValidNtrp(currentMin)&&userNtrp<currentMin){
-      throw new Error(`本局最低水平为 ${currentMin.toFixed(1)}`);
-    }
-    const id=uuidv4();
-    await client.query("INSERT INTO match_registrations(id,matchId,userId,registrationStatus,createdAt) VALUES($1,$2,$3,'registered',NOW())",[id,matchId,userId]);
-    const nextCount=count+1;
-    const nextStatus=nextCount>=Number(match.targetheadcount||match.targetHeadcount)?'full':'open';
-    let formationStatus=String(match.formationstatus||match.formationStatus||'free_open');
-    let justFormedGroup=false;
-    if(isFourPlayerGroupMatch(match)&&nextCount>=4){
-      const prepayDeadlineAt=new Date(Date.now()+MATCH_PREPAY_WINDOW_HOURS*60*60*1000).toISOString();
-      const participantIds=[...activeRegs.map(row=>String(row.userid||row.userId)),String(userId)];
-      const existingFeeRes=await client.query('SELECT * FROM match_fee_records WHERE matchId=$1 LIMIT 1',[matchId]);
-      if(existingFeeRes.rowCount<=0){
-        const ledger=buildGroupPrepayLedger({matchId,estimatedCourtFee:match.estimatedcourtfee||match.estimatedCourtFee,participantIds});
-        await client.query(
-          'INSERT INTO match_fee_records(id,matchId,estimatedCourtFee,finalCourtFee,participantCount,aaAmount,roundingRule,roundingDifference,status,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())',
-          [ledger.record.id,matchId,ledger.record.estimatedCourtFee,ledger.record.finalCourtFee,ledger.record.participantCount,ledger.record.aaAmount,ledger.record.roundingRule,ledger.record.roundingDifference,ledger.record.status]
-        );
-        for(const split of ledger.splits){
-          await client.query('INSERT INTO match_fee_splits(id,matchId,userId,amount,payStatus,paidAmount,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,NOW(),NOW())',[split.id,matchId,split.userId,split.amount,split.payStatus,split.paidAmount]);
-        }
-        justFormedGroup=true;
-      }
-      formationStatus='group_ready';
-      await client.query('UPDATE match_posts SET status=$1,formationStatus=$2,prepayTriggeredAt=NOW(),prepayDeadlineAt=$3,updatedAt=NOW() WHERE id=$4',[nextStatus,formationStatus,prepayDeadlineAt,matchId]);
-    }else{
-      await client.query('UPDATE match_posts SET status=$1,formationStatus=$2,updatedAt=NOW() WHERE id=$3',[nextStatus,formationStatus,matchId]);
-    }
-    return {
-      id,
-      currentHeadcount:nextCount,
-      status:nextStatus,
-      formationStatus,
-      justFormedGroup,
-      formationNotice:justFormedGroup?'本局已成团，需在2小时内完成预付；全员付款成功后约球生效':''};
-  });
-}
-function toMatchView(row,registrations=[],viewerId='',feeSplits=[]){
-  const active=(registrations||[]).filter(r=>String(r.registrationstatus||r.registrationStatus)==='registered');
-  const viewerRegistration=(registrations||[]).find(r=>String(r.userid||r.userId)===String(viewerId));
-  const finalFee=normalizeMoney(row.finalcourtfee||row.finalCourtFee);
-  const activeCount=active.length;
-  const viewerFeeSplit=(feeSplits||[]).find(row=>String(row.userid||row.userId)===String(viewerId))||null;
-  const levelRange=resolveEffectiveLevelRange(row,active);
-  const formationStatus=String(row.formationstatus||row.formationStatus||'free_open');
-  const canSelfCancel=Boolean(viewerRegistration&&String(viewerRegistration.registrationstatus||viewerRegistration.registrationStatus)==='registered'&&formationStatus!=='group_locked');
-  const derivedStatus=deriveMatchStatus(row);
-  const statusText=formationStatus==='group_ready'?'待预付':formationStatus==='group_locked'?'已成团':matchStatusText(derivedStatus);
-  return {
-    id:row.id,
-    creatorUserId:row.creatoruserid||row.creatorUserId,
-    title:row.title,
-    matchType:row.matchtype||row.matchType,
-    targetHeadcount:Number(row.targetheadcount||row.targetHeadcount||0),
-    currentHeadcount:activeCount,
-    startTime:row.starttime||row.startTime,
-    endTime:row.endtime||row.endTime,
-    venueName:row.venuename||row.venueName||'',
-    venueAddress:row.venueaddress||row.venueAddress||'',
-    ntrpMin:levelRange.min,
-    ntrpMax:levelRange.max,
-    ntrpRangeText:formatNtrpRangeText(levelRange.min,levelRange.max),
-    levelMode:row.levelmode||row.levelMode||'preset',
-    genderPreference:row.genderpreference||row.genderPreference||'不限',
-    estimatedCourtFee:normalizeMoney(row.estimatedcourtfee||row.estimatedCourtFee),
-    finalCourtFee:finalFee,
-    status:derivedStatus,
-    statusText,
-    timelineStatusText:matchTimelineStatus(row),
-    formationStatus,
-    prepayDeadlineAt:row.prepaydeadlineat||row.prepayDeadlineAt||'',
-    statusHintText:buildMatchStatusHint({match:row,registrations:active,viewerId,viewerJoined:Boolean(viewerRegistration)}),
-    viewerJoined:!!viewerRegistration&&String(viewerRegistration.registrationstatus||viewerRegistration.registrationStatus)==='registered',
-    viewerIsCreator:String(row.creatoruserid||row.creatorUserId)===String(viewerId),
-    viewerRegistrationStatus:viewerRegistration?.registrationstatus||viewerRegistration?.registrationStatus||'',
-    aaDisplayText:buildPreviewAaText({matchType:row.matchtype||row.matchType,startTime:row.starttime||row.startTime,endTime:row.endtime||row.endTime,estimatedCourtFee:row.estimatedcourtfee||row.estimatedCourtFee,finalCourtFee:finalFee,activeCount,targetHeadcount:row.targetheadcount||row.targetHeadcount}),
-    viewerFeeSplit,
-    offlinePaymentText:viewerFeeSplit&&String(viewerFeeSplit.paystatus||viewerFeeSplit.payStatus)==='pending'?'请线下联系运营收款，付款后由管理端确认':'',
-    canSelfCancel,
-    registrations:active.map(reg=>({
-      ...reg,
-      userName:String(reg.nickname||reg.nickName||maskPhone(reg.phone)||reg.userid||reg.userId||'球友').trim(),
-      ntrpText:formatNtrpValue(reg.ntrplevel||reg.ntrpLevel)||'未设水平',
-      attendanceRateText:reg.attendanceratetext||reg.attendanceRateText||'暂无守约率',
-      finalAttendanceStatus:reg.finalattendancestatus||reg.finalAttendanceStatus||'pending'
-    }))
-  };
-}
-async function loadAttendanceRateMap(pool,userIds=[]){
-  const uniqueUserIds=[...new Set((userIds||[]).map(id=>String(id||'').trim()).filter(Boolean))];
-  if(!uniqueUserIds.length)return new Map();
-  const statsRows=await pool.query(`
-    SELECT
-      userId,
-      COUNT(*) FILTER (WHERE finalStatus IN ('attended','absent'))::int AS resolved_count,
-      COUNT(*) FILTER (WHERE finalStatus='attended')::int AS attended_count
-    FROM match_attendance
-    WHERE userId = ANY($1::text[])
-    GROUP BY userId
-  `,[uniqueUserIds]);
-  const rateMap=new Map();
-  for(const row of statsRows.rows){
-    const resolved=Number(row.resolved_count||0);
-    const attended=Number(row.attended_count||0);
-    rateMap.set(String(row.userid||row.userId),resolved>0?`${Math.round(attended*100/resolved)}%`:'暂无守约率');
-  }
-  return rateMap;
-}
-async function loadMatchRegistrationViews(pool,matchIds=[],{registeredOnly=true}={}){
-  const uniqueMatchIds=[...new Set((matchIds||[]).map(id=>String(id||'').trim()).filter(Boolean))];
-  if(!uniqueMatchIds.length)return [];
-  const statusClause=registeredOnly?"AND r.registrationStatus='registered'":'';
-  const regRows=await pool.query(`
-    SELECT
-      r.*,
-      u.nickName,
-      u.phone,
-      u.avatarUrl,
-      u.ntrpLevel,
-      a.finalStatus
-    FROM match_registrations r
-    LEFT JOIN match_users u ON u.id=r.userId
-    LEFT JOIN match_attendance a ON a.matchId=r.matchId AND a.userId=r.userId
-    WHERE r.matchId = ANY($1::text[])
-    ${statusClause}
-  `,[uniqueMatchIds]);
-  const rateMap=await loadAttendanceRateMap(pool,regRows.rows.map(row=>String(row.userid||row.userId||'')));
-  return regRows.rows.map(row=>({
-    ...row,
-    attendanceRateText:rateMap.get(String(row.userid||row.userId||''))||'暂无守约率'
-  }));
-}
-function toMatchDetailResponse(view){
-  if(!view)return null;
-  const registrations=Array.isArray(view.registrations)?view.registrations:[];
-  const match={...view};
-  delete match.registrations;
-  return {...view,match,registrations};
-}
-function matchStatusText(status){
-  return ({open:'招募中',full:'已满员',booked:'已订场',playing:'进行中',attendance_pending:'待确认到场',fee_pending:'待确认费用',settled:'已结清',cancelled:'已取消'})[status]||status;
-}
-function assertMatchBookingInput(input){
-  const finalCourtFee=normalizeMoney(input.finalCourtFee);
-  if(finalCourtFee<=0)throw new Error('请填写最终场地费');
-  const bookingStatus=input.bookingStatus||'booked';
-  if(!['booked','cancelled'].includes(bookingStatus))throw new Error('订场状态不正确');
-  return {...input,finalCourtFee,bookingStatus};
-}
-function assertBookedWithdrawalInput(input={}){
-  const financialResponsibility=String(input.financialResponsibility||'').trim();
-  if(!['charge','waive','abnormal'].includes(financialResponsibility))throw new Error('退赛责任不正确');
-  const reason=String(input.reason||input.withdrawalReason||'').trim();
-  return {financialResponsibility,reason};
-}
-function assertMatchFeeSplitUpdateInput(input={}){
-  const payStatus=String(input.payStatus||'paid').trim();
-  if(!['pending','paid','waived','refunded','bad_debt','abnormal'].includes(payStatus))throw new Error('收款状态不正确');
-  const note=String(input.note||'').trim();
-  const amount=input.amount==null?null:normalizeMoney(input.amount);
-  if(amount!=null&&amount<0)throw new Error('AA金额不能小于 0');
-  if((['waived','refunded','bad_debt','abnormal'].includes(payStatus)||amount!=null)&&!note)throw new Error('请填写原因');
-  const paidAmount=input.paidAmount==null?null:normalizeMoney(input.paidAmount);
-  return {payStatus,paidAmount,amount,note};
-}
-function assertMatchReplacementTransferInput(input={}){
-  const fromUserId=String(input.fromUserId||'').trim();
-  if(!fromUserId)throw new Error('请选择原报名人');
-  const replacementPhone=assertPhone(input.replacementPhone||input.phone||'');
-  const replacementPayStatus=String(input.replacementPayStatus||'paid').trim();
-  if(!['pending','paid'].includes(replacementPayStatus))throw new Error('替补付款状态不正确');
-  const refundNote=String(input.refundNote||input.note||'').trim();
-  if(!refundNote)throw new Error('请填写转让说明');
-  return {
-    fromUserId,
-    replacementPhone,
-    replacementPayStatus,
-    refundNote,
-    transferNote:String(input.transferNote||'').trim()
-  };
-}
-function resolveFinalAttendanceStatus(row){
-  if(row?.creatorStatus==='attended'||row?.creatorstatus==='attended')return 'attended';
-  if(row?.creatorStatus==='absent'||row?.creatorstatus==='absent')return 'absent';
-  return 'pending';
-}
-function buildMatchStatusHint({match={},registrations=[],viewerId='',viewerJoined=false}={}){
-  const activeCount=activeMatchRegistrations(registrations).length;
-  const formationStatus=String(match.formationstatus||match.formationStatus||'free_open');
-  const timeline=matchTimelineStatus(match);
-  if(timeline==='已结束'&&String(match.status||'')!=='settled')return '球局已结束，等待到场和费用确认';
-  if(resolveEffectiveLevelRange(match,registrations).pending)return '未设水平时，以首位报名球友的真实水平定级';
-  if(isFourPlayerGroupMatch(match)&&formationStatus==='group_ready')return '本局已成团，需在2小时内完成预付，全员付款成功约球生效';
-  if(isFourPlayerGroupMatch(match)&&formationStatus==='group_locked')return '四人成团已锁定，如需退出请自行联系替补并由后台处理名额转让';
-  if(isFourPlayerGroupMatch(match)&&activeCount<4)return '未满4人前仅占位报名，不收款，可自由取消';
-  return '';
-}
-function buildGroupPrepayLedger({matchId,estimatedCourtFee=0,participantIds=[]}={}){
-  const total=Math.round(normalizeMoney(estimatedCourtFee));
-  if(total<=0)throw new Error('预付金额必须大于 0');
-  const splits=splitAaFee(total,participantIds);
-  return {
-    record:{
-      id:uuidv4(),
-      matchId,
-      estimatedCourtFee:total,
-      finalCourtFee:total,
-      participantCount:splits.length,
-      aaAmount:Math.ceil(total/splits.length),
-      roundingRule:'ceil',
-      roundingDifference:total-splits.reduce((sum,row)=>sum+row.amount,0),
-      status:'prepay_pending'
-    },
-    splits:splits.map(row=>({id:uuidv4(),matchId,userId:row.userId,amount:row.amount,payStatus:'pending',paidAmount:0}))
-  };
-}
-function resolveMatchPrepayClosure({mode='cancelled',reason='',splits=[]}={}){
-  const normalizedReason=String(reason||'').trim();
-  const nextSplits=(splits||[]).map((row)=>{
-    const paidAmount=normalizeMoney(row.paidamount??row.paidAmount??0);
-    const nextStatus=paidAmount>0||String(row.paystatus||row.payStatus||'')==='paid'?'refunded':'cancelled';
-    const baseNote=String(row.note||'').trim();
-    return {
-      ...row,
-      payStatus:nextStatus,
-      paidAmount,
-      note:[baseNote,normalizedReason].filter(Boolean).join('；')
-    };
-  });
-  const refunded=nextSplits.some((row)=>row.payStatus==='refunded');
-  const recordStatus=mode==='downgraded'
-    ? (refunded?'prepay_downgraded_refunded':'prepay_downgraded')
-    : (refunded?'prepay_cancelled_refunded':'prepay_cancelled');
-  return {recordStatus,splits:nextSplits};
-}
-async function closeMatchPrepayLedger(client,matchId,{mode='cancelled',reason=''}={}){
-  const feeRecordRes=await client.query('SELECT * FROM match_fee_records WHERE matchId=$1 FOR UPDATE',[matchId]);
-  const feeRecord=feeRecordRes.rows[0]||null;
-  if(!feeRecord)return {changed:false,recordStatus:'',splits:[]};
-  if(!/^prepay_/.test(String(feeRecord.status||'')))return {changed:false,recordStatus:String(feeRecord.status||''),splits:[]};
-  const splitRes=await client.query('SELECT * FROM match_fee_splits WHERE matchId=$1 FOR UPDATE',[matchId]);
-  const closure=resolveMatchPrepayClosure({mode,reason,splits:splitRes.rows});
-  for(const row of closure.splits){
-    await client.query(
-      'UPDATE match_fee_splits SET payStatus=$1,paidAmount=$2,paidAt=$3,note=$4,updatedAt=NOW() WHERE id=$5',
-      [row.payStatus,row.paidAmount,row.payStatus==='refunded'?(row.paidat||row.paidAt||new Date()):null,row.note||'',row.id]
-    );
-  }
-  await client.query('UPDATE match_fee_records SET status=$1,updatedAt=NOW() WHERE matchId=$2',[closure.recordStatus,matchId]);
-  return {...closure,changed:true};
-}
-async function syncMatchFeeRecordState(client,matchId,{isPrepay=false}={}){
-  const activeSplitsRes=await client.query("SELECT payStatus FROM match_fee_splits WHERE matchId=$1 AND payStatus NOT IN ('cancelled','refunded')",[matchId]);
-  const settled=activeSplitsRes.rows.length>0&&activeSplitsRes.rows.every(row=>['paid','waived'].includes(row.paystatus||row.payStatus));
-  if(isPrepay){
-    const status=settled?'prepay_paid':'prepay_pending';
-    await client.query('UPDATE match_fee_records SET status=$1,updatedAt=NOW() WHERE matchId=$2',[status,matchId]);
-    await client.query("UPDATE match_posts SET formationStatus=$2,updatedAt=NOW() WHERE id=$1",[matchId,settled?'group_locked':'group_ready']);
-    return {settled,status};
-  }
-  const status=settled?'settled':'confirmed';
-  await client.query('UPDATE match_fee_records SET status=$1,updatedAt=NOW() WHERE matchId=$2',[status,matchId]);
-  if(settled)await client.query("UPDATE match_posts SET status='settled',updatedAt=NOW() WHERE id=$1",[matchId]);
-  return {settled,status};
-}
-function buildMatchFeeLedger({matchId,estimatedCourtFee=0,finalCourtFee,matchType,startTime,endTime,participants=[]}={}){
-  const billable=(participants||[]).filter(row=>row.finalStatus==='attended'||row.finalstatus==='attended'||row.chargeAbsent===true);
-  const settlementTotal=computeMatchSettlementAmount({matchType,startTime,endTime,finalCourtFee,participantCount:billable.length});
-  const splits=splitAaFee(settlementTotal,billable.map(row=>row.userId||row.userid));
-  const distributedTotal=splits.reduce((sum,row)=>sum+row.amount,0);
-  const aaAmount=Math.ceil(normalizeMoney(settlementTotal)/splits.length);
-  return {
-    record:{
-      id:uuidv4(),
-      matchId,
-      estimatedCourtFee:normalizeMoney(estimatedCourtFee),
-      finalCourtFee:Math.round(normalizeMoney(settlementTotal)),
-      participantCount:splits.length,
-      aaAmount,
-      roundingRule:'ceil',
-      roundingDifference:Math.round(normalizeMoney(settlementTotal))-distributedTotal,
-      status:'pending'
-    },
-    splits:splits.map(row=>({id:uuidv4(),matchId,userId:row.userId,amount:row.amount,payStatus:'pending',paidAmount:0}))
-  };
-}
-async function listMatchesForViewer(viewerId){
-  const pool=getMatchSqlPool();
-  const matches=await pool.query("SELECT * FROM match_posts WHERE status<>'cancelled' ORDER BY startTime ASC");
-  const registrations=await loadMatchRegistrationViews(pool,matches.rows.map(row=>String(row.id||'')),{registeredOnly:true});
-  const regsByMatch=new Map();
-  for(const row of registrations){
-    const key=String(row.matchid||row.matchId);
-    regsByMatch.set(key,[...(regsByMatch.get(key)||[]),row]);
-  }
-  return matches.rows.map(row=>toMatchView(row,regsByMatch.get(String(row.id))||[],viewerId));
-}
-async function getMatchForViewer(matchId,viewerId){
-  const pool=getMatchSqlPool();
-  const match=await pool.query('SELECT * FROM match_posts WHERE id=$1',[matchId]);
-  if(!match.rows[0])return null;
-  const [regs,splits]=await Promise.all([
-    loadMatchRegistrationViews(pool,[matchId],{registeredOnly:false}),
-    pool.query('SELECT * FROM match_fee_splits WHERE matchId=$1',[matchId])
-  ]);
-  return toMatchView(match.rows[0],regs,viewerId,splits.rows);
-}
-async function createMatchForUser(userId,input){
-  if(!(await canMatchUserCreate(userId)))throw new Error('仅管理员可发起约球');
-  const row=assertMatchPostInput(input);
-  const id=uuidv4();
-  await getMatchSqlPool().query(
-    'INSERT INTO match_posts(id,creatorUserId,title,matchType,targetHeadcount,startTime,endTime,venueName,venueAddress,venueLatitude,venueLongitude,ntrpMin,ntrpMax,levelMode,genderPreference,estimatedCourtFee,status,formationStatus,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,NOW(),NOW())',
-    [id,userId,row.title,row.matchType,row.targetHeadcount,row.startTime,row.endTime,row.venueName||'',row.venueAddress||'',row.venueLatitude||null,row.venueLongitude||null,row.ntrpMin,row.ntrpMax,row.levelMode,row.genderPreference,row.estimatedCourtFee,'open','free_open']
-  );
-  return getMatchForViewer(id,userId);
-}
-async function updateMatchForUser(matchId,userId,input){
-  const row=assertMatchPostInput(input);
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    if(String(match.creatoruserid||match.creatorUserId)!==String(userId))throw new Error('只有发起者可编辑');
-    if(dateMs(match.starttime||match.startTime)<=Date.now())throw new Error('已开始，不能编辑');
-    const regs=await client.query("SELECT COUNT(*)::int AS count FROM match_registrations WHERE matchId=$1 AND registrationStatus='registered'",[matchId]);
-    await client.query(
-      'UPDATE match_posts SET title=$1,matchType=$2,targetHeadcount=$3,startTime=$4,endTime=$5,venueName=$6,venueAddress=$7,venueLatitude=$8,venueLongitude=$9,ntrpMin=$10,ntrpMax=$11,levelMode=$12,genderPreference=$13,estimatedCourtFee=$14,updatedAt=NOW() WHERE id=$15',
-      [row.title,row.matchType,row.targetHeadcount,row.startTime,row.endTime,row.venueName||'',row.venueAddress||'',row.venueLatitude||null,row.venueLongitude||null,row.ntrpMin,row.ntrpMax,row.levelMode,row.genderPreference,row.estimatedCourtFee,matchId]
-    );
-    if((regs.rows[0]?.count||0)>0){
-      await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'match_user',userId,'match_update',JSON.stringify(match),JSON.stringify(row)]);
-    }
-    return {success:true};
-  });
-}
-async function closeMatchFeeLedger(client,matchId,note,{feeRecord=null,onlyPrepay=false,mode='cancelled'}={}){
-  const lockedFeeRecord=feeRecord||((await client.query('SELECT * FROM match_fee_records WHERE matchId=$1 FOR UPDATE',[matchId])).rows[0]||null);
-  if(!lockedFeeRecord)return {feeRecord:null,isPrepay:false,updatedSplits:[]};
-  const isPrepay=/^prepay_/.test(String(lockedFeeRecord.status||''));
-  if(onlyPrepay&&!isPrepay)return {feeRecord:lockedFeeRecord,isPrepay,updatedSplits:[]};
-  const splitRows=(await client.query('SELECT * FROM match_fee_splits WHERE matchId=$1 FOR UPDATE',[matchId])).rows;
-  if(isPrepay){
-    const closure=resolveMatchPrepayClosure({mode,reason:note,splits:splitRows});
-    for(const split of closure.splits){
-      await client.query(
-        'UPDATE match_fee_splits SET payStatus=$1,paidAmount=$2,paidAt=$3,note=$4,updatedAt=NOW() WHERE id=$5',
-        [split.payStatus,split.paidAmount,split.payStatus==='refunded'?(split.paidat||split.paidAt||new Date()):null,split.note||'',String(split.id||'')]
-      );
-    }
-    await client.query('UPDATE match_fee_records SET status=$1,updatedAt=NOW() WHERE id=$2',[closure.recordStatus,String(lockedFeeRecord.id||'')]);
-    return {feeRecord:lockedFeeRecord,isPrepay,updatedSplits:closure.splits};
-  }
-  const updatedSplits=[];
-  for(const split of splitRows){
-    const currentStatus=String(split.paystatus||split.payStatus||'').trim();
-    if(['cancelled','refunded'].includes(currentStatus))continue;
-    const paidAmount=normalizeMoney(split.paidamount||split.paidAmount);
-    const nextStatus=paidAmount>0?'refunded':'cancelled';
-    const nextPaidAmount=nextStatus==='refunded'?paidAmount:0;
-    await client.query(
-      'UPDATE match_fee_splits SET payStatus=$1,paidAmount=$2,paidAt=$3,note=$4,updatedAt=NOW() WHERE id=$5',
-      [nextStatus,nextPaidAmount,nextStatus==='refunded'?new Date():null,note,String(split.id||'')]
-    );
-    updatedSplits.push({...split,payStatus:nextStatus,paidAmount:nextPaidAmount});
-  }
-  const nextRecordStatus=updatedSplits.some(row=>String(row.payStatus||'')==='refunded')?'refunded':'cancelled';
-  await client.query('UPDATE match_fee_records SET status=$1,updatedAt=NOW() WHERE id=$2',[nextRecordStatus,String(lockedFeeRecord.id||'')]);
-  return {feeRecord:lockedFeeRecord,isPrepay,updatedSplits};
-}
-async function cancelMatchForUser(matchId,userId,reason=''){
-  const cancellationReason=String(reason||'发起者取消').trim()||'发起者取消';
-  const financeSync={refundUserIds:[]};
-  const result=await withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    if(String(match.creatoruserid||match.creatorUserId)!==String(userId))throw new Error('只有发起者可取消');
-    const status=deriveMatchStatus(match);
-    if(!['open','full','booked'].includes(status))throw new Error('当前状态不能取消');
-    if(dateMs(match.starttime||match.startTime)<=Date.now())throw new Error('已开始，不能取消');
-    let feeClosure=null;
-    if(status==='booked'){
-      await client.query(
-        "UPDATE match_registrations SET registrationStatus='cancelled',cancelledAt=NOW(),financialResponsibility='waive',withdrawalReason=$1,withdrawalHandledBy=$2,withdrawalHandledAt=NOW() WHERE matchId=$3 AND registrationStatus='registered'",
-        [cancellationReason,userId,matchId]
-      );
-      feeClosure=await closeMatchFeeLedger(client,matchId,cancellationReason,{mode:'cancelled'});
-      if(feeClosure&&!feeClosure.isPrepay){
-        financeSync.refundUserIds=feeClosure.updatedSplits
-          .filter(row=>String(row.payStatus||'')==='refunded')
-          .map(row=>String(row.userid||row.userId||''))
-          .filter(Boolean);
-      }
-    }
-    await client.query("UPDATE match_posts SET status='cancelled',formationStatus='free_open',cancelReason=$1,prepayTriggeredAt=NULL,prepayDeadlineAt=NULL,updatedAt=NOW() WHERE id=$2",[cancellationReason,matchId]);
-    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'match_user',userId,status==='booked'?'match_cancel_booked':'match_cancel',JSON.stringify(match),JSON.stringify({reason:cancellationReason,closedFeeSplits:feeClosure?.updatedSplits?.length||0})]);
-    return {success:true,status:'cancelled',closedFeeSplits:feeClosure?.updatedSplits?.length||0};
-  });
-  for(const refundUserId of financeSync.refundUserIds){
-    await syncMatchFeeSplitRefundToCourtFinance(matchId,refundUserId,userId,cancellationReason).catch(()=>null);
-  }
-  notifyMatchUsers(matchId,'match_update').catch(()=>null);
-  return result;
-}
-async function cancelRegistrationForUser(matchId,userId){
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    const status=deriveMatchStatus(match);
-    const formationStatus=String(match.formationstatus||match.formationStatus||'free_open');
-    if(status==='booked')throw new Error('已订场，请联系运营处理');
-    if(formationStatus==='group_locked')throw new Error('四人成团并付款后不能自主退局，请先联系替补');
-    if(!['open','full'].includes(status))throw new Error('当前状态不能取消报名');
-    if(dateMs(match.starttime||match.startTime)<=Date.now())throw new Error('已开始，不能取消报名');
-    const result=await client.query("UPDATE match_registrations SET registrationStatus='cancelled',cancelledAt=NOW() WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered' RETURNING id",[matchId,userId]);
-    if(result.rowCount<=0)throw new Error('未报名');
-    const countRes=await client.query("SELECT COUNT(*)::int AS count FROM match_registrations WHERE matchId=$1 AND registrationStatus='registered'",[matchId]);
-    const nextCount=countRes.rows[0]?.count||0;
-    const nextStatus=nextCount>=Number(match.targetheadcount||match.targetHeadcount)?'full':'open';
-    if(isFourPlayerGroupMatch(match)&&nextCount<4){
-      const feeClosure=await closeMatchFeeLedger(client,matchId,'四人局人数不足，已降级为自由局',{onlyPrepay:true,mode:'downgraded'});
-      await client.query('UPDATE match_posts SET status=$1,formationStatus=$2,prepayTriggeredAt=NULL,prepayDeadlineAt=NULL,updatedAt=NOW() WHERE id=$3',[nextStatus,'free_open',matchId]);
-      await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'match_user',userId,'formation_downgrade',JSON.stringify(match),JSON.stringify({reason:'四人局人数不足，已降级为自由局',closedFeeSplits:feeClosure.updatedSplits.length})]);
-      return {success:true,currentHeadcount:nextCount,status:nextStatus,formationStatus:'free_open'};
-    }
-    await client.query('UPDATE match_posts SET status=$1,updatedAt=NOW() WHERE id=$2',[nextStatus,matchId]);
-    return {success:true,currentHeadcount:nextCount,status:nextStatus,formationStatus};
-  });
-}
-async function listAdminMatches(){
-  const pool=getMatchSqlPool();
-  const [matches,registrations,bookings,fees,splits,logs]=await Promise.all([
-    pool.query('SELECT * FROM match_posts ORDER BY startTime DESC'),
-    pool.query('SELECT r.*,u.nickName,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId'),
-    pool.query('SELECT * FROM match_bookings ORDER BY createdAt DESC'),
-    pool.query('SELECT * FROM match_fee_records ORDER BY createdAt DESC'),
-    pool.query('SELECT s.*,u.nickName,u.phone FROM match_fee_splits s LEFT JOIN match_users u ON u.id=s.userId ORDER BY s.createdAt ASC'),
-    pool.query('SELECT * FROM match_operation_logs ORDER BY createdAt DESC')
-  ]);
-  const regsByMatch=new Map();
-  for(const row of registrations.rows){
-    const key=String(row.matchid||row.matchId);
-    regsByMatch.set(key,[...(regsByMatch.get(key)||[]),row]);
-  }
-  const bookingByMatch=new Map(bookings.rows.map(row=>[String(row.matchid||row.matchId),row]));
-  const feeByMatch=new Map(fees.rows.map(row=>[String(row.matchid||row.matchId),row]));
-  const feeSplitsByMatch=new Map();
-  for(const row of splits.rows){
-    const key=String(row.matchid||row.matchId);
-    feeSplitsByMatch.set(key,[...(feeSplitsByMatch.get(key)||[]),row]);
-  }
-  const logsByMatch=new Map();
-  for(const row of logs.rows){
-    const key=String(row.matchid||row.matchId);
-    logsByMatch.set(key,[...(logsByMatch.get(key)||[]),row]);
-  }
-  return matches.rows.map(row=>({...toMatchView(row,regsByMatch.get(String(row.id))||[],''),booking:bookingByMatch.get(String(row.id))||null,feeRecord:feeByMatch.get(String(row.id))||null,feeSplits:feeSplitsByMatch.get(String(row.id))||[],operationLogs:logsByMatch.get(String(row.id))||[]}));
-}
-async function adminBookMatch(matchId,operatorId,input){
-  const booking=assertMatchBookingInput(input);
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    const id=uuidv4();
-    await client.query(
-      'INSERT INTO match_bookings(id,matchId,operatorUserId,venueNameFinal,venueAddressFinal,venueLatitudeFinal,venueLongitudeFinal,courtNo,bookingStartTime,bookingEndTime,finalCourtFee,bookingStatus,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),NOW())',
-      [id,matchId,operatorId,booking.venueNameFinal||'',booking.venueAddressFinal||'',booking.venueLatitudeFinal||null,booking.venueLongitudeFinal||null,booking.courtNo||'',booking.bookingStartTime||match.starttime||match.startTime,booking.bookingEndTime||match.endtime||match.endTime,booking.finalCourtFee,booking.bookingStatus]
-    );
-    const nextStatus=booking.bookingStatus==='booked'?'booked':'cancelled';
-    await client.query('UPDATE match_posts SET status=$1,finalCourtFee=$2,updatedAt=NOW() WHERE id=$3',[nextStatus,booking.finalCourtFee,matchId]);
-    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'booking',JSON.stringify(match),JSON.stringify(booking)]);
-    notifyMatchUsers(matchId,'booking').catch(()=>null);
-    return {success:true,matchId,status:nextStatus,bookingId:id,finalCourtFee:booking.finalCourtFee};
-  });
-}
-async function confirmMatchAttendance(matchId,operatorId,items=[]){
-  if(!Array.isArray(items)||items.length===0)throw new Error('请提交到场名单');
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    for(const item of items){
-      const userId=String(item.userId||'').trim();
-      if(!userId)continue;
-      const creatorStatus=item.finalStatus||item.creatorStatus;
-      if(!['attended','absent'].includes(creatorStatus))throw new Error('到场状态不正确');
-      const finalStatus=resolveFinalAttendanceStatus({creatorStatus});
-      await client.query(
-        "INSERT INTO match_attendance(id,matchId,userId,selfStatus,creatorStatus,finalStatus,updatedAt) VALUES($1,$2,$3,'pending',$4,$5,NOW()) ON CONFLICT(matchId,userId) DO UPDATE SET creatorStatus=EXCLUDED.creatorStatus,finalStatus=EXCLUDED.finalStatus,updatedAt=NOW()",
-        [uuidv4(),matchId,userId,creatorStatus,finalStatus]
-      );
-    }
-    await client.query("UPDATE match_posts SET status='fee_pending',updatedAt=NOW() WHERE id=$1",[matchId]);
-    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'attendance_confirm',JSON.stringify(match),JSON.stringify(items)]);
-    return {success:true,status:'fee_pending'};
-  });
-}
-async function adminHandleBookedWithdrawal(matchId,userId,operatorId,input={}){
-  const withdrawal=assertBookedWithdrawalInput(input);
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    const status=deriveMatchStatus(match);
-    if(status!=='booked')throw new Error('只有已订场球局需要后台处理退赛');
-    const regRes=await client.query("SELECT * FROM match_registrations WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered' FOR UPDATE",[matchId,userId]);
-    const reg=regRes.rows[0];
-    if(!reg)throw new Error('报名记录不存在');
-    await client.query(
-      "UPDATE match_registrations SET registrationStatus='cancelled',cancelledAt=NOW(),financialResponsibility=$1,withdrawalReason=$2,withdrawalHandledBy=$3,withdrawalHandledAt=NOW() WHERE matchId=$4 AND userId=$5 AND registrationStatus='registered'",
-      [withdrawal.financialResponsibility,withdrawal.reason,operatorId,matchId,userId]
-    );
-    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'booked_withdrawal',JSON.stringify(reg),JSON.stringify(withdrawal)]);
-    return {success:true,financialResponsibility:withdrawal.financialResponsibility};
-  });
-}
-async function adminTransferMatchReplacement(matchId,operatorId,input={}){
-  const transfer=assertMatchReplacementTransferInput(input);
-  const financeSync={refund:null,paid:null};
-  const result=await withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    if(!isFourPlayerGroupMatch(match))throw new Error('当前仅支持四人局替补转让');
-    const formationStatus=String(match.formationstatus||match.formationStatus||'free_open');
-    if(!['group_ready','group_locked'].includes(formationStatus))throw new Error('当前状态无需替补转让');
-    const [fromRegRes,replacementUserRes]=await Promise.all([
-      client.query("SELECT r.*,u.nickName,u.phone FROM match_registrations r LEFT JOIN match_users u ON u.id=r.userId WHERE r.matchId=$1 AND r.userId=$2 AND r.registrationStatus='registered' FOR UPDATE",[matchId,transfer.fromUserId]),
-      client.query('SELECT * FROM match_users WHERE phone=$1 ORDER BY updatedAt DESC LIMIT 1',[transfer.replacementPhone])
-    ]);
-    const fromReg=fromRegRes.rows[0];
-    if(!fromReg)throw new Error('原报名记录不存在');
-    const replacementUser=replacementUserRes.rows[0];
-    if(!replacementUser)throw new Error('替补用户不存在，请先让对方登录小程序并完成手机号授权');
-    const replacementUserId=String(replacementUser.id||'');
-    if(replacementUserId===String(transfer.fromUserId))throw new Error('替补用户不能和原报名人相同');
-    const replacementDupRes=await client.query("SELECT id FROM match_registrations WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered' LIMIT 1",[matchId,replacementUserId]);
-    if(replacementDupRes.rowCount>0)throw new Error('替补用户已经在本局报名名单里');
-    const replacementLevel=Number(replacementUser.ntrplevel||replacementUser.ntrpLevel||0);
-    const matchMinLevel=Number(match.ntrpmin||match.ntrpMin||0);
-    if(!isValidNtrp(replacementLevel))throw new Error('替补用户还没有设置真实水平');
-    if(isValidNtrp(matchMinLevel)&&replacementLevel<matchMinLevel)throw new Error(`本局最低水平为 ${matchMinLevel.toFixed(1)}，替补不符合要求`);
-    const feeRecordRes=await client.query('SELECT * FROM match_fee_records WHERE matchId=$1 FOR UPDATE',[matchId]);
-    const feeRecord=feeRecordRes.rows[0]||null;
-    const isPrepay=/^prepay_/.test(String(feeRecord?.status||''));
-    let previousSplit=null;
-    if(feeRecord){
-      const splitRes=await client.query('SELECT * FROM match_fee_splits WHERE matchId=$1 AND userId=$2 FOR UPDATE',[matchId,transfer.fromUserId]);
-      previousSplit=splitRes.rows[0]||null;
-      if(!previousSplit)throw new Error('原报名人的账单不存在');
-    }
-
-    const replacementRegistrationId=uuidv4();
-    await client.query(
-      "UPDATE match_registrations SET registrationStatus='cancelled',cancelledAt=NOW(),financialResponsibility='transferred',withdrawalReason=$1,withdrawalHandledBy=$2,withdrawalHandledAt=NOW() WHERE id=$3",
-      [transfer.refundNote,operatorId,fromReg.id]
-    );
-    await client.query(
-      "INSERT INTO match_registrations(id,matchId,userId,registrationStatus,createdAt,financialResponsibility,withdrawalReason) VALUES($1,$2,$3,'registered',NOW(),$4,$5)",
-      [replacementRegistrationId,matchId,replacementUserId,'replacement',transfer.transferNote||'']
-    );
-    await client.query('DELETE FROM match_attendance WHERE matchId=$1 AND userId=$2',[matchId,replacementUserId]);
-
-    let replacementSplitId='';
-    let originalSplitStatus='';
-    if(previousSplit){
-      const amount=normalizeMoney(previousSplit.amount);
-      const previousPaidAmount=normalizeMoney(previousSplit.paidamount||previousSplit.paidAmount);
-      originalSplitStatus=previousPaidAmount>0?'refunded':'cancelled';
-      await client.query(
-        'UPDATE match_fee_splits SET payStatus=$1,paidAmount=$2,paidAt=$3,note=$4,updatedAt=NOW() WHERE matchId=$5 AND userId=$6',
-        [originalSplitStatus,previousPaidAmount,originalSplitStatus==='refunded'?new Date():null,transfer.refundNote,matchId,transfer.fromUserId]
-      );
-      replacementSplitId=uuidv4();
-      const replacementPaidAmount=transfer.replacementPayStatus==='paid'?amount:0;
-      await client.query(
-        'INSERT INTO match_fee_splits(id,matchId,userId,amount,payStatus,paidAmount,paidAt,note,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())',
-        [replacementSplitId,matchId,replacementUserId,amount,transfer.replacementPayStatus,replacementPaidAmount,transfer.replacementPayStatus==='paid'?new Date():null,transfer.transferNote||transfer.refundNote]
-      );
-      if(feeRecord){
-        const nextFeeState=await syncMatchFeeRecordState(client,matchId,{isPrepay});
-        if(isPrepay&&nextFeeState.status==='prepay_pending'){
-          await client.query("UPDATE match_posts SET status='full',updatedAt=NOW() WHERE id=$1",[matchId]);
-        }
-      }
-      financeSync.refund=!isPrepay&&originalSplitStatus==='refunded'?{needed:true}:null;
-      financeSync.paid=!isPrepay&&transfer.replacementPayStatus==='paid'?{needed:true,userId:replacementUserId}:null;
-    }
-
-    const replacementRowId=uuidv4();
-    await client.query(
-      'INSERT INTO match_replacements(id,matchId,fromUserId,toUserId,operatorUserId,originalSplitAmount,originalSplitRefundedAmount,replacementSplitAmount,replacementPayStatus,reason,note,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())',
-      [
-        replacementRowId,
-        matchId,
-        transfer.fromUserId,
-        replacementUserId,
-        operatorId,
-        normalizeMoney(previousSplit?.amount||0),
-        normalizeMoney(previousSplit?.paidamount||previousSplit?.paidAmount||0),
-        normalizeMoney(previousSplit?.amount||0),
-        transfer.replacementPayStatus,
-        transfer.refundNote,
-        transfer.transferNote||''
-      ]
-    );
-    await client.query(
-      'INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',
-      [
-        uuidv4(),
-        matchId,
-        'admin_user',
-        operatorId,
-        'replacement_transfer',
-        JSON.stringify({fromUserId:transfer.fromUserId,fromPhone:fromReg.phone||'',fromNickName:fromReg.nickname||fromReg.nickName||''}),
-        JSON.stringify({toUserId:replacementUserId,toPhone:replacementUser.phone||'',toNickName:replacementUser.nickname||replacementUser.nickName||'',replacementPayStatus:transfer.replacementPayStatus,reason:transfer.refundNote,note:transfer.transferNote||''})
-      ]
-    );
-    return {
-      success:true,
-      fromUserId:transfer.fromUserId,
-      toUserId:replacementUserId,
-      replacementPayStatus:transfer.replacementPayStatus,
-      replacementNickName:replacementUser.nickname||replacementUser.nickName||maskPhone(replacementUser.phone)||replacementUserId,
-      message:transfer.replacementPayStatus==='paid'?'替补已入局并完成付款':'替补名额已转让，等待替补付款'
-    };
-  });
-  if(financeSync.refund?.needed)result.refundSync=await syncMatchFeeSplitRefundToCourtFinance(matchId,transfer.fromUserId,operatorId,transfer.refundNote);
-  if(financeSync.paid?.needed)result.paidSync=await syncMatchFeeSplitToCourtFinance(matchId,financeSync.paid.userId,operatorId);
-  notifyMatchUsers(matchId,'match_update').catch(()=>null);
-  return result;
-}
-async function selfConfirmMatchAttendance(matchId,userId){
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    const status=deriveMatchStatus(match);
-    if(!['booked','playing','attendance_pending'].includes(status))throw new Error('当前还不能确认到场');
-    if(dateMs(match.starttime||match.startTime)>Date.now())throw new Error('未到开始时间');
-    const reg=await client.query("SELECT id FROM match_registrations WHERE matchId=$1 AND userId=$2 AND registrationStatus='registered'",[matchId,userId]);
-    if(reg.rowCount<=0)throw new Error('未报名，不能确认到场');
-    await client.query(
-      "INSERT INTO match_attendance(id,matchId,userId,selfStatus,creatorStatus,finalStatus,updatedAt) VALUES($1,$2,$3,'attended','pending','pending',NOW()) ON CONFLICT(matchId,userId) DO UPDATE SET selfStatus='attended',updatedAt=NOW()",
-      [uuidv4(),matchId,userId]
-    );
-    return {success:true,selfStatus:'attended'};
-  });
-}
-async function creatorConfirmMatchAttendance(matchId,creatorUserId,registrationId,finalStatus){
-  if(!['attended','absent'].includes(finalStatus))throw new Error('到场状态不正确');
-  return withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    if(String(match.creatoruserid||match.creatorUserId)!==String(creatorUserId))throw new Error('只有发起者可确认');
-    const reg=await client.query('SELECT * FROM match_registrations WHERE id=$1 AND matchId=$2',[registrationId,matchId]);
-    const row=reg.rows[0];
-    if(!row)throw new Error('报名记录不存在');
-    const feeRecord=await client.query('SELECT id FROM match_fee_records WHERE matchId=$1 LIMIT 1',[matchId]);
-    if(feeRecord.rowCount>0)throw new Error('已生成AA，不能再修改到场名单');
-    const confirmDeadline=dateMs(match.endtime||match.endTime)+(MATCH_CREATOR_CONFIRM_DEADLINE_HOURS*60*60*1000);
-    if(Number.isFinite(confirmDeadline)&&Date.now()>confirmDeadline)throw new Error('已超过发起者确认时限，请联系运营处理');
-    await client.query(
-      "INSERT INTO match_attendance(id,matchId,userId,selfStatus,creatorStatus,finalStatus,updatedAt) VALUES($1,$2,$3,'pending',$4,$4,NOW()) ON CONFLICT(matchId,userId) DO UPDATE SET creatorStatus=$4,finalStatus=$4,updatedAt=NOW()",
-      [uuidv4(),matchId,row.userid||row.userId,finalStatus]
-    );
-    return {success:true,finalStatus};
-  });
-}
-async function generateMatchFeeLedger(matchId,operatorId,{chargeAbsentUserIds=[]}={}){
-  const chargeAbsentSet=new Set((chargeAbsentUserIds||[]).map(String));
-  const result=await withMatchSqlTransaction(async(client)=>{
-    const matchRes=await client.query('SELECT * FROM match_posts WHERE id=$1 FOR UPDATE',[matchId]);
-    const match=matchRes.rows[0];
-    if(!match)throw new Error('球局不存在');
-    const bookingRes=await client.query("SELECT * FROM match_bookings WHERE matchId=$1 AND bookingStatus='booked' ORDER BY createdAt DESC LIMIT 1",[matchId]);
-    const finalCourtFee=bookingRes.rows[0]?.finalcourtfee||bookingRes.rows[0]?.finalCourtFee||match.finalcourtfee||match.finalCourtFee;
-    const attendanceRes=await client.query('SELECT * FROM match_attendance WHERE matchId=$1',[matchId]);
-    const activeRegsRes=await client.query("SELECT userId FROM match_registrations WHERE matchId=$1 AND registrationStatus='registered'",[matchId]);
-    const confirmedAttendanceUserIds=new Set(
-      attendanceRes.rows
-        .filter(row=>['attended','absent'].includes(row.finalstatus||row.finalStatus))
-        .map(row=>String(row.userid||row.userId))
-    );
-    const unconfirmedUsers=activeRegsRes.rows.filter(row=>!confirmedAttendanceUserIds.has(String(row.userid||row.userId)));
-    if(unconfirmedUsers.length)throw new Error('请先完成全部到场确认，再生成AA');
-    const chargeWithdrawalRes=await client.query("SELECT userId FROM match_registrations WHERE matchId=$1 AND registrationStatus='cancelled' AND financialResponsibility='charge'",[matchId]);
-    const existingSplitsRes=await client.query('SELECT * FROM match_fee_splits WHERE matchId=$1',[matchId]);
-    const existingPaidByUser=new Map(existingSplitsRes.rows.map(row=>[String(row.userid||row.userId),normalizeMoney(row.paidamount||row.paidAmount)]));
-    const ledger=buildMatchFeeLedger({
-      matchId,
-      estimatedCourtFee:match.estimatedcourtfee||match.estimatedCourtFee,
-      finalCourtFee,
-      matchType:match.matchtype||match.matchType,
-      startTime:match.starttime||match.startTime,
-      endTime:match.endtime||match.endTime,
-      participants:[
-        ...attendanceRes.rows.map(row=>({...row,chargeAbsent:chargeAbsentSet.has(String(row.userid||row.userId))})),
-        ...chargeWithdrawalRes.rows.map(row=>({userId:row.userid||row.userId,finalStatus:'absent',chargeAbsent:true}))
-      ]
-    });
-    ledger.splits=ledger.splits.map(split=>{
-      const paidAmount=existingPaidByUser.get(String(split.userId))||0;
-      return {...split,paidAmount,payStatus:paidAmount>=split.amount?'paid':'pending'};
-    });
-    await client.query('DELETE FROM match_fee_splits WHERE matchId=$1',[matchId]);
-    await client.query('DELETE FROM match_fee_records WHERE matchId=$1',[matchId]);
-    await client.query(
-      'INSERT INTO match_fee_records(id,matchId,estimatedCourtFee,finalCourtFee,participantCount,aaAmount,roundingRule,roundingDifference,status,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),NOW())',
-      [ledger.record.id,matchId,ledger.record.estimatedCourtFee,ledger.record.finalCourtFee,ledger.record.participantCount,ledger.record.aaAmount,ledger.record.roundingRule,ledger.record.roundingDifference,ledger.splits.every(row=>row.payStatus==='paid')?'settled':ledger.record.status]
-    );
-    for(const split of ledger.splits){
-      await client.query('INSERT INTO match_fee_splits(id,matchId,userId,amount,payStatus,paidAmount,paidAt,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())',[split.id,matchId,split.userId,split.amount,split.payStatus,split.paidAmount,split.payStatus==='paid'?new Date():null]);
-    }
-    await client.query("UPDATE match_posts SET status=$2,updatedAt=NOW() WHERE id=$1",[matchId,ledger.splits.every(row=>row.payStatus==='paid')?'settled':'fee_pending']);
-    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'fee_generate',JSON.stringify(match),JSON.stringify(ledger.record)]);
-    notifyMatchUsers(matchId,'fee_generate').catch(()=>null);
-    return {ledger,paidUserIds:ledger.splits.filter(row=>row.payStatus==='paid').map(row=>String(row.userId))};
-  });
-  for(const paidUserId of result.paidUserIds){
-    await syncMatchFeeSplitToCourtFinance(matchId,paidUserId,operatorId).catch(()=>null);
-  }
-  return result.ledger;
-}
-async function markMatchFeeSplit(matchId,userId,operatorId,input={}){
-  const update=assertMatchFeeSplitUpdateInput(input);
-  const result=await withMatchSqlTransaction(async(client)=>{
-    const feeRecordRes=await client.query('SELECT * FROM match_fee_records WHERE matchId=$1 FOR UPDATE',[matchId]);
-    const feeRecord=feeRecordRes.rows[0]||{};
-    const isPrepay=/^prepay_/.test(String(feeRecord.status||''));
-    const splitRes=await client.query('SELECT * FROM match_fee_splits WHERE matchId=$1 AND userId=$2 FOR UPDATE',[matchId,userId]);
-    const split=splitRes.rows[0];
-    if(!split)throw new Error('账单不存在');
-    const amount=update.amount==null?normalizeMoney(split.amount):normalizeMoney(update.amount);
-    const previousPaidAmount=normalizeMoney(split.paidamount||split.paidAmount);
-    if(update.payStatus==='refunded'&&String(split.paystatus||split.payStatus)!=='paid'&&previousPaidAmount<=0)throw new Error('未收款不能退款');
-    const nextPaidAmount=update.paidAmount==null?(update.payStatus==='paid'?amount:(update.payStatus==='refunded'?previousPaidAmount:0)):update.paidAmount;
-    await client.query('UPDATE match_fee_splits SET amount=$1,payStatus=$2,paidAmount=$3,paidAt=$4,note=$5,updatedAt=NOW() WHERE matchId=$6 AND userId=$7',[amount,update.payStatus,nextPaidAmount,update.payStatus==='paid'?new Date():null,update.note,matchId,userId]);
-    const feeRowsRes=await client.query("SELECT * FROM match_fee_splits WHERE matchId=$1 AND payStatus NOT IN ('cancelled','refunded')",[matchId]);
-    const activeRows=feeRowsRes.rows;
-    const participantCount=activeRows.length;
-    const finalCourtFee=activeRows.reduce((sum,row)=>sum+normalizeMoney(row.amount),0);
-    const aaAmount=participantCount>0?Math.ceil(finalCourtFee/participantCount):0;
-    const distributedTotal=activeRows.reduce((sum,row)=>sum+normalizeMoney(row.amount),0);
-    await client.query('UPDATE match_fee_records SET finalCourtFee=$1,participantCount=$2,aaAmount=$3,roundingDifference=$4,updatedAt=NOW() WHERE matchId=$5',[finalCourtFee,participantCount,aaAmount,finalCourtFee-distributedTotal,matchId]);
-    const nextState=await syncMatchFeeRecordState(client,matchId,{isPrepay});
-    await client.query('INSERT INTO match_operation_logs(id,matchId,operatorType,operatorId,action,before,after,createdAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW())',[uuidv4(),matchId,'admin_user',operatorId,'fee_split_update',JSON.stringify(split),JSON.stringify({amount,payStatus:update.payStatus,paidAmount:nextPaidAmount,note:update.note})]);
-    return {success:true,status:nextState.status,isPrepay};
-  });
-  if(!result.isPrepay&&update.payStatus==='paid')result.financeSync=await syncMatchFeeSplitToCourtFinance(matchId,userId,operatorId);
-  if(!result.isPrepay&&update.payStatus==='refunded')result.financeSync=await syncMatchFeeSplitRefundToCourtFinance(matchId,userId,operatorId,update.note);
-  return result;
-}
-function buildMatchProfileStats({createdMatches=[],joinedMatches=[],attendanceRows=[],feeSplits=[]}={}){
-  const resolvedAttendance=(attendanceRows||[]).filter(row=>['attended','absent'].includes(row.finalStatus||row.finalstatus));
-  const attended=resolvedAttendance.filter(row=>(row.finalStatus||row.finalstatus)==='attended').length;
-  const attendanceRate=resolvedAttendance.length?Math.round(attended*100/resolvedAttendance.length):0;
-  const totalFeeAmount=(feeSplits||[]).reduce((sum,row)=>{
-    const status=String(row.payStatus||row.paystatus||'').trim();
-    const amount=normalizeMoney(row.paidAmount??row.paidamount??row.amount);
-    if(status==='paid')return sum+amount;
-    if(status==='refunded')return sum-amount;
-    return sum;
-  },0);
-  return {
-    createdCount:(createdMatches||[]).length,
-    joinedCount:(joinedMatches||[]).length,
-    matchCreatedCount:(createdMatches||[]).length,
-    matchJoinedCount:(joinedMatches||[]).length,
-    matchCompletedCount:resolvedAttendance.length,
-    attendanceRate,
-    attendanceRateText:resolvedAttendance.length?`${attendanceRate}%`:'暂无记录',
-    totalFeeAmount
-  };
-}
-async function listMyMatches(userId){
-  const pool=getMatchSqlPool();
-  const rows=await pool.query(
-    "SELECT DISTINCT p.* FROM match_posts p LEFT JOIN match_registrations r ON r.matchId=p.id LEFT JOIN match_attendance a ON a.matchId=p.id WHERE p.creatorUserId=$1 OR (r.userId=$1 AND r.registrationStatus='registered') OR a.userId=$1 ORDER BY p.startTime DESC",
-    [userId]
-  );
-  const registrations=await loadMatchRegistrationViews(pool,rows.rows.map(row=>String(row.id||'')),{registeredOnly:true});
-  const regsByMatch=new Map();
-  for(const row of registrations){
-    const key=String(row.matchid||row.matchId);
-    regsByMatch.set(key,[...(regsByMatch.get(key)||[]),row]);
-  }
-  return rows.rows.map(row=>toMatchView(row,regsByMatch.get(String(row.id))||[],userId));
-}
-async function getMatchProfile(userId){
-  const pool=getMatchSqlPool();
-  const [userRes,created,joined,attendance,fees]=await Promise.all([
-    pool.query('SELECT * FROM match_users WHERE id=$1',[userId]),
-    pool.query('SELECT id FROM match_posts WHERE creatorUserId=$1',[userId]),
-    pool.query("SELECT DISTINCT matchId AS id FROM match_registrations WHERE userId=$1 AND registrationStatus='registered'",[userId]),
-    pool.query('SELECT a.*,p.status AS matchStatus FROM match_attendance a LEFT JOIN match_posts p ON p.id=a.matchId WHERE a.userId=$1',[userId]),
-    pool.query('SELECT * FROM match_fee_splits WHERE userId=$1',[userId])
-  ]);
-  const stats=buildMatchProfileStats({createdMatches:created.rows,joinedMatches:joined.rows,attendanceRows:attendance.rows,feeSplits:fees.rows});
-  const user=userRes.rows[0]||{};
-  return {...stats,user:{id:user.id,phone:user.phone||'',nickName:user.nickname||user.nickName||'',avatarUrl:user.avatarurl||user.avatarUrl||'',ntrpLevel:user.ntrplevel||user.ntrpLevel||'',canCreateMatch:await canMatchUserCreate(userId)}};
-}
-async function updateMatchProfile(userId,input){
-  const phone=assertPhone(input.phone||'');
-  const ntrpLevel=input.ntrpLevel==null?'':String(input.ntrpLevel||'').trim();
-  const nickName=input.nickName==null?'':String(input.nickName||'').trim();
-  const avatarUrl=input.avatarUrl==null?'':String(input.avatarUrl||'').trim();
-  await getMatchSqlPool().query(
-    'UPDATE match_users SET phone=COALESCE(NULLIF($2,$6),phone),ntrpLevel=COALESCE(NULLIF($3,$6),ntrpLevel),nickName=COALESCE(NULLIF($4,$6),nickName),avatarUrl=COALESCE(NULLIF($5,$6),avatarUrl),updatedAt=NOW() WHERE id=$1',
-    [userId,phone,ntrpLevel,nickName,avatarUrl,'']
-  );
-  return getMatchProfile(userId);
-}
-async function listMatchNotifications(userId){
-  const rows=await getMatchSqlPool().query(
-    "SELECT l.*,p.title FROM match_operation_logs l LEFT JOIN match_posts p ON p.id=l.matchId LEFT JOIN match_registrations r ON r.matchId=l.matchId AND r.userId=$1 WHERE p.creatorUserId=$1 OR r.userId=$1 ORDER BY l.createdAt DESC LIMIT 50",
-    [userId]
-  );
-  return rows.rows.map(row=>({
-    id:row.id,
-    matchId:row.matchid||row.matchId,
-    title:row.title||'约球通知',
-    action:row.action,
-    content:matchNotificationText(row.action,row.title),
-    createdAt:row.createdat||row.createdAt
-  }));
-}
-function matchNotificationText(action,title=''){
-  const name=title||'球局';
-  return ({booking:`${name} 已更新订场信息`,match_cancel:`${name} 已取消`,fee_generate:`${name} 已生成 AA 应收`,attendance_confirm:`${name} 已确认到场名单`,match_update:`${name} 信息已更新`})[action]||`${name} 有新动态`;
-}
-async function listMatchPlayers(){
-  const rows=await getMatchSqlPool().query(
-    "SELECT u.id,u.nickName,u.avatarUrl,u.ntrpLevel,COUNT(r.id)::int AS joinedCount FROM match_users u LEFT JOIN match_registrations r ON r.userId=u.id AND r.registrationStatus='registered' GROUP BY u.id ORDER BY joinedCount DESC,u.createdAt DESC LIMIT 100"
-  );
-  return rows.rows.map(row=>({id:row.id,nickName:row.nickname||row.nickName||'球友',avatarUrl:row.avatarurl||row.avatarUrl||'',ntrpLevel:row.ntrplevel||row.ntrpLevel||'',joinedCount:row.joinedcount||row.joinedCount||0}));
+function findAdminUserByPhone(users=[],phone=''){
+  const normalizedPhone=normalizePhone(phone);
+  if(!normalizedPhone)return null;
+  const list=Array.isArray(users)?users:[];
+  const matchedByPhone=list.find((user)=>normalizePhone(user?.phone||'')===normalizedPhone);
+  if(matchedByPhone)return matchedByPhone;
+  return list.find((user)=>String(user?.id||'').trim()===normalizedPhone)||null;
 }
 function normalizePhone(value){return String(value||'').replace(/\s+/g,'').trim();}
 function isValidCnPhone(value){return /^1[3-9]\d{9}$/.test(normalizePhone(value));}
@@ -3123,11 +2185,7 @@ function defaultMabaoPricePlans(){
     ['疯狂多球训练','体验课','lesson','1-2小时',0,260],
     ['新客福利 约球双打局 2H','订场券','court','2小时',120,70],
     ['晚场福利 场地预定 1H','订场券','court','1小时',60,180],
-    ['黄金时段 场地预定 1H','订场券','court','1小时',60,220],
-    ['实力之选 网球陪打 1H','订场券','court','1小时',60,100],
-    ['闲时特惠 场地预定 1H','订场券','court','1小时',60,140],
-    ['刷球时刻 网球发球机畅打 1H','订场券','court','1小时',60,60],
-    ['晨练 场地预定 30min','订场券','court','30min',30,50]
+    ['新客福利 场地预定 2H','订场券','court','2小时',120,240]
   ].map(([productName,productType,businessType,durationLabel,durationMinutes,salePrice])=>({type:'channel_product',channel:'大众点评',productName,productType,businessType,durationLabel,durationMinutes,salePrice,status:'active',notes:'默认大众点评商品价'}));
   return [...venue,...products];
 }
@@ -3455,6 +2513,15 @@ function computeCourtFinance(input){
   Object.keys(totals).forEach(k=>{totals[k]=Math.round(totals[k]*100)/100;});
   return totals;
 }
+function buildCachedCourtFinanceFields(input){
+  const finance=computeCourtFinance(input||{history:[]});
+  return {
+    cachedBalance:normalizeMoney(finance.balance),
+    cachedTotalDeposit:normalizeMoney(finance.totalDeposit),
+    cachedTotalSpent:normalizeMoney(finance.spentAmount),
+    cachedTotalReceived:normalizeMoney(finance.receivedAmount)
+  };
+}
 function summarizeCourtFinanceRevenue(input){
   const history=normalizeCourtHistory(input?.history||[]);
   const summary={
@@ -3501,164 +2568,6 @@ function isoDateKey(value){
   const ms=Date.parse(raw);
   return Number.isNaN(ms)?'':new Date(ms).toISOString().slice(0,10);
 }
-function matchFinanceRowDate(row){
-  const rawPrimary=String(row.occurredDate||row.date||'').trim();
-  const primary=/^\d{4}-\d{2}-\d{2}/.test(rawPrimary)?isoDateKey(rawPrimary):'';
-  if(primary)return primary;
-  return isoDateKey(row.recordedAt||row.createdAt);
-}
-function buildMatchFinanceDailyReport({date=new Date().toISOString().slice(0,10),feeSplits=[],financeHistory=[]}={}){
-  const target=isoDateKey(date)||new Date().toISOString().slice(0,10);
-  const summary={receivable:0,paid:0,pending:0,waived:0,abnormal:0,refunded:0,ledgerIncome:0,ledgerRefund:0,ledgerNet:0,expectedNet:0,diff:0};
-  const splitRows=(feeSplits||[]).filter(row=>isoDateKey(row.updatedAt||row.updatedat||row.paidAt||row.paidat||row.createdAt||row.createdat)===target);
-  for(const split of splitRows){
-    const amount=normalizeMoney(split.amount);
-    const paidAmount=normalizeMoney(split.paidAmount||split.paidamount||amount);
-    const status=split.payStatus||split.paystatus||'pending';
-    summary.receivable+=amount;
-    if(status==='paid'||status==='refunded')summary.paid+=paidAmount;
-    else if(status==='waived')summary.waived+=amount;
-    else if(status==='abnormal'||status==='bad_debt')summary.abnormal+=amount;
-    else summary.pending+=amount;
-  }
-  const ledgerRows=normalizeCourtHistory(financeHistory).filter(row=>row.sourceCategory==='约球订场'&&row.category==='订场'&&matchFinanceRowDate(row)===target);
-  for(const row of ledgerRows){
-    const amount=normalizeMoney(row.amount);
-    if(row.type==='消费')summary.ledgerIncome+=amount;
-    if(row.type==='退款')summary.ledgerRefund+=amount;
-  }
-  summary.refunded=summary.ledgerRefund;
-  summary.ledgerNet=summary.ledgerIncome-summary.ledgerRefund;
-  summary.expectedNet=summary.paid-summary.refunded;
-  summary.diff=summary.expectedNet-summary.ledgerNet;
-  Object.keys(summary).forEach(key=>summary[key]=Math.round(summary[key]*100)/100);
-  return {date:target,summary,feeSplits:splitRows,ledgerRows};
-}
-async function getMatchFinanceDailyReportForAdmin(date=new Date().toISOString().slice(0,10)){
-  const pool=getMatchSqlPool();
-  const target=isoDateKey(date)||new Date().toISOString().slice(0,10);
-  const splits=await pool.query(`
-    SELECT s.*,u.nickName,u.phone,p.title,p.startTime,p.venueName
-    FROM match_fee_splits s
-    LEFT JOIN match_users u ON u.id=s.userId
-    LEFT JOIN match_posts p ON p.id=s.matchId
-    WHERE DATE(COALESCE(s.updatedAt,s.paidAt,s.createdAt))=$1::date
-    ORDER BY s.updatedAt DESC
-  `,[target]);
-  const financeAccount=await getCachedRow(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID).catch(()=>null);
-  return buildMatchFinanceDailyReport({date:target,feeSplits:splits.rows,financeHistory:financeAccount?.history||[]});
-}
-function matchClockText(value){
-  const raw=String(value||'');
-  if(!raw)return '';
-  const m=raw.replace('T',' ').match(/\s(\d{2}:\d{2})/);
-  return m?m[1]:raw.slice(11,16);
-}
-function matchDateText(value){
-  const raw=String(value||'');
-  return raw.slice(0,10);
-}
-function buildMatchCourtFinanceHistoryRow({match={},split={},user={},operatorId='',now=new Date().toISOString()}={}){
-  const amount=normalizeMoney(split.amount||split.paidAmount);
-  if(amount<=0)throw new Error('约球收款金额必须大于 0');
-  const start=match.starttime||match.startTime;
-  const end=match.endtime||match.endTime;
-  const title=String(match.title||'约球').trim();
-  const payer=String(user.nickName||user.nickname||user.phone||user.id||split.userId||split.userid||'球友').trim();
-  return {
-    id:`match-fee-${split.id||uuidv4()}`,
-    date:matchDateText(start)||String(now).slice(0,10),
-    occurredDate:matchDateText(start)||String(now).slice(0,10),
-    createdAt:now,
-    recordedAt:now,
-    type:'消费',
-    category:'订场',
-    sourceCategory:'约球订场',
-    payMethod:'微信转账',
-    amount,
-    note:`约球订场 - ${title} - ${payer}`,
-    startTime:matchClockText(start),
-    endTime:matchClockText(end),
-    venue:match.venuename||match.venueName||'',
-    campus:match.campus||'',
-    revenueBucket:'现场收款',
-    priceMode:'manual',
-    systemAmount:amount,
-    finalAmount:amount,
-    priceOverridden:false,
-    overrideReason:'',
-    matchId:match.id||split.matchId||split.matchid||'',
-    matchFeeSplitId:split.id||'',
-    matchUserId:split.userid||split.userId||user.id||'',
-    operator:operatorId
-  };
-}
-function buildMatchCourtFinanceRefundRow({paidRow={},split={},operatorId='',note='',now=new Date().toISOString()}={}){
-  const amount=normalizeMoney(split.paidAmount||split.paidamount||split.amount||paidRow.amount);
-  if(amount<=0)throw new Error('约球退款金额必须大于 0');
-  return {
-    ...paidRow,
-    id:`match-fee-refund-${split.id||uuidv4()}`,
-    createdAt:now,
-    recordedAt:now,
-    type:'退款',
-    category:'订场',
-    sourceCategory:'约球订场',
-    payMethod:paidRow.payMethod||'微信转账',
-    revenueBucket:paidRow.revenueBucket||'现场收款',
-    amount,
-    note:`约球订场退款 - ${String(note||'运营退款').trim()}`,
-    matchFeeSplitId:split.id||paidRow.matchFeeSplitId||'',
-    matchUserId:split.userid||split.userId||paidRow.matchUserId||'',
-    operator:operatorId
-  };
-}
-async function syncMatchFeeSplitToCourtFinance(matchId,userId,operatorId){
-  const pool=getMatchSqlPool();
-  const [matchRes,splitRes,userRes]=await Promise.all([
-    pool.query('SELECT * FROM match_posts WHERE id=$1',[matchId]),
-    pool.query('SELECT * FROM match_fee_splits WHERE matchId=$1 AND userId=$2',[matchId,userId]),
-    pool.query('SELECT * FROM match_users WHERE id=$1',[userId])
-  ]);
-  const match=matchRes.rows[0];
-  const split=splitRes.rows[0];
-  if(!match||!split||String(split.paystatus||split.payStatus)!=='paid')return {synced:false};
-  const now=new Date().toISOString();
-  const existing=await getCachedRow(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID).catch(()=>null);
-  const base=existing||{
-    id:MATCH_COURT_FINANCE_ACCOUNT_ID,
-    name:'约球订场',
-    phone:'',
-    campus:'',
-    status:'active',
-    history:[],
-    createdAt:now
-  };
-  const history=normalizeCourtHistory(base.history);
-  if(history.some(row=>String(row.matchFeeSplitId||'')===String(split.id)))return {synced:true,skipped:true};
-  const row=buildMatchCourtFinanceHistoryRow({match,split,user:userRes.rows[0]||{},operatorId,now});
-  const next=normalizeCourtRecord({...base,history:[...history,row],updatedAt:now});
-  await put(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID,next);
-  return {synced:true,historyId:row.id};
-}
-async function syncMatchFeeSplitRefundToCourtFinance(matchId,userId,operatorId,note=''){
-  const pool=getMatchSqlPool();
-  const splitRes=await pool.query('SELECT * FROM match_fee_splits WHERE matchId=$1 AND userId=$2',[matchId,userId]);
-  const split=splitRes.rows[0];
-  if(!split||String(split.paystatus||split.payStatus)!=='refunded')return {synced:false};
-  const now=new Date().toISOString();
-  const existing=await getCachedRow(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID).catch(()=>null);
-  if(!existing)return {synced:false,error:'match court finance account missing'};
-  const history=normalizeCourtHistory(existing.history);
-  const splitId=String(split.id||'');
-  if(history.some(row=>String(row.id||'')===`match-fee-refund-${splitId}`))return {synced:true,skipped:true};
-  const paidRow=history.find(row=>String(row.matchFeeSplitId||'')===splitId&&row.type==='消费');
-  if(!paidRow)throw new Error('未找到原收款流水，不能退款');
-  const row=buildMatchCourtFinanceRefundRow({paidRow,split,operatorId,note,now});
-  const next=normalizeCourtRecord({...existing,history:[...history,row],updatedAt:now});
-  await put(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID,next);
-  return {synced:true,historyId:row.id};
-}
 async function getCourtRecordForTest(id){
   return getCachedRow(T_COURTS,id);
 }
@@ -3677,28 +2586,6 @@ async function removeMatchCourtFinanceRowsForTest(matchIdPrefix){
     await put(T_COURTS,MATCH_COURT_FINANCE_ACCOUNT_ID,next);
   }
   return {removed};
-}
-function classStatusToPlanStatus(status){
-  return status==='已取消'?'已取消':status==='已结课'?'已结课':'active';
-}
-function buildClassPlanRecord(cls,student){
-  return {
-    classId:cls.id,
-    studentId:student?.id||'',
-    studentName:student?.name||student?.id||'',
-    studentPhone:student?.phone||'',
-    className:cls.className||'',
-    productName:cls.productName||'',
-    coach:cls.coach||'',
-    campus:cls.campus||'',
-    totalLessons:parseLessonValue(cls.totalLessons),
-    usedLessons:parseLessonValue(cls.usedLessons),
-    status:classStatusToPlanStatus(cls.status)
-  };
-}
-function assertPlanWriteForbidden(method){
-  if(String(method||'').toUpperCase()==='GET')return;
-  throw new Error('学习计划由班次自动生成，不能独立新增、修改或删除');
 }
 function assertCanDeleteProduct(productId,classes,packages=[]){
   if((classes||[]).some(c=>c.productId===productId))throw new Error('该课程产品已有班次使用，不能删除');
@@ -3769,18 +2656,20 @@ function validateClassInput(input,product){
   if(input.startDate&&input.endDate&&String(input.endDate)<String(input.startDate))throw new Error('结束日期不能早于开始日期');
 }
 function buildClassCreateRecord(body,{id,classNo,user,now}){
-  const productName=body.productName||'';
+  const { productCourseType='', ...rest }=body||{};
+  const productName=rest.productName||'';
   return {
-    ...body,
+    ...rest,
     id,
     classNo,
     className:classNo+'-'+productName,
     productName,
-    studentIds:parseArr(body.studentIds),
-    scheduleDays:parseArr(body.scheduleDays),
-    totalLessons:parseLessonValue(body.totalLessons),
+    courseType:firstNonEmptyText(rest.courseType,productCourseType),
+    studentIds:parseArr(rest.studentIds),
+    scheduleDays:parseArr(rest.scheduleDays),
+    totalLessons:parseLessonValue(rest.totalLessons),
     usedLessons:0,
-    status:body.status||'已排班',
+    status:rest.status||'已排班',
     createdBy:user?.name||'',
     createdAt:now,
     updatedAt:now
@@ -3796,6 +2685,7 @@ function buildClassUpdateRecord(oldClass,body,{product,now}){
     classNo,
     className:classNo&&productName?classNo+'-'+productName:(body.className||oldClass?.className||''),
     productName,
+    courseType:firstNonEmptyText(body.courseType,product?.type,oldClass?.courseType),
     studentIds:parseArr(body.studentIds),
     scheduleDays:parseArr(body.scheduleDays),
     totalLessons:parseLessonValue(body.totalLessons),
@@ -3903,7 +2793,6 @@ function assertCanDeleteStudent(studentId,data){
   const reasons=[];
   if((data.classes||[]).some(c=>parseArr(c.studentIds).includes(studentId)))reasons.push('班次');
   if((data.schedule||[]).some(s=>parseArr(s.studentIds).includes(studentId)))reasons.push('排课');
-  if((data.plans||[]).some(p=>p.studentId===studentId))reasons.push('学习计划');
   if((data.purchases||[]).some(p=>p.studentId===studentId))reasons.push('购买记录');
   if((data.entitlements||[]).some(e=>e.studentId===studentId))reasons.push('课包余额');
   if((data.entitlementLedger||[]).some(l=>l.studentId===studentId))reasons.push('扣课记录');
@@ -4004,37 +2893,7 @@ function buildProductRenameDisplayUpdates(oldProduct,nextProduct,data={},now=new
     const className=c.classNo&&nextName?`${c.classNo}-${nextName}`:(nextName||c.className||'');
     return {...c,productName:nextName,className,updatedAt:now};
   });
-  const classMap=new Map(classes.map(c=>[c.id,c]));
-  const classIds=new Set(classes.map(c=>c.id));
-  const plans=(data.plans||[]).filter(p=>classIds.has(p.classId)).map(p=>{
-    const cls=classMap.get(p.classId)||null;
-    return {...p,productName:nextName,className:cls?.className||p.className||'',updatedAt:now};
-  });
-  return {classes,plans};
-}
-async function syncClassPlans(classId,cls){
-  const studentIds=parseArr(cls.studentIds);
-  const [students,existingPlans]=await Promise.all([
-    timed('sync class plans scan students',()=>getCachedScan(T_STUDENTS)),
-    timed('sync class plans scan plans',()=>getCachedScan(T_PLANS))
-  ]);
-  const classPlans=existingPlans.filter(p=>p.classId===classId);
-  const saved=[];
-  for(const sid of studentIds){
-    const student=students.find(s=>s.id===sid)||{id:sid,name:sid};
-    const current=classPlans.find(p=>p.studentId===sid);
-    const id=current?.id||uuidv4();
-    const rec={...current,...buildClassPlanRecord({...cls,id:classId},student),id,updatedAt:new Date().toISOString()};
-    if(!current)rec.createdAt=new Date().toISOString();
-    await put(T_PLANS,id,rec);
-    saved.push(rec);
-  }
-  for(const plan of classPlans.filter(p=>!studentIds.includes(p.studentId)&&p.status!=='已取消')){
-    const rec={...plan,status:'已取消',updatedAt:new Date().toISOString()};
-    await put(T_PLANS,plan.id,rec);
-    saved.push(rec);
-  }
-  return saved;
+  return {classes,plans:[]};
 }
 function normalizeCourtRecord(input,refs={}){
   const inferredDeposit=extractDepositAmountFromText(input.depositAttitude);
@@ -4049,6 +2908,7 @@ function normalizeCourtRecord(input,refs={}){
   const history=normalizeCourtBookingHistoryRows(normalizedInput,currentHistory.length?currentHistory:buildLegacyCourtOpeningHistory(normalizedInput));
   if(Array.isArray(refs.schedules))assertCourtBookingHistoryAgainstSchedules({...normalizedInput,history},refs.schedules);
   const finance=computeCourtFinance({...normalizedInput,history});
+  const cachedFinance=buildCachedCourtFinanceFields({...normalizedInput,history});
   const studentIds=normalizeStudentIds(normalizedInput);
   return {
     ...normalizedInput,
@@ -4057,6 +2917,7 @@ function normalizeCourtRecord(input,refs={}){
     studentIds,
     history,
     ...finance
+    ,...cachedFinance
   };
 }
 function buildLegacyCourtOpeningHistory(court){
@@ -4488,10 +3349,13 @@ async function deleteCourtsByIds(ids,data={}){
         const action=courtDeleteAction(court,data);
         if(action==='delete'){
           await del(T_COURTS,id);
+          await syncCourtSortIndex(null,court);
           return {id,ok:true,action};
         }
         const now=new Date().toISOString();
-        await put(T_COURTS,id,{...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now});
+        const nextCourt={...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now};
+        await put(T_COURTS,id,nextCourt);
+        await syncCourtSortIndex(nextCourt,court);
         return {id,ok:true,action};
       }catch(e){
         return {id,ok:false,error:e.message};
@@ -4508,6 +3372,8 @@ async function deleteCourtsByIds(ids,data={}){
 async function clearAllCourts(){
   const existing=await getCachedScan(T_COURTS);
   for(let i=0;i<existing.length;i+=20)await Promise.all(existing.slice(i,i+20).map(r=>del(T_COURTS,r.id)));
+  const indexRows=await scan(T_COURT_SORT_INDEX).catch(()=>[]);
+  for(let i=0;i<indexRows.length;i+=50)await Promise.all(indexRows.slice(i,i+50).map(r=>del(T_COURT_SORT_INDEX,r.id)));
   return existing.length;
 }
 async function importCourtRows(rows){
@@ -4519,6 +3385,7 @@ async function importCourtRows(rows){
       const id=uuidv4();
       const record={...normalizeCourtRecord(row,{schedules}),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
       await put(T_COURTS,id,record);
+      await syncCourtSortIndex(record,null);
       success++;
     }catch(e){
       failed++;
@@ -4541,11 +3408,196 @@ async function runMembershipReconcile(rows){
     const history=[...normalizeCourtHistory(court.history),row];
     const next=normalizeCourtRecord({...court,history,updatedAt:new Date().toISOString()});
     await put(T_COURTS,court.id,next);
+    await syncCourtSortIndex(next,court);
     courtMap.set(court.id,next);
   }
   for(const event of result.events)await put(T_MEMBERSHIP_ACCOUNT_EVENTS,event.id,event);
   return {...result,accounts:result.accounts,courts:[...courtMap.values()]};
 }
+const handleMembershipWriteRequest=createMembershipWriteHandler({
+  init:()=>initRuntime.init(),
+  getCachedScan,
+  getCachedRow,
+  put,
+  del,
+  uuidv4,
+  normalizeMoney,
+  reserveRecentMembershipOrderRequest,
+  releaseRecentMembershipOrderRequest,
+  buildMembershipPurchase,
+  buildMembershipGrantLedgerRows,
+  normalizeCourtHistory,
+  normalizeCourtRecord,
+  normalizeMembershipPlanViewRecord,
+  buildMembershipBenefitLedgerRecord,
+  allocateMembershipBenefitUsage,
+  normalizeMembershipOrderViewRecord,
+  operatorAccountName,
+  syncCourtSortIndex,
+  membershipBenefitFieldMap:MEMBERSHIP_BENEFIT_FIELD_MAP,
+  tables:{
+    users:T_USERS,
+    courts:T_COURTS,
+    membershipPlans:T_MEMBERSHIP_PLANS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipBenefitLedger:T_MEMBERSHIP_BENEFIT_LEDGER
+  }
+});
+const handleCourtsMembershipRequest=createCourtsMembershipHandler({
+  init:()=>initRuntime.init(),
+  getCachedScan,
+  getCachedRow,
+  put,
+  del,
+  uuidv4,
+  normalizePricePlan,
+  quoteVenuePrice,
+  normalizeCourtRecord,
+  importCourtRows,
+  deleteCourtsByIds,
+  loadCourtDeleteReferenceData,
+  mergeCourtRecords,
+  parseLegacyCourtNotes,
+  shouldMigrateLegacyCourtFinance,
+  buildLegacyCourtOpeningHistory,
+  legacyCourtFinanceWarnings,
+  computeCourtFinance,
+  normalizeMoney,
+  normalizeCourtHistory,
+  buildMembershipPlanRecord,
+  runMembershipReconcile,
+  buildMembershipAccountEventRecord,
+  syncCourtSortIndex,
+  rebuildCourtSortIndex,
+  handleMembershipWriteRequest,
+  tables:{
+    schedule:T_SCHEDULE,
+    courts:T_COURTS,
+    courtSortIndex:T_COURT_SORT_INDEX,
+    pricePlans:T_PRICE_PLANS,
+    membershipPlans:T_MEMBERSHIP_PLANS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipBenefitLedger:T_MEMBERSHIP_BENEFIT_LEDGER,
+    membershipAccountEvents:T_MEMBERSHIP_ACCOUNT_EVENTS
+  }
+});
+const handleTeachingRequest=createTeachingHandler({
+  createPurchaseEntitlementWriteHandler,
+  createPurchaseVoidService,
+  createPurchaseUpdateService,
+  sendJson,
+  init:()=>initRuntime.init(),
+  get,
+  scan,
+  put,
+  del,
+  getCachedScan,
+  getCachedRow,
+  getCachedFeedbacks,
+  withTimeout,
+  uuidv4,
+  timed,
+  parseArr,
+  normalizeVenue,
+  normalizeCoachLateInfo,
+  assertPhone,
+  assertStudentWriteAccess,
+  applyStudentIdentityUpdate,
+  assertCanDeleteStudent,
+  buildCoachRefs,
+  filterLoadAllForUser,
+  normalizeProductRecord,
+  assertCanEditProductWithReferences,
+  buildProductRenameDisplayUpdates,
+  assertCanDeleteProduct,
+  normalizePackageRecord,
+  assertCanEditPackageWithPurchases,
+  assertCanDeletePackage,
+  validatePurchaseInputForPackage,
+  buildPurchaseRecord,
+  buildEntitlementFromPurchase,
+  writePurchaseAndEntitlementAtomic,
+  purchaseHasEntitlementLedger,
+  assertCanEditPurchaseWithLedger,
+  syncEntitlementFromPurchase,
+  assertCanVoidPurchase,
+  normalizeEntitlementLedgerRowsForView,
+  recommendEntitlements,
+  assertCanDeleteEntitlement,
+  buildFeedbackRecord,
+  assertCanWriteFeedback,
+  putFeedback,
+  assertCanWriteSchedule,
+  validateScheduleSave,
+  assertScheduleEntitlementRequired,
+  resolveScheduleEntitlementDeltas,
+  assertScheduleEntitlementCapacity,
+  scheduleLessonDelta,
+  applyEntitlementDelta,
+  applyLessonDelta,
+  notifyCoachScheduleCreated,
+  buildScheduleNotificationUpdate,
+  assertScheduleEditableAfterFeedback,
+  scheduleEntitlementDeltas,
+  parseLessonValue,
+  diffScheduleEntitlementDeltas,
+  applyLinkedClassScheduleSnapshot,
+  assertCanDeleteSchedule,
+  assertUniqueCoachName,
+  applyCoachRename,
+  loadCoachReferenceData,
+  assertCanDeleteCoachName,
+  assertCanWriteClass,
+  validateClassInput,
+  reserveNextClassNo,
+  buildClassCreateRecord,
+  buildClassUpdateRecord,
+  assertCanEditClassWithSchedules,
+  assertCanDeleteClass,
+  tables:{
+    users:T_USERS,
+    courts:T_COURTS,
+    students:T_STUDENTS,
+    products:T_PRODUCTS,
+    schedule:T_SCHEDULE,
+    coaches:T_COACHES,
+    classes:T_CLASSES,
+    campuses:T_CAMPUSES,
+    feedbacks:T_FEEDBACKS,
+    packages:T_PACKAGES,
+    purchases:T_PURCHASES,
+    entitlements:T_ENTITLEMENTS,
+    entitlementLedger:T_ENTITLEMENT_LEDGER
+  }
+});
+const handleAuthAdminRequest=createAuthAdminHandler({
+  init:()=>initRuntime.init(),
+  get,
+  put,
+  getCachedRow,
+  getCachedScan,
+  bcrypt,
+  jwt,
+  jwtSecret:JWT_SECRET,
+  fetchWechatSession,
+  extractWechatOpenId,
+  findWechatUserByOpenId,
+  mergeStoredAuthUser,
+  assertAuthUserActive,
+  userMatchPermissions,
+  buildWechatBoundUser,
+  buildWechatUnboundUser,
+  buildAdminUserView,
+  findAdminUserByPhone,
+  assertPhone,
+  isTableMissingError,
+  logger:console,
+  tables:{
+    users:T_USERS
+  }
+});
 function parseLegacyCourtNotes(notes){
   const raw=String(notes||'').trim();
   if(!raw)return{notes:'',updates:{},changed:false};
@@ -4567,16 +3619,66 @@ function parseLegacyCourtNotes(notes){
       if(!Number.isNaN(amt))updates.spentAmount=amt;
     }else remain.push(part);
   }
-  const nextNotes=remain.join('；');
+const nextNotes=remain.join('；');
   const changed=nextNotes!==raw||Object.keys(updates).length>0;
   return {notes:nextNotes,updates,changed};
 }
 
+const matchFinanceBridge=createMatchFinanceBridge({
+  getMatchSqlPool,
+  getCachedRow,
+  put,
+  T_COURTS,
+  MATCH_COURT_FINANCE_ACCOUNT_ID,
+  normalizeCourtHistory,
+  normalizeCourtRecord,
+  normalizeMoney,
+  isoDateKey,
+  uuidv4
+});
+
+const matchModule=createMatchModule({
+  jwt,
+  JWT_SECRET,
+  MATCH_WECHAT_TEMPLATE_ID,
+  MATCH_PREPAY_WINDOW_HOURS,
+  getMatchSqlPool,
+  scan,
+  getCachedRow,
+  getCachedScan,
+  put,
+  T_USERS,
+  authUser,
+  requireAdminUser,
+  requireMatchUser,
+  userMatchPermissions,
+  requireMatchAdminPermission,
+  canMatchUserCreateByAdminUser,
+  findAdminUserByPhone,
+  mergeStoredAuthUser,
+  assertAuthUserActive,
+  fetchWechatSession,
+  extractWechatOpenId,
+  fetchWechatPhoneNumber,
+  sendWechatSubscribeMessage,
+  truncateWechatValue,
+  sendJson,
+  uuidv4,
+  normalizePhone,
+  normalizeMoney,
+  assertPhone,
+  dateMs,
+  financeBridge:matchFinanceBridge
+});
+const handleMatchRequest=matchModule.handleMatchRequest;
+const matchTestExports=matchModule.testExports;
+
 module.exports = async (req, res) => {
   scheduleInitInBackground();
-  if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');return res.status(200).end();}
+  if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-FlowTennis-Client,X-FlowTennis-Client-Env,X-FlowTennis-Wechat-Env-Version');return res.status(200).end();}
   const path=(req.url||'').replace(/^\/api/,'').split('?')[0];
   const query=new URL(req.url||'/', 'http://local').searchParams;
+  const user=authUser(req);
   const method=req.method;
   const startedAt=Date.now();
   if(res&&typeof res.on==='function')res.on('finish',()=>{console.log(`[api] ${method} ${path} ${res.statusCode} ${Date.now()-startedAt}ms`);});
@@ -4598,176 +3700,9 @@ module.exports = async (req, res) => {
       await init();
       return sendJson(res,await sendCourseReminders());
     }
-    if(path==='/auth/login'&&method==='POST'){const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);let user=null;try{user=await getCachedRow(T_USERS,username);}catch(err){if(!isTableMissingError(err))throw err;}if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});}
-    if(path==='/auth/wechat-login'&&method==='POST'){
-      const code=String(body.code||'').trim();
-      if(!code)return sendJson(res,{error:'缺少微信登录凭证'},400);
-      const session=await fetchWechatSession(code);
-      const openid=extractWechatOpenId(session);
-      const account=findWechatUserByOpenId(await getCachedScan(T_USERS).catch(()=>[]),openid);
-      if(!account)return sendJson(res,{error:'微信未绑定教练账号，请先使用账号密码登录完成绑定'},404);
-      const payload=mergeStoredAuthUser(null,account);
-      try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}
-      const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});
-      return sendJson(res,{token,user:payload});
-    }
-    if(path==='/auth/wechat-mini-login'&&method==='POST'){
-      const code=String(body.code||'').trim();
-      if(!code)return sendJson(res,{error:'缺少微信登录凭证'},400);
-      const session=await fetchWechatSession(code,'match');
-      const openid=extractWechatOpenId(session);
-      const unionid=session.unionid?String(session.unionid):'';
-      const pool=getMatchSqlPool();
-      const existing=await pool.query('SELECT * FROM match_users WHERE openid=$1 LIMIT 1',[openid]);
-      let matchUser=existing.rows[0];
-      if(!matchUser){
-        const now=new Date().toISOString();
-        matchUser={id:uuidv4(),openid,unionid,nickName:'',avatarUrl:'',phone:'',ntrpLevel:'',createdAt:now,updatedAt:now};
-        await pool.query(
-          'INSERT INTO match_users(id,openid,unionid,nickName,avatarUrl,phone,ntrpLevel,createdAt,updatedAt) VALUES($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())',
-          [matchUser.id,matchUser.openid,matchUser.unionid,matchUser.nickName,matchUser.avatarUrl,matchUser.phone,matchUser.ntrpLevel]
-        );
-      }
-      return sendJson(res,{token:buildMatchUserToken(matchUser),user:{id:matchUser.id,type:'match_user',openid:matchUser.openid,phone:matchUser.phone||'',ntrpLevel:matchUser.ntrplevel||matchUser.ntrpLevel||'',canCreateMatch:await canMatchUserCreate(matchUser.id)}});
-    }
-    if(path==='/matches'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
-      return sendJson(res,{items:await listMatchesForViewer(matchUser.id)});
-    }
-    if(path==='/matches'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      const profile=await getMatchSqlPool().query('SELECT phone FROM match_users WHERE id=$1',[matchUser.id]);
-      if(!profile.rows[0]?.phone)return sendJson(res,{error:'请先授权手机号'},409);
-      return sendJson(res,await createMatchForUser(matchUser.id,body));
-    }
-    const matchDetailM=path.match(/^\/matches\/([^/]+)$/);
-    if(matchDetailM&&method==='GET'){
-      const matchUser=requireMatchUser(req);
-      const match=await getMatchForViewer(matchDetailM[1],matchUser.id);
-      if(!match)return sendJson(res,{error:'球局不存在'},404);
-      return sendJson(res,toMatchDetailResponse(match));
-    }
-    const matchUpdateM=path.match(/^\/matches\/([^/]+)$/);
-    if(matchUpdateM&&method==='PUT'){
-      const matchUser=requireMatchUser(req);
-      try{
-        await updateMatchForUser(matchUpdateM[1],matchUser.id,body);
-        const match=await getMatchForViewer(matchUpdateM[1],matchUser.id);
-        return sendJson(res,toMatchDetailResponse(match));
-      }catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    const matchCancelM=path.match(/^\/matches\/([^/]+)\/cancel$/);
-    if(matchCancelM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      try{return sendJson(res,await cancelMatchForUser(matchCancelM[1],matchUser.id,body.reason));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    const matchRegisterM=path.match(/^\/matches\/([^/]+)\/register$/);
-    if(matchRegisterM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      const profile=await getMatchSqlPool().query('SELECT phone FROM match_users WHERE id=$1',[matchUser.id]);
-      if(!profile.rows[0]?.phone)return sendJson(res,{error:'请先授权手机号'},409);
-      try{return sendJson(res,await registerMatchUser(matchRegisterM[1],matchUser.id));}
-      catch(err){
-        const message=String(err?.message||err);
-        return sendJson(res,{error:message},/名额已满|已报名/.test(message)?409:400);
-      }
-    }
-    const matchCancelRegisterM=path.match(/^\/matches\/([^/]+)\/cancel-registration$/);
-    if(matchCancelRegisterM&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      try{return sendJson(res,await cancelRegistrationForUser(matchCancelRegisterM[1],matchUser.id));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    if(path==='/my-matches'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
-      return sendJson(res,{items:await listMyMatches(matchUser.id)});
-    }
-    if(path==='/match-profile'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
-      return sendJson(res,await getMatchProfile(matchUser.id));
-    }
-    if(path==='/match-profile'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      return sendJson(res,await updateMatchProfile(matchUser.id,body));
-    }
-    if(path==='/match-profile/phone'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      return sendJson(res,await updateMatchProfile(matchUser.id,{phone:body.phone}));
-    }
-    if(path==='/match-profile/phone-code'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      try{
-        const phone=await fetchWechatPhoneNumber(String(body.code||'').trim(),'match');
-        return sendJson(res,await updateMatchProfile(matchUser.id,{phone}));
-      }catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    if(path==='/match-attendance/creator-confirm'&&method==='POST'){
-      const matchUser=requireMatchUser(req);
-      try{return sendJson(res,await creatorConfirmMatchAttendance(body.matchId,matchUser.id,body.registrationId,body.finalAttendanceStatus));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    if(path==='/match-notifications'&&method==='GET'){
-      const matchUser=requireMatchUser(req);
-      return sendJson(res,{items:await listMatchNotifications(matchUser.id)});
-    }
-    if(path==='/match-players'&&method==='GET'){
-      requireMatchUser(req);
-      return sendJson(res,{items:await listMatchPlayers()});
-    }
-    let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
-    if(user.type==='match_user')return sendJson(res,{error:'无管理端权限'},403);
-    const storedAuthUser=await getCachedRow(T_USERS,user.id).catch(()=>null);
-    user=mergeStoredAuthUser(user,storedAuthUser);
-    try{assertAuthUserActive(user);}catch(e){return sendJson(res,{error:e.message},403);}
-    if(path==='/admin/matches'&&method==='GET'){
-      requireAdminUser(user);
-      return sendJson(res,{items:await listAdminMatches()});
-    }
-    if(path==='/admin/matches/finance-daily'&&method==='GET'){
-      requireMatchAdminPermission(user,'match_finance');
-      return sendJson(res,await getMatchFinanceDailyReportForAdmin(query.get('date')||new Date().toISOString().slice(0,10)));
-    }
-    const adminBookingM=path.match(/^\/admin\/matches\/([^/]+)\/booking$/);
-    if(adminBookingM&&method==='POST'){
-      requireMatchAdminPermission(user,'match_ops');
-      try{return sendJson(res,await adminBookMatch(adminBookingM[1],user.id,body));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    const adminAttendanceM=path.match(/^\/admin\/matches\/([^/]+)\/attendance$/);
-    if(adminAttendanceM&&method==='POST'){
-      requireMatchAdminPermission(user,'match_ops');
-      try{return sendJson(res,await confirmMatchAttendance(adminAttendanceM[1],user.id,body.items||body.participants||[]));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    const adminWithdrawalM=path.match(/^\/admin\/matches\/([^/]+)\/registrations\/([^/]+)\/withdrawal$/);
-    if(adminWithdrawalM&&method==='POST'){
-      requireMatchAdminPermission(user,'match_ops');
-      try{return sendJson(res,await adminHandleBookedWithdrawal(adminWithdrawalM[1],adminWithdrawalM[2],user.id,body));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    const adminReplacementM=path.match(/^\/admin\/matches\/([^/]+)\/replacements\/transfer$/);
-    if(adminReplacementM&&method==='POST'){
-      requireMatchAdminPermission(user,'match_ops');
-      requireMatchAdminPermission(user,'match_finance');
-      try{return sendJson(res,await adminTransferMatchReplacement(adminReplacementM[1],user.id,body));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    const adminFeeConfirmM=path.match(/^\/admin\/matches\/([^/]+)\/fees\/confirm$/);
-    if(adminFeeConfirmM&&method==='POST'){
-      requireMatchAdminPermission(user,'match_finance');
-      try{return sendJson(res,await generateMatchFeeLedger(adminFeeConfirmM[1],user.id,body));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    const adminFeeSplitM=path.match(/^\/admin\/matches\/([^/]+)\/fees\/splits\/([^/]+)$/);
-    if(adminFeeSplitM&&method==='POST'){
-      requireMatchAdminPermission(user,'match_finance');
-      try{return sendJson(res,await markMatchFeeSplit(adminFeeSplitM[1],adminFeeSplitM[2],user.id,body));}
-      catch(err){return sendJson(res,{error:String(err?.message||err)},400);}
-    }
-    if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');const matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions||[]});await put(T_USERS,id,{id,name,password:hashed,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,matchPermissions});return sendJson(res,{success:true,id,name,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,matchPermissions});}
-    if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName,status}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);let updates={...u,coachId:coachId||'',status:status||u.status||'active'};if(body.name)updates.name=body.name;updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');if(Array.isArray(body.matchPermissions)||Array.isArray(body.permissions))updates.matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions});if(body.clearWechat)updates=buildWechatUnboundUser(updates);await put(T_USERS,id,updates);return sendJson(res,{success:true});}
-    if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await getCachedScan(T_USERS);return sendJson(res,all.map(buildAdminUserView));}
+    const authAdminResponse=await handleAuthAdminRequest({path,method,user,body,req});
+    if(authAdminResponse)return sendJson(res,authAdminResponse.body,authAdminResponse.status||200);
+    if(await handleMatchRequest({req,res,path,method,body,query}))return;
     if(path==='/admin/clear-test-data'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       if(body.confirm!=='CLEAR_TEST_DATA')return sendJson(res,{error:'缺少清空确认'},400);
@@ -4795,21 +3730,10 @@ module.exports = async (req, res) => {
       const rows=Array.isArray(body.rows)?body.rows:[];
       return sendJson(res,await importCourtRows(rows));
     }
-    if(path==='/auth/wechat-bind'&&method==='POST'){
-      const code=String(body.code||'').trim();
-      if(!code)return sendJson(res,{error:'缺少微信登录凭证'},400);
-      const session=await fetchWechatSession(code);
-      const openid=extractWechatOpenId(session);
-      const stored=await get(T_USERS,user.id);
-      if(!stored)return sendJson(res,{error:'用户不存在'},404);
-      await put(T_USERS,user.id,buildWechatBoundUser(stored,openid));
-      return sendJson(res,{success:true,wechatBound:true});
-    }
-    if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
       await init();
       if(ENABLE_IMPORTED_LEDGER_AUTO_REPAIR)await maybeRepairImportedLedgerDuplicates();
-      const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,financialLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
+      const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,financialLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
         timed('load-all scan courts',()=>scan(T_COURTS)),
         timed('load-all scan students',()=>scan(T_STUDENTS)),
         timed('load-all scan products',()=>scan(T_PRODUCTS)),
@@ -4824,7 +3748,6 @@ module.exports = async (req, res) => {
         timed('load-all scan membership benefit ledger',()=>scan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[])),
         timed('load-all scan membership account events',()=>scan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])),
         timed('load-all scan price plans',()=>scan(T_PRICE_PLANS).catch(()=>[])),
-        timed('load-all scan plans',()=>scan(T_PLANS)),
         timed('load-all scan schedule',()=>scan(T_SCHEDULE)),
         timed('load-all scan coaches',()=>scan(T_COACHES).catch(()=>[])),
         timed('load-all scan classes',()=>scan(T_CLASSES).catch(()=>[])),
@@ -4851,7 +3774,6 @@ module.exports = async (req, res) => {
         membershipBenefitLedger:Array.isArray(membershipBenefitLedger)?membershipBenefitLedger:[],
         membershipAccountEvents:[...(Array.isArray(membershipAccountEvents)?membershipAccountEvents:[]),...(reconciled.events||[])],
         pricePlans:Array.isArray(pricePlans)?pricePlans:[],
-        plans:Array.isArray(plans)?plans:[],
         schedule:Array.isArray(schedule)?schedule:[],
         coaches:Array.isArray(coaches)?coaches:[],
         classes:Array.isArray(classes)?classes:[],
@@ -4860,667 +3782,13 @@ module.exports = async (req, res) => {
       },user);
       return sendJson(res,{...loaded,user});
     }
-    if(path==='/auth/change-password'&&method==='POST'){const u=await get(T_USERS,user.id);if(!await bcrypt.compare(body.oldPassword,u.password))return sendJson(res,{error:'原密码错误'},400);await put(T_USERS,user.id,{...u,password:await bcrypt.hash(body.newPassword,10)});return sendJson(res,{success:true});}
-    if(path==='/price-plans'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      if(method==='GET')return sendJson(res,await getCachedScan(T_PRICE_PLANS).catch(()=>[]));
-      if(method==='POST'){
-        const id=uuidv4();
-        const now=new Date().toISOString();
-        const r=normalizePricePlan({...body,id},id,now);
-        await put(T_PRICE_PLANS,id,r);
-        return sendJson(res,r);
-      }
-    }
-    if(path==='/price-plans/quote'&&method==='POST'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      return sendJson(res,quoteVenuePrice(await getCachedScan(T_PRICE_PLANS).catch(()=>[]),body));
-    }
-    const pricePlanM=path.match(/^\/price-plans\/(.+)$/);
-    if(pricePlanM){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const id=pricePlanM[1];
-      if(method==='GET')return sendJson(res,await getCachedRow(T_PRICE_PLANS,id));
-      const old=await getCachedRow(T_PRICE_PLANS,id).catch(()=>null);
-      if(!old)return sendJson(res,{error:'价格方案不存在'},404);
-      if(method==='PUT'){
-        const r=normalizePricePlan({...old,...body,id},id,new Date().toISOString(),old);
-        await put(T_PRICE_PLANS,id,r);
-        return sendJson(res,r);
-      }
-      if(method==='DELETE'){
-        const r={...old,status:'inactive',updatedAt:new Date().toISOString()};
-        await put(T_PRICE_PLANS,id,r);
-        return sendJson(res,{success:true,archived:true,pricePlan:r});
-      }
-    }
-    if(path==='/courts'){
-      await init();
-      if(method==='GET')return sendJson(res,await getCachedScan(T_COURTS));
-      if(method==='POST'){
-        const id=uuidv4();
-        const schedules=await getCachedScan(T_SCHEDULE).catch(()=>[]);
-        const r={...normalizeCourtRecord(body,{schedules}),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-        await put(T_COURTS,id,r);return sendJson(res,r);
-      }
-    }
-    if(path==='/courts/import'&&method==='POST'){
-      await init();
-      const rows=Array.isArray(body.rows)?body.rows:[];
-      return sendJson(res,await importCourtRows(rows));
-    }
-    if(path==='/courts/batch-delete'&&method==='POST'){
-      await init();
-      const result=await deleteCourtsByIds(body.ids,await loadCourtDeleteReferenceData());
-      return sendJson(res,result);
-    }
-    if(path==='/courts/merge'&&method==='POST'){
-      await init();
-      const sourceCourtId=String(body?.sourceCourtId||'').trim();
-      const targetCourtId=String(body?.targetCourtId||'').trim();
-      const deleteSource=body?.deleteSource===true;
-      if(!sourceCourtId||!targetCourtId)return sendJson(res,{error:'请选择要合并的订场用户'},400);
-      if(sourceCourtId===targetCourtId)return sendJson(res,{error:'不能合并到自己'},400);
-      const [sourceCourt,targetCourt,membershipRefs]=await Promise.all([
-        getCachedRow(T_COURTS,sourceCourtId).catch(()=>null),
-        getCachedRow(T_COURTS,targetCourtId).catch(()=>null),
-        loadCourtDeleteReferenceData()
-      ]);
-      if(!sourceCourt)return sendJson(res,{error:'原订场用户不存在'},404);
-      if(!targetCourt)return sendJson(res,{error:'目标订场用户不存在'},404);
-      const merged=mergeCourtRecords({
-        targetCourt,
-        sourceCourt,
-        membershipAccounts:membershipRefs.membershipAccounts,
-        membershipOrders:membershipRefs.membershipOrders,
-        membershipBenefitLedger:membershipRefs.membershipBenefitLedger,
-        membershipAccountEvents:membershipRefs.membershipAccountEvents,
-        now:new Date().toISOString()
-      });
-      await put(T_COURTS,targetCourt.id,merged.targetCourt);
-      await Promise.all([
-        ...merged.membershipAccounts.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_ACCOUNTS,row.id,row)),
-        ...merged.membershipOrders.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_ORDERS,row.id,row)),
-        ...merged.membershipBenefitLedger.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_BENEFIT_LEDGER,row.id,row)),
-        ...merged.membershipAccountEvents.filter(row=>String(row.courtId||'')===targetCourtId).map(row=>put(T_MEMBERSHIP_ACCOUNT_EVENTS,row.id,row))
-      ]);
-      if(deleteSource)await del(T_COURTS,sourceCourt.id);
-      else await put(T_COURTS,sourceCourt.id,merged.sourceCourt);
-      return sendJson(res,{success:true,targetCourt:merged.targetCourt,removedCourtId:deleteSource?sourceCourt.id:'',archivedSource:!deleteSource});
-    }
-    if(path==='/courts/migrate-legacy'&&method==='POST'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const dryRun=body?.dryRun!==false;
-      const rows=await getCachedScan(T_COURTS);
-      let changed=0;
-      const preview=[];
-      for(const row of rows){
-        const parsed=parseLegacyCourtNotes(row.notes);
-        const next={
-          ...row,
-          notes:parsed.notes,
-          owner:row.owner||parsed.updates.owner||'',
-          depositAttitude:row.depositAttitude||parsed.updates.depositAttitude||'',
-          familiarity:row.familiarity||parsed.updates.familiarity||'',
-          spentAmount:row.spentAmount!=null&&row.spentAmount!==''?parseFloat(row.spentAmount)||0:(parsed.updates.spentAmount||0)
-        };
-        const hasFieldChange=
-          String(next.notes||'')!==String(row.notes||'')||
-          String(next.owner||'')!==String(row.owner||'')||
-          String(next.depositAttitude||'')!==String(row.depositAttitude||'')||
-          String(next.familiarity||'')!==String(row.familiarity||'')||
-          String(next.spentAmount||0)!==String(row.spentAmount||0);
-        if(!hasFieldChange)continue;
-        changed++;
-        if(preview.length<20)preview.push({id:row.id,name:row.name,before:row.notes||'',after:next.notes||'',owner:next.owner||'',depositAttitude:next.depositAttitude||'',familiarity:next.familiarity||'',spentAmount:next.spentAmount||0});
-        if(!dryRun)await put(T_COURTS,row.id,{...next,updatedAt:new Date().toISOString()});
-      }
-      return sendJson(res,{dryRun,total:rows.length,changed,preview});
-    }
-    if(path==='/courts/migrate-finance-legacy'&&method==='POST'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const dryRun=body?.dryRun!==false;
-      const rows=await getCachedScan(T_COURTS);
-      const schedules=await getCachedScan(T_SCHEDULE).catch(()=>[]);
-      let candidates=0,migrated=0,skipped=0;
-      const preview=[];
-      for(const row of rows){
-        if(!shouldMigrateLegacyCourtFinance(row))continue;
-        candidates++;
-        const history=buildLegacyCourtOpeningHistory(row);
-        const warnings=legacyCourtFinanceWarnings(row);
-        let computed=null;
-        try{computed=computeCourtFinance({...row,history});}catch(e){warnings.push(e.message);}
-        if(preview.length<20)preview.push({
-          id:row.id,
-          name:row.name||'',
-          before:{balance:normalizeMoney(row.balance),totalDeposit:normalizeMoney(row.totalDeposit),spentAmount:normalizeMoney(row.spentAmount),receivedAmount:normalizeMoney(row.receivedAmount)},
-          generated:history,
-          computed,
-          warnings
-        });
-        if(warnings.length){skipped++;continue;}
-        if(!dryRun){
-          const next=normalizeCourtRecord({...row,history,updatedAt:new Date().toISOString()},{schedules});
-          await put(T_COURTS,row.id,next);
-          migrated++;
-        }
-      }
-      return sendJson(res,{dryRun,total:rows.length,candidates,migrated,skipped,preview});
-    }
-    const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const prev=await getCachedRow(T_COURTS,id).catch(()=>null);const prevHistory=JSON.stringify(normalizeCourtHistory(prev?.history));const nextHistory=JSON.stringify(normalizeCourtHistory(body?.history));const schedules=prevHistory===nextHistory?[]:await getCachedScan(T_SCHEDULE).catch(()=>[]);const r={...normalizeCourtRecord(body,{schedules}),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await getCachedRow(T_COURTS,id).catch(()=>null);if(!court)return sendJson(res,{error:'订场用户不存在'},404);const action=courtDeleteAction(court,await loadCourtDeleteReferenceData());if(action==='delete'){await del(T_COURTS,id);return sendJson(res,{success:true,archived:false});}const now=new Date().toISOString();await put(T_COURTS,id,{...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now});return sendJson(res,{success:true,archived:true});}}
-    if(path==='/students'){await init();if(method==='GET'){const rows=await getCachedScan(T_STUDENTS);if(user.role==='admin')return sendJson(res,rows);const [schedule,classes,coaches,users]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CLASSES).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});return sendJson(res,filterLoadAllForUser({students:rows,schedule,classes,coaches},user,coachRefs).students);}if(method==='POST'){assertStudentWriteAccess(user);const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
-    const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){assertStudentWriteAccess(user);const old=await get(T_STUDENTS,id).catch(()=>null);const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);const studentUpdates=old?await applyStudentIdentityUpdate(old,r):{plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};return sendJson(res,{...r,studentUpdates});}if(method==='DELETE'){assertStudentWriteAccess(user);const [classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_PLANS).catch(()=>[]),scan(T_COURTS).catch(()=>[]),getCachedFeedbacks(),scan(T_PURCHASES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanDeleteStudent(id,{classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger});await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
+    const courtsMembershipResponse=await handleCourtsMembershipRequest({path,method,user,body,query});
+    if(courtsMembershipResponse)return sendJson(res,courtsMembershipResponse.body,courtsMembershipResponse.status||200);
     if(path==='/init-data'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const ss=body.students||[];for(const s of ss)await put(T_STUDENTS,s.id||uuidv4(),{...s,updatedAt:new Date().toISOString()});return sendJson(res,{success:true,count:ss.length});}
-    // 历史兼容接口：/products 对应旧“课程产品”页面。
-    // 当前仍保留读写能力，原因是可见历史页面和数据修复链路还可能使用它；
-    // 新增教学售卖逻辑一律不要再从这里起步，而应转到 packages / purchases / entitlements / schedule 主链。
-    if(path==='/products'){await init();if(method==='GET')return sendJson(res,await getCachedScan(T_PRODUCTS).catch(()=>[]));if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=uuidv4();const now=new Date().toISOString();const r=normalizeProductRecord({...body,id},null,now);r.createdAt=now;await put(T_PRODUCTS,id,r);return sendJson(res,r);}}
-    const pM=path.match(/^\/products\/(.+)$/);if(pM){const id=pM[1];if(method==='GET')return sendJson(res,await get(T_PRODUCTS,id));if(method==='PUT'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const old=await get(T_PRODUCTS,id).catch(()=>null);if(!old)return sendJson(res,{error:'课程产品不存在'},404);const now=new Date().toISOString();const r=normalizeProductRecord({...body,id},old,now);const [classes,packages]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_PACKAGES).catch(()=>[])]);assertCanEditProductWithReferences(old,r,{classes,packages});await put(T_PRODUCTS,id,r);const renamed=buildProductRenameDisplayUpdates(old,r,{classes},now);if(renamed.classes.length){const plans=await scan(T_PLANS).catch(()=>[]);const sync=buildProductRenameDisplayUpdates(old,r,{classes,plans},now);await Promise.all([...sync.classes.map(row=>put(T_CLASSES,row.id,row)),...sync.plans.map(row=>put(T_PLANS,row.id,row))]);}return sendJson(res,r);}if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const [classes,packages]=await Promise.all([scan(T_CLASSES),scan(T_PACKAGES).catch(()=>[])]);assertCanDeleteProduct(id,classes,packages);await del(T_PRODUCTS,id);return sendJson(res,{success:true});}}
-    if(path==='/packages'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();if(method==='GET')return sendJson(res,await getCachedScan(T_PACKAGES).catch(()=>[]));if(method==='POST'){const id=uuidv4();const refs={products:await getCachedScan(T_PRODUCTS).catch(()=>[]),coaches:await getCachedScan(T_COACHES).catch(()=>[]),campuses:await getCachedScan(T_CAMPUSES).catch(()=>[])};const now=new Date().toISOString();const r=normalizePackageRecord({...body,id},null,refs,now);r.createdAt=now;await put(T_PACKAGES,id,r);return sendJson(res,r);}}
-    const pkgM=path.match(/^\/packages\/(.+)$/);if(pkgM){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=pkgM[1];if(method==='GET')return sendJson(res,await get(T_PACKAGES,id));if(method==='PUT'){const old=await get(T_PACKAGES,id).catch(()=>null);if(!old)return sendJson(res,{error:'售卖课包不存在'},404);const refs={products:await scan(T_PRODUCTS).catch(()=>[]),coaches:await scan(T_COACHES).catch(()=>[]),campuses:await scan(T_CAMPUSES).catch(()=>[])};const r=normalizePackageRecord({...body,id},old,refs);assertCanEditPackageWithPurchases(old,r,await scan(T_PURCHASES).catch(()=>[]));await put(T_PACKAGES,id,r);return sendJson(res,r);}if(method==='DELETE'){assertCanDeletePackage(id,await scan(T_PURCHASES).catch(()=>[]));await del(T_PACKAGES,id);return sendJson(res,{success:true});}}
-    if(path==='/purchases'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();if(method==='GET')return sendJson(res,await getCachedScan(T_PURCHASES).catch(()=>[]));if(method==='POST'){const pkg=await get(T_PACKAGES,body.packageId).catch(()=>null);if(!pkg)return sendJson(res,{error:'售卖课包不存在'},404);const student=await get(T_STUDENTS,body.studentId).catch(()=>null);if(!student)return sendJson(res,{error:'学员不存在'},404);const purchaseDate=body.purchaseDate||new Date().toISOString().slice(0,10);validatePurchaseInputForPackage(pkg,{...body,purchaseDate});const id=uuidv4();const now=new Date().toISOString();const purchase=buildPurchaseRecord(pkg,{...body,purchaseDate},student,{id,now,operator:user.name});const entitlement=buildEntitlementFromPurchase(pkg,purchase,student,uuidv4(),now);await writePurchaseAndEntitlementAtomic({put,del},T_PURCHASES,T_ENTITLEMENTS,purchase,entitlement);return sendJson(res,{purchase,entitlement});}}
-    const purM=path.match(/^\/purchases\/(.+)$/);if(purM){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=purM[1];if(method==='GET')return sendJson(res,await get(T_PURCHASES,id));if(method==='PUT'){const old=await get(T_PURCHASES,id).catch(()=>null);if(!old)return sendJson(res,{error:'购买记录不存在'},404);const ents=(await scan(T_ENTITLEMENTS).catch(()=>[])).filter(e=>e.purchaseId===id);const ledger=await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]);const now=new Date().toISOString();if(purchaseHasEntitlementLedger(id,ents,ledger)){const r={...old,notes:body.notes!==undefined?body.notes:old.notes,updatedAt:now};assertCanEditPurchaseWithLedger(old,r,ents,ledger);await put(T_PURCHASES,id,r);return sendJson(res,{purchase:r,entitlements:[]});}const nextPackageId=body.packageId||old.packageId;const purchaseDate=body.purchaseDate||old.purchaseDate||new Date().toISOString().slice(0,10);const pkg=await get(T_PACKAGES,nextPackageId).catch(()=>null);if(!pkg)return sendJson(res,{error:'售卖课包不存在'},404);validatePurchaseInputForPackage(pkg,{...old,...body,purchaseDate},{isEdit:true,oldPackageId:old.packageId});const student=await get(T_STUDENTS,body.studentId||old.studentId).catch(()=>null);if(!student)return sendJson(res,{error:'学员不存在'},404);const r=buildPurchaseRecord(pkg,{...old,...body,id,createdAt:old.createdAt,purchaseDate},student,{id,now,operator:old.operator||user.name});await put(T_PURCHASES,id,r);const synced=[];try{for(const ent of ents){const next=syncEntitlementFromPurchase(pkg,r,student,ent,now);await put(T_ENTITLEMENTS,ent.id,next);synced.push(next);}return sendJson(res,{purchase:r,entitlements:synced});}catch(err){await put(T_PURCHASES,id,old).catch(()=>null);for(const ent of ents)await put(T_ENTITLEMENTS,ent.id,ent).catch(()=>null);throw err;}}if(method==='DELETE'){const [ents,ledger]=await Promise.all([scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanVoidPurchase(id,ents,ledger);const now=new Date().toISOString();for(const ent of ents.filter(e=>e.purchaseId===id)){await put(T_ENTITLEMENTS,ent.id,{...ent,status:'voided',updatedAt:now});const event={id:uuidv4(),entitlementId:ent.id,studentId:ent.studentId||'',purchaseId:id,lessonDelta:0,action:'void_purchase',reason:body.reason||'购买记录作废',operator:user.name||'',createdAt:now};await put(T_ENTITLEMENT_LEDGER,event.id,event);}const old=await get(T_PURCHASES,id).catch(()=>null);if(old)await put(T_PURCHASES,id,{...old,status:'voided',voidedAt:now,voidedBy:user.name||'',voidReason:body.reason||'购买记录作废',updatedAt:now});return sendJson(res,{success:true});}}
-    if(path==='/membership-plans'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      if(method==='GET')return sendJson(res,await getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]));
-      if(method==='POST'){const now=new Date().toISOString();const r=buildMembershipPlanRecord(body,{id:uuidv4(),now});await put(T_MEMBERSHIP_PLANS,r.id,r);return sendJson(res,r);}
-    }
-    const mpM=path.match(/^\/membership-plans\/(.+)$/);if(mpM){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      const id=mpM[1];
-      if(method==='GET')return sendJson(res,await getCachedRow(T_MEMBERSHIP_PLANS,id));
-      if(method==='PUT'){const old=await getCachedRow(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);const r=buildMembershipPlanRecord({...old,...body,id,createdAt:old.createdAt},{id,now:new Date().toISOString()});await put(T_MEMBERSHIP_PLANS,id,r);return sendJson(res,r);}
-      if(method==='DELETE'){const old=await getCachedRow(T_MEMBERSHIP_PLANS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员方案不存在'},404);if(old.status==='active')return sendJson(res,{error:'上架中的会员方案不能删除，请先停售'},400);const orders=await getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]);if(orders.some(o=>o.membershipPlanId===id))return sendJson(res,{error:'该会员方案已有购买记录，不能删除，请停用'},400);await del(T_MEMBERSHIP_PLANS,id);return sendJson(res,{success:true});}
-    }
-    if(path==='/membership-accounts/reconcile'&&method==='POST'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      return sendJson(res,await runMembershipReconcile());
-    }
-    if(path==='/membership-accounts'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      if(method==='GET'){const rows=await getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]);const courtId=query.get('courtId')||'';return sendJson(res,courtId?rows.filter(a=>a.courtId===courtId):rows);}
-    }
-    const maM=path.match(/^\/membership-accounts\/(.+)$/);if(maM){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      const id=maM[1];
-      if(method==='GET')return sendJson(res,await getCachedRow(T_MEMBERSHIP_ACCOUNTS,id));
-      if(method==='PUT'){
-        const old=await getCachedRow(T_MEMBERSHIP_ACCOUNTS,id).catch(()=>null);
-        if(!old)return sendJson(res,{error:'会员账户不存在'},404);
-        const now=new Date().toISOString();
-        const r={...old,...body,id,updatedAt:now};
-        if(body.status==='voided'){
-          r.status='voided';
-          r.voidedAt=now;
-          r.voidedBy=user.name||'';
-          r.voidReason=body.voidReason||body.reason||'手动作废会员';
-        }
-        let event=null;
-        if(old.status!==r.status&&r.status==='voided'){
-          event=buildMembershipAccountEventRecord({
-            membershipAccountId:id,
-            courtId:r.courtId,
-            eventType:'voided',
-            beforeStatus:old.status,
-            afterStatus:'voided',
-            operator:user.name||'',
-            reason:r.voidReason
-          },{id:uuidv4(),now});
-        }
-        await put(T_MEMBERSHIP_ACCOUNTS,id,r);
-        if(event)await put(T_MEMBERSHIP_ACCOUNT_EVENTS,event.id,event);
-        return sendJson(res,event?{account:r,event}:r);
-      }
-    }
-    if(path==='/membership-orders'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      if(method==='GET')return sendJson(res,await getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]));
-      if(method==='POST'){
-        const now=new Date().toISOString();
-        const purchaseDate=body.purchaseDate||now.slice(0,10);
-        const rechargeAmount=normalizeMoney(body.rechargeAmount);
-        const requestReservationKey=reserveRecentMembershipOrderRequest({courtId:body.courtId,membershipPlanId:body.membershipPlanId,purchaseDate,rechargeAmount,requestKey:body.requestKey},now);
-        if(!requestReservationKey)return sendJson(res,{error:'检测到重复提交，请勿重复开卡/续充'},409);
-        const [court,plan,existingAccountFallback]=await Promise.all([
-          getCachedRow(T_COURTS,body.courtId).catch(()=>null),
-          getCachedRow(T_MEMBERSHIP_PLANS,body.membershipPlanId).catch(()=>null),
-          body.membershipAccountId?getCachedRow(T_MEMBERSHIP_ACCOUNTS,body.membershipAccountId).catch(()=>null):Promise.resolve(null)
-        ]);
-        if(!court){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'订场用户不存在'},404);}
-        const existingAccount=existingAccountFallback&&existingAccountFallback.courtId===court.id&&existingAccountFallback.status!=='voided'
-          ? existingAccountFallback
-          : (await getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])).find(a=>a.courtId===court.id&&a.status!=='voided');
-        if(!plan){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'会员方案不存在'},404);}
-        if(plan.status&&plan.status!=='active'){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'该会员方案已停用'},400);}
-        if(plan.saleStartDate&&purchaseDate<plan.saleStartDate){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'未到会员方案售卖时间'},400);}
-        if(plan.saleEndDate&&purchaseDate>plan.saleEndDate){releaseRecentMembershipOrderRequest(requestReservationKey);return sendJson(res,{error:'会员方案售卖时间已结束'},400);}
-        const finalRechargeAmount=normalizeMoney(body.rechargeAmount??plan.rechargeAmount);
-        const built=buildMembershipPurchase({court,plan:normalizeMembershipPlanViewRecord(plan),existingAccount,body:{...body,purchaseDate,rechargeAmount:finalRechargeAmount,operator:body.operator||user.name},now});
-        const benefitLedgerRows=buildMembershipGrantLedgerRows(built.order,{idFactory:uuidv4,now});
-        const originalCourt={...court};
-        try{
-          const history=[...normalizeCourtHistory(court.history),built.historyRow];
-          const nextCourt=normalizeCourtRecord({...court,history,updatedAt:now});
-          await Promise.all([
-            put(T_MEMBERSHIP_ACCOUNTS,built.account.id,built.account),
-            put(T_MEMBERSHIP_ORDERS,built.order.id,built.order),
-            put(T_COURTS,court.id,nextCourt),
-            ...benefitLedgerRows.map(row=>put(T_MEMBERSHIP_BENEFIT_LEDGER,row.id,row))
-          ]);
-          releaseRecentMembershipOrderRequest(requestReservationKey,{keep:true});
-          return sendJson(res,{...built,benefitLedgerRows});
-        }catch(err){
-          await Promise.all([
-            put(T_COURTS,originalCourt.id,originalCourt).catch(()=>null),
-            del(T_MEMBERSHIP_ORDERS,built.order.id).catch(()=>null),
-            ...benefitLedgerRows.map(row=>del(T_MEMBERSHIP_BENEFIT_LEDGER,row.id).catch(()=>null)),
-            (!existingAccount?del(T_MEMBERSHIP_ACCOUNTS,built.account.id):put(T_MEMBERSHIP_ACCOUNTS,existingAccount.id,existingAccount)).catch(()=>null)
-          ]);
-          releaseRecentMembershipOrderRequest(requestReservationKey);
-          throw err;
-        }
-      }
-    }
-    const moM=path.match(/^\/membership-orders\/(.+)$/);if(moM){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      const id=moM[1];
-      if(method==='GET')return sendJson(res,await getCachedRow(T_MEMBERSHIP_ORDERS,id));
-      if(method==='PUT'){const old=await getCachedRow(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(!old)return sendJson(res,{error:'会员购买记录不存在'},404);const r={...old,...body,id,updatedAt:new Date().toISOString()};await put(T_MEMBERSHIP_ORDERS,id,r);return sendJson(res,r);}
-      if(method==='DELETE'){const old=await getCachedRow(T_MEMBERSHIP_ORDERS,id).catch(()=>null);if(old)await put(T_MEMBERSHIP_ORDERS,id,{...old,status:'voided',voidedAt:new Date().toISOString(),voidedBy:user.name||'',voidReason:body.reason||'会员购买记录作废',updatedAt:new Date().toISOString()});return sendJson(res,{success:true});}
-    }
-    if(path==='/membership-benefit-ledger'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      if(method==='GET'){
-        const [rows,users]=await Promise.all([
-          getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
-          getCachedScan(T_USERS).catch(()=>[])
-        ]);
-        return sendJson(res,(rows||[]).map(row=>({...row,operator:normalizeOperatorAccountName(row.operator,users)})));
-      }
-      if(method==='POST'){
-        const now=new Date().toISOString();
-        const account=body.membershipAccountId?await getCachedRow(T_MEMBERSHIP_ACCOUNTS,body.membershipAccountId).catch(()=>null):null;
-        const operator=body.operator||operatorAccountName(user);
-        if(account&&['voided','cleared'].includes(account.status)&&['consume','supplement'].includes(body.action))return sendJson(res,{error:'当前会员状态不可再消耗或补发权益，请先重新开卡'},400);
-        if(!body.membershipOrderId&&(body.action==='consume'||parseInt(body.delta)<0)){
-          const [orders,ledger]=await Promise.all([getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[])]);
-          const relevantOrders=(orders||[]).filter(order=>order.membershipAccountId===body.membershipAccountId&&order.courtId===body.courtId);
-          const needsPlanFallback=relevantOrders.some(order=>{
-            const hasBenefitSnapshot=order?.benefitSnapshot&&Object.keys(order.benefitSnapshot).length>0;
-            const hasPlanSnapshot=order?.planBenefitTemplateSnapshot&&Object.keys(order.planBenefitTemplateSnapshot).length>0;
-            const hasLegacyCounts=MEMBERSHIP_BENEFIT_FIELD_MAP.some(({field})=>parseInt(order?.[field])>0);
-            return !hasBenefitSnapshot&&!hasPlanSnapshot&&!hasLegacyCounts;
-          });
-          const plans=needsPlanFallback?await getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]):[];
-          const planMap=new Map((plans||[]).map(plan=>[plan.id,normalizeMembershipPlanViewRecord(plan)]));
-          const normalizedOrders=relevantOrders.map(order=>normalizeMembershipOrderViewRecord(order,planMap.get(order.membershipPlanId)||null));
-          const rows=allocateMembershipBenefitUsage({
-            membershipAccountId:body.membershipAccountId,
-            courtId:body.courtId,
-            benefitCode:body.benefitCode,
-            benefitLabel:body.benefitLabel,
-            unit:body.unit,
-            consumeCount:Math.abs(parseInt(body.delta)||0)||Math.abs(parseInt(body.consumeCount)||0),
-            orders:normalizedOrders,
-            ledger,
-            relatedDate:body.relatedDate,
-            reason:body.reason||'会员权益使用',
-            operator,
-            now,
-            idFactory:uuidv4
-          });
-          await Promise.all(rows.map(row=>put(T_MEMBERSHIP_BENEFIT_LEDGER,row.id,row)));
-          return sendJson(res,{records:rows});
-        }
-        const r=buildMembershipBenefitLedgerRecord({...body,operator},{id:uuidv4(),now});
-        await put(T_MEMBERSHIP_BENEFIT_LEDGER,r.id,r);
-        return sendJson(res,r);
-      }
-    }
-    if(path==='/membership-account-events'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      if(method==='GET')return sendJson(res,await getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[]));
-    }
-    if(path==='/entitlement-ledger'){
-      await init();
-      if(method==='GET')return sendJson(res,normalizeEntitlementLedgerRowsForView(await getCachedScan(T_ENTITLEMENT_LEDGER).catch(()=>[])));
-    }
-    if(path==='/entitlements'){await init();if(method==='GET'){const rows=await getCachedScan(T_ENTITLEMENTS).catch(()=>[]);const sid=query.get('studentId')||'';if(user.role==='admin')return sendJson(res,sid?rows.filter(e=>e.studentId===sid):rows);const [students,schedule,classes,coaches,users]=await Promise.all([getCachedScan(T_STUDENTS).catch(()=>[]),getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CLASSES).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});const scoped=filterLoadAllForUser({students,schedule,classes,entitlements:rows,coaches},user,coachRefs).entitlements;return sendJson(res,sid?scoped.filter(e=>e.studentId===sid):scoped);}}
-    if(path==='/entitlements/recommend'&&method==='POST'){
-      await init();
-      const [rows,coachRows,userRows]=await Promise.all([
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[]),
-        getCachedScan(T_USERS).catch(()=>[])
-      ]);
-      const coachRefs=buildCoachRefs({coaches:coachRows,users:userRows});
-      const scopedRows=rows.filter(e=>parseArr(body.studentIds).includes(e.studentId));
-      return sendJson(res,recommendEntitlements(scopedRows,{...body,coachRefs}));
-    }
-    const entM=path.match(/^\/entitlements\/(.+)$/);if(entM){const id=entM[1];if(method==='GET')return sendJson(res,await getCachedRow(T_ENTITLEMENTS,id));if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanDeleteEntitlement(id,await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]),await scan(T_ENTITLEMENTS).catch(()=>[]));await del(T_ENTITLEMENTS,id);return sendJson(res,{success:true});}}
-    // 历史兼容接口：/plans 仅保留旧查询口径。
-    // 这里的写操作已安全冻结，因为 plans 只允许由 classes 自动同步生成，当前接口本身也不承接独立写入。
-    if(path==='/plans'){await init();if(method==='GET')return sendJson(res,await scan(T_PLANS));return sendJson(res,{error:'学习计划由班次自动生成，不能独立新增、修改或删除'},400);}
-    const plM=path.match(/^\/plans\/(.+)$/);if(plM){const id=plM[1];if(method==='GET')return sendJson(res,await get(T_PLANS,id));return sendJson(res,{error:'学习计划由班次自动生成，不能独立新增、修改或删除'},400);}
-    if(path==='/feedbacks'){
-      await init();
-      if(method==='GET')return sendJson(res,await withTimeout(getCachedScan(T_FEEDBACKS).catch(()=>[]),3000,[]));
-      if(method==='POST'){
-        const id=uuidv4();
-        const schedule=await get(T_SCHEDULE,body.scheduleId).catch(()=>null);
-        if(!schedule)return sendJson(res,{error:'排课不存在'},404);
-        const [coaches,users]=await Promise.all([getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
-        assertCanWriteFeedback(user,schedule,buildCoachRefs({coaches,users}));
-        const r=buildFeedbackRecord(body,{id},user);
-        await putFeedback(id,r);
-        return sendJson(res,r);
-      }
-    }
-    const fbM=path.match(/^\/feedbacks\/(.+)$/);
-    if(fbM){
-      const id=fbM[1];
-      if(method==='GET')return sendJson(res,await get(T_FEEDBACKS,id));
-      if(method==='PUT'){
-        const ex=await get(T_FEEDBACKS,id).catch(()=>null);
-        if(!ex)return sendJson(res,{error:'反馈不存在'},404);
-        const schedule=await get(T_SCHEDULE,body.scheduleId||ex.scheduleId).catch(()=>null);
-        if(!schedule)return sendJson(res,{error:'排课不存在'},404);
-        const [coaches,users]=await Promise.all([getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
-        assertCanWriteFeedback(user,schedule,buildCoachRefs({coaches,users}));
-        const r=buildFeedbackRecord({...ex,...body},{...ex,id},user);
-        await putFeedback(id,r);
-        return sendJson(res,r);
-      }
-    }
-    if(path==='/schedule'){
-      await init();
-      if(method==='GET'){const rows=await getCachedScan(T_SCHEDULE);if(user.role==='admin')return sendJson(res,rows);const [coaches,users]=await Promise.all([getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});return sendJson(res,filterLoadAllForUser({schedule:rows,coaches},user,coachRefs).schedule);}
-      if(method==='POST'){
-        try{assertCanWriteSchedule(user);}catch(e){return sendJson(res,{error:e.message},403);}
-        const id=uuidv4();
-        const r={...body,...normalizeCoachLateInfo(body),studentIds:parseArr(body.studentIds).filter(Boolean),expectedStudentIds:parseArr(body.expectedStudentIds).filter(Boolean),absentStudentIds:parseArr(body.absentStudentIds).filter(Boolean),venue:normalizeVenue(body.venue),id,status:body.status||'已排课',cancelReason:body.cancelReason||'',notifyStatus:body.notifyStatus||'未通知',confirmStatus:body.confirmStatus||'待确认',scheduleSource:body.scheduleSource||'排课表',createdBy:user.name,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-        const {risk,entitlementDeltas}=await timed('schedule create validate',async()=>{
-          const risk=await validateScheduleSave(r,null);
-          assertScheduleEntitlementRequired(r);
-          const [entitlementRows,coachRows,userRows]=await Promise.all([
-            getCachedScan(T_ENTITLEMENTS).catch(()=>[]),
-            getCachedScan(T_COACHES).catch(()=>[]),
-            getCachedScan(T_USERS).catch(()=>[])
-          ]);
-          const coachRefs=buildCoachRefs({coaches:coachRows,users:userRows});
-          const entitlementDeltas=resolveScheduleEntitlementDeltas({...r,coachRefs},entitlementRows);
-          r.entitlementIds=entitlementDeltas.map(d=>d.entitlementId);
-          r.entitlementId=r.entitlementIds.length===1?r.entitlementIds[0]:'';
-          await assertScheduleEntitlementCapacity({...r,coachRefs},null);
-          return {risk,entitlementDeltas};
-        });
-        await timed('schedule create persist',()=>put(T_SCHEDULE,id,r));
-        const nextDelta=scheduleLessonDelta(r);
-        const appliedEntitlements=[];
-        let lessonApplied=false;
-        try{
-          const entitlementChanged=await timed('schedule create entitlement writes',async()=>{
-            const changed=[];
-            for(const nextEntDelta of entitlementDeltas){
-              const update=await applyEntitlementDelta(nextEntDelta.entitlementId,id,-nextEntDelta.delta,'consume','排课消课',user);
-              if(update)changed.push(update);
-              appliedEntitlements.push({entitlementId:nextEntDelta.entitlementId,delta:nextEntDelta.delta,action:'rollback',reason:'排课保存失败退回'});
-            }
-            return changed;
-          });
-          const lessonUpdate=nextDelta?await timed('schedule create lesson writes',()=>applyLessonDelta(nextDelta.classId,nextDelta.delta,r.studentIds)):null;
-          if(nextDelta)lessonApplied=true;
-          const entitlements=entitlementChanged.filter(Boolean).map(x=>x.entitlement);
-          const entitlementLedger=entitlementChanged.filter(Boolean).map(x=>x.ledger);
-          const notification=await timed(
-            'schedule create coach notification',
-            ()=>withTimeout(
-              notifyCoachScheduleCreated(r).catch(err=>({sent:false,error:err.message})),
-              5000,
-              {sent:false,error:'微信通知超时'}
-            )
-          );
-          Object.assign(r,buildScheduleNotificationUpdate(r,notification,'schedule_created',new Date().toISOString()));
-          await put(T_SCHEDULE,id,r);
-          return sendJson(res,{schedule:r,warnings:risk.warnings||[],...(lessonUpdate||{}),entitlements,entitlementLedger,entitlement:entitlements[0]||null,ledger:entitlementLedger[0]||null,notification});
-        }catch(err){
-          await del(T_SCHEDULE,id).catch(()=>null);
-          for(const item of appliedEntitlements)await applyEntitlementDelta(item.entitlementId,id,item.delta,item.action,item.reason,user).catch(()=>null);
-          if(nextDelta&&lessonApplied)await applyLessonDelta(nextDelta.classId,-nextDelta.delta,r.studentIds).catch(()=>null);
-          throw err;
-        }
-      }
-    }
-    const schM=path.match(/^\/schedule\/(.+)$/);
-    if(schM){
-      const id=schM[1];
-      if(method==='GET')return sendJson(res,await get(T_SCHEDULE,id));
-      if(method==='PUT'){
-        try{assertCanWriteSchedule(user);}catch(e){return sendJson(res,{error:e.message},403);}
-        const ex=await get(T_SCHEDULE,id).catch(()=>null);
-        const r={...ex,...body,...normalizeCoachLateInfo({...ex,...body}),studentIds:parseArr(body.studentIds??ex?.studentIds).filter(Boolean),expectedStudentIds:parseArr(body.expectedStudentIds??ex?.expectedStudentIds).filter(Boolean),absentStudentIds:parseArr(body.absentStudentIds??ex?.absentStudentIds).filter(Boolean),venue:normalizeVenue(body.venue??ex?.venue),id,updatedAt:new Date().toISOString()};
-        const oldDelta=scheduleLessonDelta(ex);
-        const nextDelta=scheduleLessonDelta(r);
-        const {risk,oldEntDeltas,nextEntDeltas}=await timed('schedule update validate',async()=>{
-          const risk=await validateScheduleSave(r,ex);
-          assertScheduleEntitlementRequired(r);
-          assertScheduleEditableAfterFeedback(
-            ex,
-            r,
-            await timed('schedule update feedback guard',()=>withTimeout(getCachedFeedbacks(),3000,[]))
-          );
-          const oldEntDeltas=scheduleEntitlementDeltas(ex);
-          const oldEntIds=new Set(oldEntDeltas.map(d=>d.entitlementId));
-          const [entitlementRows,coachRows,userRows]=await Promise.all([
-            getCachedScan(T_ENTITLEMENTS).catch(()=>[]),
-            getCachedScan(T_COACHES).catch(()=>[]),
-            getCachedScan(T_USERS).catch(()=>[])
-          ]);
-          const coachRefs=buildCoachRefs({coaches:coachRows,users:userRows});
-          const nextBaseRows=entitlementRows.map(ent=>oldEntIds.has(ent.id)?{...ent,status:'active',remainingLessons:parseLessonValue(ent.remainingLessons)+(oldEntDeltas.find(d=>d.entitlementId===ent.id)?.delta||0)}:ent);
-          const nextEntDeltas=resolveScheduleEntitlementDeltas({...r,coachRefs},nextBaseRows);
-          r.entitlementIds=nextEntDeltas.map(d=>d.entitlementId);
-          r.entitlementId=r.entitlementIds.length===1?r.entitlementIds[0]:'';
-          await assertScheduleEntitlementCapacity({...r,coachRefs},ex);
-          return {risk,oldEntDeltas,nextEntDeltas};
-        });
-        await timed('schedule update persist',()=>put(T_SCHEDULE,id,r));
-        const appliedEntitlements=[];
-        const appliedClassDeltas=[];
-        try{
-          const changed=[];
-          const entitlementChanged=await timed('schedule update entitlement writes',async()=>{
-            const rows=[];
-            const entDiff=diffScheduleEntitlementDeltas(oldEntDeltas,nextEntDeltas);
-            for(const oldEntDelta of entDiff.returns){rows.push(await applyEntitlementDelta(oldEntDelta.entitlementId,id,oldEntDelta.delta,'return','编辑排课退回旧权益',user));appliedEntitlements.push({entitlementId:oldEntDelta.entitlementId,delta:-oldEntDelta.delta,action:'rollback',reason:'编辑排课失败重新扣旧权益'});}
-            for(const nextEntDelta of entDiff.consumes){rows.push(await applyEntitlementDelta(nextEntDelta.entitlementId,id,-nextEntDelta.delta,'consume','编辑排课消课',user));appliedEntitlements.push({entitlementId:nextEntDelta.entitlementId,delta:nextEntDelta.delta,action:'rollback',reason:'编辑排课失败退回新权益'});}
-            return rows;
-          });
-          await timed('schedule update lesson writes',async()=>{
-            if(oldDelta){changed.push(await applyLessonDelta(oldDelta.classId,-oldDelta.delta,parseArr(ex.studentIds)));appliedClassDeltas.push({classId:oldDelta.classId,delta:oldDelta.delta,studentIds:parseArr(ex.studentIds)});}
-            if(nextDelta){changed.push(await applyLessonDelta(nextDelta.classId,nextDelta.delta,r.studentIds));appliedClassDeltas.push({classId:nextDelta.classId,delta:-nextDelta.delta,studentIds:r.studentIds});}
-          });
-          const classes=changed.filter(Boolean).map(x=>x.class);
-          const plans=changed.filter(Boolean).flatMap(x=>x.plans||[]);
-          const entitlements=entitlementChanged.filter(Boolean).map(x=>x.entitlement);
-          const entitlementLedger=entitlementChanged.filter(Boolean).map(x=>x.ledger);
-          return sendJson(res,{schedule:r,classes,plans,entitlements,entitlementLedger,warnings:risk.warnings||[]});
-        }catch(err){
-          await put(T_SCHEDULE,id,ex).catch(()=>null);
-          for(const item of appliedClassDeltas)await applyLessonDelta(item.classId,item.delta,item.studentIds).catch(()=>null);
-          for(const item of appliedEntitlements)await applyEntitlementDelta(item.entitlementId,id,item.delta,item.action,item.reason,user).catch(()=>null);
-          throw err;
-        }
-      }
-      if(method==='DELETE'){
-        const ex=await get(T_SCHEDULE,id).catch(()=>null);
-        const oldDelta=scheduleLessonDelta(ex);
-        assertCanDeleteSchedule(id,await getCachedFeedbacks(),await scan(T_ENTITLEMENT_LEDGER).catch(()=>[]));
-        await del(T_SCHEDULE,id);
-        try{
-          const lessonUpdate=oldDelta?await applyLessonDelta(oldDelta.classId,-oldDelta.delta):null;
-          return sendJson(res,{success:true,...(lessonUpdate||{})});
-        }catch(err){
-          if(ex)await put(T_SCHEDULE,id,ex).catch(()=>null);
-          if(oldDelta)await applyLessonDelta(oldDelta.classId,oldDelta.delta).catch(()=>null);
-          throw err;
-        }
-      }
-    }
-    if(path==='/coaches'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();if(method==='GET')return sendJson(res,await getCachedScan(T_COACHES));if(method==='POST'){const id=uuidv4();const name=String(body.name||'').trim();if(!name)return sendJson(res,{error:'请填写教练姓名'},400);assertUniqueCoachName(name,await getCachedScan(T_COACHES));const r={...body,name,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_COACHES,id,r);return sendJson(res,r);}}
-    const coM=path.match(/^\/coaches\/(.+)$/);if(coM){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=coM[1];if(method==='PUT'){const old=await get(T_COACHES,id).catch(()=>null);if(!old)return sendJson(res,{error:'教练不存在'},404);const name=String(body.name||'').trim();if(!name)return sendJson(res,{error:'请填写教练姓名'},400);assertUniqueCoachName(name,await scan(T_COACHES),id);const r={...body,name,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_COACHES,id,r);const coachUpdates=await applyCoachRename(old.name,name);return sendJson(res,{...r,coachUpdates});}if(method==='DELETE'){const old=await get(T_COACHES,id).catch(()=>null);if(!old)return sendJson(res,{success:true});assertCanDeleteCoachName(old.name,await loadCoachReferenceData(),old.id);await del(T_COACHES,id);return sendJson(res,{success:true});}}
-    if(path==='/page-data/plans'&&method==='GET'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const [campuses,students,classes,plans,products,schedule,courts,entitlements]=await Promise.all([
-        getCachedScan(T_CAMPUSES).catch(()=>[]),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_CLASSES).catch(()=>[]),
-        getCachedScan(T_PLANS).catch(()=>[]),
-        getCachedScan(T_PRODUCTS).catch(()=>[]),
-        getCachedScan(T_SCHEDULE).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[])
-      ]);
-      return sendJson(res,{
-        campuses:campuses.length?campuses:DEFAULT_CAMPUSES,
-        students,
-        classes,
-        plans,
-        products,
-        schedule,
-        courts,
-        entitlements
-      });
-    }
-    if(path==='/page-data/purchases'&&method==='GET'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const [purchases,packages,students,entitlements]=await Promise.all([
-        getCachedScan(T_PURCHASES).catch(()=>[]),
-        getCachedScan(T_PACKAGES).catch(()=>[]),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[])
-      ]);
-      return sendJson(res,{purchases,packages,students,entitlements});
-    }
-    if(path==='/page-data/finance'&&method==='GET'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const [campuses,students,schedule,entitlements,entitlementLedger,financialLedger,coaches,products,purchases,packages,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents]=await Promise.all([
-        listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_SCHEDULE).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENT_LEDGER).catch(()=>[]),
-        getCachedScan(T_FINANCIAL_LEDGER).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[]),
-        getCachedScan(T_PRODUCTS).catch(()=>[]),
-        getCachedScan(T_PURCHASES).catch(()=>[]),
-        getCachedScan(T_PACKAGES).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])
-      ]);
-      return sendJson(res,{campuses,students,schedule,entitlements,entitlementLedger,financialLedger,coaches,products,purchases,packages,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents});
-    }
-    if(path==='/page-data/courts'&&method==='GET'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.all([
-        listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[]),
-        getCachedScan(T_PRICE_PLANS).catch(()=>[])
-      ]);
-      return sendJson(res,{campuses,students,courts,membershipAccounts,coaches,pricePlans});
-    }
-    if(path==='/page-data/memberships'&&method==='GET'){
-      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
-      await init();
-      const [campuses,students,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,membershipPlans,coaches]=await Promise.all([
-        listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[])
-      ]);
-      const normalizedMembershipPlans=(Array.isArray(membershipPlans)?membershipPlans:[]).map(normalizeMembershipPlanViewRecord);
-      const membershipPlanMap=new Map(normalizedMembershipPlans.map(p=>[p.id,p]));
-      const normalizedMembershipOrders=(Array.isArray(membershipOrders)?membershipOrders:[]).map(order=>normalizeMembershipOrderViewRecord(order,membershipPlanMap.get(order.membershipPlanId)));
-      const reconciled=await runMembershipReconcile({accounts:membershipAccounts,courts});
-      return sendJson(res,{
-        campuses,
-        students,
-        courts:reconciled.courts||courts,
-        membershipAccounts:Array.isArray(reconciled.accounts)?reconciled.accounts:[],
-        membershipOrders:normalizedMembershipOrders,
-        membershipBenefitLedger:Array.isArray(membershipBenefitLedger)?membershipBenefitLedger:[],
-        membershipAccountEvents:[...(Array.isArray(membershipAccountEvents)?membershipAccountEvents:[]),...(reconciled.events||[])],
-        membershipPlans:normalizedMembershipPlans,
-        coaches
-      });
-    }
-    if(path==='/page-data/workbench'&&method==='GET'){
-      await init();
-      const [campuses,students,classes,schedule,feedbacks,purchases]=await Promise.all([
-        listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_CLASSES).catch(()=>[]),
-        getCachedScan(T_SCHEDULE).catch(()=>[]),
-        withTimeout(getCachedFeedbacks(),3000,[]),
-        getCachedScan(T_PURCHASES).catch(()=>[])
-      ]);
-      const [coaches,users]=await Promise.all([getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
-      const coachRefs=buildCoachRefs({coaches,users});
-      const scoped=filterLoadAllForUser({campuses,students,classes,schedule,feedbacks,purchases,coaches},user,coachRefs);
-      const now=new Date();
-      const visibleStudentIds=new Set((scoped.students||[]).map(item=>String(item?.id||'').trim()).filter(Boolean));
-      const visibleStudentNames=new Set((scoped.students||[]).map(item=>String(item?.name||'').trim()).filter(Boolean));
-      const relevantPurchases=(scoped.purchases||[]).filter(item=>{
-        const studentId=String(item?.studentId||'').trim();
-        const studentName=String(item?.studentName||'').trim();
-        return (studentId&&visibleStudentIds.has(studentId))||(studentName&&visibleStudentNames.has(studentName));
-      });
-      const decoratedStudents=decorateWorkbenchStudents(scoped.students||[],scoped.schedule||[],now);
-      const decoratedFeedbacks=decorateWorkbenchFeedbacks(scoped.feedbacks||[]);
-      const decoratedSchedule=decorateWorkbenchScheduleRows(scoped.schedule||[],decoratedFeedbacks,relevantPurchases,now);
-      const decoratedClasses=decorateWorkbenchClasses(scoped.classes||[],scoped.schedule||[]);
-      const stats=buildWorkbenchStats({schedule:decoratedSchedule,feedbacks:decoratedFeedbacks,purchases:relevantPurchases,now});
-      return sendJson(res,{
-        campuses:scoped.campuses||[],
-        students:decoratedStudents,
-        classes:decoratedClasses,
-        schedule:decoratedSchedule,
-        feedbacks:decoratedFeedbacks,
-        stats
-      });
-    }
-    // 历史兼容接口：/classes 对应旧“班次管理”页面，/plans 对应旧“学习计划”页面。
-    // classes 暂不冻结写接口：当前可见旧页面仍可能需要维护班次，且写入会同步到 plans。
-    // 因此这里只做口径收口，不把它继续上升为新业务前置。
-    if(path==='/classes'){await init();if(method==='GET'){const rows=await getCachedScan(T_CLASSES);if(user.role==='admin')return sendJson(res,rows);const [schedule,coaches,users]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});return sendJson(res,filterLoadAllForUser({classes:rows,schedule,coaches},user,coachRefs).classes);}if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);const id=uuidv4();const now=new Date().toISOString();const [existingClasses,product]=await Promise.all([getCachedScan(T_CLASSES).catch(()=>[]),get(T_PRODUCTS,body.productId).catch(()=>null)]);if(!product)return sendJson(res,{error:'课程产品不存在'},404);validateClassInput({...body,usedLessons:0},product);const classNo=await reserveNextClassNo(existingClasses,user,now);const r=buildClassCreateRecord({...body,productName:product.name||body.productName||''},{id,classNo,user,now});await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}}
-    const clM=path.match(/^\/classes\/(.+)$/);if(clM){const id=clM[1];if(method==='GET')return sendJson(res,await get(T_CLASSES,id));if(method==='PUT'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);const old=await get(T_CLASSES,id).catch(()=>null);if(!old)return sendJson(res,{error:'班次不存在'},404);const product=await get(T_PRODUCTS,body.productId||old.productId).catch(()=>null);if(!product)return sendJson(res,{error:'课程产品不存在'},404);const r=buildClassUpdateRecord(old,body,{product,now:new Date().toISOString()});validateClassInput(r,product);assertCanEditClassWithSchedules(old,r,await getCachedScan(T_SCHEDULE));await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);assertCanDeleteClass(id,await getCachedScan(T_SCHEDULE));const classPlans=(await getCachedScan(T_PLANS)).filter(p=>p.classId===id);for(const p of classPlans)await del(T_PLANS,p.id);await del(T_CLASSES,id);return sendJson(res,{success:true});}}
+    const teachingResponse=await handleTeachingRequest({path,method,user,body,query,res});
+    if(teachingResponse)return teachingResponse;
+    const pageDataResponse=await handlePageDataRequest({path,method,user,query});
+    if(pageDataResponse)return sendJson(res,pageDataResponse.body,pageDataResponse.status||200);
     if(path==='/campuses'){await init();if(method==='GET')return sendJson(res,await listCampusesWithDefaults());if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=body.code||uuidv4();const r={...body,id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_CAMPUSES,id,r);return sendJson(res,r);}}
     const caM=path.match(/^\/campuses\/(.+)$/);if(caM){const id=caM[1];if(method==='PUT'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const r={...body,id,updatedAt:new Date().toISOString()};await put(T_CAMPUSES,id,r);return sendJson(res,r);}if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const [students,coaches,classes,schedule,courts,packages,entitlements]=await Promise.all([scan(T_STUDENTS).catch(()=>[]),scan(T_COACHES).catch(()=>[]),scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scan(T_PACKAGES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[])]);assertCanDeleteCampus(id,{students,coaches,classes,schedule,courts,packages,entitlements});await del(T_CAMPUSES,id);return sendJson(res,{success:true});}}
     return sendJson(res,{error:'Not found'},404);
@@ -5528,6 +3796,7 @@ module.exports = async (req, res) => {
 };
 
 module.exports._test={
+  ...matchTestExports,
   PREVIEW_TS_INSTANCE,
   RUNTIME_DEBUG_TABLES,
   normalizeRangePrimaryKey,
@@ -5571,6 +3840,7 @@ module.exports._test={
   resolveScheduleEntitlementDeltas,
   applyEntitlementLessonDelta,
   diffScheduleEntitlementDeltas,
+  applyLinkedClassScheduleSnapshot,
   assertScheduleEditableAfterFeedback,
   isScheduleInsideDailyTimeWindows,
   scheduleEntitlementDelta,
@@ -5587,7 +3857,6 @@ module.exports._test={
   decorateWorkbenchStudents,
   decorateWorkbenchFeedbacks,
   workbenchLessonUnits,
-  assertPlanWriteForbidden,
   buildCoachRenameUpdates,
   buildStudentIdentityUpdates,
   buildProductRenameDisplayUpdates,
@@ -5597,11 +3866,13 @@ module.exports._test={
   mergeStoredAuthUser,
   userMatchPermissions,
   requireMatchAdminPermission,
+  resolveWechatMiniConfig,
   buildWechatCode2SessionUrl,
   extractWechatOpenId,
   buildWechatBoundUser,
   buildWechatUnboundUser,
   buildAdminUserView,
+  findAdminUserByPhone,
   buildWechatAccessTokenUrl,
   extractWechatAccessToken,
   fetchWechatPhoneNumber,
@@ -5615,9 +3886,9 @@ module.exports._test={
   rangesOverlap,
   computeCourtFinance,
   summarizeCourtFinanceRevenue,
-  buildMatchFinanceDailyReport,
-  buildMatchCourtFinanceHistoryRow,
-  buildMatchCourtFinanceRefundRow,
+  buildMatchFinanceDailyReport:matchFinanceBridge.buildMatchFinanceDailyReport,
+  buildMatchCourtFinanceHistoryRow:matchFinanceBridge.buildMatchCourtFinanceHistoryRow,
+  buildMatchCourtFinanceRefundRow:matchFinanceBridge.buildMatchCourtFinanceRefundRow,
   normalizePricePlan,
   assertPricePlanInput,
   quoteVenuePrice,
@@ -5640,7 +3911,6 @@ module.exports._test={
   legacyCourtFinanceWarnings,
   extractDepositAmountFromText,
   importCourtRows,
-  buildClassPlanRecord,
   assertCanDeleteProduct,
   assertCanDeleteClass,
   assertCanWriteClass,
@@ -5663,55 +3933,10 @@ module.exports._test={
   getRuntimeEnsuredTables,
   getTestDataResetTables,
   clearTables,
-  buildBootstrapSafetyFlags
-  ,MATCH_SQL_TABLES
-  ,getMatchSqlPool
-  ,requireAdminUser
-  ,requireMatchUser
-  ,canMatchUserCreateByAdminUser
-  ,buildMatchUserToken
-  ,assertMatchPostInput
-  ,normalizeMatchType
-  ,matchTimelineStatus
-  ,deriveMatchStatus
-  ,splitAaFee
-  ,registerMatchUser
-  ,toMatchView
-  ,toMatchDetailResponse
-  ,matchStatusText
-  ,assertMatchBookingInput
-  ,assertBookedWithdrawalInput
-  ,assertMatchFeeSplitUpdateInput
-  ,assertMatchReplacementTransferInput
-  ,resolveMatchPrepayClosure
-  ,resolveFinalAttendanceStatus
-  ,buildMatchFeeLedger
-  ,listMatchesForViewer
-  ,getMatchForViewer
-  ,createMatchForUser
-  ,updateMatchForUser
-  ,cancelMatchForUser
-  ,cancelRegistrationForUser
-  ,listAdminMatches
-  ,adminBookMatch
-  ,confirmMatchAttendance
-  ,adminHandleBookedWithdrawal
-  ,adminTransferMatchReplacement
-  ,creatorConfirmMatchAttendance
-  ,generateMatchFeeLedger
-  ,markMatchFeeSplit
-  ,buildMatchProfileStats
-  ,listMyMatches
-  ,getMatchProfile
-  ,updateMatchProfile
-  ,listMatchNotifications
-  ,matchNotificationText
-  ,listMatchPlayers
-  ,buildMatchSubscribeMessage
-  ,notifyMatchUsers
-  ,syncMatchFeeSplitToCourtFinance
-  ,syncMatchFeeSplitRefundToCourtFinance
-  ,getMatchFinanceDailyReportForAdmin
-  ,getCourtRecordForTest
-  ,removeMatchCourtFinanceRowsForTest
+  buildBootstrapSafetyFlags,
+  MATCH_SQL_TABLES,
+  getMatchSqlPool,
+  COURT_ACCOUNT_LIST_PROJECTION_FIELDS,
+  getCourtRecordForTest,
+  removeMatchCourtFinanceRowsForTest
 };
