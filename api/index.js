@@ -290,9 +290,11 @@ const HOT_GET_TABLES=new Map([
   [T_LEAD_IMPORT_BATCHES,{ttlMs:60000}]
 ]);
 const PRODUCTION_PAGE_READ_LIMITS={
+  default:500,
   leads:300,
   leadFollowups:1000,
   schedule:800,
+  [T_COURTS]:1000,
   adminUsers:200
 };
 const hotScanCache=new Map();
@@ -477,8 +479,9 @@ function scanFirstRows(t, {limit=200, columns=[]}={}) {
   }));
 }
 
-function cappedScan(t, limit=500){
-  return isProductionRuntime() ? scanFirstRows(t, {limit}).catch((e) => { console.error('cappedScan err:', e); return []; }) : getCachedScan(t).catch(()=>[]);
+function cappedScan(t, limit=PRODUCTION_PAGE_READ_LIMITS.default){
+  const normalizedLimit=limit===undefined?PRODUCTION_PAGE_READ_LIMITS.default:(PRODUCTION_PAGE_READ_LIMITS[t]||limit);
+  return isProductionRuntime() ? scanFirstRows(t, {limit:normalizedLimit}).catch((e) => { console.error('cappedScan err:', e); return []; }) : getCachedScan(t).catch(()=>[]);
 }
 async function getCachedRow(t,id){
   const cfg=HOT_GET_TABLES.get(t);
