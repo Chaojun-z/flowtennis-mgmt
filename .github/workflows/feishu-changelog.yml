@@ -1,0 +1,41 @@
+name: Feishu Changelog
+
+on:
+  schedule:
+    - cron: '10 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  send-changelog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Shanghai
+      FEISHU_CHANGELOG_WEBHOOK: ${{ secrets.FEISHU_CHANGELOG_WEBHOOK }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: standalone-services/package-lock.json
+
+      - name: Install standalone service dependencies
+        run: npm ci
+        working-directory: standalone-services
+
+      - name: Send Feishu changelog
+        run: node feishu-changelog.js
+        working-directory: standalone-services

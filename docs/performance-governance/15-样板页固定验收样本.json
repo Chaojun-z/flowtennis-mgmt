@@ -1,0 +1,52 @@
+[
+  {
+    "id": "00321e94-a16e-456b-aa1e-2a385d9c0bc4",
+    "maskedName": "***",
+    "scenario": "baseline-cached-gap-spent-received"
+  },
+  {
+    "id": "a65ca92b-6d83-4106-965d-9a21d09e7af7",
+    "maskedName": "***",
+    "scenario": "active-cash-booking-merged-duplicate-target"
+  },
+  {
+    "id": "02b545d8-651e-4779-9f2b-6a5c5101812d",
+    "maskedName": "***",
+    "scenario": "baseline-cached-gap-second-sample"
+  },
+  {
+    "id": "07c1c54a-8568-4093-bf9f-abfe1c2a9b4f",
+    "maskedName": "***",
+    "scenario": "active-member-positive-balance"
+  },
+  {
+    "id": "1c097e22-5582-4693-bfb9-9adf0c0957b8",
+    "maskedName": "***",
+    "scenario": "active-member-high-balance-heavy-history"
+  },
+  {
+    "id": "4ebd2b73-7e7c-4c44-9582-d50920c2c2ef",
+    "maskedName": "***",
+    "scenario": "active-member-low-balance-warning"
+  },
+  {
+    "id": "0727353e-ab53-44f7-849e-959ff7b0751c",
+    "maskedName": "***",
+    "scenario": "non-member-rich-history-cash-only"
+  },
+  {
+    "id": "39018a54-6029-4362-94b6-91ecff7abaa5",
+    "maskedName": "***",
+    "scenario": "non-member-rich-history-second-cash-only"
+  },
+  {
+    "id": "59dfd7b4-6947-47e0-ae82-e2d1567d1827",
+    "maskedName": "***",
+    "scenario": "active-member-multi-consume-history"
+  },
+  {
+    "id": "c840ae23-51e4-48f2-a9ef-5b7486f6a185",
+    "maskedName": "***",
+    "scenario": "active-member-fresh-topup-no-consume"
+  }
+]

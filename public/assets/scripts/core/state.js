@@ -14,26 +14,81 @@ function financeNormalizedRows(){
 function financeSettlementRowsFromSnapshot(){
   return Array.isArray(financeSettlementSummaryRows)?financeSettlementSummaryRows:[];
 }
+// 教学售卖治理口径：
+// 现行业务主链路是 packages -> purchases -> entitlements -> schedule。
+// products / classes / plans 仅保留历史兼容，不应再作为新增功能默认依赖。
 window.coachWorkbenchStats=window.coachWorkbenchStats||{};
 let adminUsersLoaded=false;
 let modalCleanupTimer=null;
 let lastDataSyncAt=0,isSyncingAll=false,dataRequestVersion=0;
 let scheduleLocalMutationAt=0;
+let courtAccountListViewData=null,courtAccountListViewCompareData=null;
 let loadedDatasets=new Set();
 const DATA_CACHE_PREFIX='ft_dataset_cache_';
 const DATA_CACHE_VERSION_KEY='ft_dataset_cache_version';
 const DATA_CACHE_VERSION='2026-05-10-finance-hotfix-v3';
 const DATASETS_EXCLUDED_FROM_CACHE=new Set(['leads','leadFollowups','entitlementLedger']);
+const SENSITIVE_DATASETS_EXCLUDED_FROM_CACHE_IN_NON_PRODUCTION=new Set(['financialLedger','purchases','membershipAccounts','membershipOrders','membershipBenefitLedger','membershipAccountEvents']);
 const datasetLoadPromises=new Map();
+function resolveClientRuntimeStage(){
+  const host=String(window.location.hostname||'').trim().toLowerCase();
+  if(!host||host==='localhost'||host==='127.0.0.1')return 'local';
+  if(host==='flowtennis.cn'||host==='www.flowtennis.cn')return 'production';
+  return 'preview';
+}
+const CLIENT_RUNTIME_STAGE=resolveClientRuntimeStage();
+const CLIENT_DATA_CACHE_SCOPE=CLIENT_RUNTIME_STAGE+'_'+String(window.location.hostname||'').trim().toLowerCase();
+const COURT_READ_MODEL_STORAGE_KEY='ft_court_read_model_mode';
+const COURT_READ_MODEL_FORCE_LEGACY_KEY='ft_court_read_model_force_legacy';
+const COURT_READ_MODEL_COMPARE_STORAGE_KEY='ft_court_read_model_compare';
+const COURT_GUARD_QUERY=new URLSearchParams(window.location.search);
+function isNonProductionRuntime(){
+  return CLIENT_RUNTIME_STAGE!=='production';
+}
+function isCourtReadModelRollbackForced(){
+  return COURT_GUARD_QUERY.get('courtRollback')==='force-legacy'||localStorage.getItem(COURT_READ_MODEL_FORCE_LEGACY_KEY)==='1';
+}
+function shouldUseCourtReadModelByDefault(){
+  if(isCourtReadModelRollbackForced())return false;
+  const queryMode=String(COURT_GUARD_QUERY.get('courtView')||'').trim().toLowerCase();
+  if(queryMode==='legacy')return false;
+  if(queryMode==='read-model')return true;
+  if(COURT_GUARD_QUERY.get('courtCompare')==='1')return true;
+  return localStorage.getItem(COURT_READ_MODEL_STORAGE_KEY)==='read-model';
+}
+function isCourtReadModelPreviewEnabled(){
+  return shouldUseCourtReadModelByDefault();
+}
+function shouldLoadCourtReadModelCompare(){
+  if(!shouldUseCourtReadModelByDefault())return false;
+  return COURT_GUARD_QUERY.get('courtCompare')==='1'||localStorage.getItem(COURT_READ_MODEL_COMPARE_STORAGE_KEY)==='1';
+}
+window.enableCourtReadModelPreview=function(){
+  localStorage.setItem(COURT_READ_MODEL_STORAGE_KEY,'read-model');
+  localStorage.removeItem(COURT_READ_MODEL_FORCE_LEGACY_KEY);
+};
+window.disableCourtReadModelPreview=function(){
+  localStorage.removeItem(COURT_READ_MODEL_STORAGE_KEY);
+};
+window.forceCourtReadModelRollback=function(){
+  localStorage.setItem(COURT_READ_MODEL_FORCE_LEGACY_KEY,'1');
+};
+window.clearCourtReadModelRollback=function(){
+  localStorage.removeItem(COURT_READ_MODEL_FORCE_LEGACY_KEY);
+};
+function shouldBypassDatasetCache(name){
+  if(DATASETS_EXCLUDED_FROM_CACHE.has(name))return true;
+  return isNonProductionRuntime()&&SENSITIVE_DATASETS_EXCLUDED_FROM_CACHE_IN_NON_PRODUCTION.has(name);
+}
 const PAGE_DATA_REQUIREMENTS={
   students:['campuses','students'],
   leads:['leads'],
   classes:['campuses','students','products','classes','schedule','coaches'],
   plans:[],
-  schedule:['campuses','students','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products'],
+  schedule:['campuses','students','schedule','feedbacks','entitlements','entitlementLedger','coaches'],
   coachops:['campuses','students','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products','purchases','packages'],
   finance:[],
-  products:['products','classes','plans'],
+  products:['products','classes'],
   packages:[],
   purchases:[],
   entitlements:['entitlements','students'],
@@ -58,6 +113,7 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   plans:['plansPage'],
   packages:['packages','products'],
   purchases:['purchasesPage'],
+  schedule:['classes'],
   finance:['financePage'],
   courts:['courtsPage'],
   matches:['matchesPage'],
@@ -65,7 +121,7 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   workbench:['workbenchPage'],
   postfeedback:['workbenchPage'],
   mystudents:['campuses','students','classes','schedule','feedbacks','entitlements'],
-  myclasses:['students','classes','products']
+  myclasses:['students','classes']
 };
 const STUDENT_PAGE_DEFERRED_REQUIREMENTS=['entitlements','feedbacks','products'];
 const PERFORMANCE_PAGE_DATA_GUARD={
@@ -95,22 +151,23 @@ const DATASET_LOADERS={
   membershipBenefitLedger:()=>apiCall('GET','/membership-benefit-ledger'),
   membershipAccountEvents:()=>apiCall('GET','/membership-account-events'),
   pricePlans:()=>apiCall('GET','/price-plans'),
-  plans:()=>apiCall('GET','/plans'),
   schedule:()=>apiCall('GET','/schedule'),
   coaches:()=>apiCall('GET','/coaches'),
   classes:()=>apiCall('GET','/classes'),
   campuses:()=>apiCall('GET','/campuses'),
   feedbacks:()=>apiCall('GET','/feedbacks')
-  ,plansPage:()=>apiCall('GET','/page-data/plans')
   ,purchasesPage:()=>apiCall('GET','/page-data/purchases')
   ,financePage:()=>apiCall('GET','/page-data/finance')
   ,courtsPage:()=>apiCall('GET','/page-data/courts')
+  ,courtAccountListViewPage:()=>apiCall('GET','/page-data/court-account-list-view')
+  ,courtAccountListViewComparePage:()=>apiCall('GET','/page-data/court-account-list-view-compare?sample=fixed')
   ,matchesPage:()=>apiCall('GET','/admin/matches')
   ,membershipsPage:()=>apiCall('GET','/page-data/memberships')
   ,workbenchPage:()=>apiCall('GET','/page-data/workbench')
 };
+const GLOBAL_DATASET_NAMES=Object.keys(DATASET_LOADERS);
 function datasetCacheKey(name){
-  return DATA_CACHE_PREFIX+(currentUser?.id||'anon')+'_'+name;
+  return DATA_CACHE_PREFIX+CLIENT_DATA_CACHE_SCOPE+'_'+(currentUser?.id||'anon')+'_'+name;
 }
 function clearDatasetCache(){
   try{
@@ -125,12 +182,23 @@ function ensureDatasetCacheVersion(){
     if(localStorage.getItem(DATA_CACHE_VERSION_KEY)!==DATA_CACHE_VERSION)clearDatasetCache();
   }catch(e){}
 }
+function clearNonProductionSensitiveDatasetCache(){
+  if(!isNonProductionRuntime())return;
+  try{
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++)keys.push(localStorage.key(i));
+    keys
+      .filter(key=>String(key||'').startsWith(DATA_CACHE_PREFIX))
+      .filter(key=>[...SENSITIVE_DATASETS_EXCLUDED_FROM_CACHE_IN_NON_PRODUCTION].some(name=>String(key).endsWith('_'+name)))
+      .forEach(key=>localStorage.removeItem(key));
+  }catch(e){}
+}
 function persistDatasetCache(name,data){
-  if(DATASETS_EXCLUDED_FROM_CACHE.has(name))return;
+  if(shouldBypassDatasetCache(name))return;
   try{localStorage.setItem(datasetCacheKey(name),JSON.stringify({savedAt:Date.now(),data:Array.isArray(data)?data:[]}));}catch(e){}
 }
 function readDatasetCache(name){
-  if(DATASETS_EXCLUDED_FROM_CACHE.has(name))return null;
+  if(shouldBypassDatasetCache(name))return null;
   try{
     const raw=localStorage.getItem(datasetCacheKey(name));
     if(!raw)return null;
@@ -186,7 +254,8 @@ function setScheduleRowsFromRemote(rows,{persist=true}={}){
 }
 function hydrateDatasetsFromCache(){
   ensureDatasetCacheVersion();
-  Object.keys(DATASET_LOADERS).forEach(name=>{
+  clearNonProductionSensitiveDatasetCache();
+  GLOBAL_DATASET_NAMES.forEach(name=>{
     const cached=readDatasetCache(name);
     if(cached)setDatasetValue(name,cached,{persist:false});
   });
@@ -203,6 +272,7 @@ function missingRequiredDatasetsForPage(pg){
   return requiredDatasetsForPage(pg).filter(name=>!loadedDatasets.has(name));
 }
 function initialBackgroundDatasetsForPage(pg){
+  if(isNonProductionRuntime()&&pg==='finance')return ['financePage'];
   const fallback={
     leadFollowups:['leadFollowups'],
     plansPage:['plans'],
@@ -214,6 +284,9 @@ function initialBackgroundDatasetsForPage(pg){
   return backgroundDatasetsForPage(pg).flatMap(name=>fallback[name]||[name]);
 }
 function missingInitialDatasetsForPage(pg){
+  if(pg==='courts'&&shouldUseCourtReadModelByDefault()){
+    return courtAccountListViewData?[]:['courtAccountListViewPage'];
+  }
   const requiredMissing=missingRequiredDatasetsForPage(pg);
   if(requiredMissing.length)return requiredMissing;
   if(requiredDatasetsForPage(pg).length)return [];
@@ -261,18 +334,6 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
     return promise;
   }));
   results.forEach(([name,data])=>{
-    if(name==='plansPage'){
-      setDatasetValue('campuses',data.campuses||[]);
-      setDatasetValue('students',data.students||[]);
-      setDatasetValue('classes',data.classes||[]);
-      setDatasetValue('plans',data.plans||[]);
-      setDatasetValue('products',data.products||[]);
-      setDatasetValue('schedule',data.schedule||[]);
-      setDatasetValue('courts',data.courts||[]);
-      setDatasetValue('entitlements',data.entitlements||[]);
-      loadedDatasets.add('plansPage');
-      return;
-    }
     if(name==='purchasesPage'){
       setDatasetValue('purchases',data.purchases||[]);
       setDatasetValue('packages',data.packages||[]);
@@ -390,6 +451,7 @@ function clearLoadedData(){
   membershipPlans=[];membershipAccounts=[];membershipOrders=[];membershipBenefitLedger=[];membershipAccountEvents=[];pricePlans=[];
   plans=[];schedules=[];coaches=[];classes=[];campuses=[];feedbacks=[];adminUsers=[];matches=[];adminUsersLoaded=false;
   financeOverviewData=null;financeNormalizedLedgerRows=[];financeSettlementSummaryRows=[];
+  courtAccountListViewData=null;courtAccountListViewCompareData=null;
   loadedDatasets=new Set();
 }
 function normalizeCurrentPageForRole(){
@@ -422,7 +484,6 @@ function applyLoadedData(data){
   membershipBenefitLedger=Array.isArray(data?.membershipBenefitLedger)?data.membershipBenefitLedger:[];
   membershipAccountEvents=Array.isArray(data?.membershipAccountEvents)?data.membershipAccountEvents:[];
   pricePlans=Array.isArray(data?.pricePlans)?data.pricePlans:[];
-  plans=Array.isArray(data?.plans)?data.plans:[];
   schedules=Array.isArray(data?.schedule)?data.schedule:[];
   coaches=Array.isArray(data?.coaches)?data.coaches:[];
   classes=Array.isArray(data?.classes)?data.classes:[];
@@ -452,11 +513,42 @@ async function loadPageDataAndRender(pg,{quiet=false,force=false}={}){
       renderAll();
     }
     await ensurePageDatasets(pg,{force});
+    if(pg==='courts'){
+      try{
+        const needsCompare=shouldLoadCourtReadModelCompare();
+        await loadCourtReadModelGuardData({force});
+        if(force){
+          loadCourtReadModelCompareData({force:true}).then(()=>{
+            if(requestVersion!==dataRequestVersion)return;
+            if(currentPage!=='courts')return;
+            renderCourts();
+          }).catch(e=>{
+            if(requestVersion!==dataRequestVersion)return;
+            console.warn('court read model compare refresh failed',e);
+          });
+        }else if(needsCompare&&window.__courtAccountListViewCompare==null){
+          loadCourtReadModelCompareData({force:false}).then(()=>{
+            if(requestVersion!==dataRequestVersion)return;
+            if(currentPage!=='courts')return;
+            renderCourts();
+          }).catch(e=>{
+            if(requestVersion!==dataRequestVersion)return;
+            console.warn('court read model compare load failed',e);
+          });
+        }
+      }catch(e){
+        courtAccountListViewData=null;
+        courtAccountListViewCompareData=null;
+        window.__courtAccountListViewData=null;
+        window.__courtAccountListViewCompare=null;
+        console.warn('court read model guard load failed',e);
+      }
+    }
     if(requestVersion!==dataRequestVersion)return;
     buildCampusTabs();
     renderAll();
     openPendingScheduleDeepLink();
-    loadPageBackgroundDatasets(pg,requestVersion,{force:true});
+    loadPageBackgroundDatasets(pg,requestVersion,{force});
   }catch(e){
     if(requestVersion!==dataRequestVersion)return;
     if(String(e.message||'').includes('Token')||String(e.message||'').includes('登录')){doLogout();return;}
@@ -465,13 +557,37 @@ async function loadPageDataAndRender(pg,{quiet=false,force=false}={}){
     if(!quiet&&loading)loading.classList.remove('show');
   }
 }
+async function loadCourtReadModelGuardData({force=false}={}){
+  if(!shouldUseCourtReadModelByDefault()){
+    courtAccountListViewData=null;
+    courtAccountListViewCompareData=null;
+    window.__courtAccountListViewData=null;
+    window.__courtAccountListViewCompare=null;
+    return;
+  }
+  if(courtAccountListViewData&&!force)return;
+  const view=await DATASET_LOADERS.courtAccountListViewPage();
+  courtAccountListViewData=view||null;
+  window.__courtAccountListViewData=courtAccountListViewData;
+}
+async function loadCourtReadModelCompareData({force=false}={}){
+  if(!shouldLoadCourtReadModelCompare()){
+    courtAccountListViewCompareData=null;
+    window.__courtAccountListViewCompare=null;
+    return;
+  }
+  if(courtAccountListViewCompareData&&!force)return;
+  const compare=await DATASET_LOADERS.courtAccountListViewComparePage();
+  courtAccountListViewCompareData=compare||null;
+  window.__courtAccountListViewCompare=courtAccountListViewCompareData;
+}
 async function loadAll(){
   const requestVersion=++dataRequestVersion;
   const loading=document.getElementById('pageLoading');
   if(loading)loading.classList.add('show');
   try{
     if(requestVersion!==dataRequestVersion)return;
-    await ensureDatasetsByName(Object.keys(DATASET_LOADERS),{force:true});
+    await ensureDatasetsByName(GLOBAL_DATASET_NAMES,{force:true});
     buildCampusTabs();
     renderAll();
   }catch(e){
@@ -532,7 +648,6 @@ function renderPageData(pg){
   if(pg==='students')renderStudents();
   if(pg==='leads')renderLeads();
   if(pg==='classes')renderClasses();
-  if(pg==='plans')renderPlans();
   if(pg==='schedule')renderSchedule();
   if(pg==='coachops')renderCoachOps();
   if(pg==='finance')renderFinanceCenter();

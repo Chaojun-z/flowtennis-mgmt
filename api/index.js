@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const mabaoFinanceSeed = require('./seeds/mabao-finance-seed.json');
 const { recordPerfMetric } = require('./lib/perf-metrics');
+const { createCourtAccountListViewLoader, createCourtAccountListCompareLoader } = require('./page-data/court-account-read-model.js');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const TS_ENDPOINT = process.env.TS_ENDPOINT;
@@ -55,6 +56,8 @@ const ENABLE_RUNTIME_TABLE_ENSURE = BOOTSTRAP_SAFETY_FLAGS.enableRuntimeTableEns
 const ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP = BOOTSTRAP_SAFETY_FLAGS.enableDefaultPricePlanBootstrap;
 const ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP = BOOTSTRAP_SAFETY_FLAGS.enableMabaoFinanceSeedBootstrap;
 const ENABLE_IMPORTED_LEDGER_AUTO_REPAIR = BOOTSTRAP_SAFETY_FLAGS.enableImportedLedgerAutoRepair;
+const RUNTIME_STAGE = BOOTSTRAP_SAFETY_FLAGS.runtimeStage;
+const IS_PRODUCTION_RUNTIME = RUNTIME_STAGE === 'production';
 const DEFAULT_ADMIN_BOOTSTRAP_PASSWORD = process.env.DEFAULT_ADMIN_BOOTSTRAP_PASSWORD || '';
 const WECHAT_MINIPROGRAM_APPID = process.env.WECHAT_MINIPROGRAM_APPID || 'wx7acb7603ee803923';
 const WECHAT_MINIPROGRAM_SECRET = process.env.WECHAT_MINIPROGRAM_SECRET;
@@ -286,6 +289,12 @@ const HOT_GET_TABLES=new Map([
   [T_LEADS,{ttlMs:60000}],
   [T_LEAD_IMPORT_BATCHES,{ttlMs:60000}]
 ]);
+const PRODUCTION_PAGE_READ_LIMITS={
+  leads:300,
+  leadFollowups:1000,
+  schedule:800,
+  adminUsers:200
+};
 const hotScanCache=new Map();
 const hotGetCache=new Map();
 let financeSnapshotCache=null;
@@ -295,6 +304,7 @@ let tsClient;
 const wechatAccessTokenCacheByApp = new Map();
 const wechatAccessTokenCache = wechatAccessTokenCacheByApp;
 let matchSqlPool;
+const STORAGE_OPERATION_TIMEOUT_MS = Math.max(1000, parseInt(process.env.STORAGE_OPERATION_TIMEOUT_MS || '10000', 10) || 10000);
 function gc(){if(!tsClient)tsClient=new TableStore.Client({accessKeyId:TS_KEY_ID,secretAccessKey:TS_KEY_SEC,endpoint:TS_ENDPOINT,instancename:TS_INSTANCE,maxRetries:3,httpOptions:{timeout:15000}});return tsClient;}
 function getMatchSqlPool(){
   if(!MATCH_DATABASE_URL)throw new Error('缺少 MATCH_DATABASE_URL 或 DATABASE_URL，约球真实数据不能使用 mock 或 TableStore');
@@ -303,7 +313,59 @@ function getMatchSqlPool(){
 }
 function isTransientStorageError(err){
   const msg=String(err?.message||err||'');
-  return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN/i.test(msg);
+  return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN|\[storage-timeout\]/i.test(msg);
+}
+function formatStorageMeta(meta={}){
+  return Object.entries(meta)
+    .filter(([,value])=>value!==undefined&&value!==null&&value!=='')
+    .map(([key,value])=>`${key}=${String(value)}`)
+    .join(' ');
+}
+function summarizeStorageError(err){
+  const parts=[
+    err?.code?`code=${err.code}`:'',
+    err?.name?`name=${err.name}`:'',
+    err?.message?`message=${String(err.message).slice(0,220)}`:String(err||'').slice(0,220)
+  ].filter(Boolean);
+  return parts.join(' ');
+}
+function createStorageTimeoutError(op,meta,startedAt){
+  const detail=formatStorageMeta(meta);
+  const err=new Error(`[storage-timeout] op=${op} ${detail} timed out after ${Date.now()-startedAt}ms`);
+  err.code='STORAGE_TIMEOUT';
+  return err;
+}
+function runStorageOperation(op,meta,executor){
+  return new Promise((res,rej)=>{
+    let settled=false;
+    const startedAt=Date.now();
+    const detail=formatStorageMeta(meta);
+    const timer=setTimeout(()=>{
+      if(settled)return;
+      settled=true;
+      const err=createStorageTimeoutError(op,meta,startedAt);
+      console.error(err.message);
+      rej(err);
+    },STORAGE_OPERATION_TIMEOUT_MS);
+    const resolveOnce=(value)=>{
+      if(settled)return;
+      settled=true;
+      clearTimeout(timer);
+      res(value);
+    };
+    const rejectOnce=(err)=>{
+      if(settled)return;
+      settled=true;
+      clearTimeout(timer);
+      console.error(`[storage-error] op=${op} ${detail} ${summarizeStorageError(err)}`);
+      rej(err);
+    };
+    try{
+      executor(resolveOnce,rejectOnce);
+    }catch(err){
+      rejectOnce(err);
+    }
+  });
 }
 async function withStorageRetry(fn,maxAttempts=2){
   let lastErr;
@@ -311,6 +373,7 @@ async function withStorageRetry(fn,maxAttempts=2){
     try{return await fn();}
     catch(err){
       lastErr=err;
+      console.warn(`[storage-retry] attempt ${attempt}/${maxAttempts} ${summarizeStorageError(err)}`);
       if(!isTransientStorageError(err)||attempt===maxAttempts)throw err;
       await new Promise(res=>setTimeout(res,attempt*200));
     }
@@ -318,6 +381,35 @@ async function withStorageRetry(fn,maxAttempts=2){
   throw lastErr;
 }
 function cloneCacheValue(value){return JSON.parse(JSON.stringify(value));}
+function normalizeScanColumns(columns=[]){
+  return [...new Set((columns||[]).map(item=>String(item||'').trim()).filter(Boolean))];
+}
+function scanLatestRowsDesc(t,{limit=200,columns=[]}={}){
+  const normalizedLimit=Math.max(1,Math.min(parseInt(limit,10)||200,2000));
+  const normalizedColumns=normalizeScanColumns(columns);
+  return withStorageRetry(()=>runStorageOperation('getRangeLatest',{table:t,limit:normalizedLimit},(res,rej)=>{
+    gc().getRange({
+      tableName:t,
+      direction:TableStore.Direction.BACKWARD,
+      inclusiveStartPrimaryKey:[{id:TableStore.INF_MAX}],
+      exclusiveEndPrimaryKey:[{id:TableStore.INF_MIN}],
+      maxVersions:1,
+      limit:normalizedLimit,
+      ...(normalizedColumns.length?{columnsToGet:normalizedColumns}:{})
+    },(e,d)=>{
+      if(e)return rej(e);
+      const rows=(d.rows||[]).map(r=>{
+        if(!r.primaryKey)return null;
+        const obj={id:r.primaryKey[0].value};
+        (r.attributes||[]).forEach(a=>{
+          try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}
+        });
+        return obj;
+      }).filter(Boolean);
+      res(rows);
+    });
+  }));
+}
 function invalidateHotScanCache(t){hotScanCache.delete(t);}
 function hotScanCacheKey(t,columns){
   const projection=Array.isArray(columns)&&columns.length?columns.map(String).join('\u0001'):'*';
@@ -350,6 +442,37 @@ async function getCachedScan(t,options={}){
   hotScanCache.set(cacheKey,{rows:cloneCacheValue(rows),expiresAt:now+cfg.ttlMs});
   return rows;
 }
+function scanFirstRows(t, {limit=200, columns=[]}={}) {
+  const normalizedLimit=Math.max(1,Math.min(parseInt(limit,10)||200,2000));
+  const normalizedColumns=normalizeScanColumns(columns);
+  return withStorageRetry(()=>runStorageOperation('getRangeScanFirst',{table:t},(res,rej)=>{
+    gc().getRange({
+      tableName:t,
+      direction:TableStore.Direction.FORWARD,
+      inclusiveStartPrimaryKey:[{id:TableStore.INF_MIN}],
+      exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],
+      maxVersions:1,
+      limit:normalizedLimit,
+      ...(normalizedColumns.length?{columnsToGet:normalizedColumns}:{})
+    },(e,d)=>{
+      if(e)return rej(e);
+      const rows=[];
+      (d.rows||[]).forEach(r=>{
+        if(!r.primaryKey)return;
+        const obj={id:r.primaryKey[0].value};
+        (r.attributes||[]).forEach(a=>{
+          try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}
+        });
+        rows.push(obj);
+      });
+      res(rows);
+    });
+  }));
+}
+
+function cappedScan(t, limit=500){
+  return isProductionRuntime() ? scanFirstRows(t, {limit}).catch((e) => { console.error('cappedScan err:', e); return []; }) : getCachedScan(t).catch(()=>[]);
+}
 async function getCachedRow(t,id){
   const cfg=HOT_GET_TABLES.get(t);
   if(!cfg)return get(t,id);
@@ -361,11 +484,44 @@ async function getCachedRow(t,id){
   hotGetCache.set(key,{row:cloneCacheValue(row),expiresAt:now+cfg.ttlMs});
   return row;
 }
-function put(t,id,attrs){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>new Promise((res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
-function putIfAbsent(t,id,attrs){return withStorageRetry(()=>new Promise((res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.EXPECT_NOT_EXIST,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
-function get(t,id){return withStorageRetry(()=>new Promise((res,rej)=>{gc().getRow({tableName:t,primaryKey:[{id:String(id)}],maxVersions:1},(e,d)=>{if(e)return rej(e);if(!d.row||!d.row.primaryKey)return res(null);const obj={id:d.row.primaryKey[0].value};(d.row.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});res(obj);});}));}
-function scan(t,options={}){return withStorageRetry(()=>new Promise((res,rej)=>{const rows=[];const columns=normalizeProjectionColumns(options?.columns);const columnsToGet=columns.length?columns.map(column=>({columnName:column})):undefined;function f(sk){const request={tableName:t,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:500};if(columnsToGet)request.columnsToGet=columnsToGet;gc().getRange(request,(e,d)=>{if(e)return rej(e);(d.rows||[]).forEach(r=>{if(!r.primaryKey)return;const obj={id:r.primaryKey[0].value};(r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});rows.push(obj);});const lastRow=(d.rows||[]).length?(d.rows||[])[(d.rows||[]).length-1]:null;const nextStartPrimaryKey=lastRow&&lastRow.primaryKey&&lastRow.primaryKey[0]?[{id:String(lastRow.primaryKey[0].value)+'\u0000'}]:null;nextStartPrimaryKey?f(nextStartPrimaryKey):res(rows);});}f();}));}
-function del(t,id){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>new Promise((res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));}));}
+function put(t,id,attrs){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>runStorageOperation('putRow',{table:t,id},(res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
+function putIfAbsent(t,id,attrs){return withStorageRetry(()=>runStorageOperation('putRowIfAbsent',{table:t,id},(res,rej)=>{gc().putRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.EXPECT_NOT_EXIST,null),primaryKey:[{id:String(id)}],attributeColumns:Object.entries(attrs).filter(([k])=>k!=='id').map(([k,v])=>({[k]:typeof v==='object'?JSON.stringify(v):String(v??'')}))},( e,d)=>e?rej(e):res(d));}));}
+function get(t,id){return withStorageRetry(()=>runStorageOperation('getRow',{table:t,id},(res,rej)=>{gc().getRow({tableName:t,primaryKey:[{id:String(id)}],maxVersions:1},(e,d)=>{if(e)return rej(e);if(!d.row||!d.row.primaryKey)return res(null);const obj={id:d.row.primaryKey[0].value};(d.row.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});res(obj);});}));}
+function scan(t,options={}){
+  return withStorageRetry(()=>new Promise((res,rej)=>{
+    const rows=[];
+    const columns=normalizeProjectionColumns(options?.columns);
+    const columnsToGet=columns.length?columns.map(column=>({columnName:column})):undefined;
+    function f(sk){
+      runStorageOperation('getRangePage',{table:t},(opRes,opRej)=>{
+        const request={
+          tableName:t,
+          direction:TableStore.Direction.FORWARD,
+          inclusiveStartPrimaryKey:sk||[{id:TableStore.INF_MIN}],
+          exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],
+          maxVersions:1,
+          limit:500
+        };
+        if(columnsToGet)request.columnsToGet=columnsToGet;
+        gc().getRange(request,(e,d)=>{
+          if(e)return opRej(e);
+          opRes(d);
+        });
+      }).then(d=>{
+        (d.rows||[]).forEach(r=>{
+          if(!r.primaryKey)return;
+          const obj={id:r.primaryKey[0].value};
+          (r.attributes||[]).forEach(a=>{try{obj[a.columnName]=JSON.parse(a.columnValue);}catch{obj[a.columnName]=a.columnValue;}});
+          rows.push(obj);
+        });
+        const nextStartPrimaryKey=d.nextStartPrimaryKey ? d.nextStartPrimaryKey.map(pk => ({ [pk.name]: pk.value })) : null;
+        nextStartPrimaryKey?f(nextStartPrimaryKey):res(rows);
+      }).catch(rej);
+    }
+    f();
+  }));
+}
+function del(t,id){if(HOT_SCAN_TABLES.has(t))invalidateHotScanCache(t);if(HOT_GET_TABLES.has(t))invalidateHotGetCache(t,id);invalidateFinanceSnapshotCache(t);return withStorageRetry(()=>runStorageOperation('deleteRow',{table:t,id},(res,rej)=>{gc().deleteRow({tableName:t,condition:new TableStore.Condition(TableStore.RowExistenceExpectation.IGNORE,null),primaryKey:[{id:String(id)}]},(e,d)=>e?rej(e):res(d));}));}
 async function clearTables(storage,tables){
   const result={success:true,total:0,tables:[]};
   for(const table of tables){
@@ -382,7 +538,7 @@ async function clearTables(storage,tables){
   return result;
 }
 function getTestDataResetTables(){return [...TEST_DATA_RESET_TABLES];}
-function mkTable(t){return new Promise(res=>{gc().createTable({tableMeta:{tableName:t,primaryKey:[{name:'id',type:TableStore.PrimaryKeyType.STRING}]},reservedThroughput:{capacityUnit:{read:0,write:0}},tableOptions:{timeToLive:-1,maxVersions:1}},e=>res(e?'exists':'ok'));});}
+function mkTable(t){return runStorageOperation('createTable',{table:t},(res)=>{gc().createTable({tableMeta:{tableName:t,primaryKey:[{name:'id',type:TableStore.PrimaryKeyType.STRING}]},reservedThroughput:{capacityUnit:{read:0,write:0}},tableOptions:{timeToLive:-1,maxVersions:1}},e=>res(e?'exists':'ok'));});}
 async function timed(label,fn){const startedAt=Date.now();try{return await fn();}finally{console.log(`[api-timing] ${label} ${Date.now()-startedAt}ms`);}}
 async function timedEndpointMetric(name,fn,meta={}){
   const startedAt=Date.now();
@@ -408,6 +564,50 @@ async function getFastStudentsRead(options={}){
   return rows;
 }
 function isTableMissingError(err){return /not.*exist|table.*not.*exist|OTSObjectNotExist/i.test(String(err?.message||err||''));}
+const LOGIN_STORAGE_TIMEOUT_ERROR='登录服务暂时超时，请重试';
+const LOGIN_ROW_TIMEOUT_MS=4500;
+const LOGIN_SCAN_TIMEOUT_MS=4500;
+const LOGIN_ROW_RETRY_LIMIT=2;
+const LOGIN_INVALID_ACCOUNT_ERROR='账号数据异常，请联系管理员处理';
+function isTransientLoginStorageError(err){
+  return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN|timeout/i.test(String(err?.message||err||''));
+}
+async function loadLoginUser(username){
+  const rowTimeout=Symbol('login-row-timeout');
+  const scanTimeout=Symbol('login-scan-timeout');
+  for(let attempt=1;attempt<=LOGIN_ROW_RETRY_LIMIT;attempt++){
+    try{
+      const user=await withTimeout(getCachedRow(T_USERS,username),LOGIN_ROW_TIMEOUT_MS,rowTimeout);
+      if(user!==rowTimeout)return user;
+      console.warn(`[auth/login] ft_users row lookup timed out for ${username} on attempt ${attempt}/${LOGIN_ROW_RETRY_LIMIT}`);
+    }catch(err){
+      if(!isTableMissingError(err)&&!isTransientLoginStorageError(err))throw err;
+      if(isTableMissingError(err))return null;
+      console.warn(`[auth/login] ft_users row lookup failed for ${username} on attempt ${attempt}/${LOGIN_ROW_RETRY_LIMIT}: ${err.message||err}`);
+    }
+  }
+  console.warn(`[auth/login] ft_users row lookup exhausted for ${username}, falling back to user scan cache`);
+  try{
+    const rows=await withTimeout(getCachedScan(T_USERS).catch((err)=>{
+      if(isTableMissingError(err))return [];
+      throw err;
+    }),LOGIN_SCAN_TIMEOUT_MS,scanTimeout);
+    if(rows===scanTimeout)return {__loginTimeout:true};
+    return (Array.isArray(rows)?rows:[]).find((item)=>String(item?.id||'')===String(username))||null;
+  }catch(err){
+    if(isTableMissingError(err))return null;
+    if(isTransientLoginStorageError(err))return {__loginTimeout:true};
+    throw err;
+  }
+}
+async function verifyLoginPassword(username,inputPassword,storedPassword){
+  try{
+    return await bcrypt.compare(inputPassword,storedPassword);
+  }catch(err){
+    console.error(`[auth/login] password compare failed for ${username}:`, err);
+    return {invalidAccount:true};
+  }
+}
 function campusDisplayName(value,externalVenueName=''){
   const raw=String(value||'').trim();
   if(!raw)return '';
@@ -2494,8 +2694,7 @@ async function bootstrapMabaoFinanceSeed(){
   await replaceMabaoSeedLedgerRows(mabaoFinanceSeed.entitlementLedger,tag);
 }
 async function listCampusesWithDefaults(){
-  const rows=await getCachedScan(T_CAMPUSES).catch(()=>[]);
-  return rows.length?rows:DEFAULT_CAMPUSES;
+  return DEFAULT_CAMPUSES;
 }
 function financeWeekdayText(value){
   const day=String(value||'').slice(0,10);
@@ -2987,8 +3186,12 @@ async function getFinancePageSnapshot(){
   financeSnapshotCache=cloneCacheValue(snapshot);
   return snapshot;
 }
+function isProductionRuntime(){
+  return RUNTIME_STAGE==='production';
+}
 function scheduleInitInBackground(){
   if(REQUIRED_ENV_VARS.some((k)=>!process.env[k]))return;
+  if(IS_PRODUCTION_RUNTIME)return;
   if(inited||initPromise)return;
   init().catch(err=>console.error('[api-init] background init failed',err));
 }
@@ -3004,6 +3207,11 @@ async function init(){
     if(RAW_ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&!ENABLE_DEFAULT_PRICE_PLAN_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('syncDefaultPricePlans');
     if(RAW_ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP&&!ENABLE_MABAO_FINANCE_SEED_BOOTSTRAP&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('bootstrapMabaoFinanceSeed');
     if(RAW_ENABLE_IMPORTED_LEDGER_AUTO_REPAIR&&!ENABLE_IMPORTED_LEDGER_AUTO_REPAIR&&BOOTSTRAP_SAFETY_FLAGS.isProduction)logBlockedAutoWrite('repairImportedLedgerDuplicates');
+    if(IS_PRODUCTION_RUNTIME){
+      inited=true;
+      console.log(`[api-init] production request-ready without heavy bootstrap ${Date.now()-startedAt}ms`);
+      return;
+    }
     if(ENABLE_RUNTIME_TABLE_ENSURE||ENABLE_TABLE_BOOTSTRAP){
       const stepStartedAt=Date.now();
       for(const t of RUNTIME_ENSURED_TABLES)await mkTable(t);
@@ -5588,6 +5796,23 @@ function normalizeMembershipOrderViewRecord(order,plan=null){
     benefitSnapshot
   };
 }
+const fixedCourtAcceptanceSamples=require('../docs/performance-governance/15-样板页固定验收样本.json');
+const loadCourtAccountListView=createCourtAccountListViewLoader({
+  listCampusesWithDefaults,
+  getCachedScan,
+  fixedSampleAccounts:fixedCourtAcceptanceSamples,
+  tables:{
+    students:T_STUDENTS,
+    courts:T_COURTS,
+    membershipAccounts:T_MEMBERSHIP_ACCOUNTS,
+    membershipOrders:T_MEMBERSHIP_ORDERS,
+    membershipPlans:T_MEMBERSHIP_PLANS
+  }
+});
+const loadCourtAccountListViewCompare=createCourtAccountListCompareLoader({
+  loadCourtAccountListView,
+  fixedSampleAccounts:fixedCourtAcceptanceSamples
+});
 function membershipDateRange(startDate,validMonths=12,maxMonths=24){
   return {
     cycleStartDate:startDate,
@@ -6011,13 +6236,152 @@ function parseLegacyCourtNotes(notes){
 }
 
 module.exports = async (req, res) => {
-  scheduleInitInBackground();
-  if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');return res.status(200).end();}
   const path=(req.url||'').replace(/^\/api/,'').split('?')[0];
-  const query=new URL(req.url||'/', 'http://local').searchParams;
   const method=req.method;
   const startedAt=Date.now();
   if(res&&typeof res.on==='function')res.on('finish',()=>{console.log(`[api] ${method} ${path} ${res.statusCode} ${Date.now()-startedAt}ms`);});
+  if(req.method==='OPTIONS'){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');return res.status(200).end();}
+  if(path==='/health'&&method==='GET'){
+    console.log('[health] GET bypass scheduleInitInBackground');
+    return sendJson(res,{status:'ok',time:new Date().toISOString()});
+  }
+  if(path==='/diag'&&method==='GET'){
+    const startedAt=Date.now();
+    const result={ts:new Date().toISOString(),env:{IS_PRODUCTION_RUNTIME:isProductionRuntime(),NODE_ENV:process.env.NODE_ENV||'(missing)',TS_ENDPOINT:process.env.TS_ENDPOINT||'(missing)',TS_INSTANCE:process.env.TS_INSTANCE||'(missing)',KEY_ID_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_ID),KEY_SECRET_SET:!!(process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET)},tests:[]};
+    try{
+      const rows=await new Promise((res,rej)=>{
+        const timer=setTimeout(()=>rej(new Error('TableStore getRange timeout after 8s')),8000);
+        try{
+          gc().getRange({tableName:T_CAMPUSES,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:5},(e,d)=>{
+            clearTimeout(timer);
+            if(e)return rej(e);
+            res((d.rows||[]).length);
+          });
+        }catch(syncErr){clearTimeout(timer);rej(syncErr);}
+      });
+    result.tests.push({table:T_CAMPUSES,status:'ok',rows,ms:Date.now()-startedAt});
+    }catch(e){result.tests.push({table:T_CAMPUSES,status:'error',error:String(e?.message||e),code:e?.code,ms:Date.now()-startedAt});}
+    // Test 2: ft_students single page
+    const t2Start=Date.now();
+    try{
+      const rows2=await new Promise((res,rej)=>{
+        const timer=setTimeout(()=>rej(new Error('ft_students getRange timeout after 8s')),8000);
+        try{
+          gc().getRange({tableName:T_STUDENTS,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:10},(e,d)=>{
+            clearTimeout(timer);
+            if(e)return rej(e);
+            const lastRow=(d.rows||[]).length?(d.rows||[])[(d.rows||[]).length-1]:null;
+            res({count:(d.rows||[]).length,hasNext:!!(lastRow&&lastRow.primaryKey&&lastRow.primaryKey[0])});
+          });
+        }catch(syncErr){clearTimeout(timer);rej(syncErr);}
+      });
+      const lastRowId=rows2.count>0?null:null; // placeholder
+      result.tests.push({table:T_STUDENTS,status:'ok',rows:rows2,ms:Date.now()-t2Start});
+      // Test 3: second-page scan of ft_students (simulate scan() pagination)
+      if(rows2.count>0){
+        const t3Start=Date.now();
+        try{
+          // First get the actual last row ID from a fresh getRange call
+          const lastId=await new Promise((res,rej)=>{
+            const timer=setTimeout(()=>rej(new Error('first page timeout')),8000);
+            gc().getRange({tableName:T_STUDENTS,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:[{id:TableStore.INF_MIN}],exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:10},(e,d)=>{
+              clearTimeout(timer);
+              if(e)return rej(e);
+              const last=(d.rows||[])[(d.rows||[]).length-1];
+              res(last&&last.primaryKey&&last.primaryKey[0]?String(last.primaryKey[0].value):null);
+            });
+          });
+          if(lastId){
+            const nextKey=[{id:lastId+'\u0000'}];
+            const page2=await new Promise((res,rej)=>{
+              const timer=setTimeout(()=>rej(new Error('page2 getRange timeout after 8s — pagination is hanging!')),8000);
+              gc().getRange({tableName:T_STUDENTS,direction:TableStore.Direction.FORWARD,inclusiveStartPrimaryKey:nextKey,exclusiveEndPrimaryKey:[{id:TableStore.INF_MAX}],maxVersions:1,limit:10},(e,d)=>{
+                clearTimeout(timer);
+                if(e)return rej(e);
+                res({count:(d.rows||[]).length,lastId});
+              });
+            });
+            result.tests.push({table:T_STUDENTS+'_page2',status:'ok',rows:page2,ms:Date.now()-t3Start});
+          } else {
+            result.tests.push({table:T_STUDENTS+'_page2',status:'skipped',reason:'no lastId'});
+          }
+        }catch(e){result.tests.push({table:T_STUDENTS+'_page2',status:'error',error:String(e?.message||e),ms:Date.now()-t3Start});}
+      }
+    }catch(e){result.tests.push({table:T_STUDENTS,status:'error',error:String(e?.message||e),code:e?.code,ms:Date.now()-t2Start});}
+    // Test 3: INF constants check
+    result.INF_MIN_type=typeof TableStore.INF_MIN;
+    result.INF_MAX_type=typeof TableStore.INF_MAX;
+    result.INF_MIN_val=JSON.stringify(TableStore.INF_MIN);
+    result.INF_MAX_val=JSON.stringify(TableStore.INF_MAX);
+    // Test 4: concurrent cappedScan test (simulates /page-data/courts)
+    const t4Start=Date.now();
+    try{
+      const [campuses,students,courts,membershipAccounts,coaches,pricePlans]=await Promise.race([
+        Promise.all([
+          listCampusesWithDefaults(),
+          cappedScan(T_STUDENTS).catch(e=>{result.cappedScanError='STUDENTS: '+e;return [];}),
+          cappedScan(T_COURTS).catch(e=>{result.cappedScanError='COURTS: '+e;return [];}),
+          cappedScan(T_MEMBERSHIP_ACCOUNTS).catch(e=>{result.cappedScanError='ACCOUNTS: '+e;return [];}),
+          cappedScan(T_COACHES).catch(e=>{result.cappedScanError='COACHES: '+e;return [];}),
+          cappedScan(T_PRICE_PLANS).catch(e=>{result.cappedScanError='PRICE: '+e;return [];})
+        ]),
+        new Promise((_,rej)=>setTimeout(()=>rej(new Error('concurrent cappedScan timeout after 8s')),8000))
+      ]);
+      result.tests.push({name:'concurrent_cappedScan',status:'ok',ms:Date.now()-t4Start,sizes:[campuses.length,students.length,courts.length,membershipAccounts.length,coaches.length,pricePlans.length]});
+    }catch(e){
+      result.tests.push({name:'concurrent_cappedScan',status:'error',error:String(e?.message||e),ms:Date.now()-t4Start});
+    }
+    return sendJson(res,result);
+  }
+  if(path==='/diag2'&&method==='GET'){
+    const result = { log: [] };
+    const tStart = Date.now();
+    try {
+      await new Promise((res, rej) => {
+        let pages = 0;
+        function f(sk) {
+          result.log.push(`Page ${pages+1} starting, sk: ` + !!sk);
+          gc().getRange({
+            tableName: T_STUDENTS,
+            direction: TableStore.Direction.FORWARD,
+            inclusiveStartPrimaryKey: sk || [{ id: TableStore.INF_MIN }],
+            exclusiveEndPrimaryKey: [{ id: TableStore.INF_MAX }],
+            maxVersions: 1,
+            limit: 20
+          }, (e, d) => {
+            if (e) return rej(e);
+            pages++;
+            const pRows = (d.rows || []);
+            result.log.push(`Page ${pages} fetched ${pRows.length} rows.`);
+            if (pRows.length > 0) {
+              result.log.push(`First: ${pRows[0].primaryKey[0].value}, Last: ${pRows[pRows.length-1].primaryKey[0].value}`);
+            }
+            const nextStartPrimaryKey = d.nextStartPrimaryKey ? d.nextStartPrimaryKey.map(pk => ({ [pk.name]: pk.value })) : null;
+            result.log.push(`Next token exists: ${!!nextStartPrimaryKey}, content: ${JSON.stringify(nextStartPrimaryKey)}`);
+            if (pages > 15) {
+              result.log.push("ABORTING INFINITE LOOP!");
+              return res();
+            }
+            nextStartPrimaryKey ? f(nextStartPrimaryKey) : res();
+          });
+        }
+        f();
+      });
+      result.ms = Date.now() - tStart;
+      result.status = 'ok';
+    } catch(e) {
+      result.status = 'error';
+      result.error = String(e);
+    }
+    return sendJson(res, result);
+  }
+  if(path==='/campuses'&&method==='GET'){
+    console.log('[campuses] GET bypass scheduleInitInBackground');
+    console.log('[campuses] GET using hard fallback DEFAULT_CAMPUSES');
+    return sendJson(res,DEFAULT_CAMPUSES);
+  }
+  scheduleInitInBackground();
+  const query=new URL(req.url||'/', 'http://local').searchParams;
   const body=req.body||{};
   try{
     if(path==='/health')return sendJson(res,{status:'ok',time:new Date().toISOString()});
@@ -6064,7 +6428,7 @@ module.exports = async (req, res) => {
       await init();
       return sendJson(res,await sendOfficialAccountDailyDigests());
     }
-    if(path==='/auth/login'&&method==='POST'){return timedEndpointMetric('auth.login',async()=>{const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await getCachedRow(T_USERS,username);if(!user||!await bcrypt.compare(password,user.password))return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});});}
+    if(path==='/auth/login'&&method==='POST'){return timedEndpointMetric('auth.login',async()=>{const{username,password}=body;if(!username||!password)return sendJson(res,{error:'请填写账号和密码'},400);const user=await loadLoginUser(username);if(user?.__loginTimeout)return sendJson(res,{error:LOGIN_STORAGE_TIMEOUT_ERROR},503);if(!user)return sendJson(res,{error:'账号或密码错误'},401);const passwordVerified=await verifyLoginPassword(username,password,user.password);if(passwordVerified?.invalidAccount)return sendJson(res,{error:LOGIN_INVALID_ACCOUNT_ERROR},500);if(!passwordVerified)return sendJson(res,{error:'账号或密码错误'},401);const payload=mergeStoredAuthUser(null,user);try{assertAuthUserActive(payload);}catch(e){return sendJson(res,{error:e.message},403);}const token=jwt.sign(payload,JWT_SECRET,{expiresIn:'7d'});return sendJson(res,{token,user:payload});});}
     if(path==='/auth/wechat-login'&&method==='POST'){
       const code=String(body.code||'').trim();
       if(!code)return sendJson(res,{error:'缺少微信登录凭证'},400);
@@ -6246,7 +6610,7 @@ module.exports = async (req, res) => {
     }
     if(path==='/admin/create-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,name,password,role,coachId,coachName}=body;if(!id||!name||!password)return sendJson(res,{error:'缺少必填字段'},400);const nextRole=role||'editor';const hashed=await bcrypt.hash(password,10);const nextCoachName=coachName||(nextRole==='editor'?name:'');const matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions||[]});const phone=assertPhone(body.phone||'');const officialAccountOpenId=String(body.officialAccountOpenId||'').trim();await put(T_USERS,id,{id,name,phone,password:hashed,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,officialAccountOpenId,officialAccountBoundAt:officialAccountOpenId?new Date().toISOString():'',matchPermissions});return sendJson(res,{success:true,id,name,phone,role:nextRole,status:'active',coachId:coachId||'',coachName:nextCoachName,officialAccountOpenId,matchPermissions});}
     if(path==='/admin/update-user'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const{id,coachId,coachName,status}=body;if(!id)return sendJson(res,{error:'缺少用户ID'},400);const u=await get(T_USERS,id);if(!u)return sendJson(res,{error:'用户不存在'},404);let updates={...u,coachId:coachId||'',status:status||u.status||'active'};if(body.name)updates.name=body.name;if(Object.prototype.hasOwnProperty.call(body,'phone'))updates.phone=assertPhone(body.phone||'');updates.coachName=coachName||(u.role==='editor'?(updates.name||u.name):'');if(Array.isArray(body.matchPermissions)||Array.isArray(body.permissions))updates.matchPermissions=userMatchPermissions({matchPermissions:body.matchPermissions||body.permissions});if(Object.prototype.hasOwnProperty.call(body,'officialAccountOpenId')){const officialAccountOpenId=String(body.officialAccountOpenId||'').trim();updates.officialAccountOpenId=officialAccountOpenId;updates.officialAccountBoundAt=officialAccountOpenId?(u.officialAccountOpenId===officialAccountOpenId?(u.officialAccountBoundAt||new Date().toISOString()):new Date().toISOString()):'';}if(body.clearWechat){await unbindWechatUserWithIndex(updates);return sendJson(res,{success:true});}if(body.clearOfficialAccount){updates=buildOfficialAccountUnboundUser(updates);}await put(T_USERS,id,updates);return sendJson(res,{success:true});}
-    if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=await getCachedScan(T_USERS,{columns:ADMIN_USER_LIST_PROJECTION_FIELDS});return sendJson(res,all.map(buildAdminUserView));}
+    if(path==='/admin/users'&&method==='GET'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const all=isProductionRuntime()?await scanFirstRows(T_USERS,{limit:PRODUCTION_PAGE_READ_LIMITS.adminUsers,columns:ADMIN_USER_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_USERS,{columns:ADMIN_USER_LIST_PROJECTION_FIELDS});return sendJson(res,all.map(buildAdminUserView));}
     if(path==='/admin/clear-test-data'&&method==='POST'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       if(body.confirm!=='CLEAR_TEST_DATA')return sendJson(res,{error:'缺少清空确认'},400);
@@ -6287,28 +6651,27 @@ module.exports = async (req, res) => {
     if(path==='/auth/me')return sendJson(res,user);
     if(path==='/load-all'&&method==='GET'){
       await init();
-      if(ENABLE_IMPORTED_LEDGER_AUTO_REPAIR)await maybeRepairImportedLedgerDuplicates();
       const [rawCourts,students,products,packages,purchases,entitlements,entitlementLedger,financialLedger,membershipPlans,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,pricePlans,plans,schedule,coaches,classes,campuses,feedbacks]=await Promise.all([
-        timed('load-all scan courts',()=>getCachedScan(T_COURTS).catch(()=>[])),
-        timed('load-all scan students',()=>scan(T_STUDENTS)),
-        timed('load-all scan products',()=>scan(T_PRODUCTS)),
-        timed('load-all scan packages',()=>scan(T_PACKAGES).catch(()=>[])),
-        timed('load-all scan purchases',()=>scan(T_PURCHASES).catch(()=>[])),
-        timed('load-all scan entitlements',()=>getCachedScan(T_ENTITLEMENTS).catch(()=>[])),
-        timed('load-all scan entitlement ledger',()=>scan(T_ENTITLEMENT_LEDGER).catch(()=>[])),
-        timed('load-all scan financial ledger',()=>scan(T_FINANCIAL_LEDGER).catch(()=>[])),
-        timed('load-all scan membership plans',()=>scan(T_MEMBERSHIP_PLANS).catch(()=>[])),
-        timed('load-all scan membership accounts',()=>scan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[])),
-        timed('load-all scan membership orders',()=>scan(T_MEMBERSHIP_ORDERS).catch(()=>[])),
-        timed('load-all scan membership benefit ledger',()=>scan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[])),
-        timed('load-all scan membership account events',()=>scan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[])),
-        timed('load-all scan price plans',()=>scan(T_PRICE_PLANS).catch(()=>[])),
-        timed('load-all scan plans',()=>scan(T_PLANS)),
-        timed('load-all scan schedule',()=>getCachedScan(T_SCHEDULE).catch(()=>[])),
-        timed('load-all scan coaches',()=>scan(T_COACHES).catch(()=>[])),
-        timed('load-all scan classes',()=>scan(T_CLASSES).catch(()=>[])),
+        timed('load-all scan courts',()=>cappedScan(T_COURTS)),
+        timed('load-all scan students',()=>cappedScan(T_STUDENTS)),
+        timed('load-all scan products',()=>cappedScan(T_PRODUCTS)),
+        timed('load-all scan packages',()=>cappedScan(T_PACKAGES)),
+        timed('load-all scan purchases',()=>cappedScan(T_PURCHASES)),
+        timed('load-all scan entitlements',()=>cappedScan(T_ENTITLEMENTS)),
+        timed('load-all scan entitlement ledger',()=>cappedScan(T_ENTITLEMENT_LEDGER)),
+        timed('load-all scan financial ledger',()=>cappedScan(T_FINANCIAL_LEDGER)),
+        timed('load-all scan membership plans',()=>cappedScan(T_MEMBERSHIP_PLANS)),
+        timed('load-all scan membership accounts',()=>cappedScan(T_MEMBERSHIP_ACCOUNTS)),
+        timed('load-all scan membership orders',()=>cappedScan(T_MEMBERSHIP_ORDERS)),
+        timed('load-all scan membership benefit ledger',()=>cappedScan(T_MEMBERSHIP_BENEFIT_LEDGER)),
+        timed('load-all scan membership account events',()=>cappedScan(T_MEMBERSHIP_ACCOUNT_EVENTS)),
+        timed('load-all scan price plans',()=>cappedScan(T_PRICE_PLANS)),
+        timed('load-all scan plans',()=>cappedScan(T_PLANS)),
+        timed('load-all scan schedule',()=>cappedScan(T_SCHEDULE, PRODUCTION_PAGE_READ_LIMITS.schedule)),
+        timed('load-all scan coaches',()=>cappedScan(T_COACHES)),
+        timed('load-all scan classes',()=>cappedScan(T_CLASSES)),
         timed('load-all scan campuses',()=>listCampusesWithDefaults()),
-        timed('load-all scan feedbacks',()=>withTimeout(scanFeedbacks().catch(()=>[]),1500,[]))
+        timed('load-all scan feedbacks',()=>cappedScan(T_FEEDBACKS))
       ]);
       const normalizedMembershipPlans=(Array.isArray(membershipPlans)?membershipPlans:[]).map(normalizeMembershipPlanViewRecord);
       const membershipPlanMap=new Map(normalizedMembershipPlans.map(p=>[p.id,p]));
@@ -6714,7 +7077,7 @@ module.exports = async (req, res) => {
     }
     if(path==='/schedule'){
       await init();
-      if(method==='GET'){if(user.role==='admin')return sendJson(res,await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS}));const indexedRows=await getCoachIndexedScheduleForUser(user);if(indexedRows)return sendJson(res,indexedRows);const rows=await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS});const [coaches,users]=await Promise.all([getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});return sendJson(res,filterLoadAllForUser({schedule:rows,coaches},user,coachRefs).schedule);}
+      if(method==='GET'){if(user.role==='admin')return sendJson(res,isProductionRuntime()?await scanFirstRows(T_SCHEDULE,{limit:PRODUCTION_PAGE_READ_LIMITS.schedule,columns:SCHEDULE_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS}));const indexedRows=await getCoachIndexedScheduleForUser(user);if(indexedRows)return sendJson(res,indexedRows);const rows=isProductionRuntime()?await scanFirstRows(T_SCHEDULE,{limit:PRODUCTION_PAGE_READ_LIMITS.schedule,columns:SCHEDULE_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS});return sendJson(res,filterLoadAllForUser({schedule:rows},user).schedule);}
       if(method==='POST'){
         return timedEndpointMetric('schedule.save',async()=>{
           try{assertCanWriteSchedule(user);}catch(e){return sendJson(res,{error:e.message},403);}
@@ -6886,14 +7249,14 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const [campuses,students,classes,plans,products,schedule,courts,entitlements]=await Promise.all([
-        getCachedScan(T_CAMPUSES).catch(()=>[]),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_CLASSES).catch(()=>[]),
-        getCachedScan(T_PLANS).catch(()=>[]),
-        getCachedScan(T_PRODUCTS).catch(()=>[]),
-        getCachedScan(T_SCHEDULE).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[])
+        cappedScan(T_CAMPUSES),
+        cappedScan(T_STUDENTS),
+        cappedScan(T_CLASSES),
+        cappedScan(T_PLANS),
+        cappedScan(T_PRODUCTS),
+        cappedScan(T_SCHEDULE, PRODUCTION_PAGE_READ_LIMITS.schedule),
+        cappedScan(T_COURTS),
+        cappedScan(T_ENTITLEMENTS)
       ]);
       return sendJson(res,{
         campuses:campuses.length?campuses:DEFAULT_CAMPUSES,
@@ -6910,10 +7273,10 @@ module.exports = async (req, res) => {
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const [purchases,packages,students,entitlements]=await Promise.all([
-        getCachedScan(T_PURCHASES).catch(()=>[]),
-        getCachedScan(T_PACKAGES).catch(()=>[]),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_ENTITLEMENTS).catch(()=>[])
+        cappedScan(T_PURCHASES),
+        cappedScan(T_PACKAGES),
+        cappedScan(T_STUDENTS),
+        cappedScan(T_ENTITLEMENTS)
       ]);
       return sendJson(res,{purchases,packages,students,entitlements});
     }
@@ -6922,6 +7285,7 @@ module.exports = async (req, res) => {
       await init();
       const campuses=await listCampusesWithDefaults();
       const verifiedFinance=loadVerifiedFinanceArtifacts(campuses);
+      const snapshot=verifiedFinance?null:await getFinancePageSnapshot();
       return sendJson(res,{
         campuses,
         financeOverviewData:verifiedFinance?.overviewData||null,
@@ -6940,19 +7304,33 @@ module.exports = async (req, res) => {
       ]);
       return sendJson(res,{campuses,students,courts,membershipAccounts:[],coaches:[],pricePlans:[]});
     }
+    if(path==='/page-data/court-account-list-view'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const ids=String(query?.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean);
+      const sample=String(query?.get('sample')||'').trim();
+      return sendJson(res,await loadCourtAccountListView({sampleIds:ids,sample}));
+    }
+    if(path==='/page-data/court-account-list-view-compare'&&method==='GET'){
+      if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
+      await init();
+      const ids=String(query?.get('ids')||'').split(',').map(item=>String(item||'').trim()).filter(Boolean);
+      const sample=String(query?.get('sample')||'').trim();
+      return sendJson(res,await loadCourtAccountListViewCompare({sampleIds:ids,sample}));
+    }
     if(path==='/page-data/memberships'&&method==='GET'){
       if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);
       await init();
       const [campuses,students,courts,membershipAccounts,membershipOrders,membershipBenefitLedger,membershipAccountEvents,membershipPlans,coaches]=await Promise.all([
         listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS).catch(()=>[]),
-        getCachedScan(T_COURTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ORDERS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_BENEFIT_LEDGER).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_ACCOUNT_EVENTS).catch(()=>[]),
-        getCachedScan(T_MEMBERSHIP_PLANS).catch(()=>[]),
-        getCachedScan(T_COACHES).catch(()=>[])
+        cappedScan(T_STUDENTS),
+        cappedScan(T_COURTS),
+        cappedScan(T_MEMBERSHIP_ACCOUNTS),
+        cappedScan(T_MEMBERSHIP_ORDERS),
+        cappedScan(T_MEMBERSHIP_BENEFIT_LEDGER),
+        cappedScan(T_MEMBERSHIP_ACCOUNT_EVENTS),
+        cappedScan(T_MEMBERSHIP_PLANS),
+        cappedScan(T_COACHES)
       ]);
       const normalizedMembershipPlans=(Array.isArray(membershipPlans)?membershipPlans:[]).map(normalizeMembershipPlanViewRecord);
       const membershipPlanMap=new Map(normalizedMembershipPlans.map(p=>[p.id,p]));
@@ -6975,13 +7353,13 @@ module.exports = async (req, res) => {
         const indexedSchedule=user.role==='admin'?null:await getCoachIndexedScheduleForUser(user);
         const [campuses,students,classes,schedule,feedbacks,purchases]=await Promise.all([
           listCampusesWithDefaults(),
-          getCachedScan(T_STUDENTS).catch(()=>[]),
-          getCachedScan(T_CLASSES).catch(()=>[]),
-          Promise.resolve(indexedSchedule||null).then(rows=>rows||getCachedScan(T_SCHEDULE).catch(()=>[])),
-          withTimeout(scanFeedbacks().catch(()=>[]),3000,[]),
-          getCachedScan(T_PURCHASES).catch(()=>[])
+          cappedScan(T_STUDENTS),
+          cappedScan(T_CLASSES),
+          Promise.resolve(indexedSchedule||null).then(rows=>rows||cappedScan(T_SCHEDULE, PRODUCTION_PAGE_READ_LIMITS.schedule)),
+          cappedScan(T_FEEDBACKS),
+          cappedScan(T_PURCHASES)
         ]);
-        const [coaches,users]=await Promise.all([getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);
+        const [coaches,users]=await Promise.all([cappedScan(T_COACHES),cappedScan(T_USERS, PRODUCTION_PAGE_READ_LIMITS.adminUsers)]);
         const coachRefs=buildCoachRefs({coaches,users});
         const scoped=filterLoadAllForUser({campuses,students,classes,schedule,feedbacks,purchases,coaches},user,coachRefs);
         const now=new Date();
@@ -7005,7 +7383,7 @@ module.exports = async (req, res) => {
       await init();
       await ensureLeadTables();
       const leadId=cleanLeadText(query.get('leadId'));
-      const rows=await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]);
+      const rows=isProductionRuntime()?await scanFirstRows(T_LEAD_FOLLOWUPS,{limit:PRODUCTION_PAGE_READ_LIMITS.leadFollowups,columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]);
       return sendJson(res,leadId?rows.filter(row=>String(row.leadId||'')===leadId):rows);
     }
     if(path==='/leads'){
@@ -7013,7 +7391,7 @@ module.exports = async (req, res) => {
       await init();
       await ensureLeadTables();
       if(method==='GET'){
-        const rows=await getCachedScan(T_LEADS,{columns:LEAD_LIST_PROJECTION_FIELDS}).catch(()=>[]);
+        const rows=isProductionRuntime()?await scanFirstRows(T_LEADS,{limit:PRODUCTION_PAGE_READ_LIMITS.leads,columns:LEAD_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_LEADS,{columns:LEAD_LIST_PROJECTION_FIELDS}).catch(()=>[]);
         const q=cleanLeadText(query.get('q')).toLowerCase();
         const source=cleanLeadText(query.get('source'));
         const consultType=cleanLeadText(query.get('consultType'));
@@ -7069,7 +7447,7 @@ module.exports = async (req, res) => {
       const lead=await get(T_LEADS,leadId).catch(()=>null);
       if(!lead)return sendJson(res,{error:'线索不存在'},404);
       if(method==='GET'){
-        const rows=(await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]))
+        const rows=((isProductionRuntime()?await scanFirstRows(T_LEAD_FOLLOWUPS,{limit:PRODUCTION_PAGE_READ_LIMITS.leadFollowups,columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_LEAD_FOLLOWUPS,{columns:LEAD_FOLLOWUP_LIST_PROJECTION_FIELDS}).catch(()=>[])))
           .filter(row=>String(row.leadId||'')===String(leadId))
           .sort((a,b)=>String(b.followupAt||b.createdAt||'').localeCompare(String(a.followupAt||a.createdAt||'')));
         return sendJson(res,rows);
@@ -7203,7 +7581,17 @@ module.exports = async (req, res) => {
     }
     if(path==='/classes'){await init();if(method==='GET'){const rows=await getCachedScan(T_CLASSES);if(user.role==='admin')return sendJson(res,rows);const [schedule,coaches,users]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});return sendJson(res,filterLoadAllForUser({classes:rows,schedule,coaches},user,coachRefs).classes);}if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);const id=uuidv4();const now=new Date().toISOString();const [existingClasses,product]=await Promise.all([getCachedScan(T_CLASSES).catch(()=>[]),get(T_PRODUCTS,body.productId).catch(()=>null)]);if(!product)return sendJson(res,{error:'课程产品不存在'},404);validateClassInput({...body,usedLessons:0},product);const classNo=await reserveNextClassNo(existingClasses,user,now);const r=buildClassCreateRecord({...body,productName:product.name||body.productName||''},{id,classNo,user,now});await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}}
     const clM=path.match(/^\/classes\/(.+)$/);if(clM){const id=clM[1];if(method==='GET')return sendJson(res,await get(T_CLASSES,id));if(method==='PUT'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);const old=await get(T_CLASSES,id).catch(()=>null);if(!old)return sendJson(res,{error:'班次不存在'},404);const product=await get(T_PRODUCTS,body.productId||old.productId).catch(()=>null);if(!product)return sendJson(res,{error:'课程产品不存在'},404);const r=buildClassUpdateRecord(old,body,{product,now:new Date().toISOString()});validateClassInput(r,product);assertCanEditClassWithSchedules(old,r,await getCachedScan(T_SCHEDULE));await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);assertCanDeleteClass(id,await getCachedScan(T_SCHEDULE));const classPlans=(await getCachedScan(T_PLANS)).filter(p=>p.classId===id);for(const p of classPlans)await del(T_PLANS,p.id);await del(T_CLASSES,id);return sendJson(res,{success:true});}}
-    if(path==='/campuses'){await init();if(method==='GET')return sendJson(res,await listCampusesWithDefaults());if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=body.code||uuidv4();const r={...body,id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_CAMPUSES,id,r);return sendJson(res,r);}}
+    if(path==='/campuses'){
+      if(method==='GET'){
+        console.log('[campuses] GET route entered');
+        console.log('[campuses] GET using hard fallback DEFAULT_CAMPUSES');
+        const result=await listCampusesWithDefaults();
+        console.log(`[campuses] GET response ready count=${Array.isArray(result)?result.length:0}`);
+        return sendJson(res,result);
+      }
+      await init();
+      if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=body.code||uuidv4();const r={...body,id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_CAMPUSES,id,r);return sendJson(res,r);}
+    }
     const caM=path.match(/^\/campuses\/(.+)$/);if(caM){const id=caM[1];if(method==='PUT'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const r={...body,id,updatedAt:new Date().toISOString()};await put(T_CAMPUSES,id,r);return sendJson(res,r);}if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const [students,coaches,classes,schedule,courts,packages,entitlements]=await Promise.all([scan(T_STUDENTS).catch(()=>[]),scan(T_COACHES).catch(()=>[]),scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scan(T_PACKAGES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[])]);assertCanDeleteCampus(id,{students,coaches,classes,schedule,courts,packages,entitlements});await del(T_CAMPUSES,id);return sendJson(res,{success:true});}}
     return sendJson(res,{error:'Not found'},404);
   }catch(e){console.error('API error:',e);return sendJson(res,{error:e.message},500);}

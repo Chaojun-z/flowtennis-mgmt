@@ -1,0 +1,38 @@
+name: Feishu Monitor
+
+on:
+  schedule:
+    - cron: '7 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      FEISHU_MONITOR_WEBHOOK_URL: ${{ secrets.FEISHU_MONITOR_ALERT_WEBHOOK }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: standalone-services/package-lock.json
+
+      - name: Install standalone service dependencies
+        run: npm ci
+        working-directory: standalone-services
+
+      - name: Run Feishu monitor
+        run: node feishu-monitor.js
+        working-directory: standalone-services
