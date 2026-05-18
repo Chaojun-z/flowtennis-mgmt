@@ -26,6 +26,57 @@
 
 ---
 
+## 1.1 当前可信基线与工作目录
+
+1. **`origin/main` 是当前唯一可信开发基线。**
+2. 日常开发目录固定为：
+   - `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main`
+3. 当前本地开发分支可以是 `rd-dev`，但必须跟踪并对齐 `origin/main`。
+4. 判断是否在可信基线上，不看本地分支名，必须看：
+   - `git status --short --branch`
+   - `git rev-parse --short HEAD`
+   - `git rev-parse --short origin/main`
+5. **以后禁止使用 git worktree 进行开发。**
+6. 历史 worktree 只允许只读取证、差异比对、确认遗留任务状态，不允许继续写代码。
+7. 如果发现本地 `main` 分支仍被旧 worktree 占用，不得切过去开发；继续以当前根目录跟踪 `origin/main` 的分支为准。
+
+---
+
+## 1.2 实际技术栈
+
+1. 管理后台 Web：
+   - 原生 HTML / CSS / JavaScript 单页应用
+   - 入口：`public/index.html`
+   - 前端模块：`public/assets/scripts/`
+2. 后端 API：
+   - Node.js
+   - Express
+   - Vercel Serverless Function
+   - 入口：`api/index.js`
+3. 部署：
+   - Vercel
+   - `/api/*` rewrite 到 `api/index`
+   - 其他路径 rewrite 到 `index.html`
+   - Vercel Cron 用于服务号提醒和每日摘要
+4. 主业务数据库：
+   - 阿里云 TableStore
+   - 生产实例：`flowtennis`
+   - staging 实例：`flow-staging`
+5. 约球子系统数据库：
+   - PostgreSQL
+   - Node 依赖：`pg`
+   - 只允许通过 `MATCH_DATABASE_URL` / `DATABASE_URL` 环境变量连接
+6. 微信端：
+   - 教练端微信小程序目录：`wechat-miniprogram/`
+   - 约球小程序不在本仓库主目录内，不能混淆载体。
+7. 脚本与测试：
+   - 运维脚本：`scripts/`
+   - 测试：`tests/*.test.js`
+   - 全量测试：`npm test`
+   - 财务门禁：`npm run guard:finance`
+
+---
+
 ## 2. 生产与财务红线
 
 1. **本地预览 / 开发环境默认不得直连生产真实数据。**
@@ -58,6 +109,13 @@
 
 ## 3. 新线程开工前必须先看
 
+### 读取规则
+
+1. 规范 / 约束 / 治理类文档不是摆设，必须在对应场景开始前读取。
+2. 如果任务触发多个场景，必须读取所有相关场景文档。
+3. 如果文档口径和当前用户最新指令冲突，以用户最新明确指令为准，但必须在回复中指出文档已过期或存在冲突。
+4. 修改规范类文档后，必须检查是否还存在旧口径互相矛盾。
+
 ### 如果任务涉及整体架构、财务、环境、主干、发布
 
 必须先看：
@@ -82,6 +140,39 @@
 必须先看：
 
 - `docs/superpowers/specs/` 下标准页主线文档
+
+---
+
+## 3.1 开始新任务前的 Git 检查硬约束
+
+每个新任务开始前，必须先检查当前项目状态：
+
+1. 执行并阅读：
+   - `git fetch origin --prune`
+   - `git status --short --branch`
+   - `git branch --format='%(refname:short)|%(upstream:short)|%(objectname:short)|%(worktreepath)'`
+   - `git worktree list --porcelain`
+2. 必须确认当前工作区是否干净。
+3. 必须确认当前 `HEAD` 是否等于或明确基于 `origin/main`。
+4. 必须识别是否存在未完整合并的本地分支、历史 worktree、prunable worktree、detached worktree。
+5. 如果发现未完成分支可能和本任务修改同一批文件，必须先提示用户存在读写冲突风险。
+6. 如果存在明显未收口任务，必须提示用户先 close 掉未完成任务，或明确选择继续当前任务。
+7. 未经用户明确要求，不得自动删除分支、删除 worktree、强制 reset、强制覆盖历史改动。
+
+---
+
+## 3.2 任务收敛后的提交与合并硬约束
+
+1. 当任务已经实现、验证、问题收敛后，必须主动询问用户：
+   - 是否提交代码
+   - 是否推送
+   - 是否合并到目标分支
+2. 未经用户明确确认，不得自动提交、推送或合并。
+3. 如果用户要求提交，提交前必须再次执行：
+   - `git status --short --branch`
+   - 必要测试命令
+4. 如果用户要求合并，必须先确认目标分支，默认目标为 `origin/main`。
+5. 如果当前分支已经直接跟踪 `origin/main`，需要向用户说明“本次是提交并推送到 main”，不是再做一次无意义合并。
 
 ---
 
@@ -158,16 +249,11 @@
 
 ## 8. 正式工作区执行规则
 
-1. 当前目录 `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/.worktrees/thread114-staging-merge` 是唯一正式验收目录。
-2. 当前目录 `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/.worktrees/thread114-staging-merge` 也是唯一正式上传目录。
-3. 日常开发不得直接在旧主目录 `flowtennis-mgmt-main` 继续进行。
-4. 以后新开发目录只允许是：
-   - `flowtennis-mgmt-main/.worktrees/<任务名>`
-   - 起点分支只允许 `origin/thread26-staging-latest` 或恢复后的正式 `main`
-5. 旧主目录 `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main` 现在只允许：
-   - 历史取证
-   - 差异比对
-6. 老板后续只做 3 步：
-   - 停用旧主目录
-   - 验收和上传统一进入 `thread114-staging-merge`
-   - 新需求统一新建 worktree
+1. 正式开发目录固定为：
+   - `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main`
+2. 正式可信基线固定为：
+   - `origin/main`
+3. 禁止再用 `.worktrees/*` 作为日常开发、验收、上传目录。
+4. 历史 worktree 只允许只读取证和差异比对。
+5. 如果历史文档仍写 `thread26-staging-latest`、`thread114-staging-merge`、旧主目录禁用等旧口径，必须按本文件的新口径执行，并在必要时更新旧文档。
+6. 新任务默认从当前根目录跟踪 `origin/main` 的分支继续；如果需要新分支，必须从 `origin/main` 创建普通分支，不得创建 worktree。
