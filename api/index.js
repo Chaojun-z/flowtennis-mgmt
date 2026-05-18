@@ -392,6 +392,21 @@ async function timedEndpointMetric(name,fn,meta={}){
 function withTimeout(promise,ms,fallback){
   return Promise.race([promise,new Promise((res)=>setTimeout(()=>res(fallback),ms))]);
 }
+const FT_STUDENTS_FAST_TIMEOUT_MS=1200;
+async function getFastStudentsRead(options={}){
+  const fallback=[];
+  let settled=false;
+  const readPromise=getCachedScan(T_STUDENTS,options)
+    .then(rows=>{settled=true;return Array.isArray(rows)?rows:fallback;})
+    .catch(err=>{
+      settled=true;
+      console.error('[api-fast-read] ft_students read failed, fallback to empty array',err);
+      return fallback;
+    });
+  const rows=await withTimeout(readPromise,FT_STUDENTS_FAST_TIMEOUT_MS,fallback);
+  if(rows===fallback&&!settled)console.warn(`[api-fast-read] ft_students read timed out after ${FT_STUDENTS_FAST_TIMEOUT_MS}ms, fallback to empty array`);
+  return rows;
+}
 function isTableMissingError(err){return /not.*exist|table.*not.*exist|OTSObjectNotExist/i.test(String(err?.message||err||''));}
 function campusDisplayName(value,externalVenueName=''){
   const raw=String(value||'').trim();
@@ -6478,7 +6493,7 @@ module.exports = async (req, res) => {
       return sendJson(res,{dryRun,total:rows.length,candidates,migrated,skipped,preview});
     }
     const cM=path.match(/^\/courts\/(.+)$/);if(cM){const id=cM[1];if(method==='PUT'){const prev=await getCachedRow(T_COURTS,id).catch(()=>null);const prevHistory=JSON.stringify(normalizeCourtHistory(prev?.history));const nextHistory=JSON.stringify(normalizeCourtHistory(body?.history));const schedules=prevHistory===nextHistory?[]:await getCachedScan(T_SCHEDULE).catch(()=>[]);const r={...normalizeCourtRecord(body,{schedules}),id,updatedAt:new Date().toISOString()};await put(T_COURTS,id,r);return sendJson(res,r);}if(method==='DELETE'){const court=await getCachedRow(T_COURTS,id).catch(()=>null);if(!court)return sendJson(res,{error:'订场用户不存在'},404);const action=courtDeleteAction(court,await loadCourtDeleteReferenceData());if(action==='delete'){await del(T_COURTS,id);return sendJson(res,{success:true,archived:false});}const now=new Date().toISOString();await put(T_COURTS,id,{...court,status:'inactive',deletedAt:court.deletedAt||now,updatedAt:now});return sendJson(res,{success:true,archived:true});}}
-    if(path==='/students'){await init();if(method==='GET'){const rows=await getCachedScan(T_STUDENTS);if(user.role==='admin')return sendJson(res,rows);/* hot-cache guard: filterLoadAllForUser({students:rows,schedule,classes},user).students */const [schedule,classes,coaches,users]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CLASSES).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});return sendJson(res,filterLoadAllForUser({students:rows,schedule,classes,coaches},user,coachRefs).students);}if(method==='POST'){assertStudentWriteAccess(user);const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
+    if(path==='/students'){await init();if(method==='GET'){const rows=await getFastStudentsRead();if(user.role==='admin')return sendJson(res,rows);/* hot-cache guard: filterLoadAllForUser({students:rows,schedule,classes},user).students */const [schedule,classes,coaches,users]=await Promise.all([getCachedScan(T_SCHEDULE).catch(()=>[]),getCachedScan(T_CLASSES).catch(()=>[]),getCachedScan(T_COACHES).catch(()=>[]),getCachedScan(T_USERS).catch(()=>[])]);const coachRefs=buildCoachRefs({coaches,users});return sendJson(res,filterLoadAllForUser({students:rows,schedule,classes,coaches},user,coachRefs).students);}if(method==='POST'){assertStudentWriteAccess(user);const id=uuidv4();const r={...body,phone:assertPhone(body.phone),id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);return sendJson(res,r);}}
     const sM=path.match(/^\/students\/(.+)$/);if(sM){const id=sM[1];if(method==='PUT'){assertStudentWriteAccess(user);const old=await get(T_STUDENTS,id).catch(()=>null);const r={...body,phone:assertPhone(body.phone),id,updatedAt:new Date().toISOString()};await put(T_STUDENTS,id,r);const studentUpdates=old?await applyStudentIdentityUpdate(old,r):{plans:[],schedule:[],purchases:[],entitlements:[],feedbacks:[]};return sendJson(res,{...r,studentUpdates});}if(method==='DELETE'){assertStudentWriteAccess(user);const [classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger]=await Promise.all([scan(T_CLASSES).catch(()=>[]),scan(T_SCHEDULE).catch(()=>[]),scan(T_PLANS).catch(()=>[]),scan(T_COURTS).catch(()=>[]),scanFeedbacks().catch(()=>[]),scan(T_PURCHASES).catch(()=>[]),scan(T_ENTITLEMENTS).catch(()=>[]),scan(T_ENTITLEMENT_LEDGER).catch(()=>[])]);assertCanDeleteStudent(id,{classes,schedule,plans,courts,feedbacks,purchases,entitlements,entitlementLedger});await del(T_STUDENTS,id);return sendJson(res,{success:true});}}
     if(path==='/init-data'&&method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);await init();const ss=body.students||[];for(const s of ss)await put(T_STUDENTS,s.id||uuidv4(),{...s,updatedAt:new Date().toISOString()});return sendJson(res,{success:true,count:ss.length});}
     if(path==='/products'){await init();if(method==='GET')return sendJson(res,await getCachedScan(T_PRODUCTS).catch(()=>[]));if(method==='POST'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);const id=uuidv4();const now=new Date().toISOString();const r=normalizeProductRecord({...body,id},null,now);r.createdAt=now;await put(T_PRODUCTS,id,r);return sendJson(res,r);}}
@@ -6920,7 +6935,7 @@ module.exports = async (req, res) => {
       await init();
       const [campuses,students,courts]=await Promise.all([
         listCampusesWithDefaults(),
-        getCachedScan(T_STUDENTS,{columns:COURTS_PAGE_STUDENT_PROJECTION_FIELDS}).catch(()=>[]),
+        getFastStudentsRead({columns:COURTS_PAGE_STUDENT_PROJECTION_FIELDS}),
         getCachedScan(T_COURTS,{columns:COURTS_PAGE_COURT_PROJECTION_FIELDS}).catch(()=>[])
       ]);
       return sendJson(res,{campuses,students,courts,membershipAccounts:[],coaches:[],pricePlans:[]});

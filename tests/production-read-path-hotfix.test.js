@@ -90,7 +90,25 @@ assert.match(
 
 assert.match(
   apiSource,
-  /if\(path==='\/page-data\/courts'&&method==='GET'\)\{[\s\S]*getCachedScan\(T_STUDENTS,\{columns:COURTS_PAGE_STUDENT_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\)[\s\S]*getCachedScan\(T_COURTS,\{columns:COURTS_PAGE_COURT_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\)[\s\S]*membershipAccounts:\[\][\s\S]*coaches:\[\][\s\S]*pricePlans:\[\]/,
+  /const FT_STUDENTS_FAST_TIMEOUT_MS=1200;/,
+  'ft_students 快路读取应定义明确超时时间，避免继续拖死接口'
+);
+
+assert.match(
+  apiSource,
+  /async function getFastStudentsRead\(options=\{\}\)\{[\s\S]*withTimeout\(readPromise,FT_STUDENTS_FAST_TIMEOUT_MS,fallback\)[\s\S]*fallback to empty array[\s\S]*\}/,
+  'ft_students 快路读取应在超时或异常时快速降级为空数组'
+);
+
+assert.match(
+  apiSource,
+  /if\(path==='\/students'\)\{await init\(\);if\(method==='GET'\)\{const rows=await getFastStudentsRead\(\);/,
+  '/students 应改成使用 ft_students 快路读取'
+);
+
+assert.match(
+  apiSource,
+  /if\(path==='\/page-data\/courts'&&method==='GET'\)\{[\s\S]*getFastStudentsRead\(\{columns:COURTS_PAGE_STUDENT_PROJECTION_FIELDS\}\)[\s\S]*getCachedScan\(T_COURTS,\{columns:COURTS_PAGE_COURT_PROJECTION_FIELDS\}\)\.catch\(\(\)=>\[\]\)[\s\S]*membershipAccounts:\[\][\s\S]*coaches:\[\][\s\S]*pricePlans:\[\]/,
   '订场用户首屏应改成 courts/students 轻投影，并允许临时清空会员账户、教练、价格方案扩展数据'
 );
 

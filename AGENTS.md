@@ -155,3 +155,19 @@
    - 财务聚合口径
    - 约球同步财务链
 6. 禁止让 `.github/workflows/ci-guard.yml` 退回成占位步骤、TODO 步骤或假通过步骤。
+
+## 8. 正式工作区执行规则
+
+1. 当前目录 `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/.worktrees/thread114-staging-merge` 是唯一正式验收目录。
+2. 当前目录 `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/.worktrees/thread114-staging-merge` 也是唯一正式上传目录。
+3. 日常开发不得直接在旧主目录 `flowtennis-mgmt-main` 继续进行。
+4. 以后新开发目录只允许是：
+   - `flowtennis-mgmt-main/.worktrees/<任务名>`
+   - 起点分支只允许 `origin/thread26-staging-latest` 或恢复后的正式 `main`
+5. 旧主目录 `/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main` 现在只允许：
+   - 历史取证
+   - 差异比对
+6. 老板后续只做 3 步：
+   - 停用旧主目录
+   - 验收和上传统一进入 `thread114-staging-merge`
+   - 新需求统一新建 worktree
