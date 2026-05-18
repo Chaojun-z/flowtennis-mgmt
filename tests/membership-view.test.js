@@ -164,7 +164,7 @@ assert.match(html, /class="tms-action-link tms-action-link-strong" style="color:
 assert.match(pagesCss, /#page-memberships \.tms-toolbar-right \.tms-action-link-strong[\s\S]*#FEF3C7/s, 'membership audit entries should be readable on the brown background');
 assert.match(html, /const statusMeta=membershipStatusTagMeta\(a\);/, 'membership management rows should derive status tag metadata');
 assert.match(html, /function membershipVisibleCourt/, 'membership management should ignore deleted or archived court users');
-assert.match(fnBody('renderMemberships'), /courts\.filter\(court=>isActiveCourtRecord\(court\)\)\.map/, 'membership management should build rows from active court users only');
+assert.match(fnBody('renderMemberships'), /membershipAccounts\.filter\(a=>membershipVisibleCourt\(a\)\)\.map/, 'membership management should build rows from membership accounts returned by the API');
 assert.match(html, /function isActiveCourtRecord\(/, 'frontend should centralize active court filtering');
 assert.match(fnBody('isActiveCourtRecord'), /status!=='inactive'&&status!=='deleted'&&!court\?\.deletedAt&&!court\?\.mergedIntoCourtId/, 'active court filtering should exclude hidden, deleted and merged users');
 assert.match(fnBody('renderMemberships'), /openCourtMembershipPanel\('\$\{court\.id\}'\)/, 'membership account action should open the account for the visible row court');
