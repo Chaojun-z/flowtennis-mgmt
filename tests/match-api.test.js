@@ -73,6 +73,8 @@ assert.match(apiSource, /syncMatchFeeSplitRefundToCourtFinance/, 'refunded match
 assert.match(apiSource, /match-court-finance/, 'match finance should use a dedicated court finance account');
 assert.match(apiSource, /\/admin\/matches\/finance-daily/, 'API should expose match finance daily report endpoint');
 assert.match(apiSource, /\/admin\/matches\/settings/, 'API should expose match settings admin endpoint');
+assert.match(apiSource, /function shouldUseEmptyMatchAdminListFallback\(err\)\{[\s\S]*!isProductionRuntime\(\)&&isMatchSqlUnavailableError\(err\)/, 'local admin match list should gracefully handle missing staging SQL');
+assert.match(apiSource, /databaseUnavailable:true,error:'约球数据库未连接'/, 'admin match list fallback should return a readable local database status');
 assert.match(apiSource, /path==='\/match-settings'/, 'API should expose mini match settings endpoint');
 assert.match(apiSource, /MATCH_MINIPROGRAM_APPID/, 'match mini program should use a dedicated appid env');
 assert.match(apiSource, /MATCH_MINIPROGRAM_SECRET/, 'match mini program should use a dedicated secret env');
@@ -93,7 +95,7 @@ assert.match(apiSource, /请先完成全部到场确认，再生成AA/, 'fee gen
 assert.match(apiSource, /已生成AA，不能再修改到场名单/, 'attendance should lock after AA generation');
 assert.match(apiSource, /path==='\/match-notifications'/, 'API should expose match notifications endpoint');
 assert.match(apiSource, /path==='\/match-players'/, 'API should expose match players endpoint');
-assert.match(apiSource, /if\(!\/\^\\\/admin\\\/matches\(\?:\\\/\|\$\)\/\.test\(path\)\)return false;/, 'non-match routes should bypass the admin match auth fallback');
+assert.doesNotMatch(apiSource, /if\(!\/\^\\\/admin\\\/matches\(\?:\\\/\|\$\)\/\.test\(path\)\)return false;/, 'non-match admin routes should continue past the admin match block instead of hanging without a response');
 assert.match(apiSource, /DEFAULT_ADMIN_BOOTSTRAP_PASSWORD/, 'bootstrap password should come from env instead of hardcoded source');
 assert.doesNotMatch(apiSource, /wqxd2026/, 'default admin password must not be hardcoded');
 assert.match(apiSource, /已超过发起者确认时限，请联系运营处理/, 'creator attendance confirmation should expire into ops fallback');

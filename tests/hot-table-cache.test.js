@@ -7,6 +7,8 @@ const apiSource = fs.readFileSync(path.join(__dirname, '../api/index.js'), 'utf8
 assert.match(apiSource, /const HOT_SCAN_TABLES=new Map\(/, 'api should declare hot table cache config');
 assert.match(apiSource, /const HOT_GET_TABLES=new Map\(/, 'api should declare hot row cache config');
 assert.match(apiSource, /function scan\(t,options=\{\}\)\{[\s\S]*const nextStartPrimaryKey=d\.nextStartPrimaryKey \? d\.nextStartPrimaryKey\.map\(pk => \(\{ \[pk\.name\]: pk\.value \}\)\) : null;[\s\S]*nextStartPrimaryKey\?f\(nextStartPrimaryKey\):res\(rows\);/, 'scan pagination should continue with the native TableStore nextStartPrimaryKey cursor');
+assert.match(apiSource, /const columnsToGet=columns\.length\?columns:undefined;/, 'TableStore projection reads should pass column names as strings');
+assert.doesNotMatch(apiSource, /columns\.map\(column=>\(\{columnName:column\}\)\)/, 'TableStore projection reads should not pass object column descriptors');
 assert.match(apiSource, /function getCachedScan\(t,options=\{\}\)/, 'api should expose a cached scan helper');
 assert.match(apiSource, /function getCachedRow\(t,id\)/, 'api should expose a cached row helper');
 assert.match(apiSource, /function invalidateHotScanCache\(t\)/, 'api should expose cache invalidation');

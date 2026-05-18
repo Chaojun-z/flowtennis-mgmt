@@ -311,6 +311,13 @@ function getMatchSqlPool(){
   if(!matchSqlPool)matchSqlPool=new Pool({connectionString:MATCH_DATABASE_URL,ssl:process.env.MATCH_DATABASE_SSL==='true'?{rejectUnauthorized:false}:undefined});
   return matchSqlPool;
 }
+function isMatchSqlUnavailableError(err){
+  const msg=String(err?.message||err||'');
+  return /ENOTFOUND|ECONNREFUSED|ETIMEDOUT|getaddrinfo|staging-db\.example\.com|127\.0\.0\.1:5432|缺少 MATCH_DATABASE_URL/i.test(msg);
+}
+function shouldUseEmptyMatchAdminListFallback(err){
+  return !isProductionRuntime()&&isMatchSqlUnavailableError(err);
+}
 function isTransientStorageError(err){
   const msg=String(err?.message||err||'');
   return /Client network socket disconnected before secure TLS connection was established|ECONNRESET|ETIMEDOUT|socket hang up|EAI_AGAIN|\[storage-timeout\]/i.test(msg);
@@ -491,7 +498,7 @@ function scan(t,options={}){
   return withStorageRetry(()=>new Promise((res,rej)=>{
     const rows=[];
     const columns=normalizeProjectionColumns(options?.columns);
-    const columnsToGet=columns.length?columns.map(column=>({columnName:column})):undefined;
+    const columnsToGet=columns.length?columns:undefined;
     function f(sk){
       runStorageOperation('getRangePage',{table:t},(opRes,opRej)=>{
         const request={
@@ -6545,7 +6552,6 @@ module.exports = async (req, res) => {
       const matchUser=ensureMatchUserResponse(req,res);if(!matchUser)return;
       return sendJson(res,{items:await listMatchPlayers()});
     }
-    if(!/^\/admin\/matches(?:\/|$)/.test(path))return false;
     let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
     if(user.type==='match_user')return sendJson(res,{error:'无管理端权限'},403);
     const storedAuthUser=await getCachedRow(T_USERS,user.id).catch(()=>null);
@@ -6553,7 +6559,15 @@ module.exports = async (req, res) => {
     try{assertAuthUserActive(user);}catch(e){return sendJson(res,{error:e.message},403);}
     if(path==='/admin/matches'&&method==='GET'){
       requireAdminUser(user);
-      return sendJson(res,{items:await listAdminMatches()});
+      try{
+        return sendJson(res,{items:await listAdminMatches()});
+      }catch(err){
+        if(shouldUseEmptyMatchAdminListFallback(err)){
+          console.warn('[match-admin] database unavailable, returning empty local list',String(err?.message||err));
+          return sendJson(res,{items:[],databaseUnavailable:true,error:'约球数据库未连接'});
+        }
+        throw err;
+      }
     }
     if(path==='/admin/matches/settings'&&method==='GET'){
       requireMatchAdminPermission(user,'match_ops');
