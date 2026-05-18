@@ -1,0 +1,10 @@
+{
+  "generatedAt": "2026-05-12T02:53:47.653Z",
+  "manifestPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/manifests/finance-ledger-acceptance-minimal.json",
+  "snapshotPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-thread66-finance-ledger/raw-snapshot.json",
+  "sourceEnv": "production",
+  "targetEnv": "staging",
+  "tableCounts": {
+    "ft_financial_ledger": 1548
+  }
+}

@@ -5,7 +5,9 @@ function createMatchModule(deps){
     MATCH_WECHAT_TEMPLATE_ID,
     MATCH_PREPAY_WINDOW_HOURS,
     getMatchSqlPool,
+    scan,
     getCachedRow,
+    getCachedScan,
     put,
     T_USERS,
     authUser,
@@ -14,6 +16,7 @@ function createMatchModule(deps){
     userMatchPermissions,
     requireMatchAdminPermission,
     canMatchUserCreateByAdminUser,
+    findAdminUserByPhone,
     mergeStoredAuthUser,
     assertAuthUserActive,
     fetchWechatSession,
@@ -104,12 +107,16 @@ async function canMatchUserCreate(userId){
   const user=userRes.rows[0]||{};
   const phone=normalizePhone(user.phone||'');
   if(!phone)return false;
-  const adminUser=await getCachedRow(T_USERS,phone).catch(()=>null);
+  const adminUser=findAdminUserByPhone(await scan(T_USERS).catch(()=>[]),phone)||await getCachedRow(T_USERS,phone).catch(()=>null);
   return canMatchUserCreateByAdminUser(adminUser);
 }
 
 function buildMatchUserToken(user){
   return jwt.sign({id:user.id,type:'match_user',openid:user.openid},JWT_SECRET,{expiresIn:'7d'});
+}
+function readOptionalMatchUser(req){
+  const user=authUser(req);
+  return user&&user.type==='match_user'?user:null;
 }
 function assertMatchPostInput(input){
   const title=String(input.title||'').trim();
@@ -1145,11 +1152,11 @@ async function listMatchPlayers(){
               [matchUser.id,matchUser.openid,matchUser.unionid,matchUser.nickName,matchUser.avatarUrl,matchUser.phone,matchUser.ntrpLevel]
             );
           }
-          return sendJson(res,{token:buildMatchUserToken(matchUser),user:{id:matchUser.id,type:'match_user',openid:matchUser.openid,phone:matchUser.phone||'',ntrpLevel:matchUser.ntrplevel||matchUser.ntrpLevel||'',canCreateMatch:await canMatchUserCreate(matchUser.id)}});
+          return sendJson(res,{token:buildMatchUserToken(matchUser),user:{id:matchUser.id,type:'match_user',openid:matchUser.openid,phone:matchUser.phone||'',nickName:matchUser.nickname||matchUser.nickName||'',avatarUrl:matchUser.avatarurl||matchUser.avatarUrl||'',ntrpLevel:matchUser.ntrplevel||matchUser.ntrpLevel||'',canCreateMatch:await canMatchUserCreate(matchUser.id)}});
         }
         if(path==='/matches'&&method==='GET'){
-          const matchUser=requireMatchUser(req);
-          return sendJson(res,{items:await listMatchesForViewer(matchUser.id)});
+          const matchUser=readOptionalMatchUser(req);
+          return sendJson(res,{items:await listMatchesForViewer(matchUser?.id||'')});
         }
         if(path==='/matches'&&method==='POST'){
           try{assertMatchWriteAllowed(req);}catch(err){return sendJson(res,{error:String(err?.message||err)},403);}
@@ -1160,8 +1167,8 @@ async function listMatchPlayers(){
         }
         const matchDetailM=path.match(/^\/matches\/([^/]+)$/);
         if(matchDetailM&&method==='GET'){
-          const matchUser=requireMatchUser(req);
-          const match=await getMatchForViewer(matchDetailM[1],matchUser.id);
+          const matchUser=readOptionalMatchUser(req);
+          const match=await getMatchForViewer(matchDetailM[1],matchUser?.id||'');
           if(!match)return sendJson(res,{error:'球局不存在'},404);
           return sendJson(res,toMatchDetailResponse(match));
         }
@@ -1241,6 +1248,7 @@ async function listMatchPlayers(){
           requireMatchUser(req);
           return sendJson(res,{items:await listMatchPlayers()});
         }
+        if(!/^\/admin\/matches(?:\/|$)/.test(path))return false;
         let user=authUser(req);if(!user)return sendJson(res,{error:'未登录'},401);
         if(user.type==='match_user')return sendJson(res,{error:'无管理端权限'},403);
         const storedAuthUser=await getCachedRow(T_USERS,user.id).catch(()=>null);
@@ -1323,6 +1331,7 @@ async function listMatchPlayers(){
       canMatchUserCreate,
       resolveMatchClientContext,
       assertMatchWriteAllowed,
+      readOptionalMatchUser,
       resolveMatchPrepayClosure,
       registerMatchUser,
       listMatchesForViewer,

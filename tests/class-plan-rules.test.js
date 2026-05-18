@@ -19,47 +19,10 @@ const students = [
   { id: 'stu-2', name: '二宝', phone: '13800000002' }
 ];
 
-const plan = rules.buildClassPlanRecord(cls, students[0]);
-assert.deepStrictEqual(
-  {
-    classId: plan.classId,
-    studentId: plan.studentId,
-    studentName: plan.studentName,
-    studentPhone: plan.studentPhone,
-    className: plan.className,
-    productName: plan.productName,
-    coach: plan.coach,
-    campus: plan.campus,
-    totalLessons: plan.totalLessons,
-    usedLessons: plan.usedLessons,
-    status: plan.status
-  },
-  {
-    classId: 'class-a',
-    studentId: 'stu-1',
-    studentName: '大宝',
-    studentPhone: '13800000001',
-    className: 'CLS0001-成人私教10节',
-    productName: '成人私教10节',
-    coach: '朝珺',
-    campus: 'mabao',
-    totalLessons: 10,
-    usedLessons: 2,
-    status: 'active'
-  },
-  'active class should create active student plan'
-);
-
 assert.strictEqual(
-  rules.buildClassPlanRecord({ ...cls, status: '已取消' }, students[0]).status,
-  '已取消',
-  'cancelled class should create cancelled student plan'
-);
-
-assert.strictEqual(
-  rules.buildClassPlanRecord({ ...cls, status: '已结课' }, students[0]).status,
-  '已结课',
-  'finished class should create finished student plan'
+  typeof rules.buildClassPlanRecord,
+  'undefined',
+  'class plan record builder should be removed with ft_plans retirement'
 );
 
 const productRenameUpdates = rules.buildProductRenameDisplayUpdates(
@@ -135,11 +98,7 @@ assert.deepStrictEqual(
   'product rename should sync only referenced classes'
 );
 
-assert.deepStrictEqual(
-  productRenameUpdates.plans.map(x => [x.id, x.productName, x.className, x.usedLessons, x.coach, x.campus, x.history[0]]),
-  [['plan-1', '新产品名', 'CLS0001-新产品名', 2, '朝珺', 'mabao', 'keep-me']],
-  'product rename should sync only plans under referenced classes'
-);
+assert.deepStrictEqual(productRenameUpdates.plans, [], 'product rename should stop maintaining retired plans rows');
 
 assert.strictEqual(
   productRenameUpdates.classes[0].updatedAt,
@@ -148,10 +107,52 @@ assert.strictEqual(
 );
 
 assert.strictEqual(
-  productRenameUpdates.plans[0].updatedAt,
-  '2026-04-12T00:00:00.000Z',
-  'synced plan rows should carry the provided timestamp'
+  rules.buildClassCreateRecord(
+    {
+      productId: 'prod-a',
+      productName: '成人私教10节',
+      productCourseType: '私教课',
+      studentIds: ['stu-1'],
+      totalLessons: 10
+    },
+    {
+      id: 'class-new',
+      classNo: 'CLS0099',
+      user: { name: '管理员' },
+      now: '2026-04-12T00:00:00.000Z'
+    }
+  ).courseType,
+  '私教课',
+  'class create should keep a stable course type snapshot from the linked product'
 );
+
+assert.strictEqual(
+  rules.buildClassUpdateRecord(
+    {
+      id: 'class-a',
+      classNo: 'CLS0001',
+      className: 'CLS0001-旧产品名',
+      productId: 'prod-a',
+      productName: '旧产品名',
+      courseType: '',
+      totalLessons: 10,
+      usedLessons: 2,
+      studentIds: ['stu-1']
+    },
+    {
+      productId: 'prod-a',
+      totalLessons: 10,
+      studentIds: ['stu-1']
+    },
+    {
+      product: { id: 'prod-a', name: '新产品名', type: '私教课' },
+      now: '2026-04-12T00:00:00.000Z'
+    }
+  ).courseType,
+  '私教课',
+  'class update should keep a stable course type snapshot from the linked product'
+);
+
 
 assert.deepStrictEqual(
   rules.buildProductRenameDisplayUpdates(

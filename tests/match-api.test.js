@@ -2,6 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const api = require('../api');
+const { createMatchModule } = require('../api/matches');
 
 const rules = api._test;
 const migrationDir = path.join(__dirname, '..', 'migrations');
@@ -11,6 +12,18 @@ const migration = fs.readdirSync(migrationDir)
   .map((file) => fs.readFileSync(path.join(migrationDir, file), 'utf8'))
   .join('\n');
 const apiSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'index.js'), 'utf8');
+const matchModuleSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'matches', 'index.js'), 'utf8');
+const matchFinanceBridgeSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'matches', 'finance-bridge.js'), 'utf8');
+
+assert.equal(typeof createMatchModule, 'function', 'match module factory should be exported');
+assert.match(apiSource, /createMatchModule/, 'api entry should inject the match module');
+assert.match(apiSource, /createMatchFinanceBridge/, 'api entry should inject the match finance bridge');
+assert.match(apiSource, /handleMatchRequest/, 'api entry should delegate match routes through the match module');
+assert.match(matchModuleSource, /path==='\/matches'/, 'match module should own match list routes');
+assert.match(matchModuleSource, /path==='\/my-matches'/, 'match module should own my matches routes');
+assert.match(matchModuleSource, /\/admin\/matches/, 'match module should own admin match routes');
+assert.ok(matchModuleSource.includes("if(!/^\\/admin\\/matches(?:\\/|$)/.test(path))return false;"), 'match module should ignore unrelated routes before admin auth fallback');
+assert.match(matchFinanceBridgeSource, /function createMatchFinanceBridge/, 'match finance bridge module should expose a factory');
 
 assert.ok(rules.assertMatchPostInput, 'api._test should expose match post validation');
 assert.ok(rules.splitAaFee, 'api._test should expose AA split helper');
@@ -30,6 +43,7 @@ assert.ok(rules.assertMatchFeeSplitUpdateInput, 'api._test should expose match f
 assert.ok(rules.assertMatchReplacementTransferInput, 'api._test should expose replacement transfer validation');
 assert.ok(rules.buildMatchFinanceDailyReport, 'api._test should expose match finance daily report builder');
 assert.ok(rules.canMatchUserCreateByAdminUser, 'api._test should expose match creator permission resolver');
+assert.ok(rules.findAdminUserByPhone, 'api._test should expose admin phone matcher');
 assert.ok(rules.resolveMatchPrepayClosure, 'api._test should expose prepay closure resolver');
 
 for (const table of [
@@ -48,57 +62,64 @@ for (const table of [
 
 assert.match(migration, /match_registrations_active_unique[\s\S]*WHERE registrationStatus='registered'/, 'active registrations must be unique per match and user');
 assert.match(migration, /match_fee_splits_user_unique[\s\S]*WHERE payStatus NOT IN/, 'active fee splits must be unique per match and user');
-assert.match(apiSource, /SELECT \* FROM match_posts WHERE id=\$1 FOR UPDATE/, 'registration must lock the match row');
-assert.match(apiSource, /currentHeadcount:nextCount/, 'registration should return backend headcount');
-assert.match(apiSource, /if\(user\.type==='match_user'\)return sendJson\(res,\{error:'无管理端权限'\},403\);/, 'match user token must not pass admin APIs');
-assert.match(apiSource, /\/admin\/matches/, 'API should expose admin match endpoints');
-assert.match(apiSource, /adminBookingM=path\.match/, 'API should expose admin booking endpoint');
-assert.match(apiSource, /adminFeeConfirmM=path\.match/, 'API should expose admin fee confirmation endpoint');
-assert.match(apiSource, /requireMatchAdminPermission\(user,'match_ops'\)/, 'match booking and attendance admin APIs should require ops permission');
-assert.match(apiSource, /requireMatchAdminPermission\(user,'match_finance'\)/, 'match fee admin APIs should require finance permission');
-assert.match(apiSource, /adminWithdrawalM=path\.match/, 'API should expose booked withdrawal handling endpoint');
-assert.match(apiSource, /adminReplacementM=path\.match/, 'API should expose replacement transfer endpoint');
-assert.match(apiSource, /adminTransferMatchReplacement/, 'API should implement replacement transfer flow');
-assert.match(apiSource, /cancelMatchForUser[\s\S]*status==='booked'[\s\S]*UPDATE match_registrations SET registrationStatus='cancelled'/, 'booked match cancel should also close active registrations');
-assert.match(apiSource, /cancelMatchForUser[\s\S]*status==='booked'[\s\S]*closeMatchFeeLedger/, 'booked match cancel should also settle fee split states');
-assert.match(apiSource, /if\(isFourPlayerGroupMatch\(match\)&&nextCount<4\)\{[\s\S]*closeMatchFeeLedger\(client,matchId,'四人局人数不足，已降级为自由局',\{onlyPrepay:true,mode:'downgraded'\}\)/, 'formation downgrade should close prepay ledgers with downgrade status instead of deleting them');
-assert.match(apiSource, /financialResponsibility='waive'/, 'booked match cancel should waive active registrations instead of dropping history');
-assert.match(apiSource, /prepay_cancelled/, 'booked match cancel should persist a dedicated prepay cancelled status');
-assert.match(apiSource, /prepay_downgraded/, 'formation downgrade should persist a dedicated prepay downgraded status');
+assert.match(matchModuleSource, /SELECT \* FROM match_posts WHERE id=\$1 FOR UPDATE/, 'registration must lock the match row');
+assert.match(matchModuleSource, /currentHeadcount:nextCount/, 'registration should return backend headcount');
+assert.match(matchModuleSource, /if\(user\.type==='match_user'\)return sendJson\(res,\{error:'无管理端权限'\},403\);/, 'match user token must not pass admin APIs');
+assert.match(matchModuleSource, /\/admin\/matches/, 'API should expose admin match endpoints');
+assert.match(matchModuleSource, /adminBookingM=path\.match/, 'API should expose admin booking endpoint');
+assert.match(matchModuleSource, /adminFeeConfirmM=path\.match/, 'API should expose admin fee confirmation endpoint');
+assert.match(matchModuleSource, /requireMatchAdminPermission\(user,'match_ops'\)/, 'match booking and attendance admin APIs should require ops permission');
+assert.match(matchModuleSource, /requireMatchAdminPermission\(user,'match_finance'\)/, 'match fee admin APIs should require finance permission');
+assert.match(matchModuleSource, /adminWithdrawalM=path\.match/, 'API should expose booked withdrawal handling endpoint');
+assert.match(matchModuleSource, /adminReplacementM=path\.match/, 'API should expose replacement transfer endpoint');
+assert.match(matchModuleSource, /adminTransferMatchReplacement/, 'API should implement replacement transfer flow');
+assert.match(matchModuleSource, /cancelMatchForUser[\s\S]*status==='booked'[\s\S]*UPDATE match_registrations SET registrationStatus='cancelled'/, 'booked match cancel should also close active registrations');
+assert.match(matchModuleSource, /cancelMatchForUser[\s\S]*status==='booked'[\s\S]*closeMatchFeeLedger/, 'booked match cancel should also settle fee split states');
+assert.match(matchModuleSource, /if\(isFourPlayerGroupMatch\(match\)&&nextCount<4\)\{[\s\S]*closeMatchFeeLedger\(client,matchId,'四人局人数不足，已降级为自由局',\{onlyPrepay:true,mode:'downgraded'\}\)/, 'formation downgrade should close prepay ledgers with downgrade status instead of deleting them');
+assert.match(matchModuleSource, /financialResponsibility='waive'/, 'booked match cancel should waive active registrations instead of dropping history');
+assert.match(matchModuleSource, /prepay_cancelled/, 'booked match cancel should persist a dedicated prepay cancelled status');
+assert.match(matchModuleSource, /prepay_downgraded/, 'formation downgrade should persist a dedicated prepay downgraded status');
 assert.match(migration, /financialResponsibility/, 'registrations should persist booked withdrawal financial responsibility');
 assert.match(migration, /CREATE TABLE IF NOT EXISTS match_replacements/, 'replacement transfer records should persist in SQL');
-assert.match(apiSource, /syncMatchFeeSplitToCourtFinance/, 'paid match fee splits should sync into court finance ledger');
-assert.match(apiSource, /syncMatchFeeSplitRefundToCourtFinance/, 'refunded match fee splits should sync refund into court finance ledger');
+assert.match(matchFinanceBridgeSource, /syncMatchFeeSplitToCourtFinance/, 'paid match fee splits should sync into court finance ledger');
+assert.match(matchFinanceBridgeSource, /syncMatchFeeSplitRefundToCourtFinance/, 'refunded match fee splits should sync refund into court finance ledger');
 assert.match(apiSource, /match-court-finance/, 'match finance should use a dedicated court finance account');
-assert.match(apiSource, /\/admin\/matches\/finance-daily/, 'API should expose match finance daily report endpoint');
-assert.match(apiSource, /path==='\/my-matches'/, 'API should expose my matches endpoint');
-assert.match(apiSource, /path==='\/match-profile'/, 'API should expose match profile endpoint');
-assert.match(apiSource, /path==='\/match-profile\/phone'/, 'API should expose match phone endpoint');
-assert.match(apiSource, /path==='\/match-profile\/phone-code'/, 'API should expose WeChat phone code endpoint');
-assert.match(apiSource, /getuserphonenumber/, 'API should exchange WeChat phone code');
-assert.match(apiSource, /matchUpdateM=path\.match/, 'API should expose match update endpoint');
-assert.match(apiSource, /matchCancelM=path\.match/, 'API should expose match cancel endpoint');
-assert.match(apiSource, /path==='\/match-attendance\/creator-confirm'/, 'API should expose creator attendance endpoint');
-assert.doesNotMatch(apiSource, /path==='\/match-attendance'&&method==='POST'/, 'self attendance endpoint should not be exposed');
-assert.match(apiSource, /path==='\/match-notifications'/, 'API should expose match notifications endpoint');
-assert.match(apiSource, /path==='\/match-players'/, 'API should expose match players endpoint');
+assert.doesNotMatch(apiSource, /async function syncMatchFeeSplitToCourtFinance\(/, 'api entry should not define match finance bridge sync inline');
+assert.doesNotMatch(apiSource, /async function syncMatchFeeSplitRefundToCourtFinance\(/, 'api entry should not define match finance refund bridge inline');
+assert.doesNotMatch(apiSource, /async function getMatchFinanceDailyReportForAdmin\(/, 'api entry should not define match finance report bridge inline');
+assert.match(matchModuleSource, /\/admin\/matches\/finance-daily/, 'API should expose match finance daily report endpoint');
+assert.match(matchModuleSource, /path==='\/my-matches'/, 'API should expose my matches endpoint');
+assert.match(matchModuleSource, /path==='\/match-profile'/, 'API should expose match profile endpoint');
+assert.match(matchModuleSource, /path==='\/match-profile\/phone'/, 'API should expose match phone endpoint');
+assert.match(matchModuleSource, /path==='\/match-profile\/phone-code'/, 'API should expose WeChat phone code endpoint');
+assert.match(matchModuleSource, /findAdminUserByPhone/, 'match permission resolver should match admin users by phone field');
+assert.match(matchModuleSource, /findAdminUserByPhone\(await scan\(T_USERS\)\.catch\(\(\)=>\[\]\),phone\)/, 'match creator permission should read the latest ft_users rows instead of relying on hot scan cache');
+assert.match(matchModuleSource, /path==='\/auth\/wechat-mini-login'[\s\S]*nickName:matchUser\.nickname\|\|matchUser\.nickName\|\|''/, 'mini-program login should return stored nickname');
+assert.match(matchModuleSource, /path==='\/auth\/wechat-mini-login'[\s\S]*avatarUrl:matchUser\.avatarurl\|\|matchUser\.avatarUrl\|\|''/, 'mini-program login should return stored avatar');
+assert.match(matchModuleSource, /fetchWechatPhoneNumber/, 'API should exchange WeChat phone code');
+assert.match(matchModuleSource, /matchUpdateM=path\.match/, 'API should expose match update endpoint');
+assert.match(matchModuleSource, /matchCancelM=path\.match/, 'API should expose match cancel endpoint');
+assert.match(matchModuleSource, /path==='\/match-attendance\/creator-confirm'/, 'API should expose creator attendance endpoint');
+assert.doesNotMatch(matchModuleSource, /path==='\/match-attendance'&&method==='POST'/, 'self attendance endpoint should not be exposed');
+assert.match(matchModuleSource, /path==='\/match-notifications'/, 'API should expose match notifications endpoint');
+assert.match(matchModuleSource, /path==='\/match-players'/, 'API should expose match players endpoint');
 assert.match(apiSource, /DEFAULT_ADMIN_BOOTSTRAP_PASSWORD/, 'bootstrap password should come from env instead of hardcoded source');
 assert.doesNotMatch(apiSource, /wqxd2026/, 'default admin password must not be hardcoded');
-assert.match(apiSource, /已超过发起者确认时限，请联系运营处理/, 'creator attendance confirmation should expire into ops fallback');
-assert.match(apiSource, /请先完成全部到场确认，再生成AA/, 'AA generation should wait for full attendance confirmation');
-assert.match(apiSource, /已生成AA，不能再修改到场名单/, 'attendance should lock after fee generation');
-assert.match(apiSource, /viewerFeeSplit/, 'match detail should include viewer fee split');
-assert.match(apiSource, /offlinePaymentText/, 'match detail should include offline payment text');
-assert.match(apiSource, /feeSplitsByMatch/, 'admin match list should include fee splits');
-assert.match(apiSource, /operationLogs/, 'admin match list should include operation logs');
-assert.match(apiSource, /match_operation_logs ORDER BY createdAt DESC/, 'admin match list should load latest operation logs');
-assert.match(apiSource, /MATCH_WECHAT_TEMPLATE_ID/, 'match notifications should have a dedicated template id env');
-assert.match(apiSource, /notifyMatchUsers/, 'match operations should trigger subscribe notification helper');
-assert.match(apiSource, /levelMode/, 'match posts should persist level mode');
-assert.match(apiSource, /formationStatus/, 'match posts should persist formation status');
-assert.match(apiSource, /prepayDeadlineAt/, 'match posts should persist prepay deadline');
-assert.match(apiSource, /仅支持四人局替补转让/, 'replacement transfer should stay scoped to four-player groups');
-assert.match(apiSource, /替补用户不存在，请先让对方登录小程序并完成手机号授权/, 'replacement flow should require a real mini-program user');
+assert.match(matchModuleSource, /已超过发起者确认时限，请联系运营处理/, 'creator attendance confirmation should expire into ops fallback');
+assert.match(matchModuleSource, /请先完成全部到场确认，再生成AA/, 'AA generation should wait for full attendance confirmation');
+assert.match(matchModuleSource, /已生成AA，不能再修改到场名单/, 'attendance should lock after fee generation');
+assert.match(matchModuleSource, /viewerFeeSplit/, 'match detail should include viewer fee split');
+assert.match(matchModuleSource, /offlinePaymentText/, 'match detail should include offline payment text');
+assert.match(matchModuleSource, /feeSplitsByMatch/, 'admin match list should include fee splits');
+assert.match(matchModuleSource, /operationLogs/, 'admin match list should include operation logs');
+assert.match(matchModuleSource, /match_operation_logs ORDER BY createdAt DESC/, 'admin match list should load latest operation logs');
+assert.match(matchModuleSource, /MATCH_WECHAT_TEMPLATE_ID/, 'match notifications should have a dedicated template id env');
+assert.match(matchModuleSource, /notifyMatchUsers/, 'match operations should trigger subscribe notification helper');
+assert.match(matchModuleSource, /levelMode/, 'match posts should persist level mode');
+assert.match(matchModuleSource, /formationStatus/, 'match posts should persist formation status');
+assert.match(matchModuleSource, /prepayDeadlineAt/, 'match posts should persist prepay deadline');
+assert.match(matchModuleSource, /仅支持四人局替补转让/, 'replacement transfer should stay scoped to four-player groups');
+assert.match(matchModuleSource, /替补用户不存在，请先让对方登录小程序并完成手机号授权/, 'replacement flow should require a real mini-program user');
 
 assert.throws(() => rules.assertMatchPostInput({}), /请填写标题/);
 assert.throws(() => rules.assertMatchPostInput({
@@ -239,6 +260,25 @@ assert.deepEqual(rules.userMatchPermissions({ id: 'dandan', role: 'editor', name
 assert.doesNotThrow(() => rules.requireMatchAdminPermission({ id: 'dandan', role: 'editor', name: '陈丹丹', matchPermissions: ['match_finance'] }, 'match_finance'));
 assert.throws(() => rules.requireMatchAdminPermission({ id: 'staff', role: 'editor', name: '其他员工' }, 'match_finance'), /无约球财务权限/);
 assert.deepEqual(rules.mergeStoredAuthUser({ id: 'staff' }, { id: 'staff', name: '运营', role: 'editor', matchPermissions: ['match_ops'] }).matchPermissions, ['match_ops']);
+assert.strictEqual(
+  rules.findAdminUserByPhone(
+    [
+      { id: 'ops-1', phone: '13800138000', role: 'editor', matchPermissions: ['match_ops'] },
+      { id: '13800138000', role: 'editor', matchPermissions: [] }
+    ],
+    '13800138000'
+  ).id,
+  'ops-1'
+);
+assert.strictEqual(
+  rules.findAdminUserByPhone(
+    [
+      { id: '13800138000', role: 'editor', matchPermissions: [] }
+    ],
+    '13800138000'
+  ).id,
+  '13800138000'
+);
 
 const detailResponse = rules.toMatchDetailResponse({ id: 'm1', title: '周末双打', registrations: [{ userId: 'u1' }] });
 assert.equal(detailResponse.match.id, 'm1');

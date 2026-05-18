@@ -1,0 +1,98 @@
+<view class="page">
+  <view class="prof-hero">
+    <view class="prof-row {{!currentUser ? 'prof-row-guest' : ''}}">
+      <view class="prof-login-hit" bindtap="tapProfileLogin">
+        <image wx:if="{{currentUser && currentUser.avatarUrl}}" class="prof-ava prof-ava-image" src="{{currentUser.avatarUrl}}" mode="aspectFill" />
+        <view wx:else class="prof-ava">{{avatarText}}</view>
+        <view class="prof-main">
+          <view class="prof-name">{{displayName}}</view>
+          <view wx:if="{{!(currentUser && currentUser.id)}}" class="prof-login-entry">{{loginActionText || '点击登录'}}</view>
+          <view wx:elif="{{needsProfileCompletion}}" class="prof-login-entry">请补全头像和昵称</view>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{currentUser && currentUser.id}}" class="prof-tags">
+      <picker range="{{ntrpOptions}}" bindchange="saveNtrpLevel">
+        <view class="profile-tag pt-acid">{{ntrpText === '未设置' ? '未设置 · 点击设置' : ntrpText}}</view>
+      </picker>
+      <view class="profile-tag">{{phoneText}}</view>
+      <view class="profile-tag {{currentUser.canCreateMatch ? 'pt-acid' : ''}}">{{createAccessText}}</view>
+    </view>
+    <button wx:if="{{currentUser && currentUser.id}}" class="profile-phone-btn" open-type="getPhoneNumber" loading="{{phoneBinding}}" disabled="{{phoneBinding}}" bindgetphonenumber="bindPhone">
+      {{phoneText === '未绑定' ? '授权手机号' : '重新授权手机号'}}
+    </button>
+    <view wx:if="{{currentUser && currentUser.id && needsProfileCompletion}}" class="profile-form-card">
+      <view class="profile-form-row">
+        <button class="profile-avatar-picker" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image wx:if="{{profileDraftAvatarUrl}}" class="profile-avatar-preview" src="{{profileDraftAvatarUrl}}" mode="aspectFill" />
+          <view wx:else class="profile-avatar-empty">选头像</view>
+        </button>
+        <input class="profile-nickname-input" type="nickname" maxlength="20" placeholder="请输入昵称" value="{{profileDraftNickName}}" bindinput="onNicknameInput" />
+      </view>
+      <button class="profile-save-btn" loading="{{profileSaving}}" disabled="{{profileSaving}}" bindtap="saveProfileDraft">保存资料</button>
+    </view>
+    <view wx:if="{{loading && !currentUser && !matches.length}}" class="profile-skeleton">
+      <view class="profile-skeleton-top">
+        <view class="profile-skeleton-ava"></view>
+        <view class="profile-skeleton-main">
+          <view class="profile-skeleton-line w180"></view>
+          <view class="profile-skeleton-pill"></view>
+        </view>
+      </view>
+      <view class="profile-skeleton-stats">
+        <view class="profile-skeleton-stat"></view>
+        <view class="profile-skeleton-stat"></view>
+        <view class="profile-skeleton-stat"></view>
+        <view class="profile-skeleton-stat"></view>
+      </view>
+    </view>
+    <view wx:elif="{{errorText}}" class="error-panel">
+      <view class="error-mark">!</view>
+      <view class="error-copy">
+        <view class="error-title">暂时连不上服务</view>
+        <view class="error-desc">{{errorText}}</view>
+      </view>
+      <button class="error-btn" bindtap="retryLogin">{{loginActionText || '重新登录'}}</button>
+    </view>
+    <view wx:else class="prof-stats">
+      <view class="ps-item"><view class="ps-n acid">{{stats.matchCreatedCount}}</view><view class="ps-l">发起</view></view>
+      <view class="ps-item"><view class="ps-n">{{stats.matchJoinedCount}}</view><view class="ps-l">参与</view></view>
+      <view class="ps-item"><view class="ps-n">{{attendanceText}}</view><view class="ps-l">守约</view></view>
+      <view class="ps-item"><view class="ps-n">{{totalFeeText}}</view><view class="ps-l">场地费</view></view>
+    </view>
+  </view>
+
+  <view class="calendar-section">
+    <view class="section-title">MATCH CALENDAR</view>
+    <view wx:if="{{loading && !calendarDays.length}}" class="calendar-skeleton"></view>
+    <view wx:else class="calendar-card">
+      <view class="cal-grid">
+        <view wx:for="{{calendarDays}}" wx:key="key" class="cal-dot lv{{item.level}}"></view>
+      </view>
+      <view class="cal-meta">
+        <view>近 3 个月约球分布</view>
+        <view>{{calendarMatchCount}} 场</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="record-section">
+    <view class="section-title">MATCH RECORDS</view>
+    <button wx:if="{{currentUser && currentUser.id}}" class="my-matches-entry" bindtap="openMyMatches">查看我的约球</button>
+    <view wx:if="{{loading && !matches.length}}" class="record-skeleton-wrap">
+      <view class="record-skeleton"></view>
+      <view class="record-skeleton"></view>
+    </view>
+    <view wx:elif="{{matches.length}}">
+      <view wx:for="{{matches}}" wx:key="id" class="record-card" data-id="{{item.id}}" bindtap="openDetail">
+        <view class="record-date">{{item.displayDate}}</view>
+        <view class="record-main">
+          <view class="record-title">{{item.title}}</view>
+          <view class="record-sub">{{item.displayTime}} · {{item.venueName || '待定场地'}}</view>
+        </view>
+        <view class="record-status">{{item.statusText}}</view>
+      </view>
+    </view>
+    <view wx:else class="empty-profile-card">还没有约球记录。报名或发起约球后，这里会自动生成你的约球日历和记录。</view>
+  </view>
+</view>

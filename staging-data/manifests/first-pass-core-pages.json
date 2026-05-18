@@ -1,0 +1,45 @@
+{
+  "jobName": "staging-first-pass-core-pages",
+  "sourceEnv": "production",
+  "targetEnv": "staging",
+  "sourceSnapshotAt": "2026-05-11T00:00:00+08:00",
+  "owner": "thread14",
+  "approver": "pending",
+  "targetPreviewUrl": "pending",
+  "externalBlockers": [
+    "真实 Preview URL",
+    "staging TS_ENDPOINT 真值"
+  ],
+  "tables": [
+    "ft_campuses",
+    "ft_coaches",
+    "ft_students",
+    "ft_feedbacks",
+    "ft_products",
+    "ft_classes",
+    "ft_schedule",
+    "ft_courts",
+    "ft_price_plans",
+    "ft_packages",
+    "ft_purchases",
+    "ft_entitlements",
+    "ft_entitlement_ledger",
+    "ft_membership_plans",
+    "ft_membership_accounts",
+    "ft_membership_orders",
+    "ft_membership_benefit_ledger",
+    "ft_membership_account_events"
+  ],
+  "goalPages": [
+    "students",
+    "courts",
+    "memberships",
+    "schedule",
+    "finance"
+  ],
+  "notes": [
+    "首轮目标不是恢复全量生产，而是先让高频页面具备可信测试数据。",
+    "本批次优先覆盖学员管理、订场用户、订场会员、排课表、财务中心所需核心表。",
+    "首轮先不导 ft_financial_ledger、ft_plans、ft_users、ft_matches 等非当前验收主线数据；财务页首轮用 purchases、membershipOrders、entitlementLedger、courts.history 重建口径。"
+  ]
+}

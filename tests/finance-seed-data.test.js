@@ -1,8 +1,8 @@
 const assert = require('assert');
 const seed = require('../api/seeds/mabao-finance-seed.json');
 
-assert.strictEqual(seed.purchases.length, 47, 'income report should include initial purchases and renewals');
-assert.strictEqual(seed.entitlements.length, 47, 'initial purchases and renewal rows should create course entitlements');
+assert.strictEqual(seed.purchases.length, 48, 'income report should include initial purchases and renewals');
+assert.strictEqual(seed.entitlements.length, 48, 'initial purchases and renewal rows should create course entitlements');
 assert.strictEqual(seed.products.length, 4, 'course products should stay as the four real course types');
 assert.strictEqual(seed.packages.length, 7, 'imported purchases should link to seven course-product package records');
 assert.deepStrictEqual(
@@ -33,12 +33,12 @@ assert.ok(
 assert.ok(seed.meta.deletePackages.includes('seed-package-001'), 'old per-student package records should be cleaned from online data');
 assert.strictEqual(
   seed.purchases.reduce((sum, row) => sum + (Number(row.amountPaid) || 0), 0),
-  271100,
+  275100,
   'income should include formula amounts and renewal fees without double-counting detailed lesson sheets'
 );
 assert.strictEqual(
   seed.purchases.reduce((sum, row) => sum + (Number(row.packageLessons) || 0), 0),
-  610,
+  620,
   'sold lessons should include renewal lessons'
 );
 assert.strictEqual(

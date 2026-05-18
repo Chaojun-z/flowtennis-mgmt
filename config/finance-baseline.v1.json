@@ -1,0 +1,13 @@
+{
+  "baselineId": "finance-baseline-v1",
+  "confirmedAt": "2026-05-10",
+  "status": "active",
+  "snapshotPath": "fixtures/finance/finance-regression-snapshot.v1.json",
+  "metrics": {
+    "totalRevenue": 681938,
+    "packageRevenue": 347900,
+    "courtRevenue": 255038,
+    "membershipRecharge": 79000,
+    "transactionCount": 985
+  }
+}

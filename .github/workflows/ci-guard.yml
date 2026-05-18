@@ -1,0 +1,30 @@
+name: FlowTennis CI Guard
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: flowtennis-mgmt-main
+
+      - name: Run Local Acceptance Gate
+        run: npm run gate:local
+        working-directory: flowtennis-mgmt-main

@@ -73,7 +73,16 @@ function scheduleCourseType(s){
   return normalizeCourseType(s?.courseType)||'—';
 }
 function scheduleClassName(s){
-  return s?.className||classes.find(c=>c.id===s?.classId)?.className||'—';
+  return s?.className||'—';
+}
+function classProductName(cls){
+  if(!cls)return '';
+  const direct=String(cls.productName||'').trim();
+  if(direct)return direct;
+  const classNo=String(cls.classNo||'').trim();
+  const rawName=String(cls.className||'').trim();
+  if(classNo&&rawName.startsWith(`${classNo}-`))return rawName.slice(classNo.length+1).trim();
+  return '';
 }
 function scheduleStudentSummary(s){
   const names=parseArr(s?.studentNames);
@@ -765,7 +774,7 @@ function classDisplayName(cls){
   if(!cls)return '—';
   const classNo=String(cls.classNo||'').trim();
   const rawName=String(cls.className||'').trim();
-  const productName=String(cls.productName||products.find(p=>p.id===cls.productId)?.name||'').trim();
+  const productName=classProductName(cls);
   if(rawName&&rawName!=='-')return rawName;
   if(classNo&&productName)return `${classNo}-${productName}`;
   if(classNo)return classNo;

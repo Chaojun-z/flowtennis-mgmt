@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "notification-center-v1",
+  "generatedAt": "2026-05-14T18:05:00+08:00",
+  "today": "2026-05-14",
+  "tomorrow": "2026-05-15",
+  "coachSummaries": [
+    {
+      "coachId": "coach-2",
+      "coachName": "李教练",
+      "todayCompletedLessons": 0,
+      "todayCancelledLessons": 1,
+      "todayPendingLessons": 0,
+      "tomorrowScheduledLessons": 1
+    },
+    {
+      "coachId": "coach-1",
+      "coachName": "张教练",
+      "todayCompletedLessons": 1,
+      "todayCancelledLessons": 0,
+      "todayPendingLessons": 1,
+      "tomorrowScheduledLessons": 1
+    }
+  ],
+  "todayStats": {
+    "totalLessons": 3,
+    "completedLessons": 1,
+    "cancelledLessons": 1,
+    "pendingLessons": 1,
+    "activeCoachCount": 1
+  },
+  "tomorrowStats": {
+    "totalLessons": 2,
+    "cancelledLessons": 0,
+    "scheduledCoachCount": 2
+  },
+  "todayLessonDetails": [
+    {
+      "id": "s1",
+      "startTime": "2026-05-14T09:00:00+08:00",
+      "endTime": "2026-05-14T10:00:00+08:00",
+      "coachId": "coach-1",
+      "coachName": "张教练",
+      "campusCode": "campus-a",
+      "campusName": "高新校区",
+      "venue": "1号场",
+      "className": "晨训班",
+      "courseType": "团课",
+      "status": "已结束",
+      "studentCount": 2,
+      "studentLabels": [
+        "王*明",
+        "李*"
+      ]
+    },
+    {
+      "id": "s2",
+      "startTime": "2026-05-14T14:00:00+08:00",
+      "endTime": "2026-05-14T15:00:00+08:00",
+      "coachId": "coach-2",
+      "coachName": "李教练",
+      "campusCode": "campus-a",
+      "campusName": "高新校区",
+      "venue": "2号场",
+      "className": "私教A",
+      "courseType": "私教",
+      "status": "已取消",
+      "studentCount": 1,
+      "studentLabels": [
+        "韩**"
+      ]
+    },
+    {
+      "id": "s3",
+      "startTime": "2026-05-14T16:00:00+08:00",
+      "endTime": "2026-05-14T17:00:00+08:00",
+      "coachId": "coach-1",
+      "coachName": "张教练",
+      "campusCode": "campus-a",
+      "campusName": "高新校区",
+      "venue": "3号场",
+      "className": "晚训班",
+      "courseType": "私教",
+      "status": "待确认完成",
+      "studentCount": 1,
+      "studentLabels": [
+        "赵*"
+      ]
+    }
+  ],
+  "tomorrowLessonDetails": [
+    {
+      "id": "s4",
+      "startTime": "2026-05-15T10:00:00+08:00",
+      "endTime": "2026-05-15T11:00:00+08:00",
+      "coachId": "coach-1",
+      "coachName": "张教练",
+      "campusCode": "campus-a",
+      "campusName": "高新校区",
+      "venue": "1号场",
+      "className": "明日课1",
+      "courseType": "团课",
+      "status": "已排课",
+      "studentCount": 1,
+      "studentLabels": [
+        "周**"
+      ]
+    },
+    {
+      "id": "s5",
+      "startTime": "2026-05-15T13:00:00+08:00",
+      "endTime": "2026-05-15T14:00:00+08:00",
+      "coachId": "coach-2",
+      "coachName": "李教练",
+      "campusCode": "campus-b",
+      "campusName": "曲江校区",
+      "venue": "室内场",
+      "className": "明日课2",
+      "courseType": "私教",
+      "status": "已排课",
+      "studentCount": 2,
+      "studentLabels": []
+    }
+  ]
+}

@@ -146,6 +146,30 @@ assert.match(
 );
 
 assert.match(
+  fnBody('renderMyClasses'),
+  /classProductName\(c\)/,
+  'my classes list should read the class snapshot product name helper for display'
+);
+
+assert.doesNotMatch(
+  fnBody('renderMyClasses'),
+  /products\.find\(x=>x\.id===c\.productId\)/,
+  'my classes list should not require direct product dataset lookups for display'
+);
+
+assert.match(
+  fnBody('openMyClassDetail'),
+  /classProductName\(c\)/,
+  'my class detail should still render course name from the class snapshot when products are not loaded yet'
+);
+
+assert.doesNotMatch(
+  fnBody('openMyClassDetail'),
+  /products\.find\(x=>x\.id===c\.productId\)/,
+  'my class detail should not require direct product dataset lookups for display'
+);
+
+assert.match(
   source,
   /推荐产品[\s\S]*?转化意愿[\s\S]*?是否需要跟进/,
   'course detail should show trial conversion summary fields'

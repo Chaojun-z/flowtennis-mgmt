@@ -1,0 +1,24 @@
+{
+  "jobName": "staging-finance-ledger-acceptance-minimal",
+  "sourceEnv": "production",
+  "targetEnv": "staging",
+  "sourceSnapshotAt": "2026-05-11T00:00:00+08:00",
+  "owner": "thread66",
+  "approver": "pending",
+  "targetPreviewUrl": "pending",
+  "externalBlockers": [
+    "真实 Preview URL",
+    "production / staging TableStore 可连通"
+  ],
+  "tables": [
+    "ft_financial_ledger"
+  ],
+  "goalPages": [
+    "finance"
+  ],
+  "notes": [
+    "只补财务中心正式验收缺口，不扩散到其他主线。",
+    "本批次只导 ft_financial_ledger，供 staging 财务中心恢复正式总账数据来源。",
+    "导入时可用 --tables=ft_financial_ledger 限定只写这一张表。"
+  ]
+}

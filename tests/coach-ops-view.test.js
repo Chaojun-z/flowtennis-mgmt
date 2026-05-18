@@ -2,6 +2,16 @@ const assert = require('assert');
 const { appSource: source } = require('./helpers/read-index-bundle');
 const html = source;
 
+function fnBody(name){
+  const start = source.indexOf(`function ${name}(`);
+  assert.notStrictEqual(start, -1, `${name} should exist`);
+  const nextFunction = source.indexOf('\nfunction ', start + 1);
+  const nextAsync = source.indexOf('\nasync function ', start + 1);
+  const candidates = [nextFunction, nextAsync].filter(i => i !== -1);
+  const next = candidates.length ? Math.min(...candidates) : -1;
+  return source.slice(start, next === -1 ? source.length : next);
+}
+
 assert.match(
   source,
   /mode==='week'\|\|mode==='month'/,
@@ -130,32 +140,20 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /function renderCoachOpsRevenueReport\(/,
-  'coach ops should expose a revenue report renderer'
+  /function renderFinanceRevenueReport\(/,
+  'finance center should expose the revenue report renderer'
 );
 
 assert.match(
   source,
-  /function renderCoachOpsConsumeReport\(/,
-  'coach ops should expose a consume report renderer'
+  /function renderFinanceConsumeReport\(/,
+  'finance center should expose the consume report renderer'
 );
 
 assert.match(
   source,
-  /function coachOpsConsumeRows\([\s\S]*aggregateHistoricalMonthlyLedgerRows\(dedupeEntitlementLedgerForDisplay\(entitlementLedger\)\)/,
-  'coach ops consume report should reuse the unified entitlement ledger dedupe and monthly aggregation'
-);
-
-assert.match(
-  source,
-  /function exportCoachOpsRevenueCsv\(/,
-  'coach ops should expose revenue report export'
-);
-
-assert.match(
-  source,
-  /function exportCoachOpsConsumeCsv\(/,
-  'coach ops should expose consume report export'
+  /function financeConsumeBaseRows\([\s\S]*aggregateHistoricalMonthlyLedgerRows\(dedupeEntitlementLedgerForDisplay\(entitlementLedger\)\)/,
+  'finance consume report should restore the original consume base rows built from the unified entitlement ledger aggregation'
 );
 
 assert.doesNotMatch(
@@ -186,6 +184,18 @@ assert.match(
   html,
   /校区.*场地/,
   'coach ops day cards should show campus and venue together'
+);
+
+assert.match(
+  fnBody('renderCoachOps'),
+  /esc\(s\.studentName\)\|\|esc\(scheduleClassName\(s\)\)\|\|'—'/,
+  'coach ops day cards should use schedule snapshots for class fallback display'
+);
+
+assert.doesNotMatch(
+  fnBody('renderCoachOps'),
+  /classes\.find\(c=>c\.id===s\.classId\)/,
+  'coach ops day cards should not require direct classes lookups for fallback display'
 );
 
 assert.match(

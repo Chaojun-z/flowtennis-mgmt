@@ -1,0 +1,138 @@
+<view class="page">
+  <view class="struct-hide">NEXT MATCH MATCHPOINT targetHeadcountText venue-ico 左右滑动</view>
+  <view class="home-top">
+    <view class="home-title-row">
+      <view class="home-name">今晚去哪儿<text class="home-name-accent">打球？</text></view>
+      <image class="home-tennis-icon" src="/assets/icons/tennis-ball.svg" mode="aspectFit" />
+    </view>
+    <view class="notif-btn notif-btn-hidden" bindtap="openNotifications">●<view class="notif-pip"></view></view>
+  </view>
+
+  <scroll-view wx:if="{{!(loading && !items.length && !errorText)}}" class="next-scroll" scroll-x="true" show-scrollbar="{{false}}">
+    <view wx:if="{{upcomingItems.length}}" class="next-row">
+      <view wx:for="{{upcomingItems}}" wx:key="id" class="score-card next-card" data-id="{{item.id}}" bindtap="openDetail">
+        <view class="sc-row">
+          <view>
+            <view class="sc-lbl">下一场</view>
+            <view class="next-time">{{item.nextTimeText}}</view>
+            <view class="next-venue">{{item.venueDisplay}}</view>
+          </view>
+        </view>
+        <view class="sc-pills">
+          <view class="sc-pill"><view class="sc-pn small">{{item.genderText}}</view><view class="sc-pl">性别</view></view>
+          <view class="sc-pill"><view class="sc-pn small">{{item.matchTypeText}}</view><view class="sc-pl">类型</view></view>
+          <view class="sc-pill"><view class="sc-pn small">{{item.ntrpText}}</view><view class="sc-pl">水平</view></view>
+          <view class="sc-pill"><view class="sc-pn small">{{item.aaFeeText}}</view><view class="sc-pl">AA</view></view>
+        </view>
+      </view>
+    </view>
+    <view wx:else class="next-row">
+      <view class="score-card next-card empty-next">
+        <view class="sc-lbl">下一场</view>
+        <view class="next-title">暂无待参加约球</view>
+        <view class="next-venue">报名或发起后，这里会显示你的下一场球。</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <scroll-view wx:if="{{!(loading && !items.length && !errorText)}}" class="frow" scroll-x="true">
+    <view wx:for="{{filters}}" wx:key="*this" data-filter="{{item}}" bindtap="setFilter" class="fc {{activeFilter === item ? 'on' : ''}}">{{item}}</view>
+  </scroll-view>
+
+  <view wx:if="{{publishAccessText}}" class="permission-tip">
+    <view class="permission-tip-title">发布权限说明</view>
+    <view class="permission-tip-text">{{publishAccessText}}</view>
+  </view>
+
+  <view wx:if="{{loading && !items.length && !errorText}}" class="loading-panel">
+    <view class="loading-next-card">
+      <view class="sk-line w120"></view>
+      <view class="sk-line w260 sk-gap"></view>
+      <view class="sk-line w200"></view>
+      <view class="loading-pill-row">
+        <view class="sk-pill"></view>
+        <view class="sk-pill"></view>
+        <view class="sk-pill"></view>
+        <view class="sk-pill"></view>
+      </view>
+    </view>
+    <view class="loading-filter-row">
+      <view class="sk-filter on"></view>
+      <view class="sk-filter"></view>
+      <view class="sk-filter"></view>
+      <view class="sk-filter"></view>
+    </view>
+    <view class="loading-card rich">
+      <view class="loading-date-col">
+        <view class="sk-line w48 compact"></view>
+        <view class="sk-line w64 compact sk-gap"></view>
+        <view class="sk-line w44 compact"></view>
+      </view>
+      <view class="loading-body-col">
+        <view class="sk-line w220"></view>
+        <view class="sk-line w180 body-gap"></view>
+        <view class="sk-line w240 body-gap"></view>
+        <view class="loading-pill-row left">
+          <view class="sk-pill dark"></view>
+          <view class="sk-pill dark"></view>
+          <view class="sk-pill"></view>
+          <view class="sk-pill"></view>
+        </view>
+        <view class="sk-btn"></view>
+      </view>
+    </view>
+  </view>
+  <view wx:elif="{{errorText}}" class="error-panel">
+    <view class="error-mark">!</view>
+    <view class="error-copy">
+      <view class="error-title">{{loginActionText ? '需要先登录' : '连接有点问题'}}</view>
+      <view class="error-desc">{{errorText}}</view>
+    </view>
+    <button class="error-btn" bindtap="handleErrorAction">{{loginActionText || '重新连接'}}</button>
+  </view>
+  <view wx:elif="{{filteredItems.length}}" class="match-list">
+    <view wx:for="{{filteredItems}}" wx:key="id" class="mc" data-id="{{item.id}}" bindtap="openDetail">
+      <view class="mc-strip">
+        <view class="mc-date">
+          <view class="mc-month">{{item.displayMonth}}</view>
+          <view class="mc-day">{{item.displayDay}}</view>
+          <view class="mc-dow">{{item.displayDow}}</view>
+        </view>
+        <view class="mc-body">
+          <view class="mc-row top">
+            <view class="mc-title">{{item.title}}</view>
+            <view class="mc-status {{item.isFull ? 'full' : ''}}"><view class="sdot {{item.isFull ? 'red' : 'green'}}"></view>{{item.statusText}}</view>
+          </view>
+          <view class="mc-time-main">{{item.displayTimeRange}}</view>
+          <view class="mc-venue-pill {{item.venueLatitude ? 'link' : ''}}" data-id="{{item.id}}" catchtap="openVenue">{{item.venueDisplay}}</view>
+          <view class="mc-foot">
+            <view class="mc-chip">{{item.genderText}}</view>
+            <view class="mc-chip">{{item.matchTypeText}}</view>
+            <view class="mc-chip accent">{{item.ntrpText}}</view>
+            <view class="mc-chip accent">{{item.aaFeeText}}</view>
+          </view>
+          <view class="mc-spacer"></view>
+          <button
+            wx:if="{{!item.isJoined && !viewerHasPhone}}"
+            class="mc-join-btn {{item.isFull || item.hasStarted || item.hasEnded ? 'disabled' : ''}}"
+            disabled="{{item.isFull || item.hasStarted || item.hasEnded}}"
+            data-id="{{item.id}}"
+            open-type="getPhoneNumber"
+            bindgetphonenumber="registerFromCard"
+            catchtap="noop"
+          >{{item.isFull ? '名额已满' : item.hasStarted ? '已开始' : item.hasEnded ? '已结束' : '立即报名'}}</button>
+          <button
+            wx:elif="{{!item.isJoined}}"
+            class="mc-join-btn {{item.isFull || item.hasStarted || item.hasEnded ? 'disabled' : ''}}"
+            disabled="{{item.isFull || item.hasStarted || item.hasEnded}}"
+            data-id="{{item.id}}"
+            bindtap="registerFromCard"
+            catchtap="noop"
+          >{{item.isFull ? '名额已满' : item.hasStarted ? '已开始' : item.hasEnded ? '已结束' : '立即报名'}}</button>
+          <view wx:else class="mc-join-state mc-join-state-joined">已报名</view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view wx:else class="empty-text">暂无球局</view>
+</view>

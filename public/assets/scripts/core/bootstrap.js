@@ -1,12 +1,16 @@
 let currentPage=localStorage.getItem(PAGE_KEY)||'students',campus=localStorage.getItem(CAMPUS_KEY)||'all',editId=null,delId=null,delType=null,_pending=[];
 let batchDeleteCourtIds=[];
-let stuPage=1,clsPage=1,planPage=1,schPage=1,courtPage=1,financeLedgerPage=1;
-let courtSortKey='',courtSortDir='desc',courtOwnerFilterValue='',courtAccountTypeFilterValue='',courtPageSize=20,financeLedgerPageSize=20,selectedCourtIds=new Set(),courtBatchMode=false;
+let stuPage=1,clsPage=1,schPage=1,courtPage=1,financeLedgerPage=1,financeRevenuePage=1,financeConsumePage=1;
+let courtSortKey='',courtSortDir='desc',courtOwnerFilterValue='',courtAccountTypeFilterValue='',courtPageSize=20,financeLedgerPageSize=20,financeRevenuePageSize=20,financeConsumePageSize=20,selectedCourtIds=new Set(),courtBatchMode=false;
 let coachOpsMode='day',coachOpsPanel='schedule',coachOpsPickerMonth=null,financePanel='ledger';
 
 function goPage(pg,el,skipRender=false){
   syncViewportMode();
+  // 历史兼容说明：
+  // products / classes / plans 目前仍可被代码读取，但后续新增业务不要再把主链路接回这些页面。
   if(pg==='entitlements')pg='students';
+  const retiredPageRedirect={products:'packages',classes:'students',plans:'students'};
+  pg=retiredPageRedirect[pg]||pg;
   const adminPages=['students','classes','plans','schedule','coachops','products','packages','purchases','finance','coaches','admin-users','courts','memberships','membership-orders','membership-ledger','membership-plans','prices','campusmgr'];
   const coachPages=['workbench','myschedule','mystudents','myclasses'];
   const isCoach=currentUser?.role==='editor'&&currentUser?.coachName;
@@ -15,7 +19,15 @@ function goPage(pg,el,skipRender=false){
   if(!pg)return;
   const updateDOM = () => {
     document.querySelectorAll('.sb-item').forEach(n=>{
-      const matched=(n.getAttribute('onclick')||'').includes(`goPage('${pg}'`);
+      let matched=false;
+      const navPage=n.dataset.navPage;
+      const financeNavPanel=n.dataset.financePanel;
+      if(navPage){
+        matched=navPage===pg;
+        if(matched&&pg==='finance'&&financeNavPanel)matched=financeNavPanel===financePanel;
+      }else{
+        matched=(n.getAttribute('onclick')||'').includes(`goPage('${pg}'`);
+      }
       n.classList.toggle('active',el?n===el:matched);
     });
     document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
@@ -27,7 +39,8 @@ function goPage(pg,el,skipRender=false){
     localStorage.setItem(PAGE_KEY,currentPage);
     document.getElementById('campusTabs').style.display=['students','courts','finance','matches'].includes(pg)?'flex':'none';
     const t={students:'学员信息',classes:'班次管理',plans:'学习计划',schedule:'排课表',coachops:'教练运营',products:'课程产品',packages:'售卖课包',purchases:'购买记录',finance:'财务中心',coaches:'教练管理','admin-users':'账号管理',courts:'订场用户',memberships:'会员管理','membership-orders':'会员购买记录','membership-ledger':'会员权益流水','membership-plans':'会员方案',prices:'价格管理',campusmgr:'校区管理',workbench:'工作台',myschedule:'我的课表',mystudents:'我的学员',myclasses:'我的班次'};
-    document.getElementById('topTitle').textContent=t[pg]||'';
+    const financeTitleMap={ledger:'财务总览',revenue:'收入流水',recognized:'已入账流水',settlement:'教练结算'};
+    document.getElementById('topTitle').textContent=pg==='finance'?(financeTitleMap[financePanel]||t[pg]||''):(t[pg]||'');
     if(!skipRender)loadPageDataAndRender(pg,{quiet:true});
   };
   if(document.startViewTransition) {
@@ -113,16 +126,15 @@ async function doDelete(){
       await runBatchDeleteCourts(ids);
       return;
     }
-    const m={court:'/courts/',student:'/students/',product:'/products/',package:'/packages/',purchase:'/purchases/',plan:'/plans/',schedule:'/schedule/',class:'/classes/',coach:'/coaches/',campus:'/campuses/','membership-plan':'/membership-plans/'};
+    const m={court:'/courts/',student:'/students/',product:'/products/',package:'/packages/',purchase:'/purchases/',schedule:'/schedule/',class:'/classes/',coach:'/coaches/',campus:'/campuses/','membership-plan':'/membership-plans/'};
     const result=await apiCall('DELETE',m[delType]+delId);
     if(delType==='court')courts=courts.filter(u=>u.id!==delId);
     else if(delType==='student')students=students.filter(u=>u.id!==delId);
     else if(delType==='product')products=products.filter(u=>u.id!==delId);
     else if(delType==='package')packages=packages.filter(u=>u.id!==delId);
     else if(delType==='purchase'){await loadAll();closeConf();closeModal();toast('已作废','error');return;}
-    else if(delType==='plan')plans=plans.filter(u=>u.id!==delId);
-    else if(delType==='schedule'){schedules=schedules.filter(u=>u.id!==delId);mergeScheduleSaveResult(result,null);}
-    else if(delType==='class'){classes=classes.filter(u=>u.id!==delId);plans=plans.filter(p=>p.classId!==delId);}
+    else if(delType==='schedule'){schedules=schedules.filter(u=>u.id!==delId);mergeScheduleSaveResult(result,null);setDatasetValue('schedule',schedules);}
+    else if(delType==='class'){classes=classes.filter(u=>u.id!==delId);}
     else if(delType==='coach')coaches=coaches.filter(u=>u.id!==delId);
     else if(delType==='campus'){campuses=campuses.filter(u=>u.id!==delId);CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});buildCampusTabs();}
     else if(delType==='membership-plan')membershipPlans=membershipPlans.filter(u=>u.id!==delId);
@@ -147,7 +159,7 @@ async function backupToObsidian(){
   classes.forEach(c=>{md+='| '+esc(c.className)+' | '+(c.productName||'')+' | '+(c.coach||'')+' | '+(c.totalLessons||0)+' | '+(c.usedLessons||0)+' | '+(c.status||'')+' |\n';});
   md+='\n## 订场（'+courts.length+'人）\n\n| 姓名 | 手机号 | 关联学员 | 校区 | 余额 | 储值 | 消费金额 | 对接人 | 对储值态度 | 熟悉程度 | 备注 |\n|------|------|------|------|------|------|------|------|------|------|------|\n';
   courts.forEach(c=>{const f=courtFinanceLocal(c);md+='| '+esc(c.name)+' | '+(c.phone||'')+' | '+esc(courtStudentNames(c))+' | '+cn(c.campus)+' | ¥'+fmt(f.balance)+' | ¥'+fmt(f.totalDeposit)+' | ¥'+fmt(f.spentAmount||0)+' | '+esc(c.owner||'')+' | '+esc(c.depositAttitude||'')+' | '+esc(c.familiarity||'')+' | '+esc(c.notes||'')+' |\n';});
-  md+='\n---\n\n- 学员：'+students.length+'\n- 班次：'+classes.length+'\n- 计划：'+plans.length+'\n- 订场：'+courts.length+'\n- 排课：'+schedules.length+'\n';
+  md+='\n---\n\n- 学员：'+students.length+'\n- 班次：'+classes.length+'\n- 订场：'+courts.length+'\n- 排课：'+schedules.length+'\n';
   const blob=new Blob([md],{type:'text/markdown;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='FlowTennis备份-'+ds+'.md';a.click();toast('备份已下载','success');
   }catch(e){toast('备份失败：'+e.message,'error');}
 }

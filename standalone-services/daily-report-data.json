@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "notification-center-v1",
+  "generatedAt": "2026-05-17T11:56:58.255Z",
+  "today": "2026-05-17",
+  "tomorrow": "2026-05-18",
+  "coachSummaries": [],
+  "todayStats": {
+    "totalLessons": 0,
+    "completedLessons": 0,
+    "cancelledLessons": 0,
+    "pendingLessons": 0,
+    "activeCoachCount": 0
+  },
+  "tomorrowStats": {
+    "totalLessons": 0,
+    "cancelledLessons": 0,
+    "scheduledCoachCount": 0
+  },
+  "todayLessonDetails": [],
+  "tomorrowLessonDetails": []
+}

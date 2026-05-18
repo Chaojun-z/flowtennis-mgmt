@@ -111,6 +111,11 @@ assert.deepStrictEqual(isolated.schedule.map(x=>x.id), ['sch-1'], 'coach load-al
 assert.deepStrictEqual(isolated.classes.map(x=>x.id), ['class-1'], 'coach load-all should only expose own classes');
 assert.deepStrictEqual(isolated.students.map(x=>x.id), ['stu-1'], 'coach load-all should only expose linked students');
 assert.deepStrictEqual(isolated.feedbacks.map(x=>x.id), ['fb-1'], 'coach load-all should only expose own feedbacks');
+assert.strictEqual(
+  Object.prototype.hasOwnProperty.call(isolated, 'plans'),
+  false,
+  'coach load-all should stop exposing retired learning plans'
+);
 assert.deepStrictEqual(isolated.packages, [], 'coach load-all should not expose package prices');
 assert.deepStrictEqual(
   isolated.purchases,

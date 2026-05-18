@@ -17,7 +17,6 @@ assert.match(html, /assets\/scripts\/pages\/admin-users\.js/, 'index.html should
 assert.match(html, /assets\/scripts\/pages\/coaches\.js/, 'index.html should load coaches page module');
 assert.match(html, /assets\/scripts\/pages\/campusmgr\.js/, 'index.html should load campusmgr page module');
 assert.match(html, /assets\/scripts\/pages\/classes\.js/, 'index.html should load classes page module');
-assert.match(html, /assets\/scripts\/pages\/plans\.js/, 'index.html should load plans page module');
 assert.match(html, /assets\/scripts\/pages\/products\.js/, 'index.html should load products page module');
 assert.match(html, /assets\/scripts\/pages\/packages\.js/, 'index.html should load packages page module');
 assert.match(html, /assets\/scripts\/pages\/purchases\.js/, 'index.html should load purchases page module');
@@ -27,6 +26,7 @@ assert.match(html, /assets\/scripts\/pages\/coachops\.js/, 'index.html should lo
 assert.match(html, /assets\/scripts\/pages\/courts\.js/, 'index.html should load courts page module');
 assert.match(html, /assets\/scripts\/pages\/students\.js/, 'index.html should load students page module');
 assert.match(html, /assets\/scripts\/pages\/schedule\.js/, 'index.html should load schedule page module');
+assert.doesNotMatch(html, /assets\/scripts\/pages\/plans\.js/, 'index.html should no longer load the retired plans page module');
 
 assert.doesNotMatch(html, /<style>[\s\S]*<\/style>/, 'index.html should no longer keep inline style blocks');
 assert.doesNotMatch(html, /<script>[\s\S]*<\/script>/, 'index.html should no longer keep one giant inline script block');

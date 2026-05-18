@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-05-17T08:17:37.344Z",
+  "appEnv": "staging",
+  "inputPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/sanitized/raw-snapshot.sanitized.json",
+  "writeMode": true,
+  "tables": {
+    "ft_financial_ledger": 1548
+  },
+  "selectedTables": [
+    "ft_financial_ledger"
+  ],
+  "startAtTable": "",
+  "maxAttempts": 4,
+  "blocker": "getaddrinfo ENOTFOUND flow-staging.cn-beijing.ots.aliyuncs.com"
+}

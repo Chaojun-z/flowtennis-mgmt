@@ -62,6 +62,18 @@ function setCourtSort(key){
   courtPage=1;
   renderCourts();
 }
+function courtHasFullHistoryLoaded(court){
+  return Array.isArray(court?.history);
+}
+async function ensureCourtDetailLoaded(courtId,{force=false}={}){
+  const index=courts.findIndex(c=>c.id===courtId);
+  const current=index>=0?courts[index]:null;
+  if(current&&courtHasFullHistoryLoaded(current)&&!force)return current;
+  const detail=await apiCall('GET',`/page-data/courts/${courtId}`);
+  if(index>=0)courts[index]=detail;
+  else courts.unshift(detail);
+  return detail;
+}
 
 function membershipPlansTableHtml(q=''){
   const rows=membershipPlans.filter(p=>searchHit(q,p.name,p.tierCode,p.notes));
@@ -680,8 +692,9 @@ function courtMembershipPanelHtml(court){
   const voidInfoHtml=account?.status==='voided'?`<div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">作废信息</label><div style="background:#FDF7F2;border-radius:10px;padding:12px 14px;font-size:12px;color:#8C7B6E;line-height:1.7">作废时间：${esc(formatMembershipLedgerTime(account.voidedAt||voidEvent?.createdAt))} · 作废人：${esc(account.voidedBy||voidEvent?.operator||'-')} · 作废原因：${esc(account.voidReason||voidEvent?.reason||'-')}</div></div></div>`:'';
   return `<div class="tms-section-header" style="margin-top:0;">会员账户</div><div class="tms-readonly-panel"><span class="tms-panel-tip">余额由充值和消费自动计算，不能在这里手动改。</span><div class="membership-panel-grid"><div class="membership-panel-card"><div class="membership-panel-label">当前状态</div><div class="membership-panel-value">${esc(summary.memberLabel)||'-'} · ${esc(summary.status)||'-'}</div></div><div class="membership-panel-card"><div class="membership-panel-label">当前余额</div><div class="membership-panel-value">¥${fmt(finance.balance)}</div></div><div class="membership-panel-card"><div class="membership-panel-label">当前折扣</div><div class="membership-panel-value">${esc(discountText)||'-'}</div></div><div class="membership-panel-card"><div class="membership-panel-label">余额有效期</div><div class="membership-panel-value">${esc(summary.validUntil)||'-'}</div></div><div class="membership-panel-card"><div class="membership-panel-label">清零时间</div><div class="membership-panel-value">${esc(account?.hardExpireAt)||'-'}</div></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">当前权益</label><div style="font-size:13px;color:#8C7B6E;margin-bottom:14px">${currentBenefitHtml}</div></div></div>${voidInfoHtml}<div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">最近开卡</label><div style="font-size:13px;color:#8C7B6E;margin-bottom:14px">${recentOrderHtml}</div></div></div><div class="tms-form-row" style="margin-bottom:0;"><div class="tms-form-item full-width"><label class="tms-form-label">操作</label><div class="membership-actions-row">${visible.firstOpen?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipOrderModal('${court.id}','first_open')">首次开卡</button>`:''}${visible.reopen?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipOrderModal('${court.id}','reopen')">重新开卡</button>`:''}${visible.renew?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipOrderModal('${court.id}','renew')">续充会员</button>`:''}${visible.consume?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipBenefitModal('${court.id}','consume')">消耗权益</button>`:''}${visible.supplement?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openMembershipBenefitModal('${court.id}','supplement')">补发权益</button>`:''}${visible.ledger?`<button class="tms-btn tms-btn-ghost" style="border:1px solid #EAE0D6;background:#fff" onclick="openCourtMembershipLedgerModal('${court.id}')">查看流水</button>`:''}${visible.void?`<button class="tms-btn tms-btn-danger" onclick="voidMembership('${court.id}')">作废会员</button>`:''}</div></div></div></div>`;
 }
-function openCourtMembershipPanel(courtId){
-  const court=courts.find(c=>c.id===courtId);if(!court){toast('当前订场用户数据未加载，请刷新后重试','warn');return;}
+async function openCourtMembershipPanel(courtId){
+  let court=courts.find(c=>c.id===courtId);if(!court){toast('当前订场用户数据未加载，请刷新后重试','warn');return;}
+  try{court=await ensureCourtDetailLoaded(courtId);}catch(e){toast('加载会员账户失败：'+e.message,'error');return;}
   editId=null;
   setCourtModalFrame(`${court.name} · 会员账户`,courtMembershipPanelHtml(court),'','modal-member');
 }
@@ -737,8 +750,11 @@ async function mergeCourtUsers(sourceCourtId){
     if(btn){btn.disabled=false;btn.textContent='确认合并';}
   }
 }
-function openCourtModal(id){
-  editId=id;_pending=[];const r=id?courts.find(x=>x.id===id):null;
+async function openCourtModal(id){
+  editId=id;_pending=[];let r=id?courts.find(x=>x.id===id):null;
+  if(id&&r){
+    try{r=await ensureCourtDetailLoaded(id);}catch(e){toast('加载订场用户详情失败：'+e.message,'error');return;}
+  }
   const fin=courtFinanceLocal(r||{history:[]});
   const linked=findStudentForCourt(r);
   const selectedIds=parseArr(r?.studentIds);if(!selectedIds.length&&linked)selectedIds.push(linked.id);
@@ -892,9 +908,10 @@ async function createCourtCompanionSchedule(court,record,companionCoach){
     notes:record.note?`订场陪打：${record.note}`:'订场陪打'
   });
 }
-function openCourtFinanceModal(courtId){
-  const court=courts.find(c=>c.id===courtId);
+async function openCourtFinanceModal(courtId){
+  let court=courts.find(c=>c.id===courtId);
   if(!court){toast('当前订场用户数据未加载，请刷新后重试','warn');return;}
+  try{court=await ensureCourtDetailLoaded(courtId);}catch(e){toast('加载订场财务失败：'+e.message,'error');return;}
   courtFinanceModalId=courtId;
   editId=null;
   _pending=[];
@@ -964,8 +981,9 @@ async function saveCourtFinanceRecord(){
     if(btn){btn.disabled=false;btn.textContent='添加';}
   }
 }
-function openCourtHist(id){
-  const u=courts.find(x=>x.id===id);if(!u)return;editId=null;
+async function openCourtHist(id){
+  let u=courts.find(x=>x.id===id);if(!u)return;editId=null;
+  try{u=await ensureCourtDetailLoaded(id);}catch(e){toast('加载历史记录失败：'+e.message,'error');return;}
   const hist=[...parseArr(u.history)].reverse();
   setCourtModalFrame(`${esc(u.name)} · 充值/消费记录`,`<div class="tms-history-list">${renderCourtHistoryItems(hist)}</div>`,`<button class="tms-btn tms-btn-primary" style="width:100%;text-align:center" onclick="closeModal()">关闭</button>`,'modal-tight');
 }

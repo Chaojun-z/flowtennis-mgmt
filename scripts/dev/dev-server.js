@@ -1,18 +1,19 @@
 const path = require('path');
 
 const express = require('express');
-const dotenv = require('dotenv');
+const { loadRuntimeEnv } = require('../lib/runtime-env');
 
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+loadRuntimeEnv({ entry: 'dev-server' });
 
-const apiHandler = require(path.join(__dirname, '..', 'api', 'index.js'));
+const repoRoot = path.join(__dirname, '..', '..');
+const apiHandler = require(path.join(repoRoot, 'api', 'index.js'));
 
 const app = express();
 
 app.use(express.json({ limit: '2mb' }));
 
 // Static frontend
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(repoRoot, 'public')));
 
 // API bridge to the Vercel-style handler
 app.all('/api/*', async (req, res) => {
@@ -41,11 +42,10 @@ app.all('/api/*', async (req, res) => {
 
 // SPA fallback
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  res.sendFile(path.join(repoRoot, 'public', 'index.html'));
 });
 
 const port = process.env.PORT ? Number(process.env.PORT) : 3000;
 app.listen(port, () => {
   console.log(`FlowTennis local dev: http://127.0.0.1:${port}`);
 });
-

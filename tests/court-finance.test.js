@@ -200,6 +200,10 @@ assert.strictEqual(normalized.balance, 4700);
 assert.strictEqual(normalized.totalDeposit, 5000);
 assert.strictEqual(normalized.spentAmount, 300);
 assert.strictEqual(normalized.receivedAmount, 5000);
+assert.strictEqual(normalized.cachedBalance, 4700);
+assert.strictEqual(normalized.cachedTotalDeposit, 5000);
+assert.strictEqual(normalized.cachedTotalSpent, 300);
+assert.strictEqual(normalized.cachedTotalReceived, 5000);
 
 const pricedBooking = normalizeCourtRecord({
   name: '订场价格快照',
@@ -258,6 +262,39 @@ const datedBooking = normalizeCourtRecord({
   }]
 });
 assert.strictEqual(datedBooking.history[0].occurredDate, '2026-04-20', 'finance rows should expose the real occurrence date');
+
+const mergedCourt = rulesMergeCourtRecord();
+assert.strictEqual(mergedCourt.targetCourt.cachedBalance, 1000);
+assert.strictEqual(mergedCourt.targetCourt.cachedTotalDeposit, 1200);
+assert.strictEqual(mergedCourt.targetCourt.cachedTotalSpent, 200);
+assert.strictEqual(mergedCourt.targetCourt.cachedTotalReceived, 1200);
+
+function rulesMergeCourtRecord() {
+  return api._test.mergeCourtRecords({
+    targetCourt: {
+      id: 'court-target',
+      name: '目标用户',
+      phone: '13800138000',
+      history: [
+        { id: 't1', date: '2026-05-01', type: '充值', category: '储值', payMethod: '微信', amount: 500 }
+      ]
+    },
+    sourceCourt: {
+      id: 'court-source',
+      name: '来源用户',
+      phone: '13900139000',
+      history: [
+        { id: 's1', date: '2026-05-02', type: '充值', category: '储值', payMethod: '微信', amount: 700 },
+        { id: 's2', date: '2026-05-03', type: '消费', category: '订场', payMethod: '储值扣款', amount: 200 }
+      ]
+    },
+    membershipAccounts: [],
+    membershipOrders: [],
+    membershipBenefitLedger: [],
+    membershipAccountEvents: [],
+    now: '2026-05-12T00:00:00.000Z'
+  });
+}
 assert.strictEqual(datedBooking.history[0].recordedAt, '2026-04-21T09:30:00.000Z', 'finance rows should expose the system entry time');
 assert.strictEqual(datedBooking.history[0].revenueBucket, '代用户订场', 'finance rows should classify proxy booking income');
 

@@ -63,9 +63,9 @@ assert.deepStrictEqual(
 );
 
 assert.strictEqual(
-  filtered.plans.some(p => p.id === 'plan-owner'),
+  Object.prototype.hasOwnProperty.call(filtered, 'plans'),
   false,
-  'coach should not receive learning plans for students visible only by package ownership'
+  'coach filtered payload should stop exposing retired learning plans'
 );
 
 console.log('coach portal rules tests passed');

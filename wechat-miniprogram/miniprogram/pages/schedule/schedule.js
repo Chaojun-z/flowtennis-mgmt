@@ -72,6 +72,7 @@ function adaptSchedule(raw = [], feedbacks = []) {
 }
 
 function decorateTimetableDays(days = []) {
+  const now = new Date();
   return days.map((item) => ({
     ...item,
     displayDate: item.isToday ? String(item.date || '').replace('日', '').replace(/^0/, '') : item.date,
@@ -79,13 +80,15 @@ function decorateTimetableDays(days = []) {
     columnClass: item.isToday ? 'tt-day-column-active' : '',
     items: (item.items || []).map((course) => {
       const tag = timetableCourseTag(course);
-      const todo = workbenchTodoState(course);
+      const todo = workbenchTodoState(course, now);
+      const endedClass = scheduleEnded(course, now) ? 'tt-course-ended' : '';
       return {
         ...course,
         courseTagText: tag.text,
         courseTagClass: tag.className,
         accentClass: timetableAccentClass(tag.className),
-        todoLabel: todo ? todo.label : ''
+        todoLabel: todo ? todo.label : '',
+        endedClass
       };
     })
   }));
@@ -151,7 +154,9 @@ function hasTravelReminder(nextClass = null) {
 
 function buildWeekTodoCards(groups = []) {
   return groups.flatMap((group) => {
-    const [weekdayText = '', dateText = ''] = String(group.label || '').split(' ');
+    const labelParts = String(group.label || '').split(' ');
+    const weekdayText = labelParts[0] || '';
+    const dateText = labelParts[1] || '';
     return (group.items || []).map((item) => ({
       ...item,
       weekdayText,
@@ -166,6 +171,17 @@ function buildWeekTodoCards(groups = []) {
 
 function studentIdsOf(item = {}) {
   return Array.isArray(item.studentIds) ? item.studentIds.filter(Boolean) : [];
+}
+
+function findLinkedClassRecord(classes = [], classId = '', fallbackName = '') {
+  const targetId = String(classId || '').trim();
+  const targetName = String(fallbackName || '').trim();
+  if (targetId) {
+    const byId = (classes || []).find(item => String(item.id || '').trim() === targetId);
+    if (byId) return byId;
+  }
+  if (!targetName) return null;
+  return (classes || []).find(item => firstNonEmpty(item.className, item.classNo) === targetName) || null;
 }
 
 function lessonUnitsText(value) {
@@ -300,7 +316,9 @@ function formatDateInputValue(value) {
 }
 
 function normalizeTimeValue(value = '') {
-  const [hour = '00', minute = '00'] = String(value || '').split(':');
+  const parts = String(value || '').split(':');
+  const hour = parts[0] || '00';
+  const minute = parts[1] || '00';
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
@@ -480,7 +498,7 @@ function buildShiftDetailData(shift, context = {}) {
   const students = Array.isArray(context.students) ? context.students : [];
   const schedule = Array.isArray(context.schedule) ? context.schedule : [];
   const coachName = String(context.coachName || '').trim();
-  const linkedClass = classes.find(item => String(item.id) === String(shift.id)) || null;
+  const linkedClass = findLinkedClassRecord(classes, shift && shift.id, firstNonEmpty(shift && shift.name)) || null;
   const linkedStudentIds = linkedClass ? studentIdsOf(linkedClass) : [];
   const shiftId = String(shift.id || '').trim();
   const matchedSchedule = schedule.filter(item => {
@@ -564,6 +582,32 @@ function feedbackContextParts(item = {}) {
   ].filter(Boolean);
 }
 
+function upsertFeedbackRecord(feedbacks = [], savedFeedback = null) {
+  if (!savedFeedback || !savedFeedback.id) return Array.isArray(feedbacks) ? feedbacks.slice() : [];
+  const next = Array.isArray(feedbacks) ? feedbacks.slice() : [];
+  const index = next.findIndex(item => String(item.id || '') === String(savedFeedback.id || ''));
+  if (index > -1) next.splice(index, 1, savedFeedback);
+  else next.unshift(savedFeedback);
+  return next;
+}
+
+function markScheduleFeedbackState(schedule = [], scheduleId = '', savedFeedback = null) {
+  const targetId = String(scheduleId || '').trim();
+  if (!targetId) return Array.isArray(schedule) ? schedule.slice() : [];
+  return (Array.isArray(schedule) ? schedule : []).map((item) => {
+    if (String(item.id || '').trim() !== targetId) return item;
+    return {
+      ...item,
+      hasFeedback: true,
+      feedbackId: savedFeedback && savedFeedback.id ? savedFeedback.id : item.feedbackId || '',
+      feedbackAt: savedFeedback && (savedFeedback.updatedAt || savedFeedback.createdAt) ? (savedFeedback.updatedAt || savedFeedback.createdAt) : item.feedbackAt || '',
+      feedbackStatus: '已反馈',
+      feedbackPending: false,
+      workbenchState: null
+    };
+  });
+}
+
 function feedbackScopeForSchedule(item = {}) {
   const studentIds = studentIdsOf(item);
   const courseType = String(item.type || item.title || item.courseType || '').trim();
@@ -628,9 +672,11 @@ function buildDetailData(selectedClass, context = {}) {
   const student = students.find(item => studentIds.includes(item.id))
     || (!studentIds.length && students.find(item => String(item.name || '').trim() === String(selectedClass.student || '').trim()))
     || null;
-  const linkedClass = classes.find(item => String(item.id || '') === String(selectedClass && selectedClass.classId || ''))
-    || (!selectedClass.classId && classes.find(item => firstNonEmpty(item.className, item.classNo) === firstNonEmpty(selectedClass.className, selectedClass.classNo)))
-    || null;
+  const linkedClass = findLinkedClassRecord(
+    classes,
+    selectedClass && selectedClass.classId,
+    firstNonEmpty(selectedClass.className, selectedClass.classNo)
+  ) || null;
   const currentFeedback = findFeedbackByScheduleId(feedbacks, selectedClass.id);
   const currentStudentId = String(student && student.id || '');
   const currentClassId = String(selectedClass && selectedClass.classId || '').trim();
@@ -830,7 +876,7 @@ function posterTextLines(ctx, text, maxWidth, maxLines) {
   });
 }
 
-function posterDrawTextBlock(ctx, tpl, label, text, x, y, w, maxLines) {
+function posterMeasureTextBlock(ctx, text, w, maxLines) {
   ctx.font = '400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
   const lines = posterTextLines(ctx, text, w, maxLines);
   const paddingTop = 32;
@@ -838,6 +884,50 @@ function posterDrawTextBlock(ctx, tpl, label, text, x, y, w, maxLines) {
   const titleSpace = 52;
   const lineHeight = 48;
   const boxHeight = paddingTop + titleSpace + (lines.length > 0 ? lines.length - 1 : 0) * lineHeight + paddingBottom;
+  return { lines, boxHeight, consumedHeight: boxHeight + 28 };
+}
+
+function posterLayout(ctx, data) {
+  const contentWidth = 570;
+  const baseSections = [
+    { key: 'practicedToday', label: '今天练习了', text: data.practicedToday },
+    { key: 'knowledgePoint', label: '练习情况', text: data.knowledgePoint },
+    { key: 'nextTraining', label: '下次练习', text: data.nextTraining }
+  ];
+  const sections = baseSections.map((section) => {
+    const measured = posterMeasureTextBlock(ctx, section.text, contentWidth, Infinity);
+    return {
+      key: section.key,
+      label: section.label,
+      text: section.text,
+      lines: measured.lines,
+      boxHeight: measured.boxHeight,
+      consumedHeight: measured.consumedHeight
+    };
+  });
+  const contentStartY = 320;
+  let currentY = contentStartY;
+  sections.forEach(section => {
+    section.y = currentY;
+    currentY += section.consumedHeight;
+  });
+  const footerY = currentY + 62;
+  return {
+    sections,
+    canvasHeight: Math.max(1334, footerY + 120),
+    footerY
+  };
+}
+
+function posterDrawTextBlock(ctx, tpl, section, x, w) {
+  const label = section.label;
+  const lines = section.lines;
+  const boxHeight = section.boxHeight;
+  const y = section.y;
+  ctx.font = '400 30px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
+  const paddingTop = 32;
+  const titleSpace = 52;
+  const lineHeight = 48;
   const boxY = y - paddingTop - 24;
   ctx.save();
   if (tpl.type === 'diagonalSplit') {
@@ -898,27 +988,29 @@ function posterDrawTextBlock(ctx, tpl, label, text, x, y, w, maxLines) {
     });
   });
   ctx.restore();
-  return boxHeight + 28;
 }
 
 function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
   const tpl = FEEDBACK_POSTER_TEMPLATES[templateKey] || FEEDBACK_POSTER_TEMPLATES.blueGreenDiagonal;
   const ctx = canvas.getContext('2d');
   canvas.width = 750;
-  canvas.height = 1334;
-  const grad = ctx.createLinearGradient(0, 0, 0, 1334);
+  const layout = posterLayout(ctx, data);
+  const canvasHeight = layout.canvasHeight;
+  canvas.width = 750;
+  canvas.height = layout.canvasHeight;
+  const grad = ctx.createLinearGradient(0, 0, 0, canvasHeight);
   grad.addColorStop(0, tpl.bg1);
   grad.addColorStop(1, tpl.bg2);
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 750, 1334);
+  ctx.fillRect(0, 0, 750, canvasHeight);
   ctx.save();
   if (tpl.type === 'diagonalSplit') {
     ctx.fillStyle = tpl.accent;
     ctx.beginPath();
-    ctx.moveTo(0, 950);
-    ctx.lineTo(750, 1100);
-    ctx.lineTo(750, 1334);
-    ctx.lineTo(0, 1334);
+    ctx.moveTo(0, canvasHeight - 384);
+    ctx.lineTo(750, canvasHeight - 234);
+    ctx.lineTo(750, canvasHeight);
+    ctx.lineTo(0, canvasHeight);
     ctx.fill();
     ctx.strokeStyle = '#4A8DB7';
     ctx.lineWidth = 14;
@@ -973,10 +1065,10 @@ function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
   } else if (tpl.type === 'split') {
     ctx.fillStyle = tpl.bg2;
     ctx.beginPath();
-    ctx.moveTo(0, 1334);
-    ctx.lineTo(750, 1334);
+    ctx.moveTo(0, canvasHeight);
+    ctx.lineTo(750, canvasHeight);
     ctx.lineTo(750, 450);
-    ctx.lineTo(0, 950);
+    ctx.lineTo(0, canvasHeight - 384);
     ctx.fill();
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 18;
@@ -999,10 +1091,10 @@ function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
     for (let i = 0; i < 750; i += 40) {
       ctx.beginPath();
       ctx.moveTo(i, 0);
-      ctx.lineTo(i, 1334);
+      ctx.lineTo(i, canvasHeight);
       ctx.stroke();
     }
-    for (let i = 0; i < 1334; i += 40) {
+    for (let i = 0; i < canvasHeight; i += 40) {
       ctx.beginPath();
       ctx.moveTo(0, i);
       ctx.lineTo(750, i);
@@ -1082,31 +1174,31 @@ function drawFeedbackPoster(canvas, data, templateKey = 'blueGreenDiagonal') {
     ctx.fillRect(60, 235, 630, 2);
     ctx.globalAlpha = 1;
   }
-  let currentY = 320;
-  const contentWidth = 570;
-  currentY += posterDrawTextBlock(ctx, tpl, '今天练习了', data.practicedToday, 90, currentY, contentWidth, 4);
-  currentY += posterDrawTextBlock(ctx, tpl, '练习情况', data.knowledgePoint, 90, currentY, contentWidth, 5);
-  posterDrawTextBlock(ctx, tpl, '下次练习', data.nextTraining, 90, currentY, contentWidth, 4);
+  layout.sections.forEach(section => {
+    posterDrawTextBlock(ctx, tpl, section, 90, 570);
+  });
+  const footerY = layout.footerY;
   ctx.fillStyle = tpl.nameColor || tpl.ink;
   ctx.font = '900 34px -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.fillText('网球兄弟', 60, 1235);
+  ctx.fillText('网球兄弟', 60, footerY);
   ctx.fillStyle = tpl.subColor || tpl.muted;
   ctx.font = '500 18px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif';
-  ctx.fillText('用网球向生活发出邀请', 60, 1270);
+  ctx.fillText('用网球向生活发出邀请', 60, footerY + 35);
   ctx.save();
   ctx.fillStyle = tpl.accent;
   if (tpl.type === 'sport') {
     ctx.beginPath();
-    ctx.moveTo(630, 1270);
-    ctx.lineTo(690, 1270);
-    ctx.lineTo(670, 1240);
+    ctx.moveTo(630, footerY + 35);
+    ctx.lineTo(690, footerY + 35);
+    ctx.lineTo(670, footerY + 5);
     ctx.fill();
   } else {
     ctx.beginPath();
-    ctx.arc(670, 1260, 10, 0, Math.PI * 2);
+    ctx.arc(670, footerY + 25, 10, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
+  return layout;
 }
 
 function feedbackPosterDataForMini(schedule = {}, form = {}) {
@@ -1356,7 +1448,9 @@ Page({
     shiftsTabClass: '',
     posterStyle: '蓝绿对角',
     posterTemplateKey: 'blueGreenDiagonal',
-    posterStyles: POSTER_STYLE_OPTIONS
+    posterStyles: POSTER_STYLE_OPTIONS,
+    posterCanvasHeightRpx: 996,
+    posterPreviewImage: ''
   },
 
   onLoad() {
@@ -1725,7 +1819,7 @@ Page({
     const feedbackScope = feedbackScopeForSchedule(selectedClass);
     this.setData({ savingFeedback: true });
     try {
-      await saveCoachFeedback({
+      const savedFeedback = await saveCoachFeedback({
         id: currentFeedback ? currentFeedback.id : '',
         scheduleId: selectedClass.id,
         classId: selectedClass.classId || '',
@@ -1744,8 +1838,38 @@ Page({
         knowledgePoint,
         nextTraining
       });
+      const feedbackForm = feedbackFormFromRecord(savedFeedback);
+      const nextFeedbacks = upsertFeedbackRecord(this.data.feedbacks, savedFeedback);
+      const nextSchedule = markScheduleFeedbackState(this.data.schedule, selectedClass.id, savedFeedback);
+      const nextSelectedClass = nextSchedule.find(item => String(item.id || '') === String(selectedClass.id || '')) || {
+        ...selectedClass,
+        hasFeedback: true,
+        feedbackId: savedFeedback.id || '',
+        feedbackStatus: '已反馈'
+      };
       wx.showToast({ title: '反馈已保存', icon: 'success' });
-      this.closeSheets();
+      this.setData({
+        schedule: nextSchedule,
+        feedbacks: nextFeedbacks,
+        selectedClass: nextSelectedClass,
+        selectedClassDetail: buildDetailData(nextSelectedClass, {
+          students: this.data.studentsRaw,
+          classes: this.data.classesRaw,
+          feedbacks: nextFeedbacks,
+          coachName: currentCoachName()
+        }),
+        showDetail: false,
+        showFeedback: true,
+        detailSheetClass: '',
+        feedbackSheetClass: 'sheet-show',
+        feedbackForm,
+        feedbackCounts: feedbackCountsOf(feedbackForm),
+        feedbackHasSaved: true,
+        feedbackEditing: false,
+        feedbackFocusedField: '',
+        feedbackContextParts: feedbackContextParts(nextSelectedClass)
+      });
+      this.renderWeek();
       await this.load({ keepLoading: true });
     } catch (err) {
       wx.showToast({ title: err.message || '保存失败', icon: 'none' });
@@ -1761,7 +1885,8 @@ Page({
       feedbackSheetClass: '',
       posterSheetClass: 'sheet-show',
       posterDate: posterDateText(this.data.selectedClass || {}),
-      posterTemplateKey: this.data.posterTemplateKey || 'blueGreenDiagonal'
+      posterTemplateKey: this.data.posterTemplateKey || 'blueGreenDiagonal',
+      posterPreviewImage: ''
     });
     setTimeout(() => this.renderFeedbackPosterCanvas(), 80);
   },
@@ -1771,7 +1896,8 @@ Page({
       showPoster: false,
       showFeedback: true,
       posterSheetClass: '',
-      feedbackSheetClass: 'sheet-show'
+      feedbackSheetClass: 'sheet-show',
+      posterPreviewImage: ''
     });
   },
 
@@ -1787,20 +1913,30 @@ Page({
     query.select('#feedbackPosterCanvas').fields({ node: true, size: true }).exec((res) => {
       const canvas = res && res[0] && res[0].node;
       if (!canvas) return;
-      drawFeedbackPoster(
+      const layout = drawFeedbackPoster(
         canvas,
         feedbackPosterDataForMini(this.data.selectedClass || {}, this.data.feedbackForm || {}),
         this.data.posterTemplateKey || 'blueGreenDiagonal'
       );
+      this.setData({
+        posterCanvasHeightRpx: Math.round((layout.canvasHeight / 750) * 560)
+      });
+      this.updatePosterPreview();
     });
   },
 
-  createPosterTempFile(callback) {
+  updatePosterPreview() {
+    this.createPosterTempFile((path) => {
+      this.setData({ posterPreviewImage: path });
+    }, { silent: true });
+  },
+
+  createPosterTempFile(callback, options = {}) {
     const query = wx.createSelectorQuery().in(this);
     query.select('#feedbackPosterCanvas').fields({ node: true, size: true }).exec((res) => {
       const canvas = res && res[0] && res[0].node;
       if (!canvas) {
-        wx.showToast({ title: '海报生成失败', icon: 'none' });
+        if (!options.silent) wx.showToast({ title: '海报生成失败', icon: 'none' });
         return;
       }
       wx.canvasToTempFilePath({
@@ -1808,7 +1944,9 @@ Page({
         fileType: 'png',
         quality: 1,
         success: result => callback(result.tempFilePath),
-        fail: () => wx.showToast({ title: '海报生成失败', icon: 'none' })
+        fail: () => {
+          if (!options.silent) wx.showToast({ title: '海报生成失败', icon: 'none' });
+        }
       });
     });
   },

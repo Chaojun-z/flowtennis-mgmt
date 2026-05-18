@@ -104,12 +104,41 @@ page {
   border: 0;
 }
 
+.match-btn {
+  width: 100%;
+  height: 48px;
+  margin-top: 14px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.match-btn::after {
+  border: 0;
+}
+
 .login-spinner {
   width: 16px;
   height: 16px;
   margin-right: 8px;
   border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: loginSpin 0.8s linear infinite;
+}
+
+.match-spinner {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 2px solid rgba(30, 41, 59, 0.18);
+  border-top-color: #1e293b;
   border-radius: 50%;
   animation: loginSpin 0.8s linear infinite;
 }
@@ -150,6 +179,25 @@ page {
 .agreement-gap {
   display: inline-block;
   width: 4px;
+}
+
+.match-divider {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.match-divider-line {
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.match-divider-text {
+  color: #94a3b8;
+  font-size: 12px;
+  letter-spacing: 1px;
 }
 
 .entry-orb {

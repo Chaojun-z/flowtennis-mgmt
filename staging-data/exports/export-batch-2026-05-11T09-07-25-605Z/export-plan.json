@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-05-11T09:07:25.608Z",
+  "appEnv": "production",
+  "manifestPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/manifests/first-pass-core-pages.json",
+  "outDir": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-2026-05-11T09-07-25-605Z",
+  "snapshotPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-2026-05-11T09-07-25-605Z/raw-snapshot.json",
+  "reportPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-2026-05-11T09-07-25-605Z/export-report.json",
+  "sourceEnv": "production",
+  "targetEnv": "staging",
+  "tables": [
+    "ft_campuses",
+    "ft_coaches",
+    "ft_students",
+    "ft_feedbacks",
+    "ft_products",
+    "ft_classes",
+    "ft_schedule",
+    "ft_courts",
+    "ft_price_plans",
+    "ft_packages",
+    "ft_purchases",
+    "ft_entitlements",
+    "ft_entitlement_ledger",
+    "ft_financial_ledger",
+    "ft_membership_plans",
+    "ft_membership_accounts",
+    "ft_membership_orders",
+    "ft_membership_benefit_ledger",
+    "ft_membership_account_events"
+  ],
+  "note": "该脚本会按 manifest 从源 TableStore 拉取首轮最小可信数据快照。"
+}

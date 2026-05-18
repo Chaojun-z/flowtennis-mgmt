@@ -1,15 +1,34 @@
 const assert = require('assert');
 const { appSource: html } = require('./helpers/read-index-bundle');
 
-assert.match(html, /<div class="sb-sec">教学管理<\/div>/, 'sidebar should group teaching pages');
-assert.match(html, /<div class="sb-sec">课程管理<\/div>/, 'sidebar should group course pages');
-assert.match(html, /<div class="sb-sec">场地与资源<\/div>/, 'sidebar should group resource pages');
+function fnBody(name){
+  const start = html.indexOf(`function ${name}(`);
+  assert.notStrictEqual(start, -1, `${name} should exist`);
+  const next = html.indexOf('\nfunction ', start + 1);
+  return html.slice(start, next === -1 ? html.length : next);
+}
 
-assert.match(html, /goPage\('products',this\)[\s\S]*?课程产品/, 'sidebar should keep products page');
+assert.match(html, /<div class="sb-sec">用户中心<\/div>/, 'sidebar should keep the user-center group');
+assert.match(html, /<div class="sb-sec">教学中心<\/div>/, 'sidebar should keep the teaching-center group');
+assert.match(html, /<div class="sb-sec">场地运营<\/div>/, 'sidebar should keep the venue-ops group');
+assert.match(html, /<div class="sb-sec">资源管理<\/div>/, 'sidebar should keep the resource-management group');
+
+assert.match(html, /goPage\('classes',this\)[\s\S]*?班次管理/, 'sidebar should still keep classes page for historical compatibility');
+assert.match(html, /goPage\('products',this\)[\s\S]*?课程产品/, 'sidebar should still keep products page for historical compatibility');
+assert.match(html, /style="display:none" onclick="goPage\('classes',this\)"/, 'classes page entry should stay hidden from the active admin nav');
+assert.match(html, /style="display:none" onclick="goPage\('products',this\)"/, 'products page entry should stay hidden from the active admin nav');
 assert.match(html, /goPage\('packages',this\)[\s\S]*?售卖课包/, 'sidebar should add packages page');
 assert.match(html, /goPage\('purchases',this\)[\s\S]*?购买记录/, 'sidebar should add purchases page');
 assert.match(html, /goPage\('admin-users',this\)[\s\S]*?账号管理/, 'sidebar should add account management page');
+assert.match(html, /goPage\('courts',this\)[\s\S]*?订场用户/, 'sidebar should keep court users in the user-center area');
+assert.match(html, /goPage\('memberships',this\)[\s\S]*?会员管理/, 'sidebar should keep memberships in the user-center area');
 assert.doesNotMatch(html, /goPage\('entitlements',this\)[\s\S]*?权益账户/, 'sidebar should hide the old entitlement page entry');
+assert.match(html, /现行业务主链路是 packages -> purchases -> entitlements -> schedule。/, 'bundle should document the active phase-2 delivery chain');
+assert.match(html, /products \/ classes \/ plans 仅保留历史兼容，不应再作为新增功能默认依赖。/, 'bundle should mark old course pages as historical compatibility only');
+assert.match(html, /历史兼容模块：课程产品不再作为新增教学售卖功能默认入口。/, 'products page should be treated as a historical shell instead of an active sales entry');
+assert.match(html, /历史兼容模块：班次管理暂不作为新增教学售卖链路依赖。/, 'classes page should be treated as a historical shell instead of an active operations entry');
+assert.doesNotMatch(html, /goPage\('plans',this\)/, 'sidebar should no longer expose the retired plans page entry');
+assert.doesNotMatch(html, /id="page-plans"/, 'html should no longer keep the retired plans page shell');
 
 assert.match(html, /id="page-packages"/, 'should have packages page section');
 assert.match(html, /id="page-purchases"/, 'should have purchases page section');
@@ -23,11 +42,21 @@ assert.match(html, /系统价格[\s\S]*实收金额[\s\S]*改价原因/, 'purcha
 assert.doesNotMatch(html, /tms-pill-tabs/, 'sidebar navigation should replace the demo top tabs');
 assert.doesNotMatch(html, /const t=\{students:[\s\S]*?\n\s*const t=\{students:/, 'page title map should not be declared twice after merge');
 assert.match(html, /workbench:'工作台'/, 'page title map should include coach workbench');
-assert.match(html, /function syncPackageProductMeta/, 'package modal should sync product metadata');
-assert.match(html, /课程类型跟随课程产品/, 'package modal should explain course type follows product');
 assert.match(html, /归属教练不在这里维护，实际售卖时按购买记录选择/, 'package modal should explain owner coach is selected at purchase time');
 assert.match(html, /function productHasReferences/, 'product modal should know whether product is referenced');
 assert.match(html, /function packageHasPurchases/, 'package modal should know whether package is sold');
+assert.doesNotMatch(fnBody('saveProduct'), /plans\.forEach\(/, 'product save should no longer rewrite retired plans cache');
+assert.doesNotMatch(fnBody('renderProducts'), /confirmDel\('\\$\{p\.id\}'/, 'products page should no longer expose delete entry from the historical shell');
+assert.match(fnBody('openProductModal'), /历史兼容资料查看/, 'product modal should explicitly present the page as read-only historical data');
+assert.doesNotMatch(fnBody('openProductModal'), /productSaveBtn|onclick="saveProduct\(\)"|btn-danger/, 'product modal should no longer expose save or delete actions');
+assert.doesNotMatch(fnBody('saveProduct'), /apiCall\('PUT','\/products\/|apiCall\('POST','\/products'|products\.unshift\(|classes\.forEach\(/, 'historical products save handler should no longer perform write actions');
+assert.doesNotMatch(html, /历史课程产品已更新 ✓|历史课程产品已保存 ✓/, 'products historical shell should no longer show write-success toasts');
+assert.doesNotMatch(fnBody('renderClasses'), /openClassModal\('\$\{c\.id\}'\)|confirmDel\('\$\{c\.id\}'/, 'classes page list should no longer expose edit or delete entries from the historical shell');
+assert.doesNotMatch(fnBody('openClassDetail'), /openClassModal\('\$\{c\.id\}'\)|历史校对/, 'class detail should no longer link to historical edit flow');
+assert.match(fnBody('openClassModal'), /历史兼容资料查看/, 'class modal should explicitly present the page as read-only historical data');
+assert.doesNotMatch(fnBody('openClassModal'), /classSaveBtn|onclick="saveClass\(\)"|补录历史班次|保存后生成编号|选择学员（多选）/, 'class modal should no longer expose create or save behavior');
+assert.doesNotMatch(fnBody('saveClass'), /apiCall\('PUT','\/classes\/|apiCall\('POST','\/classes'|classes\.unshift\(|classes\[i\]=saved/, 'historical class save handler should no longer perform write actions');
+assert.doesNotMatch(html, /历史班次已更新 ✓|历史班次已保存 ✓/, 'classes historical shell should no longer show write-success toasts');
 assert.match(html, /核心字段已锁定/, 'locked core fields should show operator-facing hint');
 assert.match(html, /function openPurchaseDetailModal/, 'purchase page should have detail modal');
 assert.match(html, /function openPurchaseEditModal/, 'purchase page should have edit modal');

@@ -1,0 +1,28 @@
+<view class="page">
+  <view class="hist-section">
+    <view class="page-eyebrow">MY MATCHES</view>
+    <view class="title">我的约球</view>
+    <view wx:if="{{loading}}" class="empty">加载中...</view>
+    <view wx:elif="{{errorText}}" class="empty">
+      <view>{{errorText}}</view>
+      <button class="retry" bindtap="loadData">重试</button>
+    </view>
+    <view wx:elif="{{items.length}}">
+      <view wx:for="{{items}}" wx:key="id" class="hist-item" data-id="{{item.id}}" bindtap="openDetail">
+        <view class="hist-date">
+          <view class="hd-d">{{index + 1}}</view>
+          <view class="hd-m">MATCH</view>
+        </view>
+        <view class="hist-info">
+          <view class="hi-t">{{item.title}}</view>
+          <view class="hi-s">{{item.startTime}} · {{item.venueName || '待定场地'}}</view>
+        </view>
+        <view class="hist-res">
+          <view class="hr-score">{{item.status}}</view>
+          <view class="hr-cost">{{item.currentHeadcount || 0}}/{{item.targetHeadcount || 0}}</view>
+        </view>
+      </view>
+    </view>
+    <view wx:else class="empty">你还没有发起或报名任何约球</view>
+  </view>
+</view>

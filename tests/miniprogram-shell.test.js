@@ -12,20 +12,41 @@ function readText(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
 
+function fnBody(source, name) {
+  const start = source.indexOf(`${name}(`);
+  assert.notStrictEqual(start, -1, `${name} should exist`);
+  const braceStart = source.indexOf('{', start);
+  assert.notStrictEqual(braceStart, -1, `${name} should have a body`);
+  let depth = 0;
+  for (let i = braceStart; i < source.length; i += 1) {
+    const ch = source[i];
+    if (ch === '{') depth += 1;
+    if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  assert.fail(`${name} body should be closed`);
+}
+
 const projectConfig = readJson('wechat-miniprogram/project.config.json');
 assert.strictEqual(projectConfig.miniprogramRoot, 'miniprogram/', 'project.config.json should point to miniprogram/');
 assert.strictEqual(projectConfig.appid, 'wx7acb7603ee803923', 'project.config.json should use the real mini program AppID');
 
 const appConfig = readJson('wechat-miniprogram/miniprogram/app.json');
-assert.deepStrictEqual(appConfig.pages, ['pages/index/index', 'pages/schedule/schedule', 'pages/detail/detail', 'pages/agreement/agreement', 'pages/privacy/privacy'], 'mini program should keep only native entry pages plus agreement and privacy pages');
+assert.deepStrictEqual(appConfig.pages, ['pages/index/index', 'pages/schedule/schedule', 'pages/detail/detail', 'pages/agreement/agreement', 'pages/privacy/privacy'], 'coach mini program shell should only register coach-side pages');
 assert.strictEqual(appConfig.sitemapLocation, 'sitemap.json', 'mini program should include sitemap config');
 assert.strictEqual(appConfig.lazyCodeLoading, 'requiredComponents', 'mini program should enable component lazy injection');
 assert.strictEqual(appConfig.__usePrivacyCheck__, true, 'mini program should enable the WeChat privacy check mechanism');
+assert.strictEqual(appConfig.window.navigationBarTitleText, 'FlowTennis 教练端', 'mini program title should stay on the coach shell');
+assert.ok(!appConfig.permission || !appConfig.permission.scope.userLocation, 'coach mini program shell should not request match location permission');
+assert.ok(!appConfig.tabBar, 'coach mini program shell should not expose the consumer match tab bar');
 
 const indexWxml = readText('wechat-miniprogram/miniprogram/pages/index/index.wxml');
 assert.match(indexWxml, /网球兄弟/, 'index page should render the Gemini login title');
 assert.match(indexWxml, /FLOWTENNIS · 管理系统/, 'index page should render the Gemini login subtitle');
-assert.match(indexWxml, /请输入账号ID（不是姓名）/, 'index page should render the mapped account input');
+assert.match(indexWxml, /请输入账号或手机号/, 'index page should render the unified account input');
+assert.doesNotMatch(indexWxml, /请输入账号ID（不是姓名）/, 'index page should not force account-id-only copy');
 assert.match(indexWxml, /请输入密码/, 'index page should render the mapped password input');
 assert.match(indexWxml, /checkbox/, 'index page should render an agreement checkbox');
 assert.match(indexWxml, /我已阅读并同意/, 'index page should render the agreement consent copy');
@@ -37,16 +58,18 @@ assert.doesNotMatch(indexWxml, /loading="\{\{loggingIn\}\}"/, 'index login butto
 assert.doesNotMatch(indexWxml, /disabled="\{\{loggingIn\}\}"/, 'index login button should keep its visual style while logging in');
 assert.doesNotMatch(indexWxml, /<web-view/, 'index page should stay native so subscribe permission can be requested by tap');
 assert.doesNotMatch(indexWxml, /password-eye/, 'login page should remove the password eye icon');
+assert.doesNotMatch(indexWxml, /约球入口|微信进入约球/, 'coach login page should not expose the match entry');
 
 const indexJs = readText('wechat-miniprogram/miniprogram/pages/index/index.js');
 assert.match(indexJs, /SCHEDULE_TEMPLATE_ID/, 'index page should read the schedule subscribe template ID from config');
 assert.match(indexJs, /COURSE_REMINDER_TEMPLATE_ID/, 'index page should read the course reminder subscribe template ID from config');
 assert.match(indexJs, /loginWithPassword/, 'index page should call the real account password login helper');
 assert.match(indexJs, /bindWechatAfterLogin/, 'index page should bind the current mini program WeChat account after password login');
-assert.match(indexJs, /function shouldBindWechatAfterLogin/, 'index page should decide whether WeChat bind is still needed after password login');
 assert.match(indexJs, /function assertCoachLoginUser/, 'index page should validate coach role before entering the coach mini program');
 assert.match(indexJs, /user\.role !== 'editor'/, 'index page should reject non-coach accounts on the login page');
-assert.match(indexJs, /loginWithPassword\(account, password\)[\s\S]*assertCoachLoginUser\(data\.user \|\| \{\}\)[\s\S]*shouldBindWechatAfterLogin\(data\.user \|\| \{\}\)\s*\? bindWechatAfterLogin\(\)\s*: Promise\.resolve\(\)/, 'index page should skip repeated WeChat bind when the coach account is already bound');
+assert.match(indexJs, /loginWithPassword\(account, password\)[\s\S]*assertCoachLoginUser\(data\.user \|\| \{\}\)[\s\S]*bindWechatAfterLogin\(\)/, 'index page should always attempt mini program WeChat bind after password login');
+assert.doesNotMatch(indexJs, /function shouldBindWechatAfterLogin/, 'index page should not keep stale conditional bind helper');
+assert.doesNotMatch(indexJs, /wechatBound/, 'index page should not depend on cached wechatBound state to decide binding');
 assert.match(indexJs, /wx\.requestSubscribeMessage/, 'index page should request schedule subscribe permission from a tap');
 assert.match(indexJs, /tmplIds:\s*\[SCHEDULE_TEMPLATE_ID,\s*COURSE_REMINDER_TEMPLATE_ID\]/, 'index page should request both schedule and course reminder templates');
 assert.match(indexJs, /pages\/schedule\/schedule/, 'index page should navigate into the native schedule page after the tap');
@@ -55,6 +78,7 @@ assert.match(indexJs, /openAgreement/, 'index page should open the agreement pag
 assert.match(indexJs, /openPrivacy/, 'index page should open the privacy page from the login page');
 assert.doesNotMatch(indexJs, /enterWithoutNotice/, 'index page should no longer keep the fake direct-enter handler');
 assert.doesNotMatch(indexJs, /passwordVisible|togglePasswordVisible/, 'index page should remove password visibility dead code');
+assert.doesNotMatch(indexJs, /loginMatchWithWechat|loadMatchProfile|enterMatchMini|matchLoggingIn/, 'coach login page should not keep match login responsibilities');
 assert.doesNotMatch(indexWxml, /passwordVisible/, 'index page should not bind removed password visibility state');
 assert.match(indexWxml, /<input class="entry-input" password="\{\{true\}\}"/, 'index password input should stay masked without dead state');
 
@@ -124,7 +148,7 @@ assert.doesNotMatch(scheduleWxml, /feedback-input-bar/, 'feedback sheet should n
 assert.match(scheduleWxml, /feedback-course-time[\s\S]*selectedClassDetail\.basicInfo\.datetime[\s\S]*feedback-course-separator/, 'feedback course card should render full date time and styled separators');
 assert.match(scheduleWxml, /scroll-top="\{\{feedbackSheetScrollTop\}\}"/, 'feedback sheet should reset its scroll position when opened from any entry');
 assert.match(scheduleWxml, /今天练习了/, 'feedback sheet first field should use the requested label copy');
-assert.match(scheduleWxml, /poster-sheet[\s\S]*生成反馈海报[\s\S]*posterStyles[\s\S]*feedbackPosterCanvas[\s\S]*手机端可直接长按海报保存[\s\S]*保存相册[\s\S]*分享海报/, 'poster sheet should render the real six-template canvas poster shell');
+assert.match(scheduleWxml, /poster-sheet[\s\S]*生成反馈海报[\s\S]*posterStyles[\s\S]*手机端可直接长按海报保存[\s\S]*保存相册[\s\S]*分享海报[\s\S]*feedbackPosterCanvas/, 'poster sheet should render the real six-template canvas poster shell');
 assert.match(scheduleWxml, /student-detail-sheet[\s\S]*学员详情[\s\S]*基础信息[\s\S]*教练视角摘要[\s\S]*学员备注[\s\S]*上课记录[\s\S]*关闭/, 'student detail sheet should render the SVG-mapped student profile sections');
 assert.match(scheduleWxml, /shift-detail-sheet[\s\S]*班级详情[\s\S]*基础信息[\s\S]*班级概览[\s\S]*班级备注[\s\S]*最近一次排课[\s\S]*关闭/, 'shift detail sheet should render the mapped class profile sections');
 assert.match(scheduleWxml, /wx:elif="\{\{!shiftsList\.length\}\}"[\s\S]*暂无班次/, 'shift page should render an empty state instead of mock cards when classes are empty');
@@ -270,14 +294,21 @@ const stateJs = readText('public/assets/scripts/core/state.js');
 assert.match(stateJs, /openPendingScheduleDeepLink/, 'page data load should try to open a pending notification schedule');
 
 const configJs = readText('wechat-miniprogram/miniprogram/config.js');
-assert.match(configJs, /API_BASE_URL:\s*'https:\/\/www\.flowtennis\.cn\/api'/, 'config should expose the API base URL for native pages');
-assert.match(configJs, /SCHEDULE_TEMPLATE_ID:\s*'H_BIzR4Ca7aKldMWAlajgSwTWSos80lDZskEM4p8taI'/, 'config should include the selected schedule subscribe template ID');
-assert.match(configJs, /COURSE_REMINDER_TEMPLATE_ID:\s*'ME_OpZIFDLRwN-ENibuFk4g4Dtdi8x43TAQR2nKkoUs'/, 'config should include the selected course reminder subscribe template ID');
+assert.match(configJs, /DEFAULT_ENV\s*=\s*'production'/, 'config should default mini program traffic to production');
+assert.match(configJs, /MANUAL_ENV\s*=\s*''/, 'config should keep a blank manual env override by default');
+assert.match(configJs, /function resolveActiveEnv/, 'config should centralize mini program env resolution');
+assert.match(configJs, /env\.production/, 'config should keep a dedicated production env module');
+assert.doesNotMatch(configJs, /API_BASE_URL:\s*'https:\/\/www\.flowtennis\.cn\/api'/, 'config should not hardcode production API as the default export');
 assert.doesNotMatch(configJs, /WEB_VIEW_URL/, 'mini program config should no longer keep the removed webview URL');
+const productionMiniEnvJs = readText('wechat-miniprogram/miniprogram/env.production.js');
+assert.match(productionMiniEnvJs, /SCHEDULE_TEMPLATE_ID:\s*'H_BIzR4Ca7aKldMWAlajgSwTWSos80lDZskEM4p8taI'/, 'production mini env should include the selected schedule subscribe template ID');
+assert.match(productionMiniEnvJs, /COURSE_REMINDER_TEMPLATE_ID:\s*'ME_OpZIFDLRwN-ENibuFk4g4Dtdi8x43TAQR2nKkoUs'/, 'production mini env should include the selected course reminder subscribe template ID');
+
+const authAdminHandlerJs = readText('api/auth-admin/route-handlers.js');
+assert.match(authAdminHandlerJs, /\/auth\/wechat-login/, 'API should support mini program login by bound openid');
+assert.match(authAdminHandlerJs, /findWechatUserByOpenId/, 'API should find the bound coach account by openid');
 
 const apiServerJs = readText('api/index.js');
-assert.match(apiServerJs, /\/auth\/wechat-login/, 'API should support mini program login by bound openid');
-assert.match(apiServerJs, /findWechatUserByOpenId/, 'API should find the bound coach account by openid');
 assert.match(apiServerJs, /pages\/detail\/detail/, 'subscribe messages should deep link to native course detail');
 assert.match(apiServerJs, /courseContent:/, 'workbench API should decorate class data with a courseContent field for the mini program');
 assert.match(apiServerJs, /scheduleTime:/, 'workbench API should decorate class data with a scheduleTime field for the mini program');
@@ -318,8 +349,15 @@ assert.match(scheduleWxml, /分享海报/, 'mini program poster action should us
 assert.match(schedulePageJs, /showShareImageMenu/, 'mini program poster sharing should use WeChat image share capability');
 assert.match(schedulePageJs, /function feedbackScopeForSchedule/, 'mini program feedback save should decide student vs class feedback scope');
 assert.match(schedulePageJs, /feedbackScope:\s*feedbackScope/, 'mini program feedback save should send the feedback scope contract');
+assert.match(schedulePageJs, /function upsertFeedbackRecord\(/, 'mini program schedule page should expose a local feedback upsert helper after save');
+assert.match(schedulePageJs, /function markScheduleFeedbackState\(/, 'mini program schedule page should expose a local schedule feedback status patch helper after save');
+assert.match(fnBody(schedulePageJs, 'async saveFeedback'), /const savedFeedback = await saveCoachFeedback\(/, 'mini program feedback save should use the returned record for the follow-up flow');
+assert.match(fnBody(schedulePageJs, 'async saveFeedback'), /feedbackHasSaved:\s*true/, 'mini program feedback save should switch the sheet into saved mode immediately');
+assert.match(fnBody(schedulePageJs, 'async saveFeedback'), /showFeedback:\s*true/, 'mini program feedback save should keep the feedback sheet open for follow-up actions');
+assert.match(fnBody(schedulePageJs, 'async saveFeedback'), /this\.renderWeek\(\)/, 'mini program feedback save should refresh local pending-feedback state immediately');
+assert.doesNotMatch(fnBody(schedulePageJs, 'async saveFeedback'), /this\.closeSheets\(\)/, 'mini program feedback save should not close the sheet right after success');
 assert.match(schedulePageJs, /String\(item\.classId \|\| ''\)\.trim\(\) === String\(shift\.id \|\| ''\)\.trim\(\)/, 'shift detail should first link schedules by classId');
-assert.match(schedulePageJs, /String\(item\.id \|\| ''\) === String\(selectedClass && selectedClass\.classId \|\| ''\)/, 'schedule detail should first link classes by classId');
+assert.match(schedulePageJs, /function buildDetailData[\s\S]*linkedClass = findLinkedClassRecord\([\s\S]*classes,[\s\S]*selectedClass && selectedClass\.classId,[\s\S]*firstNonEmpty\(selectedClass\.className,\s*selectedClass\.classNo\)[\s\S]*\)\s*\|\|\s*null/, 'schedule detail should first link classes by classId');
 assert.doesNotMatch(schedulePageJs, /className && className === shift\.name/, 'shift detail should not use class name guessing as the primary link');
 assert.doesNotMatch(schedulePageJs, /classes\.find\(item => studentIdsOf\(item\)\.some\(id => studentIds\.includes\(id\)\)\)/, 'schedule detail should not link classes by studentIds intersection');
 assert.doesNotMatch(schedulePageJs, /student && student\.studentRemark[\s\S]*student && student\.note[\s\S]*student && student\.notes/, 'mini program detail should not guess multiple student remark fields on the frontend');
@@ -491,7 +529,7 @@ assert.match(scheduleWxss, /\.feedback-input\s*\{[\s\S]*color:\s*#334155;[\s\S]*
 assert.match(scheduleWxss, /\.feedback-input-placeholder\s*\{[\s\S]*color:\s*#94a3b8;[\s\S]*font-size:\s*14px;[\s\S]*font-weight:\s*400;/, 'feedback placeholder text should use the requested 14px regular muted token');
 assert.match(scheduleWxss, /\.feedback-action-btn\s*\{[\s\S]*height:\s*88rpx;[\s\S]*border-radius:\s*44rpx;[\s\S]*font-size:\s*15px;/, 'feedback bottom buttons should use the 44px pill token');
 assert.match(scheduleWxss, /\.poster-style-chip\s*\{[\s\S]*height:\s*64rpx;[\s\S]*border-radius:\s*32rpx;[\s\S]*font-size:\s*13px;/, 'poster style chips should match the 32px capsule token');
-assert.match(scheduleWxss, /\.feedback-poster-canvas\s*\{[\s\S]*width:\s*560rpx;[\s\S]*height:\s*996rpx;[\s\S]*border-radius:\s*32rpx;/, 'poster canvas should keep the mapped preview container');
+assert.match(scheduleWxss, /\.feedback-poster-canvas\s*\{[\s\S]*width:\s*560rpx;[\s\S]*border-radius:\s*32rpx;[\s\S]*background:\s*#fff;/, 'poster canvas should keep the mapped preview container');
 assert.match(scheduleWxss, /\.poster-action-btn\s*\{[\s\S]*height:\s*88rpx;[\s\S]*border-radius:\s*44rpx;[\s\S]*font-size:\s*15px;/, 'poster bottom buttons should use the 44px pill token');
 assert.match(scheduleWxss, /\.student-detail-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 180rpx\);[\s\S]*background:\s*#f4f6f9;/, 'student detail sheet should match the lowered modal top offset and background');
 assert.match(scheduleWxss, /\.schedule-create-sheet\s*\{[\s\S]*height:\s*calc\(100vh - 180rpx\);/, 'native shift scheduling sheet should sit below the mini program top-right capsule');

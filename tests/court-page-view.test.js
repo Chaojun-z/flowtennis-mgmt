@@ -79,6 +79,7 @@ assert.match(html, /function courtSortMetric\(/, 'court page should centralize s
 assert.match(fnBody('courtSortMetric'), /if\(!raw\|\|raw==='-'\|\|raw==='—'\)return \{empty:true,value:0\};/, 'court date sorting should treat dash placeholders as empty values');
 assert.match(fnBody('renderCourts'), /const sortedList=\[\.\.\.list\];/, 'court page should sort the full filtered list before paging');
 assert.match(fnBody('renderCourts'), /else\{[\s\S]*updatedAt\|\|b\.createdAt[\s\S]*updatedAt\|\|a\.createdAt/, 'court rows should use a deterministic default sort when no explicit sort is selected');
+assert.match(fnBody('renderCourts'), /const visibleCourts=courts\.filter\(c=>isActiveCourtRecord\(c\)&&c\.id!=='match-court-finance'\);/, 'legacy court page should exclude the dedicated match finance account from booking user stats');
 assert.match(html, /function handleCourtMoreAction\(/, 'court page should expose more action handler');
 assert.match(html, /id="courtBatchToolbar"[^>]*style="display:none"/, 'court batch toolbar should stay hidden before entering batch mode');
 assert.match(html, /function setCourtBatchMode\(/, 'court page should expose explicit batch mode toggling');

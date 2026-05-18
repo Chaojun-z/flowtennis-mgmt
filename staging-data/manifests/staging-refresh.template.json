@@ -1,0 +1,65 @@
+{
+  "jobName": "staging-refresh-template",
+  "sourceEnv": "production",
+  "targetEnv": "staging",
+  "sourceSnapshotAt": "2026-05-11T00:00:00+08:00",
+  "owner": "fill-me",
+  "approver": "fill-me",
+  "targetPreviewUrl": "https://fill-real-preview-url.vercel.app",
+  "externalBlockers": [
+    "staging TableStore 子账号",
+    "TS_ENDPOINT",
+    "TS_INSTANCE",
+    "ALIBABA_CLOUD_ACCESS_KEY_ID",
+    "ALIBABA_CLOUD_ACCESS_KEY_SECRET"
+  ],
+  "tables": [
+    "ft_students",
+    "ft_courts",
+    "ft_packages",
+    "ft_purchases",
+    "ft_entitlements",
+    "ft_entitlement_ledger",
+    "ft_financial_ledger",
+    "ft_membership_orders",
+    "match_posts",
+    "match_registrations",
+    "match_fee_records",
+    "match_fee_splits"
+  ],
+  "sensitiveFields": [
+    "name",
+    "studentName",
+    "parentName",
+    "phone",
+    "mobile",
+    "openid",
+    "unionid",
+    "note",
+    "remark"
+  ],
+  "validationChecklist": [
+    "能登录",
+    "workbench 有数据",
+    "finance 页不空白",
+    "会员链路可打开",
+    "微信小程序能联通 staging API"
+  ],
+  "vercelPreviewEnvChecklist": [
+    "APP_ENV=staging",
+    "DATA_ENV=staging",
+    "JWT_SECRET 已设置",
+    "MATCH_DATABASE_URL 已设置",
+    "MATCH_DATABASE_SSL 已设置",
+    "TS_ENDPOINT 已设置",
+    "TS_INSTANCE 已设置",
+    "ALIBABA_CLOUD_ACCESS_KEY_ID 已设置",
+    "ALIBABA_CLOUD_ACCESS_KEY_SECRET 已设置"
+  ],
+  "miniProgramChecklist": [
+    "env.staging.js 已替换真实 staging API",
+    "微信后台合法 request 域名已配置",
+    "模板消息配置已确认",
+    "隐私保护指引已确认"
+  ]
+}

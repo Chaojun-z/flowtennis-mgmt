@@ -20,6 +20,7 @@ assert.ok(rules.decorateWorkbenchStudents, 'api._test should expose student cont
 assert.ok(rules.decorateWorkbenchFeedbacks, 'api._test should expose feedback contract normalization helper');
 assert.ok(rules.feedbackScopeForSchedule, 'api._test should expose feedback scope helper');
 assert.ok(rules.buildFeedbackRecord, 'api._test should expose feedback record builder');
+assert.ok(rules.applyLinkedClassScheduleSnapshot, 'api._test should expose linked-class schedule snapshot helper');
 
 assert.strictEqual(
   rules.effectiveScheduleStatus(
@@ -238,6 +239,61 @@ assert.deepStrictEqual(
     remark: '班次备注'
   }],
   'class normalization should output standard fields and avoid linking schedule time by class name guessing'
+);
+
+assert.deepStrictEqual(
+  rules.applyLinkedClassScheduleSnapshot(
+    {
+      classId: 'class-1',
+      courseType: '',
+      productId: '',
+      productName: '',
+      className: ''
+    },
+    {
+      id: 'class-1',
+      classNo: 'CLS0001',
+      className: 'CLS0001-成人私教10节',
+      productId: 'prod-1',
+      productName: '成人私教10节',
+      courseType: '私教课'
+    }
+  ),
+  {
+    classId: 'class-1',
+    courseType: '私教课',
+    productId: 'prod-1',
+    productName: '成人私教10节',
+    className: 'CLS0001-成人私教10节',
+    classNo: 'CLS0001'
+  },
+  'linked schedule should snapshot stable class/product display fields at write time'
+);
+
+assert.deepStrictEqual(
+  rules.applyLinkedClassScheduleSnapshot(
+    {
+      classId: 'class-1',
+      courseType: '体验课'
+    },
+    {
+      id: 'class-1',
+      classNo: 'CLS0001',
+      className: 'CLS0001-成人私教10节',
+      productId: 'prod-1',
+      productName: '成人私教10节',
+      courseType: '私教课'
+    }
+  ),
+  {
+    classId: 'class-1',
+    courseType: '体验课',
+    classNo: 'CLS0001',
+    className: 'CLS0001-成人私教10节',
+    productId: 'prod-1',
+    productName: '成人私教10节'
+  },
+  'explicit schedule course type should win while linked class display snapshot is still filled'
 );
 
 assert.deepStrictEqual(

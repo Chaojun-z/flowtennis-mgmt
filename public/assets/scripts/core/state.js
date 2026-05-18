@@ -194,6 +194,13 @@ function readDatasetCache(name){
     return Array.isArray(parsed?.data)?parsed.data:null;
   }catch(e){return null;}
 }
+function isDatasetCacheUsable(name,data){
+  if(!Array.isArray(data))return false;
+  if(name==='coaches'){
+    return Array.isArray(data)&&data.some(item=>String(item?.id||'').trim()||String(item?.name||'').trim());
+  }
+  return true;
+}
 function setDatasetValue(name,data,{persist=true}={}){
   const rows=Array.isArray(data)?data:[];
   if(name==='courts')courts=rows;
@@ -224,7 +231,7 @@ function hydrateDatasetsFromCache(){
   clearNonProductionSensitiveDatasetCache();
   GLOBAL_DATASET_NAMES.forEach(name=>{
     const cached=readDatasetCache(name);
-    if(cached)setDatasetValue(name,cached,{persist:false});
+    if(isDatasetCacheUsable(name,cached))setDatasetValue(name,cached,{persist:false});
   });
   CAMPUS={};campuses.forEach(x=>{CAMPUS[x.code||x.id]=x.name||x.code||x.id;});
   lastDataSyncAt=Date.now();

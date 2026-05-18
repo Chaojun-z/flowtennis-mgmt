@@ -42,27 +42,30 @@
   </div>
   <!-- 管理员视角 -->
   <div id="sbAdminView">
-  <div class="sb-sec">教学管理</div>
+  <div class="sb-sec">用户中心</div>
   <div class="sb-item active" onclick="goPage('students',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>学员信息</div>
-  <div class="sb-item" onclick="goPage('classes',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span>班次管理</div>
-  <div class="sb-item" onclick="goPage('plans',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></span>学习计划</div>
+  <div class="sb-item" onclick="goPage('courts',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>订场用户</div>
+  <div class="sb-item" onclick="goPage('memberships',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span>会员管理</div>
+  <div class="sb-sec">教学中心</div>
+  <div class="sb-item" style="display:none" onclick="goPage('classes',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span>班次管理</div>
   <div class="sb-item" onclick="goPage('schedule',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="m9 16 2 2 4-4"/></svg></span>排课表</div>
-  <div class="sb-item" onclick="goPage('coachops',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 3 3 4-3 3 3"/><path d="M3 12h18"/><path d="M3 21h18"/><path d="m15 15 3 3 3-3"/><path d="m21 9-3-3-3 3"/></svg></span>教练运营</div>
-  <div class="sb-sec">课程管理</div>
-  <div class="sb-item" onclick="goPage('products',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>课程产品</div>
+  <div class="sb-item" style="display:none" onclick="goPage('products',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>课程产品</div>
   <div class="sb-item" onclick="goPage('packages',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg></span>售卖课包</div>
   <div class="sb-item" onclick="goPage('purchases',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5V19"/><path d="M12 5v1.5"/></svg></span>购买记录</div>
-  <div class="sb-sec">场地与资源</div>
-  <div class="sb-item" onclick="goPage('courts',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>订场用户</div>
+  <div class="sb-sec">场地运营</div>
   <div class="sb-item" onclick="goPage('matches',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v18"/><path d="M18 3v18"/><path d="M3 8h18"/><path d="M3 16h18"/></svg></span>约球管理</div>
-  <div class="sb-item" onclick="goPage('memberships',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span>会员管理</div>
   <div class="sb-item" onclick="goPage('membership-plans',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg></span>会员方案</div>
   <div class="sb-item" onclick="goPage('prices',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>价格管理</div>
+  <div class="sb-sec">资源管理</div>
   <div class="sb-item" onclick="goPage('coaches',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg></span>教练管理</div>
+  <div class="sb-item" onclick="goPage('coachops',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 3 3 4-3 3 3"/><path d="M3 12h18"/><path d="M3 21h18"/><path d="m15 15 3 3 3-3"/><path d="m21 9-3-3-3 3"/></svg></span>教练运营</div>
   <div class="sb-item" onclick="goPage('admin-users',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></span>账号管理</div>
   <div class="sb-item" id="sbCampusMgr" style="display:none" onclick="goPage('campusmgr',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg></span>校区管理</div>
   <div class="sb-sec">财务中心</div>
-  <div class="sb-item" onclick="goPage('finance',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4Z"/></svg></span>财务中心</div>
+  <div class="sb-item" data-nav-page="finance" data-finance-panel="ledger" onclick="setFinancePanel('ledger');goPage('finance',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4Z"/></svg></span>财务总览</div>
+  <div class="sb-item" data-nav-page="finance" data-finance-panel="revenue" onclick="setFinancePanel('revenue');goPage('finance',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5V19"/><path d="M12 5v1.5"/></svg></span>收入流水</div>
+  <div class="sb-item" data-nav-page="finance" data-finance-panel="recognized" onclick="setFinancePanel('recognized');goPage('finance',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>已入账流水</div>
+  <div class="sb-item" data-nav-page="finance" data-finance-panel="settlement" onclick="setFinancePanel('settlement');goPage('finance',this)"><span class="sb-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>教练结算</div>
   </div>
   </div>
   <div class="sb-bottom">
@@ -102,10 +105,13 @@
         <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="stuPagerInfo">共 0 条</span></div><div class="tms-page-numbers" id="stuPagerBtns"></div></div>
       </div>
     </div>
+    <!-- products / classes / plans 仅保留历史兼容，不应再作为新增功能默认依赖。 -->
+    <!-- 现行业务主链路是 packages -> purchases -> entitlements -> schedule。 -->
     <!-- 班次管理 -->
     <div class="page-section" id="page-classes">
       <div class="tms-stats-row" id="classStatsRow"></div>
       <div class="tms-audit-note">班次用于组织固定上课关系和学习进度；是否还能继续约课，仍然以课包余额和可用规则为准。</div>
+      <div class="tms-audit-note">本页仅保留历史兼容查看。新业务请在售卖课包、购买记录、排课表处理。</div>
       <div class="tms-toolbar">
         <div class="tms-filters">
           <div class="tms-search-wrapper">
@@ -120,33 +126,11 @@
           <div id="clsTypeFilterHost"></div>
         </div>
         <div class="tms-toolbar-right">
-          <button class="tms-btn tms-btn-primary" onclick="openClassModal(null)">＋ 新建班次</button>
+          <button class="tms-btn tms-btn-primary" onclick="goPage('schedule')">返回排课表</button>
         </div>
       </div>
       <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:220px;padding-left:20px">班次名称</th><th style="width:130px">班次编号</th><th style="width:150px">课程</th><th style="width:110px">类型</th><th style="width:120px">开始日期</th><th style="width:120px">结束日期</th><th style="width:100px">校区</th><th style="width:180px">学员</th><th style="width:100px">教练</th><th style="width:100px">上课日</th><th style="width:120px">最近上课</th><th style="width:120px">下次课</th><th style="width:130px">课时进度</th><th style="width:100px">状态</th><th class="tms-sticky-r" style="width:160px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="clsTbody"></tbody></table></div>
         <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="clsPagerInfo">共 0 条</span></div><div class="tms-page-numbers" id="clsPagerBtns"></div></div>
-      </div>
-    </div>
-    <!-- 学习计划 -->
-    <div class="page-section" id="page-plans">
-      <div class="tms-audit-note">学习计划由「班次管理」自动生成，每个学员 × 班次 = 一条记录；班次进度用于看学习推进，真实可约课以课包余额规则为准。</div>
-      <div class="tms-toolbar">
-        <div class="tms-filters">
-          <div class="tms-search-wrapper">
-            <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="text" class="tms-search-input" id="planSearch" placeholder="搜索学员、班次、关联账户" oninput="renderPlans()">
-          </div>
-          <div id="planStatusFilterHost"></div>
-          <div id="planCampusFilterHost"></div>
-          <div id="planCoachFilterHost"></div>
-          <div id="planTypeFilterHost"></div>
-          <div id="planStageFilterHost"></div>
-        </div>
-      </div>
-      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:140px;padding-left:20px">学员</th><th style="width:140px">手机号</th><th style="width:180px">班次</th><th style="width:150px">课程</th><th style="width:110px">教练</th><th style="width:120px">最近上课</th><th style="width:140px">班次进度</th><th style="width:240px">课包余额</th><th style="width:100px">状态</th><th class="tms-sticky-r" style="width:180px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="planTbody"></tbody></table></div>
-        <div class="tms-pagination"><div class="tms-pagination-left"><span class="pager-info" id="planPagerInfo">共 0 条</span></div><div class="tms-page-numbers" id="planPagerBtns"></div></div>
       </div>
     </div>
     <!-- 排课表 -->
@@ -356,14 +340,14 @@
             <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" class="tms-search-input" id="adminUserSearch" placeholder="搜索账号、姓名或绑定教练" oninput="renderAdminUsers()">
+            <input type="text" class="tms-search-input" id="adminUserSearch" placeholder="搜索账号、姓名、手机号或绑定教练" oninput="renderAdminUsers()">
           </div>
         </div>
         <div class="tms-toolbar-right">
           <button class="tms-btn tms-btn-primary" onclick="openAdminUserModal(null)">＋ 新增账号</button>
         </div>
       </div>
-      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:18%;padding-left:20px">账号</th><th style="width:16%">姓名</th><th style="width:12%">角色</th><th style="width:12%">状态</th><th style="width:20%">绑定教练</th><th style="width:14%">账号说明</th><th class="tms-sticky-r" style="width:180px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="adminUserTbody"></tbody></table></div></div>
+      <div class="tms-table-card"><div class="tms-table-wrapper"><table class="tms-table"><thead><tr><th style="width:16%;padding-left:20px">账号</th><th style="width:14%">姓名</th><th style="width:14%">手机号</th><th style="width:10%">角色</th><th style="width:10%">状态</th><th style="width:14%">绑定教练</th><th style="width:10%">微信通知</th><th style="width:12%">账号说明</th><th class="tms-sticky-r" style="width:180px;padding-right:20px;text-align:right">操作</th></tr></thead><tbody id="adminUserTbody"></tbody></table></div></div>
     </div>
     <!-- 订场用户 -->
     <div class="page-section" id="page-courts">
@@ -459,7 +443,7 @@
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
-          课程产品只定义课程模板。后续创建班次、售卖课包，都是基于这里的课程产品。
+          课程产品页仅保留历史兼容查看，用于回看旧课程模板；新业务请在售卖课包、购买记录、排课表处理。
         </div>
         <div class="course-showcase-toolbar">
           <div class="course-showcase-filters">
@@ -471,7 +455,7 @@
             </div>
             <div id="prodTypeFilterHost"></div>
           </div>
-          <button class="tms-btn tms-btn-primary" onclick="openProductModal(null)">＋ 新增课程产品</button>
+          <button class="tms-btn tms-btn-primary" onclick="goPage('packages')">返回售卖课包</button>
         </div>
         <div class="course-showcase-grid" id="productGrid"></div>
       </div>
@@ -483,7 +467,7 @@
           <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
           </svg>
-          课程产品定义上什么课；售卖课包定义怎么卖、什么时候能买、什么时候能用。创建售卖课包时会直接绑定一个课程产品。
+          售卖课包用于定义怎么卖、什么时候能买、什么时候能用，并直接绑定对应课程类型。
         </div>
         <div class="course-package-showcase-toolbar">
           <div class="course-package-showcase-filters">
@@ -491,13 +475,12 @@
               <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <input type="text" class="tms-search-input" id="pkgSearch" placeholder="搜索课包名称、课程产品、时段" oninput="renderPackages()">
+              <input type="text" class="tms-search-input" id="pkgSearch" placeholder="搜索课包名称、课程类型、时段" oninput="renderPackages()">
             </div>
             <div id="pkgTypeFilterHost"></div>
             <div id="pkgStatusFilterHost"></div>
           </div>
           <div class="course-package-showcase-actions">
-            <button class="tms-btn tms-btn-ghost" onclick="goPage('products')">查看课程产品</button>
             <button class="tms-btn tms-btn-primary" onclick="openPackageModal(null)">＋ 新增售卖课包</button>
           </div>
         </div>
@@ -513,7 +496,7 @@
             <svg class="tms-search-icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" class="tms-search-input" id="purSearch" placeholder="搜索学员、课包、课程产品" oninput="renderPurchases()">
+            <input type="text" class="tms-search-input" id="purSearch" placeholder="搜索学员、课包、课程类型" oninput="renderPurchases()">
           </div>
           <div id="purPackageFilterHost"></div>
           <button class="tms-btn tms-btn-ghost" onclick="exportPurchaseCSV()">导出</button>
@@ -529,7 +512,7 @@
     </div>
     <!-- 课包余额（已隐藏入口，仅保留底层审计页） -->
     <div class="page-section" id="page-entitlements">
-      <div class="tms-audit-note">课包余额是学员当前可用课时余额。排课时实际消耗的是这里，不是直接消耗课程产品。</div>
+      <div class="tms-audit-note">课包余额是学员当前可用课时余额。排课时实际消耗的是这里，不是直接消耗购买记录。</div>
       <div class="tms-toolbar">
         <div class="tms-filters">
           <div class="tms-search-wrapper">
@@ -650,7 +633,6 @@
 <script src="/assets/scripts/pages/students.js"></script>
 <script src="/assets/scripts/pages/schedule.js"></script>
 <script src="/assets/scripts/pages/classes.js"></script>
-<script src="/assets/scripts/pages/plans.js"></script>
 <script src="/assets/scripts/pages/products.js"></script>
 <script src="/assets/scripts/pages/packages.js"></script>
 <script src="/assets/scripts/pages/purchases.js"></script>

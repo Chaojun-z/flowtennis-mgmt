@@ -1,7 +1,10 @@
 const assert = require('assert');
 const { appSource: source } = require('./helpers/read-index-bundle');
 
-assert.match(source,/goPage\('finance',this\)[\s\S]*?财务中心/,'sidebar should expose finance center page');
+assert.match(source,/data-nav-page="finance" data-finance-panel="ledger"[\s\S]*财务总览/,'sidebar should expose the top-level finance overview entry');
+assert.match(source,/data-nav-page="finance" data-finance-panel="revenue"[\s\S]*收入流水/,'sidebar should expose the top-level revenue entry');
+assert.match(source,/data-nav-page="finance" data-finance-panel="recognized"[\s\S]*已入账流水/,'sidebar should expose the top-level recognized entry');
+assert.match(source,/data-nav-page="finance" data-finance-panel="settlement"[\s\S]*教练结算/,'sidebar should expose the top-level settlement entry');
 assert.match(source,/id="page-finance"/,'finance center page should exist');
 assert.match(source,/总账[\s\S]*收入流水[\s\S]*已入账流水[\s\S]*教练结算/,'finance center tabs should follow the simplified order');
 assert.match(source,/id="financeTabLedger"/,'finance center should expose ledger tab');
@@ -14,11 +17,18 @@ assert.match(source,/id="financeRecognizedPanel"/,'finance center should render 
 assert.match(source,/id="financeSettlementPanel"/,'finance center should render settlement panel');
 assert.match(source,/function setFinancePanel\(/,'finance center should expose tab switch logic');
 assert.match(source,/let coachOpsMode='day',coachOpsPanel='schedule',coachOpsPickerMonth=null,financePanel='ledger'/,'finance center should default to ledger tab');
+assert.match(source,/let stuPage=1,clsPage=1,schPage=1,courtPage=1,financeLedgerPage=1,financeRevenuePage=1,financeConsumePage=1;/,'finance center should preserve dedicated revenue and recognized pagination state');
 assert.match(source,/function renderFinanceCenter\(/,'finance center should expose page render logic');
+assert.match(source,/const financeTitleMap=\{ledger:'财务总览',revenue:'收入流水',recognized:'已入账流水',settlement:'教练结算'\}/,'top title should follow the finance panel title map');
 assert.match(source,/function renderFinanceOverview\(/,'finance center should render summary stats inside ledger tab');
 assert.match(source,/function renderFinanceLedger\(/,'finance center should render ledger table');
 assert.match(source,/function renderFinanceRevenueReport\(/,'finance center should render revenue detail table');
 assert.match(source,/function renderFinanceConsumeReport\(/,'finance center should render consume detail table');
+assert.match(source,/function financeUnifiedRows\(/,'finance center should rebuild the original unified finance ledger source');
+assert.match(source,/function financeRecognizedRows\(/,'finance center should rebuild the original recognized-flow source');
+assert.match(source,/function financeConsumeBaseRows\(/,'finance center should preserve the original course consume base rows');
+assert.match(source,/function financeMembershipRevenueRows\(/,'finance center should restore membership recharge rows from the original finance line');
+assert.match(source,/function financeDifferenceReason\(/,'finance center should preserve the original finance difference handling');
 assert.match(source,/function renderFinanceSettlementSummary\(/,'finance center should render settlement summary');
 assert.match(source,/id="financeLedgerBusinessTypeFilterHost"/,'ledger should expose business type filter host');
 assert.match(source,/id="financeLedgerActionFilterHost"/,'ledger should expose action filter host');
@@ -38,10 +48,9 @@ assert.match(source,/renderFinanceLedgerReport\(\)">查询|renderFinanceLedger\(
 assert.match(source,/renderFinanceRevenueReport\(\)">查询/,'revenue date filters should have an explicit query button');
 assert.match(source,/renderFinanceConsumeReport\(\)">查询/,'consume date filters should have an explicit query button');
 assert.doesNotMatch(source,/未入账明细/,'ledger should no longer show a second prepaid detail table');
-assert.match(source,/总收入（实收）[\s\S]*总已入账[\s\S]*总未入账/,'ledger summary should use plain-language owner terms');
-assert.doesNotMatch(source,/总流水笔数/,'ledger summary should not keep total flow count card');
-assert.match(source,/课包收入 \/ 已入账[\s\S]*会员储值收入 \/ 已消耗[\s\S]*订场收入 \/ 已入账/,'ledger summary should keep six owner-facing cards without duplicate member booking stats');
-assert.doesNotMatch(source,/会员订场已入账/,'ledger summary should not repeat stored value consumption as a separate member booking card');
+assert.match(source,/总收入（实收）[\s\S]*总已入账 \/ 总未入账/,'ledger summary should restore the original combined recognized and deferred card');
+assert.match(source,/课包收入 \/ 已入账[\s\S]*会员储值 \/ 已入账[\s\S]*订场收入 \/ 已入账/,'ledger summary should restore the original course, stored value, and booking pair cards');
+assert.match(source,/function renderFinanceConsumeReport\([\s\S]*会员储值已入账[\s\S]*订场已入账[\s\S]*已入账合计/,'recognized flow summary should restore the original stored value and booking breakdown');
 assert.match(source,/id="financeLedgerPagerInfo"/,'ledger should expose pager info');
 assert.match(source,/id="financeLedgerPageSize"/,'ledger should expose page size selector');
 assert.match(source,/id="financeLedgerPagerBtns"/,'ledger should expose pager buttons');

@@ -1,0 +1,8 @@
+<view class="nav nav-compact">
+  <view class="nav-item nav-item-compact {{selected === 0 ? 'on' : ''}}" data-index="0" data-path="/pages/index/index" bindtap="switchTab">
+    <view class="nav-ico">⌂</view><view class="nav-lbl">登录</view>
+  </view>
+  <view class="nav-item nav-item-compact {{selected === 1 ? 'on' : ''}}" data-index="1" data-path="/pages/schedule/schedule" bindtap="switchTab">
+    <view class="nav-ico">◎</view><view class="nav-lbl">工作台</view>
+  </view>
+</view>

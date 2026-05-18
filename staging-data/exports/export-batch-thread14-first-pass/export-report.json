@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-05-11T09:26:21.954Z",
+  "manifestPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/manifests/first-pass-core-pages.json",
+  "snapshotPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-thread14-first-pass/raw-snapshot.json",
+  "sourceEnv": "production",
+  "targetEnv": "staging",
+  "tableCounts": {
+    "ft_campuses": 5,
+    "ft_coaches": 13,
+    "ft_students": 80,
+    "ft_feedbacks": 10,
+    "ft_products": 10,
+    "ft_classes": 0,
+    "ft_schedule": 43,
+    "ft_courts": 665,
+    "ft_price_plans": 28,
+    "ft_packages": 16,
+    "ft_purchases": 63,
+    "ft_entitlements": 63,
+    "ft_entitlement_ledger": 326
+  }
+}

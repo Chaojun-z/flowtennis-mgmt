@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-05-12T02:53:24.160Z",
+  "appEnv": "production",
+  "manifestPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/manifests/finance-ledger-acceptance-minimal.json",
+  "outDir": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-thread66-finance-ledger",
+  "snapshotPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-thread66-finance-ledger/raw-snapshot.json",
+  "reportPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-thread66-finance-ledger/export-report.json",
+  "sourceEnv": "production",
+  "targetEnv": "staging",
+  "tables": [
+    "ft_financial_ledger"
+  ],
+  "note": "该脚本会按 manifest 从源 TableStore 拉取首轮最小可信数据快照。"
+}

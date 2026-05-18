@@ -1,0 +1,116 @@
+<view class="page">
+  <view class="nav-header" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content">
+      <view class="back-btn" bindtap="goBack">
+        <image class="back-icon" src="/assets/icons/back.svg" mode="aspectFit" />
+      </view>
+      <view class="nav-spacer"></view>
+    </view>
+  </view>
+  <view wx:if="{{errorText && !match}}" class="empty">
+    <view>{{errorText}}</view>
+    <button class="secondary" bindtap="loadDetail">重试</button>
+  </view>
+  <view wx:elif="{{match}}">
+    <view class="detail-hero">
+      <view class="detail-meta-row">
+        <view class="detail-status inline {{match.isFull ? 'full' : ''}}">{{match.statusText}}</view>
+        <view class="detail-subline">{{match.dateLine}}</view>
+      </view>
+      <view class="detail-title">{{match.title}}</view>
+      <view class="detail-watermark">PLAY</view>
+    </view>
+
+    <view class="metric-grid">
+      <view class="metric-card"><view class="metric-n">{{match.currentHeadcount || 0}}/{{match.targetHeadcount || 0}}</view><view class="metric-l">人数</view></view>
+      <view class="metric-card"><view class="metric-n-venue">{{match.venueCardText}}</view><view class="metric-l">场地</view></view>
+      <view class="metric-card"><view class="metric-n">{{match.ntrpText}}</view><view class="metric-l">水平</view></view>
+      <view class="metric-card"><view class="metric-n">{{match.genderPreference || '不限'}}</view><view class="metric-l">性别</view></view>
+      <view class="metric-card"><view class="metric-n">{{match.feeText}}</view><view class="metric-l">总场地费</view></view>
+      <view class="metric-card"><view class="metric-n">{{match.aaFeeText}}</view><view class="metric-l">预计 AA</view></view>
+    </view>
+
+    <view class="join-sheet">
+      <view class="sheet-head">
+        <view>
+          <view class="sheet-title">报名名单</view>
+        </view>
+        <view class="sheet-count">仅剩{{match.spotsLeftText}}</view>
+      </view>
+      <view wx:if="{{previewOnly}}" class="preview-loading-card">
+        <view class="preview-line w240"></view>
+        <view class="preview-line w180 short"></view>
+      </view>
+      <view wx:if="{{match.statusHintText}}" class="cost-copy">{{match.statusHintText}}</view>
+      <view wx:elif="{{registrations.length}}">
+        <view class="player-row" wx:for="{{registrations}}" wx:key="id">
+          <view class="player-ava">{{index + 1}}</view>
+          <view class="player-info">
+          <view class="player-name">{{item.userName || item.userId}}</view>
+          <view class="player-sub">
+            {{item.ntrpText || '未设水平'}} · {{item.attendanceRateText || '暂无守约率'}} ·
+            {{item.finalAttendanceStatus === 'attended' ? '已到场' : item.finalAttendanceStatus === 'absent' ? '缺席' : item.registrationStatus === 'cancelled' ? '已取消' : '待确认'}}
+          </view>
+        </view>
+          <view wx:if="{{isCreator && item.registrationStatus !== 'cancelled' && !match.attendanceLocked && !match.needsOperatorTakeover}}" class="attendance-actions">
+            <button class="mini-btn ok" data-registration-id="{{item.id}}" data-status="attended" bindtap="creatorMarkAttendance">确认到场</button>
+            <button class="mini-btn danger" data-registration-id="{{item.id}}" data-status="absent" bindtap="creatorMarkAttendance">标记缺席</button>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="empty slim">暂无报名</view>
+    </view>
+
+    <view class="rules-sheet">
+      <view class="rules-title">畅打规则</view>
+      <view wx:for="{{matchRules}}" wx:key="index" class="rule-row">
+        <text class="rule-index">{{index + 1}}.</text>
+        <text class="rule-text">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="action-bar">
+      <view class="cost-copy">预估 {{match.aaFeeText}}，运营订场后后台确认最终金额</view>
+      <view wx:if="{{match.paymentText}}" class="cost-copy">{{match.paymentText}}</view>
+      <view wx:if="{{match.paymentText && operatorWechatId}}" class="pay-contact" bindtap="copyOperatorWechat">运营微信：{{operatorWechatId}}（点击复制）</view>
+      <image wx:if="{{match.paymentText && operatorPaymentQr}}" class="pay-qr" src="{{operatorPaymentQr}}" mode="aspectFit" />
+      <button wx:if="{{canEdit}}" class="secondary edit-entry" bindtap="editMatch">修改约球信息</button>
+      <view class="action-row">
+        <button class="secondary share-btn" open-type="share">喊朋友一起打</button>
+        <button wx:if="{{!joined && !viewerHasPhone}}" class="primary action-main {{canRegister ? '' : 'disabled'}}" disabled="{{!canRegister}}" open-type="getPhoneNumber" bindgetphonenumber="registerWithPhone">{{match.hasEnded ? '球局已结束' : match.hasStarted ? '球局已开始' : match.isFull ? '名额已满' : '立即报名'}}</button>
+        <button wx:elif="{{!joined}}" class="primary action-main {{canRegister ? '' : 'disabled'}}" disabled="{{!canRegister}}" bindtap="register">{{match.hasEnded ? '球局已结束' : match.hasStarted ? '球局已开始' : match.isFull ? '名额已满' : '立即报名'}}</button>
+        <button wx:elif="{{viewerRegistrationStatus === 'absent'}}" class="secondary disabled action-main" disabled="true">已标记缺席</button>
+        <button wx:else class="secondary {{canCancelRegistration ? '' : 'disabled'}} action-main" disabled="{{!canCancelRegistration}}" bindtap="cancelRegistration">取消报名</button>
+      </view>
+    </view>
+  </view>
+  <view wx:elif="{{loading}}" class="detail-skeleton">
+    <view class="detail-skeleton-card">
+      <view class="dsk-row">
+        <view class="dsk-pill"></view>
+        <view class="dsk-line w220"></view>
+      </view>
+      <view class="dsk-line w360 large"></view>
+    </view>
+    <view class="detail-skeleton-grid">
+      <view class="detail-skeleton-box"></view>
+      <view class="detail-skeleton-box"></view>
+      <view class="detail-skeleton-box"></view>
+      <view class="detail-skeleton-box"></view>
+      <view class="detail-skeleton-box"></view>
+      <view class="detail-skeleton-box"></view>
+    </view>
+    <view class="detail-skeleton-list">
+      <view class="dsk-head"></view>
+      <view class="dsk-player"></view>
+      <view class="dsk-player"></view>
+    </view>
+    <view class="detail-skeleton-rules"></view>
+    <view class="detail-skeleton-bar"></view>
+  </view>
+  <canvas
+    canvas-id="share-card-canvas"
+    class="share-card-canvas"
+    style="width: 720px; height: 576px;"
+  ></canvas>
+</view>

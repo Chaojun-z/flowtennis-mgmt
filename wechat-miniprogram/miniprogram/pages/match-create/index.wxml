@@ -1,0 +1,177 @@
+<view class="page-container">
+  <view class="nav-header" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-content">
+      <view class="back-btn" hover-class="ios-active" bindtap="goBack">
+        <image class="back-icon" src="/assets/icons/back.svg" mode="aspectFit" />
+      </view>
+      <view class="nav-spacer"></view>
+    </view>
+  </view>
+
+  <scroll-view scroll-y class="main-scroll" show-scrollbar="{{false}}">
+    <view class="hero-section">
+      <view class="hero-title-row">
+      <view class="hero-title">
+          <text class="hero-title-main">发起一场</text>
+          <text class="hero-title-accent">好球</text>
+        </view>
+        <image class="tennis-ball-icon" src="/assets/icons/tennis-ball.svg" mode="aspectFit" />
+      </view>
+    </view>
+
+    <view class="content">
+      <view class="form-card input-card">
+        <text class="card-title">约球主题</text>
+        <input
+          class="card-input {{form.title ? 'card-input-filled' : ''}}"
+          placeholder="例如：周末单打练习"
+          placeholder-class="card-placeholder"
+          value="{{form.title}}"
+          bindinput="updateTitle"
+        />
+      </view>
+
+      <view class="form-card action-card" hover-class="row-active" data-sheet="preference" bindtap="openSheet">
+        <view class="card-head">
+          <text class="card-title">约球偏好</text>
+          <text class="card-action">修改</text>
+        </view>
+        <text class="card-desc">{{preferenceSummary}}</text>
+      </view>
+
+      <view class="form-card action-card">
+        <view class="card-head">
+          <text class="card-title">AA费用</text>
+          <view class="card-fee-wrap {{feeInput !== '' ? 'has-value' : ''}}">
+            <input
+              class="card-action-input {{feeInput !== '' ? 'card-action-input-filled' : ''}}"
+              type="digit"
+              placeholder="输入金额"
+              placeholder-class="card-action-placeholder"
+              value="{{feeInput}}"
+              bindinput="updateFeeInput"
+            />
+          </view>
+        </view>
+        <text class="card-desc">{{feeSummary}}</text>
+      </view>
+
+      <view class="form-card action-card {{timeExpanded ? 'time-card-expanded' : ''}}" hover-class="row-active" bindtap="toggleTimeExpanded">
+        <view class="card-head">
+          <text class="card-title">时间</text>
+          <text class="card-action">修改</text>
+        </view>
+        <text class="card-desc">{{timeSummary}}</text>
+        <view wx:if="{{timeExpanded}}" class="time-picker-line">
+          <picker mode="date" value="{{startDate}}" data-field="startDate" bindchange="updateDate">
+            <view class="time-picker-pill time-picker-date">{{startDate}}</view>
+          </picker>
+          <picker mode="time" value="{{startClock}}" data-field="startClock" bindchange="updateClock">
+            <view class="time-picker-pill">{{startClock}}</view>
+          </picker>
+          <text class="time-sep">-</text>
+          <picker mode="time" value="{{endClock}}" data-field="endClock" bindchange="updateClock">
+            <view class="time-picker-pill">{{endClock}}</view>
+          </picker>
+        </view>
+      </view>
+
+      <view class="form-card location-card">
+        <text class="card-title">场地位置</text>
+        <view class="venue-card" hover-class="row-active" bindtap="chooseVenueLocation">
+          <view class="venue-icon-wrap">
+            <view class="venue-icon-box">
+              <image class="venue-icon-svg" src="/assets/icons/venue.svg" mode="aspectFit" />
+            </view>
+          </view>
+          <view class="venue-copy">
+            <text class="venue-name {{form.venueName ? 'venue-name-filled' : ''}}">{{form.venueName || '请选择球场'}}</text>
+            <text class="venue-address">{{form.venueAddress || '点击后直接调起微信位置进行选择'}}</text>
+          </view>
+          <text class="venue-arrow">›</text>
+        </view>
+      </view>
+
+      <view class="safe-space"></view>
+    </view>
+  </scroll-view>
+
+  <view class="bottom-bar">
+    <view class="bottom-content">
+      <button wx:if="{{editing || currentUserHasPhone}}" class="submit-btn" hover-class="btn-active" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submitMatch">
+        <text>{{submitting ? (editing ? '保存中' : '发布中') : (editing ? '保存修改' : '发布约球')}}</text>
+      </button>
+      <button wx:else class="submit-btn" hover-class="btn-active" loading="{{submitting}}" disabled="{{submitting}}" open-type="getPhoneNumber" bindgetphonenumber="submitMatchWithPhone">
+        <text>{{submitting ? (editing ? '保存中' : '发布中') : (editing ? '保存修改' : '发布约球')}}</text>
+      </button>
+    </view>
+  </view>
+
+  <view wx:if="{{showSheet}}" class="sheet-mask" bindtap="closeSheet"></view>
+  <view class="sheet {{showSheet ? 'sheet-on' : ''}}" catchtouchmove="stopSheetTouch">
+    <view class="sheet-handle"></view>
+
+    <view wx:if="{{activeSheet === 'preference'}}" class="sheet-body">
+      <view class="struct-hide">人数 {{form.targetHeadcount}}</view>
+      <view class="sheet-head">
+        <text class="sheet-title">约球偏好</text>
+        <image class="sheet-close-icon" src="/assets/icons/close.svg" mode="aspectFit" bindtap="closeSheet" />
+      </view>
+
+      <view class="pref-row">
+        <text class="pref-label">水平范围</text>
+        <text class="pref-value">{{levelSummaryText}}</text>
+      </view>
+      <view class="pref-block">
+        <text class="pref-label">定级方式</text>
+        <view class="chip-row">
+          <view class="pref-chip {{form.levelMode === 'preset' ? 'pref-chip-on' : ''}}" data-value="preset" bindtap="toggleLevelMode">预设水平</view>
+          <view class="pref-chip pref-chip-wide {{form.levelMode === 'first_join' ? 'pref-chip-on' : ''}}" data-value="first_join" bindtap="toggleLevelMode">首位报名定级</view>
+        </view>
+      </view>
+      <view wx:if="{{form.levelMode !== 'first_join'}}">
+      <view class="pref-range-shell">
+        <view class="pref-range-wrap">
+          <view class="pref-range-visual">
+            <view class="pref-range-track"></view>
+            <view class="pref-range-active" style="left: {{rangeMinPercent}}%; width: {{rangeWidthPercent}}%;"></view>
+            <view class="pref-range-thumb pref-range-thumb-min" style="left: {{rangeMinPercent}}%;"></view>
+            <view class="pref-range-thumb pref-range-thumb-max" style="left: {{rangeMaxPercent}}%;"></view>
+          </view>
+          <slider class="pref-range-slider pref-range-slider-min" min="10" max="50" step="5" value="{{ntrpMinSlider}}" activeColor="rgba(0,0,0,0)" backgroundColor="rgba(0,0,0,0)" block-size="28" block-color="rgba(0,0,0,0)" data-field="min" bindchanging="updateNtrpSlider" bindchange="updateNtrpSlider" />
+          <slider class="pref-range-slider pref-range-slider-max" min="10" max="50" step="5" value="{{ntrpMaxSlider}}" activeColor="rgba(0,0,0,0)" backgroundColor="rgba(0,0,0,0)" block-size="28" block-color="rgba(0,0,0,0)" data-field="max" bindchanging="updateNtrpSlider" bindchange="updateNtrpSlider" />
+        </view>
+        <view class="pref-range-scale">
+          <text>1.0</text>
+          <text>5.0</text>
+        </view>
+        <view class="pref-range-hint">为了保证体验，建议根据自身水平上下浮动0.5即可</view>
+      </view>
+      </view>
+      <view wx:else class="pref-range-hint">不预设时，首位报名球友的真实水平会自动成为本局最低门槛。</view>
+
+      <view class="pref-block">
+        <text class="pref-label">性别</text>
+        <view class="chip-row">
+          <view wx:for="{{genderOptions}}" wx:key="*this" class="pref-chip {{form.genderPreference === item ? 'pref-chip-on' : ''}}" data-value="{{item}}" bindtap="updateGender">{{item}}</view>
+        </view>
+      </view>
+
+      <view class="pref-block">
+        <text class="pref-label">约球类型</text>
+        <view class="chip-row">
+          <view wx:for="{{matchTypeOptions}}" wx:key="*this" class="pref-chip {{form.matchType === item ? 'pref-chip-on' : ''}}" data-value="{{item}}" bindtap="updateMatchType">{{item}}</view>
+        </view>
+      </view>
+
+      <view class="pref-block">
+        <text class="pref-label">人数</text>
+        <view class="chip-row">
+          <view wx:for="{{headcountChoices}}" wx:key="value" class="pref-chip {{form.targetHeadcount === item.value ? 'pref-chip-on' : ''}}" data-value="{{item.value}}" bindtap="updateHeadcount">{{item.label}}</view>
+        </view>
+      </view>
+
+      <button class="sheet-btn" bindtap="closeSheet">完成</button>
+    </view>
+  </view>
+</view>

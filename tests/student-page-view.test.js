@@ -31,7 +31,7 @@ assert.match(source, /pendingConversion:base\.filter\(s=>studentNeedsConversion\
 assert.match(source, /function studentStatusMeta\(/, 'student list should compute business status labels');
 assert.match(source, /上课中[\s\S]*待转化[\s\S]*沉默30天[\s\S]*仅订场[\s\S]*无班次/, 'student status labels should cover the agreed business states');
 assert.match(source, /function studentNoteSummary\(/, 'student list should compute compact ops-style note summary');
-assert.match(source, /<table class="tms-table">[\s\S]*<th[^>]*>学员<\/th><th[^>]*>电话<\/th><th[^>]*>类型<\/th><th[^>]*>校区<\/th><th[^>]*>当前班次<\/th><th[^>]*>最近上课<\/th><th[^>]*>累计上课<\/th><th[^>]*>负责教练<\/th><th[^>]*>课包\/课时<\/th><th[^>]*>订场\/会员<\/th><th[^>]*>来源<\/th><th[^>]*>备注<\/th><th[^>]*>操作<\/th>/, 'student table should add cumulative lesson count beside last lesson');
+assert.match(source, /<table class="tms-table">[\s\S]*<th[^>]*>学员<\/th><th[^>]*>电话<\/th><th[^>]*>类型<\/th><th[^>]*>校区<\/th(?:[^>]*)>(?:当前班次<\/th>)?[\s\S]*<th[^>]*>最近上课<\/th><th[^>]*>累计上课<\/th><th[^>]*>负责教练<\/th><th[^>]*>课包\/课时<\/th><th[^>]*>订场\/会员<\/th><th[^>]*>来源<\/th><th[^>]*>备注<\/th><th[^>]*>操作<\/th>/, 'student table should keep package-first ops columns while not forcing current class as the core skeleton');
 assert.match(source, /function studentCompletedLessonCount\(/, 'student page should expose a cumulative completed lesson helper');
 assert.match(source, /studentCompletedLessonCount\(s\)/, 'student list should render cumulative completed lessons');
 assert.match(source, /function scheduleLessonUnits\(/, 'lesson stats should use schedule lesson units instead of row counts');
@@ -52,10 +52,14 @@ assert.match(source, /\$\{lessonQty\(remaining\)\}\/\$\{lessonQty\(total\)\}/, '
 assert.match(source, /student-summary-strong/, 'student rows should visually distinguish non-empty package and booking summaries');
 assert.match(source, /function openStudentDetail\(/, 'student list should provide a dedicated view action');
 assert.match(source, /openStudentDetail\('[^']+'\)[\s\S]*openStudentModal\('[^']+'\)/, 'student row should prioritize view before edit');
-assert.match(source, /openStudentDetail\('[^']+'\)[\s\S]*openPurchaseModal\('[^']+'\)[\s\S]*openStudentModal\('[^']+'\)/, 'student row should expose a direct package purchase shortcut between view and edit');
+assert.match(source, /openStudentDetail\('[^']+'\)[\s\S]*openStudentPurchaseModal\('[^']+'\)[\s\S]*openStudentModal\('[^']+'\)/, 'student row should expose a direct package record shortcut between view and edit');
+assert.match(source, /function openStudentPurchaseModal\(/, 'student page should expose a dedicated package record entry');
+assert.match(source, /这里先看已买课包；要新增课包，点下面的「新增课包」/, 'student package entry should explain edit vs create clearly');
+assert.match(source, /openPurchaseEditModal\('[^']+'\)/, 'student package entry should provide direct edit access for existing purchases');
 assert.match(source, /function studentTeachingInfoHtml\(/, 'student detail should render teaching info block');
 assert.match(source, /function studentOpsInfoHtml\(/, 'student detail should render operations info block');
 assert.match(source, /function studentConsumptionInfoHtml\(/, 'student detail should render consumption relation block');
+assert.doesNotMatch(source, /function studentFeedbackHistoryHtml[\s\S]*products\.find\(p=>p\.id===cls\?\.productId\)/, 'student feedback history should not depend on products dataset for display-only fallback');
 assert.match(source, /function studentLessonRecordHtml\(/, 'student detail should expose a dedicated lesson record helper');
 assert.match(source, /function studentEntitlementLedgerHtml\(/, 'student detail should provide a dedicated lesson charge history helper');
 assert.match(source, /function entitlementLedgerDisplayDate\(/, 'lesson charge history should display the real lesson or month date instead of import time');

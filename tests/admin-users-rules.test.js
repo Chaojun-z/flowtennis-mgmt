@@ -7,6 +7,7 @@ assert.ok(rules, 'api._test should expose admin user helpers');
 assert.ok(rules.assertAuthUserActive, 'api._test should expose auth user active helper');
 assert.ok(rules.buildWechatCode2SessionUrl, 'api._test should expose wechat session URL helper');
 assert.ok(rules.extractWechatOpenId, 'api._test should expose wechat openid helper');
+assert.ok(rules.resolveWechatMiniConfig, 'api._test should expose mini program config resolver');
 assert.ok(rules.buildWechatBoundUser, 'api._test should expose wechat bind helper');
 assert.ok(rules.buildAdminUserView, 'api._test should expose admin user view helper');
 assert.ok(rules.buildWechatUnboundUser, 'api._test should expose wechat unbind helper');
@@ -46,6 +47,24 @@ assert.throws(
   'wechat openid helper should reject wx API errors'
 );
 
+const matchMiniConfig = rules.resolveWechatMiniConfig('match');
+const coachMiniConfig = rules.resolveWechatMiniConfig('coach');
+assert.notStrictEqual(
+  matchMiniConfig.errorText,
+  coachMiniConfig.errorText,
+  'match login and coach login should use different config branches'
+);
+assert.strictEqual(
+  matchMiniConfig.errorText,
+  '缺少约球小程序密钥配置',
+  'match login should read MATCH_MINIPROGRAM_* config'
+);
+assert.strictEqual(
+  coachMiniConfig.errorText,
+  '缺少微信小程序密钥配置',
+  'coach login should read WECHAT_MINIPROGRAM_* config'
+);
+
 assert.deepStrictEqual(
   rules.buildWechatBoundUser(
     { id: 'coach_1', name: '朝珺', role: 'editor', password: 'hashed' },
@@ -70,6 +89,7 @@ assert.deepStrictEqual(
   {
     id: 'coach_1',
     name: '朝珺',
+    phone: '',
     role: 'editor',
     status: 'active',
     coachId: 'coach-id',

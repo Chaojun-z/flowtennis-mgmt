@@ -232,6 +232,41 @@ assert.throws(
   'package must reference an existing product'
 );
 
+assert.doesNotThrow(
+  () => rules.validatePackageInput({ ...pkg, productId: '', productName: '' }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  'package-only phase should allow package rules without a linked product'
+);
+
+assert.throws(
+  () => rules.validatePackageInput({ ...pkg, productId: '', productName: '', courseType: '' }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  /课程类型/,
+  'package should still require a valid course type when product metadata is empty'
+);
+
+assert.throws(
+  () => rules.validatePackageInput({ ...pkg, productId: '', productName: '', lessons: 0 }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  /课时必须大于 0/,
+  'package should still require positive lessons without a linked product'
+);
+
+assert.throws(
+  () => rules.validatePackageInput({ ...pkg, productId: '', productName: '', price: 0 }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  /价格必须大于 0/,
+  'package should still require positive price without a linked product'
+);
+
+assert.throws(
+  () => rules.validatePackageInput({ ...pkg, productId: '', productName: '', validDays: 0 }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  /有效天数必须大于 0/,
+  'package should still require positive valid days without a linked product'
+);
+
+assert.throws(
+  () => rules.validatePackageInput({ ...pkg, productId: '', productName: '', maxStudents: 0 }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
+  /人数限制必须大于 0/,
+  'package should still require positive max students without a linked product'
+);
+
 assert.throws(
   () => rules.validatePackageInput({ ...pkg, saleStartDate: '2026-06-01', saleEndDate: '2026-05-01' }, { products: [{ id: 'prod-1' }], coaches: [{ name: '朝珺' }], campuses: [{ id: 'mabao' }] }),
   /活动结束时间不能早于活动开始时间/,
@@ -336,6 +371,22 @@ assert.doesNotThrow(
     status: '已排课'
   }),
   'sold package allowed coaches should be usable in scheduling'
+);
+
+assert.doesNotThrow(
+  () => rules.validateEntitlementForSchedule({ ...entitlement, coachIds: [], coachNames: [], ownerCoach: 'chaojun', allowedCoaches: [] }, {
+    id: 'sch-owner-alias',
+    studentIds: ['stu-1'],
+    courseType: '私教课',
+    coach: '朝珺',
+    coachRefs: [{ id: 'chaojun', name: '朝珺' }],
+    campus: 'mabao',
+    startTime: '2026-05-04 09:00',
+    endTime: '2026-05-04 10:00',
+    lessonCount: 1,
+    status: '已排课'
+  }),
+  'owner coach id should match the same coach display name during scheduling'
 );
 
 assert.throws(

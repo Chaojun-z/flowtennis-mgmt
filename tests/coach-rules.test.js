@@ -20,7 +20,7 @@ const renamed = rules.buildCoachRenameUpdates(
 
 assert.deepStrictEqual(renamed.classes.map(x => [x.id, x.coach]), [['class-1', '测试教练']]);
 assert.deepStrictEqual(renamed.schedule.map(x => [x.id, x.coach]), [['sch-1', '测试教练']]);
-assert.deepStrictEqual(renamed.plans.map(x => [x.id, x.coach]), [['plan-1', '测试教练']]);
+assert.deepStrictEqual(renamed.plans, [], 'coach rename should stop maintaining retired plans rows');
 assert.deepStrictEqual(renamed.users.map(x => [x.id, x.coachName]), [['user-1', '测试教练']]);
 assert.deepStrictEqual(renamed.feedbacks.map(x => [x.id, x.coach]), [['fb-1', '测试教练']]);
 assert.strictEqual(renamed.classes[0].updatedAt, '2026-04-12T00:00:00.000Z');
@@ -35,11 +35,10 @@ assert.throws(
   () => rules.assertCanDeleteCoachName('测试教练', {
     classes: [{ id: 'class-1', coach: '测试教练' }],
     schedule: [],
-    plans: [],
     users: [],
     feedbacks: []
   }),
-  /已有班次、排课、学习计划、账号、反馈、课包或权益关联/,
+  /已有班次、排课、账号、反馈、课包或权益关联/,
   'referenced coach should not be deletable'
 );
 
@@ -47,7 +46,6 @@ assert.doesNotThrow(
   () => rules.assertCanDeleteCoachName('测试教练', {
     classes: [{ id: 'class-1', coach: '其他教练' }],
     schedule: [],
-    plans: [],
     users: [],
     feedbacks: []
   }),
@@ -58,7 +56,6 @@ assert.throws(
   () => rules.assertCanDeleteCoachName('测试教练', {
     classes: [],
     schedule: [],
-    plans: [],
     users: [],
     feedbacks: [],
     packages: [{ id: 'pkg-1', coachNames: ['测试教练'] }],
@@ -72,7 +69,6 @@ assert.throws(
   () => rules.assertCanDeleteCoachName('改名后的教练', {
     classes: [],
     schedule: [],
-    plans: [],
     users: [],
     feedbacks: [],
     packages: [{ id: 'pkg-2', coachIds: ['coach-1'] }],
@@ -98,7 +94,7 @@ assert.deepStrictEqual(
     { id: 'coach-user', name: '测试1号教练', role: 'editor', coachName: '测试1号教练' },
     { id: 'coach-user', name: '测试教练', role: 'editor', coachName: '测试教练' }
   ),
-  { id: 'coach-user', name: '测试教练', role: 'editor', status: 'active', username: '', coachId: '', coachName: '测试教练', matchPermissions: [] },
+  { id: 'coach-user', name: '测试教练', role: 'editor', status: 'active', username: '', coachId: 'coach-user', coachName: '测试教练', matchPermissions: [] },
   'stale coach token should be refreshed from stored user'
 );
 

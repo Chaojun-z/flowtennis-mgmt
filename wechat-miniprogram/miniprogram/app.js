@@ -1,6 +1,34 @@
 App({
   globalData: {
-    privacyAccepted: false
+    userId: '',
+    token: '',
+    currentUser: null,
+    matchesDirty: true,
+    myMatchesDirty: true,
+    profileDirty: true,
+    notificationsDirty: true,
+    matchesCache: null,
+    matchesCacheAt: 0,
+    myMatchesCache: null,
+    myMatchesCacheAt: 0,
+    profileCache: null,
+    profileMatchesCache: null,
+    profileCacheAt: 0,
+    notificationsCache: null,
+    notificationsCacheAt: 0,
+    matchSettingsCache: null,
+    matchSettingsCacheAt: 0,
+    matchDetailCache: {},
+    matchDetailCacheAt: {},
+    matchPreviewCache: {},
+    matchShareImageCache: {},
+    profileStats: {
+      matchJoinedCount: 0,
+      attendanceRate: '0%'
+    },
+    privacyAccepted: false,
+    matchUser: null,
+    matchProfile: null
   },
 
   openPrivacyContract() {

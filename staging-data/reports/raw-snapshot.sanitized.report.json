@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-05-12T02:53:57.866Z",
+  "inputPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/exports/export-batch-thread66-finance-ledger/raw-snapshot.json",
+  "outputPath": "/Users/shaobaolu/Desktop/FlowTennis/flowtennis-mgmt-main/staging-data/sanitized/raw-snapshot.sanitized.json",
+  "topLevelCounts": {
+    "ft_financial_ledger": 1548
+  },
+  "sensitiveKeys": [
+    "name",
+    "studentName",
+    "parentName",
+    "phone",
+    "mobile",
+    "openid",
+    "unionid",
+    "remark",
+    "note",
+    "notes",
+    "comment"
+  ]
+}
