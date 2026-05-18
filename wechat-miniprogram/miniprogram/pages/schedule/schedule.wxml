@@ -767,6 +767,7 @@
       </scroll-view>
       <scroll-view scroll-y enhanced show-scrollbar="{{false}}" class="poster-sheet-body">
         <view class="poster-sheet-content">
+          <canvas type="2d" id="feedbackPosterCanvas" class="feedback-poster-canvas poster-render-canvas" style="height:{{posterCanvasHeightRpx}}rpx;"></canvas>
           <image wx:if="{{posterPreviewImage}}" class="feedback-poster-image" src="{{posterPreviewImage}}" mode="widthFix"></image>
           <view wx:else class="poster-preview-loading">海报生成中...</view>
           <view class="poster-save-tip">👉 手机端可直接长按海报保存</view>
@@ -777,7 +778,6 @@
         <button class="poster-action-btn is-save" bindtap="savePosterToAlbum">保存相册</button>
         <button class="poster-action-btn is-send" bindtap="sharePoster">分享海报</button>
       </view>
-      <canvas type="2d" id="feedbackPosterCanvas" class="feedback-poster-canvas poster-render-canvas" style="height:{{posterCanvasHeightRpx}}rpx;"></canvas>
     </view>
   </block>
 </view>

@@ -2694,7 +2694,8 @@ async function bootstrapMabaoFinanceSeed(){
   await replaceMabaoSeedLedgerRows(mabaoFinanceSeed.entitlementLedger,tag);
 }
 async function listCampusesWithDefaults(){
-  return DEFAULT_CAMPUSES;
+  const rows=await getCachedScan(T_CAMPUSES).catch(()=>[]);
+  return rows.length?rows:DEFAULT_CAMPUSES;
 }
 function financeWeekdayText(value){
   const day=String(value||'').slice(0,10);
@@ -6375,11 +6376,6 @@ module.exports = async (req, res) => {
     }
     return sendJson(res, result);
   }
-  if(path==='/campuses'&&method==='GET'){
-    console.log('[campuses] GET bypass scheduleInitInBackground');
-    console.log('[campuses] GET using hard fallback DEFAULT_CAMPUSES');
-    return sendJson(res,DEFAULT_CAMPUSES);
-  }
   scheduleInitInBackground();
   const query=new URL(req.url||'/', 'http://local').searchParams;
   const body=req.body||{};
@@ -7285,7 +7281,6 @@ module.exports = async (req, res) => {
       await init();
       const campuses=await listCampusesWithDefaults();
       const verifiedFinance=loadVerifiedFinanceArtifacts(campuses);
-      const snapshot=verifiedFinance?null:await getFinancePageSnapshot();
       return sendJson(res,{
         campuses,
         financeOverviewData:verifiedFinance?.overviewData||null,
@@ -7583,10 +7578,7 @@ module.exports = async (req, res) => {
     const clM=path.match(/^\/classes\/(.+)$/);if(clM){const id=clM[1];if(method==='GET')return sendJson(res,await get(T_CLASSES,id));if(method==='PUT'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);const old=await get(T_CLASSES,id).catch(()=>null);if(!old)return sendJson(res,{error:'班次不存在'},404);const product=await get(T_PRODUCTS,body.productId||old.productId).catch(()=>null);if(!product)return sendJson(res,{error:'课程产品不存在'},404);const r=buildClassUpdateRecord(old,body,{product,now:new Date().toISOString()});validateClassInput(r,product);assertCanEditClassWithSchedules(old,r,await getCachedScan(T_SCHEDULE));await put(T_CLASSES,id,r);const syncedPlans=await syncClassPlans(id,r);return sendJson(res,{class:r,plans:syncedPlans});}if(method==='DELETE'){if(user.role!=='admin')return sendJson(res,{error:'无权限'},403);assertCanWriteClass(user);assertCanDeleteClass(id,await getCachedScan(T_SCHEDULE));const classPlans=(await getCachedScan(T_PLANS)).filter(p=>p.classId===id);for(const p of classPlans)await del(T_PLANS,p.id);await del(T_CLASSES,id);return sendJson(res,{success:true});}}
     if(path==='/campuses'){
       if(method==='GET'){
-        console.log('[campuses] GET route entered');
-        console.log('[campuses] GET using hard fallback DEFAULT_CAMPUSES');
         const result=await listCampusesWithDefaults();
-        console.log(`[campuses] GET response ready count=${Array.isArray(result)?result.length:0}`);
         return sendJson(res,result);
       }
       await init();

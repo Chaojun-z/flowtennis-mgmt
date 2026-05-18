@@ -2602,6 +2602,7 @@ button::after {
 .feedback-poster-canvas {
   display: block;
   width: 560rpx;
+  height: 996rpx;
   margin: 0 auto;
   border-radius: 32rpx;
   overflow: hidden;
