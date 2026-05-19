@@ -50,12 +50,12 @@ const TARGETS = [
     }
   },
   {
-    name: '校区列表接口',
-    url: 'https://www.flowtennis.cn/api/campuses',
+    name: '公开接口探活',
+    url: 'https://www.flowtennis.cn/api/health',
     timeout: 3000,
     validate: (res) => {
       if (res.status !== 200) return `HTTP 状态码错误: ${res.status}`;
-      if (!Array.isArray(res.data)) return '返回数据不是一个 JSON 数组';
+      if (!res.data || res.data.status !== 'ok') return `返回结构不符合预期 (需 status === "ok")`;
       return null;
     }
   }

@@ -2,21 +2,25 @@ const assert = require('assert');
 const path = require('path');
 
 const monitor = require(path.join(__dirname, '..', 'standalone-services', 'feishu-monitor.js'));
+const source = require('fs').readFileSync(path.join(__dirname, '..', 'standalone-services', 'feishu-monitor.js'), 'utf8');
+
+assert.doesNotMatch(source, /https:\/\/www\.flowtennis\.cn\/api\/campuses/, '巡检不应裸请求需要后台登录态的校区接口');
+assert.match(source, /name: '公开接口探活'[\s\S]*url: 'https:\/\/www\.flowtennis\.cn\/api\/health'/, '巡检应使用无需登录的公开健康接口做 API 探活');
 
 const failed = {
   success: false,
-  name: '校区列表接口',
-  url: 'https://www.flowtennis.cn/api/campuses',
+  name: '公开接口探活',
+  url: 'https://www.flowtennis.cn/api/health',
   duration: 3210,
-  error: 'HTTP 状态码错误: 401'
+  error: '请求超时 (设定上限: 3000ms)'
 };
 
 const fingerprint = monitor.buildFingerprint(failed);
-assert.strictEqual(fingerprint, 'api:https://www.flowtennis.cn/api/campuses:http-401', '同类接口异常应生成稳定指纹');
+assert.strictEqual(fingerprint, 'performance:https://www.flowtennis.cn/api/health:timeout', '同类接口异常应生成稳定指纹');
 
 const issue = monitor.buildIssueDraft(failed, '2026-05-15 12:03:00');
-assert.match(issue.title, /^\[monitor\] 校区列表接口 /, 'issue 标题应带 monitor 前缀');
-assert.match(issue.body, /fingerprint: api:https:\/\/www\.flowtennis\.cn\/api\/campuses:http-401/, 'issue body 应写入指纹');
+assert.match(issue.title, /^\[monitor\] 公开接口探活 /, 'issue 标题应带 monitor 前缀');
+assert.match(issue.body, /fingerprint: performance:https:\/\/www\.flowtennis\.cn\/api\/health:timeout/, 'issue body 应写入指纹');
 assert.match(issue.body, /status: open/, '新问题默认应为 open');
 assert.match(issue.body, /run_count: 1/, '新问题 run_count 应为 1');
 
@@ -27,7 +31,7 @@ assert.strictEqual(parsed.status, 'open', '应能还原 open 状态');
 const updatedOpen = monitor.buildUpdatedIssueBody(parsed, {
   status: 'open',
   lastSeenAt: '2026-05-15 16:03:00',
-  lastError: 'HTTP 状态码错误: 401',
+  lastError: '请求超时 (设定上限: 3000ms)',
   runCount: 2
 });
 assert.match(updatedOpen, /last_seen_at: 2026-05-15 16:03:00/, '重复异常应刷新最近发现时间');
