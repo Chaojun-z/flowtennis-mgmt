@@ -7303,11 +7303,13 @@ module.exports = async (req, res) => {
       await init();
       const campuses=await listCampusesWithDefaults();
       const verifiedFinance=loadVerifiedFinanceArtifacts(campuses);
+      const schedule=isProductionRuntime()?await scanFirstRows(T_SCHEDULE,{limit:PRODUCTION_PAGE_READ_LIMITS.schedule,columns:SCHEDULE_LIST_PROJECTION_FIELDS}).catch(()=>[]):await getCachedScan(T_SCHEDULE,{columns:SCHEDULE_LIST_PROJECTION_FIELDS}).catch(()=>[]);
+      const financeSettlementRows=buildFinanceSettlementRows({campuses,schedule});
       return sendJson(res,{
         campuses,
         financeOverviewData:verifiedFinance?.overviewData||null,
         financeNormalizedRows:verifiedFinance?.normalizedRows||[],
-        financeSettlementRows:[],
+        financeSettlementRows,
         generatedAt:''
       });
     }

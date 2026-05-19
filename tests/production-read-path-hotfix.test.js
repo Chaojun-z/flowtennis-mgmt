@@ -49,6 +49,12 @@ assert.match(
   /const verifiedFinance=loadVerifiedFinanceArtifacts\(campuses\);[\s\S]*financeOverviewData:verifiedFinance\?\.overviewData\|\|null,[\s\S]*financeNormalizedRows:verifiedFinance\?\.normalizedRows\|\|\[\]/,
   '财务总览在存在核对快照时应跳过实时重扫'
 );
+assert.doesNotMatch(apiSource, /financeSettlementRows:\[\]/, '教练结算不应固定返回空数组');
+assert.match(
+  apiSource,
+  /const financeSettlementRows=buildFinanceSettlementRows\(\{campuses,schedule\}\);[\s\S]*financeSettlementRows,/,
+  '财务接口应返回基于排课轻投影聚合的教练结算数据'
+);
 
 assert.match(apiSource, /const COURTS_PAGE_COURT_PROJECTION_FIELDS=\[/, '订场用户页应定义首屏轻投影字段');
 assert.match(apiSource, /const COURTS_PAGE_STUDENT_PROJECTION_FIELDS=\[/, '订场用户页应定义首屏学员轻投影字段');
