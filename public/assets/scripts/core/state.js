@@ -85,11 +85,11 @@ const PAGE_DATA_REQUIREMENTS={
   leads:['leads'],
   classes:['campuses','students','products','classes','schedule','coaches'],
   plans:[],
-  schedule:['campuses','students','schedule','feedbacks','entitlements','entitlementLedger','coaches'],
+  schedule:['campuses','students','schedule','coaches'],
   coachops:['campuses','students','classes','schedule','feedbacks','entitlements','entitlementLedger','coaches','products','purchases','packages'],
   finance:[],
   products:['products','classes'],
-  packages:[],
+  packages:['packages'],
   purchases:[],
   entitlements:['entitlements','students'],
   coaches:['coaches'],
@@ -111,9 +111,9 @@ const PAGE_DATA_BACKGROUND_REQUIREMENTS={
   students:['classes','schedule','courts'],
   leads:['leadFollowups'],
   plans:['plansPage'],
-  packages:['packages','products'],
+  packages:[],
   purchases:['purchasesPage'],
-  schedule:['classes'],
+  schedule:['classes','feedbacks','entitlements','entitlementLedger'],
   finance:['financePage'],
   courts:['courtsPage'],
   matches:['matchesPage'],
@@ -156,6 +156,7 @@ const DATASET_LOADERS={
   classes:()=>apiCall('GET','/classes'),
   campuses:()=>apiCall('GET','/campuses'),
   feedbacks:()=>apiCall('GET','/feedbacks')
+  ,plansPage:()=>apiCall('GET','/page-data/plans')
   ,purchasesPage:()=>apiCall('GET','/page-data/purchases')
   ,financePage:()=>apiCall('GET','/page-data/finance')
   ,courtsPage:()=>apiCall('GET','/page-data/courts')
@@ -335,6 +336,18 @@ async function ensureDatasetsByName(names=[],{force=false}={}){
     return promise;
   }));
   results.forEach(([name,data])=>{
+    if(name==='plansPage'){
+      setDatasetValue('campuses',data.campuses||[]);
+      setDatasetValue('students',data.students||[]);
+      setDatasetValue('classes',data.classes||[]);
+      setDatasetValue('plans',data.plans||[]);
+      setDatasetValue('products',data.products||[]);
+      setDatasetValue('schedule',data.schedule||[]);
+      setDatasetValue('courts',data.courts||[]);
+      setDatasetValue('entitlements',data.entitlements||[]);
+      loadedDatasets.add('plansPage');
+      return;
+    }
     if(name==='purchasesPage'){
       setDatasetValue('purchases',data.purchases||[]);
       setDatasetValue('packages',data.packages||[]);
