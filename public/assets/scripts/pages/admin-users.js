@@ -103,7 +103,7 @@ function openAdminUserModal(id){
   const accountHint=id?'<div style="font-size:12px;color:var(--ts);line-height:1.6;margin-top:8px">已有账号暂不支持在这里改密码，先保留姓名和绑定教练的修改。</div>':'<div style="font-size:12px;color:var(--ts);line-height:1.6;margin-top:8px">账号创建后用于登录。教练账号绑定教练后，登录会进入教练工作台。</div>';
   const statusRow=id?`<div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前状态</label><input class="finput tms-form-control" id="au_status" value="${adminUserStatusText(user?.status)}" readonly></div></div>`:'';
   const matchPermissionRow=`<div class="tms-section-header">约球权限</div><div class="tms-form-row"><label class="choice-tag"><input type="checkbox" id="au_match_ops" ${perms.includes('match_ops')?'checked':''}>约球运营</label><label class="choice-tag"><input type="checkbox" id="au_match_finance" ${perms.includes('match_finance')?'checked':''}>约球财务</label></div>`;
-  const officialBindingRow=`<div class="tms-section-header">服务号绑定</div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">服务号 OpenID</label><input class="finput tms-form-control" id="au_officialAccountOpenId" value="${rv(user,'officialAccountOpenId')}" placeholder="手动填写服务号关注人的 openid"></div></div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前状态</label><input class="finput tms-form-control" value="${adminUserOfficialAccountText(user||{})}" readonly></div></div>`;
+  const officialBindingRow=`<div class="tms-section-header">服务号绑定</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">当前状态</label><input class="finput tms-form-control" value="${adminUserOfficialAccountText(user||{})}" readonly></div></div><div class="tms-form-row"><div class="tms-form-item full-width"><label class="tms-form-label">绑定说明</label><input class="finput tms-form-control" value="请在服务号内发送 #绑定 手机号 完成绑定" readonly></div></div>`;
   const body=`<div class="tms-section-header" style="margin-top:0;">基础信息</div><div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">账号ID *</label><input class="finput tms-form-control" id="au_id" value="${rv(user,'id')}" placeholder="例：coach_zhang"${id?' readonly':''}></div><div class="tms-form-item"><label class="tms-form-label">姓名 *</label><input class="finput tms-form-control" id="au_name" value="${rv(user,'name')}" placeholder="显示名称"></div></div>${passwordRow}<div class="tms-form-row"><div class="tms-form-item"><label class="tms-form-label">手机号</label><input class="finput tms-form-control" id="au_phone" value="${rv(user,'phone')}" placeholder="用于关联约球小程序"></div><div class="tms-form-item"><label class="tms-form-label">角色</label>${roleControl}</div></div><div class="tms-form-row"><div class="tms-form-item" id="au_coach_wrap" style="display:${!id||user?.role==='editor'?'':'none'}"><label class="tms-form-label">绑定教练</label>${renderCourtDropdownHtml('au_coachId','绑定教练',coachOptions,rv(user,'coachId'),true)}</div></div>${officialBindingRow}${statusRow}${matchPermissionRow}${accountHint}`;
   const actions=`<button class="tms-btn tms-btn-default" onclick="closeModal()">取消</button><button class="tms-btn tms-btn-primary" id="adminUserSaveBtn" onclick="saveAdminUser()">保存</button>`;
   setCourtModalFrame(id?'编辑账号':'新增账号',body,actions,'modal-tight');
@@ -121,7 +121,6 @@ async function saveAdminUser(){
   const phone=document.getElementById('au_phone')?.value.trim()||'';
   const roleValue=editId?(adminUsers.find(x=>x.id===editId)?.role||'editor'):(document.getElementById('au_role')?.value||'editor');
   const coachId=document.getElementById('au_coachId')?.value||'';
-  const officialAccountOpenId=document.getElementById('au_officialAccountOpenId')?.value.trim()||'';
   const coach=coaches.find(c=>c.id===coachId);
   if(!id||!name){toast('请填写账号和姓名','warn');return;}
   if(!editId){
@@ -133,9 +132,9 @@ async function saveAdminUser(){
   try{
     if(editId){
       const current=adminUsers.find(x=>x.id===editId)||{};
-      await apiCall('POST','/admin/update-user',{id,name,phone,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',officialAccountOpenId,status:current.status||'active',matchPermissions:collectAdminUserMatchPermissions()});
+      await apiCall('POST','/admin/update-user',{id,name,phone,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',status:current.status||'active',matchPermissions:collectAdminUserMatchPermissions()});
     }else{
-      await apiCall('POST','/admin/create-user',{id,name,phone,password:document.getElementById('au_password').value.trim(),role:roleValue,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',officialAccountOpenId,matchPermissions:collectAdminUserMatchPermissions()});
+      await apiCall('POST','/admin/create-user',{id,name,phone,password:document.getElementById('au_password').value.trim(),role:roleValue,coachId:roleValue==='editor'?coachId:'',coachName:roleValue==='editor'?(coach?.name||''):'',matchPermissions:collectAdminUserMatchPermissions()});
     }
     await loadAdminUsers(true);
     closeModal();

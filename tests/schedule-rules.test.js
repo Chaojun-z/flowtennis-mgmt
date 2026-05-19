@@ -543,17 +543,17 @@ assert.deepStrictEqual(
 );
 
 const reminderRows = [
-  { id: 'prev-cross', coach: '朝珺', startTime: '2026-04-20 09:00', endTime: '2026-04-20 10:00', campus: 'mabao', venue: '1号场', status: '已排课' },
-  { id: 'due-cross', coach: '朝珺', startTime: '2026-04-20 11:00', endTime: '2026-04-20 12:00', campus: 'shunyi', venue: '2号场', courseType: '私教课', studentName: '小鹿', status: '已排课' },
+  { id: 'prev-cross', coach: '朝珺', startTime: '2026-04-20 09:30', endTime: '2026-04-20 10:30', campus: 'mabao', venue: '1号场', status: '已排课' },
+  { id: 'due-cross', coach: '朝珺', startTime: '2026-04-20 12:00', endTime: '2026-04-20 13:00', campus: 'shunyi', venue: '2号场', courseType: '私教课', studentName: '小鹿', status: '已排课' },
   { id: 'too-soon', coach: '朝珺', startTime: '2026-04-20 10:20', endTime: '2026-04-20 11:20', campus: 'mabao', status: '已排课' },
-  { id: 'sent', coach: '朝珺', startTime: '2026-04-20 11:05', endTime: '2026-04-20 12:05', campus: 'mabao', status: '已排课', courseReminderSentAt: '2026-04-20T09:50:00.000Z' },
-  { id: 'cancelled', coach: '朝珺', startTime: '2026-04-20 11:10', endTime: '2026-04-20 12:10', campus: 'mabao', status: '已取消' }
+  { id: 'sent', coach: '朝珺', startTime: '2026-04-20 12:05', endTime: '2026-04-20 13:05', campus: 'mabao', status: '已排课', courseReminderSentAt: '2026-04-20T09:50:00.000Z' },
+  { id: 'cancelled', coach: '朝珺', startTime: '2026-04-20 12:10', endTime: '2026-04-20 13:10', campus: 'mabao', status: '已取消' }
 ];
 const reminderCandidates = rules.collectCourseReminderCandidates(reminderRows, new Date('2026-04-20T10:00:00+08:00'));
 assert.deepStrictEqual(
   reminderCandidates.map(x => [x.schedule.id, x.crossCampus]),
   [['due-cross', true]],
-  'course reminder helper should pick unsent active courses starting around one hour later and flag cross-campus travel'
+  'course reminder helper should pick unsent active courses starting around two hours later and flag cross-campus travel'
 );
 
 assert.deepStrictEqual(
@@ -569,7 +569,7 @@ assert.deepStrictEqual(
     page: 'pages/detail/detail?scheduleId=due-cross',
     data: {
       thing1: { value: '跨校区，请预留通勤时间' },
-      time2: { value: '2026-04-20 11:00' },
+      time2: { value: '2026-04-20 12:00' },
       thing3: { value: '小鹿' },
       thing4: { value: '私教课' }
     }
@@ -679,6 +679,148 @@ assert.strictEqual(
     'official account callback helper should validate signature and return the plain echo'
   );
 }
+
+;(async () => {
+  assert.strictEqual(
+    rules.extractOfficialAccountBindingPhone('#绑定 13800138000'),
+    '13800138000',
+    'official account binding command should extract a valid coach phone number'
+  );
+
+  {
+    const token='flowtennisoa2026';
+    const appId='wx4c76dc29b1d48df3';
+    const now=new Date('2026-05-19T20:02:00.000Z');
+    const timestamp='1715763720';
+    const nonce='123456';
+    const query=new URLSearchParams({ timestamp, nonce, signature: rules.buildWechatSignature(token,timestamp,nonce) });
+    const users={
+      coach_1:{ id: 'coach_1', name: '朝珺', role: 'editor', status: 'active', phone: '13800138000', coachId: 'coach-chaojun', coachName: '朝珺' }
+    };
+    const result=await rules.processOfficialAccountCallbackRequest({
+      query,
+      rawBody:`<xml><ToUserName><![CDATA[gh_test]]></ToUserName><FromUserName><![CDATA[oa-openid-123]]></FromUserName><CreateTime>1715763720</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[#绑定 13800138000]]></Content></xml>`,
+      loadUsers:async()=>Object.values(users),
+      putUser:async(id,user)=>{users[id]=user;},
+      now,
+      token,
+      appId,
+      encodingAesKey:''
+    });
+
+    assert.strictEqual(result.encrypted, false, 'plain callback should stay in plain mode');
+    assert.match(result.plainReply, /绑定成功/, 'binding reply should confirm success');
+    assert.strictEqual(users.coach_1.officialAccountOpenId, 'oa-openid-123', 'binding callback should write the service account openid to the matching coach');
+    assert.strictEqual(users.coach_1.officialAccountBoundAt, '2026-05-19T20:02:00.000Z', 'binding callback should record the bind time');
+  }
+
+  {
+    const token='flowtennisoa2026';
+    const appId='wx4c76dc29b1d48df3';
+    const encodingAesKey='abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG';
+    const now=new Date('2026-05-19T20:02:00.000Z');
+    const timestamp='1715763720';
+    const nonce='123456';
+    const plainIncoming='<xml><ToUserName><![CDATA[gh_test]]></ToUserName><FromUserName><![CDATA[oa-openid-456]]></FromUserName><CreateTime>1715763720</CreateTime><MsgType><![CDATA[text]]></MsgType><Content><![CDATA[#绑定 13800138001]]></Content></xml>';
+    const encryptedIncoming=rules.encryptWechatOfficialAccountMessage(plainIncoming,encodingAesKey,appId);
+    const query=new URLSearchParams({ timestamp, nonce, msg_signature: rules.buildWechatSignature(token,timestamp,nonce,encryptedIncoming) });
+    const users={
+      coach_1:{ id: 'coach_1', name: '朝珺', role: 'editor', status: 'active', phone: '13800138000', coachId: 'coach-chaojun', coachName: '朝珺' },
+      coach_2:{ id: 'coach_2', name: '小杨', role: 'editor', status: 'active', phone: '13800138001', coachId: 'coach-xiaoyang', coachName: '小杨' }
+    };
+    const result=await rules.processOfficialAccountCallbackRequest({
+      query,
+      rawBody:`<xml><Encrypt><![CDATA[${encryptedIncoming}]]></Encrypt></xml>`,
+      loadUsers:async()=>Object.values(users),
+      putUser:async(id,user)=>{users[id]=user;},
+      now,
+      token,
+      appId,
+      encodingAesKey
+    });
+    const replyXml=rules.buildWechatOfficialAccountEncryptedReplyXml({
+      plainXml:result.plainReply,
+      token,
+      timestamp,
+      nonce,
+      encodingAesKey,
+      appId
+    });
+    const replyEncrypted=rules.parseWechatOfficialAccountXml(replyXml).Encrypt;
+
+    assert.strictEqual(result.encrypted, true, 'encrypted callback should stay in encrypted mode');
+    assert.strictEqual(users.coach_2.officialAccountOpenId, 'oa-openid-456', 'encrypted callback should bind the matching coach');
+    assert.match(
+      rules.decryptWechatOfficialAccountMessage(replyEncrypted,encodingAesKey,appId).message,
+      /绑定成功/,
+      'encrypted callback reply should still say the binding succeeded'
+    );
+  }
+
+  {
+    const rows=[
+      { id: 'due-1', coach: '朝珺', coachId: 'coach-chaojun', startTime: '2026-05-19 22:02', endTime: '2026-05-19 23:00', campus: 'mabao', venue: '1号场', status: '已排课' }
+    ];
+    const users=[
+      { id: 'coach_1', role: 'editor', status: 'active', coachId: 'coach-chaojun', coachName: '朝珺', officialAccountOpenId: 'oa-openid-123' }
+    ];
+    const writes=[];
+    const sent=[];
+    const reminderNow=new Date('2026-05-19T20:02:00+08:00');
+    const result=await rules.sendOfficialAccountCourseReminders({
+      now: reminderNow,
+      rows,
+      users,
+      appId: 'wx-appid',
+      secret: 'secret',
+      templateId: 'tpl',
+      forceMock: false,
+      sendTemplate: async message => sent.push(message),
+      putSchedule: async (id,row) => writes.push([id,row])
+    });
+
+    assert.strictEqual(result.sent, 1, 'official account course reminder should send once');
+    assert.strictEqual(sent.length, 1, 'official account course reminder should build one outgoing message');
+    assert.strictEqual(writes[0][0], 'due-1', 'official account course reminder should write back to the same schedule');
+    assert.strictEqual(writes[0][1].courseReminderSentAt, reminderNow.toISOString(), 'official account course reminder should mark the sent time');
+  }
+
+  {
+    const rows=[
+      { id: 'dig-1', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-20 09:00', endTime: '2026-05-20 10:00', campus: 'mabao', venue: '1号场', courseType: '私教课', studentName: '小鹿', status: '已排课' },
+      { id: 'dig-2', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-20 14:00', endTime: '2026-05-20 15:00', campus: 'mabao', venue: '2号场', courseType: '双人课', studentName: 'Misha', status: '已排课' },
+      { id: 'dig-3', coachId: 'coach-chaojun', coach: '朝珺', startTime: '2026-05-20 18:00', endTime: '2026-05-20 19:00', campus: 'mabao', venue: '3号场', courseType: '私教课', studentName: '已发', status: '已排课', coachDailyDigestSentDate: '2026-05-20' }
+    ];
+    const users=[
+      { id: 'coach_1', role: 'editor', status: 'active', coachId: 'coach-chaojun', coachName: '朝珺', officialAccountOpenId: 'oa-openid-123' }
+    ];
+    const writes=[];
+    const sent=[];
+    const digestNow=new Date('2026-05-19T20:02:00+08:00');
+    const result=await rules.sendOfficialAccountDailyDigests({
+      now: digestNow,
+      rows,
+      users,
+      appId: 'wx-appid',
+      secret: 'secret',
+      templateId: 'tpl',
+      forceMock: false,
+      sendTemplate: async message => sent.push(message),
+      putSchedule: async (id,row) => writes.push([id,row])
+    });
+
+    assert.strictEqual(result.sent, 1, 'official account daily digest should send once per coach');
+    assert.strictEqual(sent.length, 1, 'official account daily digest should build one outgoing digest');
+    assert.deepStrictEqual(
+      writes.map(item => [item[0], item[1].coachDailyDigestSentDate]).sort(),
+      [['dig-1', '2026-05-20'], ['dig-2', '2026-05-20']],
+      'official account daily digest should mark every schedule in the coach group'
+    );
+  }
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
 
 assert.deepStrictEqual(
   rules.scheduleLessonDelta({ classId: 'class-a', lessonCount: 1, status: '已排课' }),
