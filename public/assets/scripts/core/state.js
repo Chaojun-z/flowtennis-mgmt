@@ -152,7 +152,7 @@ const DATASET_LOADERS={
   membershipAccountEvents:()=>apiCall('GET','/membership-account-events'),
   pricePlans:()=>apiCall('GET','/price-plans'),
   schedule:()=>apiCall('GET','/schedule'),
-  coaches:()=>apiCall('GET','/coaches'),
+  coaches:()=>apiCall('GET','/coaches').catch(()=>apiCall('GET','/page-data/coaches').then(data=>data.coaches||[])),
   classes:()=>apiCall('GET','/classes'),
   campuses:()=>apiCall('GET','/campuses'),
   feedbacks:()=>apiCall('GET','/feedbacks')
@@ -316,6 +316,7 @@ function renderPageLoading(pg){
     renderTableBodyLoading('financePrepaidTbody',6,'预收余额加载中...');
     renderTableBodyLoading('financeAnomalyTbody',4,'异常检查加载中...');
   }
+  if(pg==='coaches')renderTableBodyLoading('coachTbody',7,'教练数据加载中...');
   if(pg==='courts')renderTableBodyLoading('courtTbody',17,'订场用户加载中...');
   if(pg==='matches')renderTableBodyLoading('matchTbody',9,'约球数据加载中...');
   if(pg==='memberships')renderBlockLoading('membershipTabBody','会员数据加载中...');
